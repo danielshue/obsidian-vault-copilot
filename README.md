@@ -138,4 +138,4 @@ git push origin 1.0.1-beta.1
 
 ## Author
 
-Dan Shue - [GitHub](https://github.com/danshue)
+Dan Shue - [GitHub](https://github.com/danielshue)
