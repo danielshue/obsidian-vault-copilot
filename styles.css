@@ -1,0 +1,1594 @@
+/* GitHub Copilot Plugin Styles */
+
+/* Chat Container */
+.ghcp-chat-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	background: var(--background-primary);
+	overflow: hidden;
+}
+
+/* Header */
+.ghcp-chat-header {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	padding: 8px 12px;
+	border-bottom: none;
+	background: transparent;
+}
+
+.ghcp-chat-header h4 {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.ghcp-header-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.ghcp-header-btn {
+	background: transparent !important;
+	border: none !important;
+	padding: 4px;
+	border-radius: 0 !important;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.ghcp-header-btn:hover,
+.ghcp-header-btn:focus,
+.ghcp-header-btn:active {
+	background: transparent !important;
+	color: var(--text-normal);
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.ghcp-header-btn svg,
+.ghcp-header-btn .svg-icon {
+	width: 16px;
+	height: 16px;
+	display: block;
+}
+
+.ghcp-header-btn:hover svg,
+.ghcp-header-btn:hover .svg-icon {
+	display: block;
+}
+
+.ghcp-session-toggle-btn {
+	width: 28px;
+	height: 28px;
+}
+
+/* Messages Container */
+.ghcp-messages {
+	flex: 1;
+	overflow-y: auto;
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-height: 0;
+}
+
+/* Welcome Message */
+.ghcp-welcome {
+	text-align: center;
+	padding: 32px 24px;
+	color: var(--text-muted);
+	max-width: 600px;
+	margin: 0 auto;
+}
+
+.ghcp-welcome h3 {
+	margin: 0 0 8px 0;
+	color: var(--text-normal);
+}
+
+.ghcp-welcome p {
+	margin: 0 0 16px 0;
+}
+
+.ghcp-quick-action {
+	margin-bottom: 24px;
+}
+
+.ghcp-suggestion-btn {
+	width: 100%;
+	padding: 10px 16px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	cursor: pointer;
+	color: var(--text-normal);
+	text-align: left;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.ghcp-suggestion-btn:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+.ghcp-examples,
+.ghcp-commands {
+	margin-top: 24px;
+	text-align: left;
+}
+
+.ghcp-examples-title,
+.ghcp-commands-title {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-normal);
+	margin: 0 0 12px 0;
+}
+
+.ghcp-examples-list,
+.ghcp-commands-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.ghcp-examples-list li {
+	padding: 6px 12px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+	color: var(--text-muted);
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.ghcp-commands-list li {
+	padding: 4px 0;
+	color: var(--text-muted);
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.ghcp-command-code {
+	background: var(--code-background);
+	color: var(--code-normal);
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+}
+
+/* Message Styles */
+.ghcp-message {
+	padding: 10px;
+	border-radius: 8px;
+	position: relative;
+}
+
+.ghcp-message-user {
+	background: var(--background-secondary);
+}
+
+.ghcp-message-assistant {
+	background: transparent;
+}
+
+.ghcp-message-content {
+	color: var(--text-normal);
+	line-height: 1.5;
+	user-select: text;
+	-webkit-user-select: text;
+	cursor: text;
+}
+
+.ghcp-message-content a {
+	color: var(--link-color);
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.ghcp-message-content a:hover {
+	color: var(--link-color-hover);
+}
+
+.ghcp-message-actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 8px;
+	padding-top: 4px;
+}
+
+.ghcp-copy-btn {
+	background: transparent !important;
+	border: none !important;
+	padding: 4px !important;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 4px;
+	transition: color 0.15s;
+	outline: none !important;
+	box-shadow: none !important;
+}
+
+.ghcp-copy-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover) !important;
+}
+
+.ghcp-message-content p:first-child {
+	margin-top: 0;
+}
+
+.ghcp-message-content p:last-child {
+	margin-bottom: 0;
+}
+
+.ghcp-message-content pre {
+	background: var(--background-secondary);
+	border-radius: 6px;
+	padding: 12px;
+	overflow-x: auto;
+}
+
+.ghcp-message-content code {
+	background: var(--background-secondary);
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 0.9em;
+}
+
+.ghcp-message-content pre code {
+	background: transparent;
+	padding: 0;
+}
+
+/* Error Message */
+.ghcp-error {
+	padding: 12px 16px;
+	background: rgba(var(--color-red-rgb), 0.1);
+	border: 1px solid var(--text-error);
+	border-radius: 8px;
+	color: var(--text-error);
+}
+
+/* Input Area */
+.ghcp-input-area {
+	padding: 12px 2px 9px 2px;
+	border-top: none;
+	background: var(--background-primary);
+	flex-shrink: 0;
+}
+
+.ghcp-input-wrapper {
+	display: flex;
+	flex-direction: column;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 10px 12px;
+	transition: border-color 0.15s;
+}
+
+.ghcp-input-wrapper:focus-within {
+	border-color: var(--interactive-accent);
+}
+
+.ghcp-input {
+	width: 100%;
+	background: transparent;
+	border: none;
+	resize: none;
+	font-size: 13px;
+	line-height: 1.4;
+	color: var(--text-normal);
+	min-height: 18px;
+	max-height: 200px;
+	outline: none;
+	margin-bottom: 2px;
+}
+
+.ghcp-input::placeholder {
+	color: var(--text-muted);
+}
+
+/* Input Toolbar */
+.ghcp-input-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 4px;
+}
+
+.ghcp-toolbar-left {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.ghcp-toolbar-right {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.ghcp-toolbar-btn {
+	width: 20px;
+	height: 20px;
+	border: none !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	color: var(--text-muted);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s;
+	padding: 0;
+	outline: none !important;
+	box-shadow: none !important;
+}
+
+.ghcp-toolbar-btn:hover {
+	color: var(--text-normal);
+	background: transparent !important;
+}
+
+.ghcp-toolbar-btn:focus,
+.ghcp-toolbar-btn:active {
+	outline: none !important;
+	border: none !important;
+	box-shadow: none !important;
+	background: transparent !important;
+}
+
+/* Model Selector */
+.ghcp-model-selector {
+	padding: 2px 14px 2px 4px;
+	background: transparent;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-muted);
+	font-size: 12px;
+	cursor: pointer;
+	outline: none;
+	transition: color 0.15s;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 2px center;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	white-space: nowrap;
+}
+
+.ghcp-model-selector:hover {
+	color: var(--text-normal);
+}
+
+.ghcp-model-selector:focus {
+	color: var(--text-normal);
+}
+
+.ghcp-model-rate {
+	margin-left: auto;
+	padding-left: 16px;
+	color: var(--text-muted);
+	font-size: 11px;
+	float: right;
+}
+
+.ghcp-send-btn {
+	flex-shrink: 0;
+	width: 20px;
+	height: 20px;
+	border: none !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	color: var(--text-muted);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s;
+	padding: 0;
+	outline: none !important;
+	box-shadow: none !important;
+}
+
+.ghcp-send-btn:hover:not(:disabled) {
+	color: var(--text-normal);
+	background: transparent !important;
+}
+
+.ghcp-send-btn:focus,
+.ghcp-send-btn:active {
+	outline: none !important;
+	border: none !important;
+	box-shadow: none !important;
+	background: transparent !important;
+}
+
+.ghcp-send-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.ghcp-send-btn.ghcp-loading {
+	animation: ghcp-pulse 1s ease-in-out infinite;
+}
+
+@keyframes ghcp-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.5; }
+}
+
+/* Status Bar */
+.ghcp-status {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	padding: 2px 6px;
+	border-radius: 4px;
+	transition: background 0.15s;
+}
+
+.ghcp-status:hover {
+	background: var(--background-modifier-hover);
+}
+
+.ghcp-status-logo {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	transition: color 0.15s;
+}
+
+.ghcp-status:hover .ghcp-status-logo {
+	color: var(--text-normal);
+}
+
+.ghcp-status-indicator {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+}
+
+.ghcp-status-indicator.ghcp-connected {
+	background: var(--color-green);
+	box-shadow: 0 0 4px var(--color-green);
+}
+
+.ghcp-status-indicator.ghcp-disconnected {
+	background: var(--text-muted);
+}
+
+/* Settings Help */
+.ghcp-settings-help {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+}
+
+.ghcp-settings-help p {
+	margin: 0;
+}
+
+.ghcp-settings-help a {
+	color: var(--interactive-accent);
+}
+
+/* Scrollbar Styling */
+.ghcp-messages::-webkit-scrollbar {
+	width: 8px;
+}
+
+.ghcp-messages::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.ghcp-messages::-webkit-scrollbar-thumb {
+	background: var(--background-modifier-border);
+	border-radius: 4px;
+}
+
+.ghcp-messages::-webkit-scrollbar-thumb:hover {
+	background: var(--background-modifier-border-hover);
+}
+
+/* Typing indicator (optional future enhancement) */
+.ghcp-typing {
+	display: flex;
+	gap: 4px;
+	padding: 12px 16px;
+}
+
+.ghcp-typing-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--text-muted);
+	animation: ghcp-typing-bounce 1.4s ease-in-out infinite;
+}
+
+.ghcp-typing-dot:nth-child(2) {
+	animation-delay: 0.2s;
+}
+
+.ghcp-typing-dot:nth-child(3) {
+	animation-delay: 0.4s;
+}
+
+@keyframes ghcp-typing-bounce {
+	0%, 60%, 100% { transform: translateY(0); }
+	30% { transform: translateY(-8px); }
+}
+
+/* CLI Status Section in Settings */
+.ghcp-cli-status-section {
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	margin-bottom: 16px;
+}
+
+.ghcp-status-checking {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.ghcp-status-row {
+	display: flex;
+	align-items: center;
+	padding: 8px 0;
+}
+
+.ghcp-status-indicator-wrapper {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.ghcp-status-dot {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	display: inline-block;
+	flex-shrink: 0;
+}
+
+.ghcp-status-ok {
+	background: var(--color-green);
+	box-shadow: 0 0 6px var(--color-green);
+}
+
+.ghcp-status-error {
+	background: var(--color-red);
+	box-shadow: 0 0 6px var(--color-red);
+}
+
+.ghcp-status-label {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.ghcp-version {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin-left: 4px;
+}
+
+/* Install Section */
+.ghcp-install-section {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.ghcp-warning {
+	color: var(--text-warning);
+	font-weight: 500;
+}
+
+.ghcp-install-command {
+	margin: 12px 0;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.ghcp-install-command p {
+	margin: 0 0 8px 0;
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.ghcp-code-block {
+	display: block;
+	padding: 8px 12px;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	color: var(--text-normal);
+	word-break: break-all;
+	margin-bottom: 8px;
+}
+
+.ghcp-copy-btn {
+	padding: 4px 12px;
+	font-size: 0.85em;
+	background: var(--background-modifier-border);
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-normal);
+}
+
+.ghcp-copy-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Auth Section */
+.ghcp-auth-section {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.ghcp-pat-info {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	font-size: 0.9em;
+}
+
+.ghcp-pat-info p {
+	margin: 0 0 8px 0;
+	color: var(--text-muted);
+}
+
+.ghcp-pat-info ol {
+	margin: 0;
+	padding-left: 20px;
+}
+
+.ghcp-pat-info li {
+	margin: 4px 0;
+	color: var(--text-normal);
+}
+
+.ghcp-pat-info code {
+	background: var(--background-secondary);
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 0.9em;
+}
+
+.ghcp-pat-info a {
+	color: var(--interactive-accent);
+}
+
+/* Help Links */
+.ghcp-help-links {
+	margin-top: 12px;
+	font-size: 0.9em;
+}
+
+.ghcp-help-links a {
+	color: var(--interactive-accent);
+}
+
+.ghcp-help-links a:hover {
+	text-decoration: underline;
+}
+
+/* Model Banner */
+.ghcp-model-banner {
+	padding: 8px 16px;
+	background: linear-gradient(135deg, var(--interactive-accent) 0%, var(--interactive-accent-hover) 100%);
+	color: var(--text-on-accent);
+	font-size: 13px;
+}
+
+.ghcp-banner-content {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.ghcp-banner-icon {
+	display: flex;
+	align-items: center;
+	opacity: 0.9;
+}
+
+.ghcp-banner-text {
+	flex: 1;
+	font-weight: 500;
+}
+
+.ghcp-banner-change-btn {
+	background: rgba(255, 255, 255, 0.2);
+	border: none;
+	padding: 4px 10px;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-on-accent);
+	font-size: 12px;
+	transition: background 0.15s;
+}
+
+.ghcp-banner-change-btn:hover {
+	background: rgba(255, 255, 255, 0.3);
+}
+
+/* Attachments Container */
+.ghcp-attachments {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 8px 12px;
+	margin-bottom: 8px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px 12px 0 0;
+	border-bottom: none;
+}
+
+.ghcp-attachments.ghcp-has-attachments + .ghcp-input-wrapper {
+	border-radius: 0 0 12px 12px;
+	border-top: none;
+}
+
+.ghcp-attachment-chip {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px 4px 10px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 16px;
+	font-size: 12px;
+	color: var(--text-normal);
+}
+
+.ghcp-attachment-icon {
+	display: flex;
+	align-items: center;
+	color: var(--text-muted);
+}
+
+.ghcp-attachment-name {
+	max-width: 150px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ghcp-attachment-remove {
+	display: flex;
+	align-items: center;
+	padding: 2px;
+	border-radius: 50%;
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: color 0.15s, background 0.15s;
+}
+
+.ghcp-attachment-remove:hover {
+	color: var(--text-error);
+	background: rgba(var(--color-red-rgb), 0.1);
+}
+
+/* ================================
+   PROFESSIONAL SETTINGS UI
+   ================================ */
+
+/* Settings Header */
+.ghcp-settings-header {
+	margin-bottom: 24px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.ghcp-settings-title-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 8px;
+}
+
+.ghcp-settings-logo {
+	width: 48px;
+	height: 48px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.ghcp-settings-logo img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.ghcp-settings-header h2 {
+	margin: 0;
+	font-size: 24px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.ghcp-settings-header p {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: 14px;
+}
+
+/* Settings Sections */
+.ghcp-settings-section {
+	margin-bottom: 24px;
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.ghcp-section-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+
+.ghcp-section-header h3 {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+/* Status Card */
+.ghcp-status-card {
+	background: var(--background-primary);
+	border-radius: 6px;
+	padding: 16px;
+}
+
+.ghcp-status-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 16px;
+}
+
+.ghcp-status-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.ghcp-status-item .ghcp-status-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.ghcp-status-item .ghcp-status-label {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.ghcp-status-item .ghcp-version {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-left: 4px;
+}
+
+.ghcp-status-loading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 16px;
+	color: var(--text-muted);
+}
+
+/* Spinner Animation */
+.ghcp-spinner {
+	width: 16px;
+	height: 16px;
+	border: 2px solid var(--background-modifier-border);
+	border-top-color: var(--interactive-accent);
+	border-radius: 50%;
+	animation: ghcp-spin 0.8s linear infinite;
+}
+
+@keyframes ghcp-spin {
+	to { transform: rotate(360deg); }
+}
+
+/* Refresh Button */
+.ghcp-refresh-btn {
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 6px 12px;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	transition: all 0.15s;
+}
+
+.ghcp-refresh-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border-hover);
+}
+
+.ghcp-refresh-btn.ghcp-spinning svg {
+	animation: ghcp-spin 0.8s linear infinite;
+}
+
+/* Buttons */
+.ghcp-btn-primary {
+	padding: 8px 16px;
+	background: var(--interactive-accent);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--text-on-accent);
+	font-size: 14px;
+	font-weight: 500;
+	transition: background 0.15s;
+}
+
+.ghcp-btn-primary:hover {
+	background: var(--interactive-accent-hover);
+}
+
+.ghcp-btn-secondary {
+	padding: 8px 16px;
+	background: var(--background-modifier-border);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--text-normal);
+	font-size: 14px;
+	font-weight: 500;
+	transition: all 0.15s;
+}
+
+.ghcp-btn-secondary:hover {
+	background: var(--background-modifier-hover);
+}
+
+.ghcp-btn-link {
+	background: transparent;
+	border: none;
+	padding: 0;
+	color: var(--interactive-accent);
+	cursor: pointer;
+	font-size: 14px;
+	text-decoration: underline;
+}
+
+.ghcp-btn-link:hover {
+	text-decoration: none;
+}
+
+.ghcp-btn-row {
+	display: flex;
+	gap: 12px;
+	margin-top: 16px;
+}
+
+/* Command Groups */
+.ghcp-cmd-group {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+}
+
+.ghcp-cmd-group h4 {
+	margin: 0 0 8px 0;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.ghcp-cmd-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.ghcp-cmd-row:last-child {
+	margin-bottom: 0;
+}
+
+.ghcp-cmd-row .ghcp-code-block {
+	margin: 0;
+	flex: 1;
+}
+
+/* Auth Details */
+.ghcp-auth-details {
+	margin-top: 12px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	font-size: 14px;
+}
+
+.ghcp-auth-details p {
+	margin: 0 0 8px 0;
+	color: var(--text-muted);
+}
+
+.ghcp-auth-details p:last-child {
+	margin-bottom: 0;
+}
+
+.ghcp-auth-details strong {
+	color: var(--text-normal);
+}
+
+/* PAT Content */
+.ghcp-pat-content {
+	margin-top: 12px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+}
+
+.ghcp-pat-content p {
+	margin: 0 0 8px 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.ghcp-pat-content ol {
+	margin: 0;
+	padding-left: 20px;
+	font-size: 13px;
+}
+
+.ghcp-pat-content li {
+	margin: 6px 0;
+	color: var(--text-normal);
+}
+
+.ghcp-pat-content code {
+	background: var(--background-secondary);
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 0.9em;
+}
+
+.ghcp-pat-content a {
+	color: var(--interactive-accent);
+}
+
+/* Advanced Section Toggle */
+.ghcp-advanced-content {
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Session Section */
+.ghcp-session-controls {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.ghcp-session-dropdown {
+	flex: 1;
+	padding: 8px 12px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	color: var(--text-normal);
+	font-size: 14px;
+	cursor: pointer;
+	min-width: 200px;
+}
+
+.ghcp-session-dropdown:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.ghcp-no-sessions {
+	padding: 16px;
+	text-align: center;
+	color: var(--text-muted);
+	font-style: italic;
+	background: var(--background-primary);
+	border-radius: 6px;
+}
+
+/* Message placeholder for empty settings */
+.ghcp-settings-placeholder {
+	padding: 24px 16px;
+	text-align: center;
+	color: var(--text-muted);
+	font-size: 14px;
+}
+
+/* Link styling in settings */
+.ghcp-settings-section a {
+	color: var(--interactive-accent);
+}
+
+.ghcp-settings-section a:hover {
+	text-decoration: underline;
+}
+
+/* ================================
+   SESSION PANEL & TOOLBAR
+   ================================ */
+
+/* Layout Wrapper */
+.ghcp-layout-wrapper {
+	display: flex;
+	height: 100%;
+	overflow: hidden;
+}
+
+.ghcp-main-view {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	min-width: 0;
+}
+
+/* Resizer Handle */
+.ghcp-resizer {
+	width: 4px;
+	background: transparent;
+	cursor: col-resize;
+	flex-shrink: 0;
+	position: relative;
+	transition: background 0.15s;
+}
+
+.ghcp-resizer:hover,
+.ghcp-resizer:active {
+	background: var(--interactive-accent);
+}
+
+.ghcp-resizer::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -4px;
+	right: -4px;
+}
+
+/* Updated Chat Header */
+.ghcp-chat-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	border-bottom: none;
+	background: transparent;
+	flex-shrink: 0;
+}
+
+.ghcp-header-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	min-width: 0;
+}
+
+.ghcp-header-right {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.ghcp-header-title {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ghcp-header-btn {
+	background: transparent !important;
+	border: none !important;
+	padding: 4px;
+	border-radius: 0 !important;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.ghcp-header-btn:hover,
+.ghcp-header-btn:focus,
+.ghcp-header-btn:active {
+	background: transparent !important;
+	color: var(--text-normal);
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+/* Session Panel Wrapper */
+.ghcp-session-panel-wrapper {
+	width: 280px;
+	min-width: 200px;
+	max-width: 50%;
+	border-top: 1px solid var(--background-modifier-border);
+	border-left: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+/* Session Panel */
+.ghcp-session-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+/* Session Panel Titlebar */
+.ghcp-session-titlebar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	flex-shrink: 0;
+}
+
+.ghcp-session-titlebar-text {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+}
+
+.ghcp-session-toolbar {
+	display: flex;
+	gap: 2px;
+}
+
+.ghcp-session-toolbar-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 4px;
+	background: transparent !important;
+	border: none !important;
+	border-radius: 0 !important;
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: color 0.15s;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.ghcp-session-toolbar-btn:hover,
+.ghcp-session-toolbar-btn:focus,
+.ghcp-session-toolbar-btn:active {
+	background: transparent !important;
+	color: var(--text-normal);
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.ghcp-session-toolbar-btn svg,
+.ghcp-session-toolbar-btn .svg-icon {
+	width: 14px;
+	height: 14px;
+	display: block;
+}
+
+/* Session Search Bar */
+.ghcp-session-search-bar {
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.ghcp-session-search-bar.ghcp-hidden {
+	display: none;
+}
+
+.ghcp-session-search-input {
+	width: 100%;
+	padding: 6px 10px;
+	font-size: 13px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.ghcp-session-search-input:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+
+.ghcp-session-panel-header {
+	padding: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.ghcp-session-new-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: 100%;
+	padding: 8px 12px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 500;
+	transition: background 0.15s;
+}
+
+.ghcp-session-new-btn:hover {
+	background: var(--interactive-accent-hover);
+}
+
+.ghcp-session-panel-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: 8px;
+}
+
+/* Session Section */
+.ghcp-session-section {
+	margin-bottom: 16px;
+}
+
+.ghcp-session-section-title {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	padding: 4px 8px;
+	margin-bottom: 4px;
+}
+
+.ghcp-session-archived-header {
+	cursor: pointer;
+	user-select: none;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.ghcp-session-archived-header:hover {
+	color: var(--text-normal);
+}
+
+.ghcp-archived-toggle {
+	font-size: 10px;
+	width: 12px;
+}
+
+/* Session Item */
+.ghcp-session-item {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 8px;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background 0.15s;
+	margin-bottom: 2px;
+}
+
+.ghcp-session-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.ghcp-session-item-content {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.ghcp-session-item-icon {
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	margin-right: 4px;
+}
+
+.ghcp-session-item-name {
+	font-size: 13px;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ghcp-session-item-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.ghcp-session-duration {
+	color: var(--text-faint);
+}
+
+.ghcp-session-time {
+	color: var(--text-muted);
+}
+
+/* Session Actions */
+.ghcp-session-item-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.ghcp-session-item:hover .ghcp-session-item-actions {
+	opacity: 1;
+}
+
+.ghcp-session-action-btn {
+	background: transparent !important;
+	border: none !important;
+	padding: 4px;
+	border-radius: 0 !important;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.ghcp-session-action-btn:hover,
+.ghcp-session-action-btn:focus,
+.ghcp-session-action-btn:active {
+	background: transparent !important;
+	color: var(--text-normal);
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.ghcp-session-action-btn svg,
+.ghcp-session-action-btn .svg-icon {
+	width: 14px;
+	height: 14px;
+	display: block;
+}
+
+.ghcp-session-action-btn:hover svg,
+.ghcp-session-action-btn:hover .svg-icon {
+	display: block;
+}
+
+/* Empty State */
+.ghcp-session-empty {
+	text-align: center;
+	padding: 24px 16px;
+	color: var(--text-muted);
+}
+
+.ghcp-session-empty p {
+	margin: 0 0 8px 0;
+}
+
+.ghcp-session-empty-hint {
+	font-size: 12px;
+	color: var(--text-faint);
+}
+
+/* Rename Modal */
+.ghcp-rename-modal {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+}
+
+.ghcp-rename-modal-content {
+	background: var(--background-primary);
+	border-radius: 8px;
+	padding: 20px;
+	min-width: 300px;
+	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.ghcp-rename-modal-content h3 {
+	margin: 0 0 16px 0;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.ghcp-rename-input {
+	width: 100%;
+	padding: 8px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: 14px;
+	margin-bottom: 16px;
+}
+
+.ghcp-rename-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.ghcp-rename-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
