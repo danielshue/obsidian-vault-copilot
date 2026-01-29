@@ -77,6 +77,10 @@ copilot --add-dir "<vault_path>"
 - Click the Copilot icon in the sidebar, or
 - Use the command palette: "GitHub Copilot: Open Chat"
 
+![GitHub Copilot Chat & Session Window](docs/images/obsidian-ghcp-chat-session.png)
+
+*The screenshot above shows GitHub Copilot for Obsidian in action. The left panel displays the AI chat interface where you can converse with GitHub Copilot for Obsidian, attach notes for context, give it commands against your vault, and receive streaming responses back from GitHub Copilot for Obsidian. The right panel shows the Session Management view, allowing you to browse, resume, and organize your previous conversations.*
+
 ### Attach Notes
 Click the paperclip icon to attach notes to your message for context.
 

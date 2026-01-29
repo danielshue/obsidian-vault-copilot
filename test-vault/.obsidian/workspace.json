@@ -85,86 +85,20 @@
         "type": "tabs",
         "children": [
           {
-            "id": "cd05ba351fb599fc",
+            "id": "71fad284d7406b46",
             "type": "leaf",
             "state": {
-              "type": "backlink",
-              "state": {
-                "collapseAll": false,
-                "extraContext": false,
-                "sortOrder": "alphabetical",
-                "showSearch": false,
-                "searchQuery": "",
-                "backlinkCollapsed": false,
-                "unlinkedCollapsed": true
-              },
-              "icon": "links-coming-in",
-              "title": "Backlinks"
-            }
-          },
-          {
-            "id": "fdd5e1b3d9a57b58",
-            "type": "leaf",
-            "state": {
-              "type": "outgoing-link",
-              "state": {
-                "linksCollapsed": false,
-                "unlinkedCollapsed": true
-              },
-              "icon": "links-going-out",
-              "title": "Outgoing links"
-            }
-          },
-          {
-            "id": "54d15a2b1183484a",
-            "type": "leaf",
-            "state": {
-              "type": "tag",
-              "state": {
-                "sortOrder": "frequency",
-                "useHierarchy": true,
-                "showSearch": false,
-                "searchQuery": ""
-              },
-              "icon": "lucide-tags",
-              "title": "Tags"
-            }
-          },
-          {
-            "id": "14b13ec062c6b088",
-            "type": "leaf",
-            "state": {
-              "type": "all-properties",
-              "state": {
-                "sortOrder": "frequency",
-                "showSearch": false,
-                "searchQuery": ""
-              },
-              "icon": "lucide-archive",
-              "title": "All properties"
-            }
-          },
-          {
-            "id": "2e5bdb9edda6691e",
-            "type": "leaf",
-            "state": {
-              "type": "outline",
-              "state": {
-                "file": "Reference/AI Integration Patterns.md",
-                "followCursor": false,
-                "showSearch": false,
-                "searchQuery": ""
-              },
-              "icon": "lucide-list",
-              "title": "Outline of AI Integration Patterns"
+              "type": "copilot-chat-view",
+              "state": {},
+              "icon": "message-square",
+              "title": "GitHub Copilot for Obsidian"
             }
           }
-        ],
-        "currentTab": 4
+        ]
       }
     ],
     "direction": "horizontal",
-    "width": 694.5
+    "width": 645.5
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -178,7 +112,7 @@
       "obsidian-ghcp:Open GitHub Copilot for Obsidian": false
     }
   },
-  "active": "2e5bdb9edda6691e",
+  "active": "71fad284d7406b46",
   "lastOpenFiles": [
     "Daily Notes/2026-01-28.md",
     "Projects/Project Alpha.md",
