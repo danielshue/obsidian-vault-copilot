@@ -850,24 +850,26 @@
 /* Settings Header */
 .vc-settings-header {
 	margin-bottom: 24px;
-	padding-bottom: 16px;
-	border-bottom: 1px solid var(--background-modifier-border);
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
 }
 
 .vc-settings-title-row {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 12px;
-	margin-bottom: 8px;
 }
 
 .vc-settings-logo {
-	width: 48px;
-	height: 48px;
+	width: 36px;
+	height: 36px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
+	margin-top: 2px;
 }
 
 .vc-settings-logo img {
@@ -876,9 +878,14 @@
 	object-fit: contain;
 }
 
+.vc-settings-title-text {
+	flex: 1;
+	min-width: 0;
+}
+
 .vc-settings-header h2 {
-	margin: 0;
-	font-size: 24px;
+	margin: 0 0 4px 0;
+	font-size: 20px;
 	font-weight: 600;
 	color: var(--text-normal);
 }
@@ -886,7 +893,8 @@
 .vc-settings-header p {
 	margin: 0;
 	color: var(--text-muted);
-	font-size: 14px;
+	font-size: 13px;
+	line-height: 1.4;
 }
 
 /* Settings Sections */
@@ -1634,4 +1642,217 @@
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
+}
+
+/* ================================
+   SKILLS & MCP TABLE SECTION
+   ================================ */
+
+.vc-skills-section {
+	/* Uses base .vc-settings-section styles */
+}
+
+.vc-skills-container {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.vc-skills-subsection h4 {
+	margin: 0 0 12px 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+/* Empty State */
+.vc-empty-state {
+	padding: 16px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	text-align: center;
+}
+
+.vc-empty-state p {
+	margin: 0;
+}
+
+.vc-empty-state p:first-child {
+	color: var(--text-muted);
+	font-weight: 500;
+	margin-bottom: 4px;
+}
+
+/* Skills Table */
+.vc-skills-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.vc-skills-table thead {
+	background: var(--background-modifier-border);
+}
+
+.vc-skills-table th {
+	padding: 10px 12px;
+	text-align: left;
+	font-weight: 600;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-skills-table td {
+	padding: 10px 12px;
+	color: var(--text-normal);
+	border-bottom: 1px solid var(--background-modifier-border);
+	vertical-align: top;
+}
+
+.vc-skills-table tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.vc-skills-table tbody tr:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Table Cell Variants */
+.vc-skill-name,
+.vc-mcp-name {
+	font-weight: 500;
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 12px;
+}
+
+.vc-skill-desc {
+	color: var(--text-muted);
+	max-width: 250px;
+}
+
+.vc-skill-plugin,
+.vc-mcp-type {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.vc-skill-category {
+	font-size: 11px;
+	text-transform: capitalize;
+	color: var(--text-faint);
+}
+
+/* Status Badge */
+.vc-status-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 12px;
+	font-size: 11px;
+	font-weight: 500;
+}
+
+.vc-badge-ok {
+	background: rgba(var(--color-green-rgb), 0.15);
+	color: var(--color-green);
+}
+
+.vc-badge-disabled {
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+/* Table Summary */
+.vc-table-summary {
+	margin-top: 8px;
+	font-size: 12px;
+	color: var(--text-faint);
+	text-align: right;
+}
+
+/* Status Item Updates */
+.vc-status-item.vc-status-ok {
+	background: transparent;
+	box-shadow: none;
+}
+
+.vc-status-item.vc-status-error {
+	background: transparent;
+	box-shadow: none;
+}
+
+.vc-status-item .vc-status-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 6px;
+}
+
+.vc-status-item.vc-status-ok .vc-status-icon {
+	background: rgba(var(--color-green-rgb), 0.15);
+	color: var(--color-green);
+}
+
+.vc-status-item.vc-status-error .vc-status-icon {
+	background: rgba(var(--color-red-rgb), 0.15);
+	color: var(--color-red);
+}
+
+.vc-status-item .vc-status-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.vc-status-item .vc-status-detail {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+/* Auth Note */
+.vc-auth-note {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+}
+
+.vc-auth-note p {
+	margin: 0;
+}
+
+.vc-auth-details {
+	margin-top: 8px;
+}
+
+.vc-auth-details summary {
+	cursor: pointer;
+	font-size: 13px;
+	color: var(--interactive-accent);
+}
+
+.vc-auth-details summary:hover {
+	text-decoration: underline;
+}
+
+/* Status Description */
+.vc-status-desc {
+	font-size: 13px;
+	color: var(--text-muted);
+	margin: 0;
+}
+
+/* Button Sizes */
+.vc-btn-sm {
+	padding: 4px 10px;
+	font-size: 12px;
 }

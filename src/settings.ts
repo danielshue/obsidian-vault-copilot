@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting, Notice, FileSystemAdapter } from "obsidian";
 import CopilotPlugin from "./main";
 import { CliManager, CliStatus } from "./copilot/CliManager";
+import { SkillInfo, SkillRegistryEvent, McpServerConfig } from "./copilot/SkillRegistry";
 import { ChatMessage } from "./copilot/CopilotService";
 
 // Robot mascot logo (base64 encoded PNG, 48x48)
@@ -70,7 +71,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 	private cliManager: CliManager;
 	private statusContainer: HTMLElement | null = null;
 	private mainSettingsContainer: HTMLElement | null = null;
+	private skillsContainer: HTMLElement | null = null;
 	private cachedStatus: CliStatus | null = null;
+	private skillRegistryUnsubscribe: (() => void) | null = null;
 
 	constructor(app: App, plugin: CopilotPlugin) {
 		super(app, plugin);
@@ -91,6 +94,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 		// Main settings container - will be populated after status check
 		this.mainSettingsContainer = containerEl.createDiv({ cls: "vc-main-settings" });
+
+		// Registered Skills Section
+		this.renderRegisteredSkillsSection(containerEl);
 
 		// Advanced Settings (always visible)
 		this.renderAdvancedSettings(containerEl);
@@ -347,6 +353,128 @@ export class CopilotSettingTab extends PluginSettingTab {
 			);
 	}
 
+	private renderRegisteredSkillsSection(containerEl: HTMLElement): void {
+		const section = containerEl.createDiv({ cls: "vc-settings-section vc-skills-section" });
+		
+		const sectionHeader = section.createDiv({ cls: "vc-section-header" });
+		sectionHeader.createEl("h3", { text: "Registered Skills & MCP Servers" });
+		
+		this.skillsContainer = section.createDiv({ cls: "vc-skills-container" });
+		
+		// Subscribe to skill registry changes
+		if (this.skillRegistryUnsubscribe) {
+			this.skillRegistryUnsubscribe();
+		}
+		this.skillRegistryUnsubscribe = this.plugin.skillRegistry.onSkillChange(() => {
+			this.updateSkillsDisplay();
+		});
+		
+		// Initial render
+		this.updateSkillsDisplay();
+	}
+
+	private updateSkillsDisplay(): void {
+		if (!this.skillsContainer) return;
+		this.skillsContainer.empty();
+		
+		const skills = this.plugin.skillRegistry.listSkills();
+		const mcpServers = this.plugin.skillRegistry.getMcpServers();
+		
+		// Skills Table
+		this.renderSkillsTable(this.skillsContainer, skills);
+		
+		// MCP Servers Table
+		this.renderMcpServersTable(this.skillsContainer, mcpServers);
+	}
+
+	private renderSkillsTable(container: HTMLElement, skills: SkillInfo[]): void {
+		const skillsSection = container.createDiv({ cls: "vc-skills-subsection" });
+		skillsSection.createEl("h4", { text: "Skills" });
+		
+		if (skills.length === 0) {
+			const emptyState = skillsSection.createDiv({ cls: "vc-empty-state" });
+			emptyState.createEl("p", { text: "No skills registered yet." });
+			emptyState.createEl("p", { 
+				text: "Skills can be registered by other plugins using the Vault Copilot API.",
+				cls: "vc-status-desc"
+			});
+			return;
+		}
+		
+		const table = skillsSection.createEl("table", { cls: "vc-skills-table" });
+		
+		// Header row
+		const thead = table.createEl("thead");
+		const headerRow = thead.createEl("tr");
+		headerRow.createEl("th", { text: "Name" });
+		headerRow.createEl("th", { text: "Description" });
+		headerRow.createEl("th", { text: "Plugin" });
+		headerRow.createEl("th", { text: "Category" });
+		
+		// Body rows
+		const tbody = table.createEl("tbody");
+		for (const skill of skills) {
+			const row = tbody.createEl("tr");
+			row.createEl("td", { text: skill.name, cls: "vc-skill-name" });
+			row.createEl("td", { text: skill.description, cls: "vc-skill-desc" });
+			row.createEl("td", { text: skill.pluginId, cls: "vc-skill-plugin" });
+			row.createEl("td", { text: skill.category || "general", cls: "vc-skill-category" });
+		}
+		
+		// Summary
+		const summary = skillsSection.createDiv({ cls: "vc-table-summary" });
+		const pluginCount = new Set(skills.map(s => s.pluginId)).size;
+		summary.createEl("span", { 
+			text: `${skills.length} skill${skills.length !== 1 ? "s" : ""} from ${pluginCount} plugin${pluginCount !== 1 ? "s" : ""}` 
+		});
+	}
+
+	private renderMcpServersTable(container: HTMLElement, servers: Map<string, McpServerConfig>): void {
+		const mcpSection = container.createDiv({ cls: "vc-skills-subsection" });
+		mcpSection.createEl("h4", { text: "MCP Servers" });
+		
+		if (servers.size === 0) {
+			const emptyState = mcpSection.createDiv({ cls: "vc-empty-state" });
+			emptyState.createEl("p", { text: "No MCP servers configured." });
+			emptyState.createEl("p", { 
+				text: "MCP (Model Context Protocol) servers provide additional tools and data sources for the assistant.",
+				cls: "vc-status-desc"
+			});
+			return;
+		}
+		
+		const table = mcpSection.createEl("table", { cls: "vc-skills-table" });
+		
+		// Header row
+		const thead = table.createEl("thead");
+		const headerRow = thead.createEl("tr");
+		headerRow.createEl("th", { text: "ID" });
+		headerRow.createEl("th", { text: "Name" });
+		headerRow.createEl("th", { text: "URL" });
+		headerRow.createEl("th", { text: "Status" });
+		
+		// Body rows
+		const tbody = table.createEl("tbody");
+		for (const [id, server] of servers) {
+			const row = tbody.createEl("tr");
+			row.createEl("td", { text: id, cls: "vc-mcp-name" });
+			row.createEl("td", { text: server.name || id, cls: "vc-mcp-type" });
+			row.createEl("td", { text: server.url, cls: "vc-skill-desc" });
+			const statusCell = row.createEl("td", { cls: "vc-mcp-status" });
+			statusCell.createEl("span", { 
+				text: server.enabled !== false ? "Enabled" : "Disabled",
+				cls: `vc-status-badge ${server.enabled !== false ? "vc-badge-ok" : "vc-badge-disabled"}`
+			});
+		}
+		
+		// Summary
+		const summary = mcpSection.createDiv({ cls: "vc-table-summary" });
+		const enabledCount = Array.from(servers.values()).filter(s => s.enabled !== false).length;
+		summary.createEl("span", { 
+			text: `${enabledCount} of ${servers.size} server${servers.size !== 1 ? "s" : ""} enabled` 
+		});
+	}
+
 	private renderAdvancedSettings(containerEl: HTMLElement): void {
 		const section = containerEl.createDiv({ cls: "vc-settings-section vc-settings-advanced" });
 		
@@ -429,6 +557,14 @@ export class CopilotSettingTab extends PluginSettingTab {
 			return adapter.getBasePath();
 		}
 		return undefined;
+	}
+
+	hide(): void {
+		// Clean up skill registry subscription
+		if (this.skillRegistryUnsubscribe) {
+			this.skillRegistryUnsubscribe();
+			this.skillRegistryUnsubscribe = null;
+		}
 	}
 }
 

@@ -2,6 +2,15 @@ import { Plugin, Notice, WorkspaceLeaf } from "obsidian";
 import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession } from "./settings";
 import { CopilotService, CopilotServiceConfig, ChatMessage } from "./copilot/CopilotService";
 import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/CopilotChatView";
+import { 
+	SkillRegistry, 
+	getSkillRegistry, 
+	VaultCopilotSkill, 
+	SkillInfo, 
+	SkillResult,
+	McpServerConfig,
+	SkillRegistryEvent
+} from "./copilot/SkillRegistry";
 
 /**
  * Session info returned by the API
@@ -16,6 +25,9 @@ export interface SessionInfo {
 	archived: boolean;
 	messageCount: number;
 }
+
+// Re-export skill types for external plugins
+export type { VaultCopilotSkill, SkillInfo, SkillResult, McpServerConfig, SkillRegistryEvent };
 
 /**
  * Public API for other plugins to interact with Vault Copilot
@@ -72,6 +84,55 @@ export interface VaultCopilotAPI {
 	/** Rename a session */
 	renameSession(sessionId: string, newName: string): Promise<void>;
 	
+	// ===== Skill Registration =====
+	
+	/** 
+	 * Register a custom skill/tool that the AI can invoke
+	 * @throws Error if skill with same name already exists
+	 */
+	registerSkill(skill: VaultCopilotSkill): void;
+	
+	/** 
+	 * Update an existing skill
+	 * @throws Error if skill doesn't exist
+	 */
+	updateSkill(skill: VaultCopilotSkill): void;
+	
+	/** Unregister a skill by name */
+	unregisterSkill(name: string): boolean;
+	
+	/** Unregister all skills from a plugin */
+	unregisterPluginSkills(pluginId: string): number;
+	
+	/** List all registered skills */
+	listSkills(): SkillInfo[];
+	
+	/** List skills by category */
+	listSkillsByCategory(category: string): SkillInfo[];
+	
+	/** List skills registered by a specific plugin */
+	listSkillsByPlugin(pluginId: string): SkillInfo[];
+	
+	/** Check if a skill is registered */
+	hasSkill(name: string): boolean;
+	
+	/** Execute a skill by name */
+	executeSkill(name: string, args: Record<string, unknown>): Promise<SkillResult>;
+	
+	/** Subscribe to skill registry changes */
+	onSkillChange(listener: (event: SkillRegistryEvent) => void): () => void;
+	
+	// ===== MCP Server Configuration =====
+	
+	/** Configure an MCP server */
+	configureMcpServer(id: string, config: McpServerConfig): void;
+	
+	/** Remove an MCP server configuration */
+	removeMcpServer(id: string): boolean;
+	
+	/** Get all configured MCP servers */
+	getMcpServers(): Map<string, McpServerConfig>;
+	
 	// ===== Note Operations =====
 	
 	/** Read a note by path */
@@ -114,10 +175,14 @@ export interface VaultCopilotAPI {
 export default class CopilotPlugin extends Plugin {
 	settings: CopilotPluginSettings;
 	copilotService: CopilotService | null = null;
+	skillRegistry: SkillRegistry;
 	private statusBarEl: HTMLElement | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
+
+		// Initialize skill registry
+		this.skillRegistry = getSkillRegistry();
 
 		// Initialize Copilot service
 		this.copilotService = new CopilotService(this.app, this.getServiceConfig());
@@ -546,6 +611,62 @@ export default class CopilotPlugin extends Plugin {
 			renameNote: async (oldPath, newPath) => {
 				if (!service) throw new Error("Copilot service not initialized");
 				return await service.renameNote(oldPath, newPath);
+			},
+			
+			// ===== Skill Registration =====
+			
+			registerSkill: (skill: VaultCopilotSkill) => {
+				plugin.skillRegistry.registerSkill(skill);
+			},
+			
+			updateSkill: (skill: VaultCopilotSkill) => {
+				plugin.skillRegistry.updateSkill(skill);
+			},
+			
+			unregisterSkill: (name: string) => {
+				return plugin.skillRegistry.unregisterSkill(name);
+			},
+			
+			unregisterPluginSkills: (pluginId: string) => {
+				return plugin.skillRegistry.unregisterPluginSkills(pluginId);
+			},
+			
+			listSkills: () => {
+				return plugin.skillRegistry.listSkills();
+			},
+			
+			listSkillsByCategory: (category: string) => {
+				return plugin.skillRegistry.listSkillsByCategory(category);
+			},
+			
+			listSkillsByPlugin: (pluginId: string) => {
+				return plugin.skillRegistry.listSkillsByPlugin(pluginId);
+			},
+			
+			hasSkill: (name: string) => {
+				return plugin.skillRegistry.hasSkill(name);
+			},
+			
+			executeSkill: async (name: string, args: Record<string, unknown>) => {
+				return await plugin.skillRegistry.executeSkill(name, args);
+			},
+			
+			onSkillChange: (listener: (event: SkillRegistryEvent) => void) => {
+				return plugin.skillRegistry.onSkillChange(listener);
+			},
+			
+			// ===== MCP Server Configuration =====
+			
+			configureMcpServer: (id: string, config: McpServerConfig) => {
+				plugin.skillRegistry.configureMcpServer(id, config);
+			},
+			
+			removeMcpServer: (id: string) => {
+				return plugin.skillRegistry.removeMcpServer(id);
+			},
+			
+			getMcpServers: () => {
+				return plugin.skillRegistry.getMcpServers();
 			},
 		};
 	}

@@ -58,10 +58,34 @@ Choose from available models such as GPT-4.1, GPT-4o, Claude, and others provide
 - **GitHub Copilot CLI** installed and authenticated
 - **Desktop only** (not compatible with Obsidian Mobile)
 
-## License
+## Beta Testers
 
-[MIT](LICENSE)
+Want to test Vault Copilot before it's available in the Obsidian Community Plugin directory? You can install the plugin directly from GitHub using the **BRAT** (Beta Reviewers Auto-update Tool) Obsidian plugin.
+
+BRAT allows you to install and automatically update beta plugins from GitHub repositories. Once configured, you'll receive updates as soon as new versions are released.
+
+For detailed step-by-step instructions, troubleshooting tips, and update procedures, see the [BRAT Installation Guide](docs/BRAT.md).
+
+## Developers
+
+Vault Copilot provides an extensible API for third-party Obsidian plugins. You can:
+
+- **Register Skills**: Define custom tools that the AI assistant can invoke on behalf of users
+- **Configure MCP Servers**: Add Model Context Protocol servers to extend capabilities
+- **Listen to Events**: React to skill registration changes in real-time
+
+Registered skills appear in the Vault Copilot settings panel, and the AI automatically discovers and uses them when relevant to user requests.
+
+For implementation details, TypeScript types, and code examples, see the [Developer API Documentation](docs/developer-api.md).
+
+## Contributing
+Contributions are welcome! Please read our Contributing Guide for details on our code of conduct and the process for submitting pull requests.
+
+## License
+This project is licensed under the [MIT](LICENSE) License - see the LICENSE file for details.
+
+## Acknowledgments
+Built with GitHub Copilot CLI and GitHub Copilot CLI SDK
 
 ## Author
-
 Dan Shue - [GitHub](https://github.com/danielshue)
