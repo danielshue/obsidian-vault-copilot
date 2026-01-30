@@ -1,7 +1,7 @@
 ---
 name: Create Release
 description: Automate version bump, tagging, and GitHub release for obsidian-vault-copilot
-tools: ["github/list_releases", "github/list_releases", "github/push_files", "github/get_latest_release", "github/get_file_contents", "execute/runInTerminal"]
+tools: ["github/get_latest_release", "github/get_file_contents", "github/push_files", "execute/runInTerminal"]
 argument-hint: Specify major, minor, or patch version bump (default: patch)
 ---
 # Create Release for obsidian-vault-copilot
@@ -28,13 +28,13 @@ Based on user input (major/minor/patch), calculate the next version:
 - **major**: 0.0.1 → 1.0.0
 
 ### Step 3: Get Current File Contents
-Use `mcp_github_get_file_contents` to fetch the current contents of:
+Use `github/get_file_contents` to fetch the current contents of:
 - `manifest.json`
 - `versions.json`
 - `package.json`
 
 ### Step 4: Update Version Files
-Use `mcp_github_push_files` to commit and push all version updates in a single commit:
+Use `github/push_files` to commit and push all version updates in a single commit:
 
 1. **manifest.json** - Update the `"version"` field to the new version
 2. **versions.json** - Add the new version mapping: `"NEW_VERSION": "0.15.0"` (preserving existing entries)
@@ -43,13 +43,16 @@ Use `mcp_github_push_files` to commit and push all version updates in a single c
 Commit message: `Bump version to X.Y.Z`
 
 ### Step 5: Create Release
-Use the GitHub CLI via `run_in_terminal` to create the release:
+Use `execute/runInTerminal` to create the GitHub release with the `gh` CLI:
 
 ```bash
 gh release create X.Y.Z --repo danielshue/obsidian-vault-copilot --title "Release X.Y.Z" --generate-notes
 ```
 
-Note: The GitHub MCP server does not have a create release tool, so we use `gh` CLI instead.
+This command will:
+- Create a new tag `X.Y.Z` (no 'v' prefix per Obsidian conventions)
+- Create a GitHub release with auto-generated release notes from commits since the last release
+- The release workflow in `.github/workflows/release.yml` will automatically attach build artifacts
 
 ## Output Format
 
