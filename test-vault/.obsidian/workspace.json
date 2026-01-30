@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "e75dc5d7005c4bd6",
+        "id": "8fa8985b89b62203",
         "type": "tabs",
         "children": [
           {
-            "id": "897a17b795ea0475",
+            "id": "37c7392ef09a7e52",
             "type": "leaf",
             "state": {
               "type": "empty",
@@ -74,7 +74,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 358.5
+    "width": 299.5
   },
   "right": {
     "id": "8ee59e6ad446e9a5",
@@ -98,7 +98,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 584.5
+    "width": 563.5
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -112,31 +112,34 @@
       "bases:Create new base": false
     }
   },
-  "active": "71bf5daed2457574",
+  "active": "37c7392ef09a7e52",
   "lastOpenFiles": [
+    "Daily Notes/2026-01-30.md",
+    "copilot-instructions.md",
     "Projects/Meeting - Project Alpha and Beta - 2026-01-30.md",
+    "Todays Activities - 2026-01-30.md",
+    "MyOtherCustomAgents/meeting-notes.agent.md",
+    "MyOtherCustomAgents/project-planner.agent.md",
+    "2026-01-30 Project Beta.md",
+    "Reference/Skills/obsidian-tasks/skill.md",
     "Projects/Project Alpha.md",
     "Projects/Project Beta.md",
-    "MyOtherCustomAgents/meeting-notes.agent.md",
-    "Reference/Skills/obsidian-tasks/skill.md",
+    "MyOtherCustomAgents/daily-journal.agent.md",
+    "Reference/Agents/vault-organizer.agent.md",
+    "Reference/Agents/readme-specialist.agent.md",
+    "Reference/AI Integration Patterns.md",
     "Reference/Skills/obsidian-task/skill.md",
     "Reference/Skills/obsidian-tasks",
     "Reference/Skills/obsidian-task/obsidian-tasks.skill.md",
     "Reference/Skills/obsidian-task",
     "Welcome.md",
-    "copilot-instructions.md",
-    "MyOtherCustomAgents/project-planner.agent.md",
     "MyOtherCustomAgents/learning-companion.agent.md",
-    "MyOtherCustomAgents/daily-journal.agent.md",
     "MyOtherCustomAgents",
     "MyCustomAgent",
     "Reference/Getting Started.md",
-    "Reference/AI Integration Patterns.md",
     "Reference/Instructions/documentation.instructions.md",
     "Reference/Instructions/coding-standards.instructions.md",
     "Reference/Agents/research-assistant.agent.md",
-    "Reference/Agents/readme-specialist.agent.md",
-    "Reference/Agents/vault-organizer.agent.md",
     "Reference/Agents",
     "Reference/Instructions",
     "Reference/Skills/webapp-testing/SKILL.md",
@@ -146,9 +149,6 @@
     "Reference/Skills",
     "Instructions/documentation.instructions.md",
     "Instructions/coding-standards.instructions.md",
-    "Instructions",
-    "Skills/webapp-testing/SKILL.md",
-    "Skills/github-actions-debugging/SKILL.md",
-    "Agents/research-assistant.agent.md"
+    "Instructions"
   ]
 }

@@ -11,7 +11,7 @@
  * - Instructions: *.instructions.md or copilot-instructions.md with optional frontmatter (applyTo)
  */
 
-import { App, TFile, TFolder } from "obsidian";
+import { App, TFile, TFolder, FileSystemAdapter } from "obsidian";
 
 /**
  * Parsed agent from .agent.md file
@@ -137,15 +137,72 @@ export class CustomizationLoader {
 	}
 
 	/**
+	 * Get the vault base path if available (desktop only)
+	 */
+	private getVaultBasePath(): string | undefined {
+		const adapter = this.app.vault.adapter;
+		if (adapter instanceof FileSystemAdapter) {
+			return adapter.getBasePath().replace(/\\/g, '/');
+		}
+		return undefined;
+	}
+
+	/**
+	 * Convert a directory path to a vault-relative path and get the folder
+	 * Handles absolute paths, vault root (.), and relative paths
+	 */
+	private getFolderFromPath(dir: string): TFolder | null {
+		const vaultBasePath = this.getVaultBasePath();
+		let relativePath = dir;
+
+		// Normalize path separators
+		relativePath = relativePath.replace(/\\/g, '/');
+
+		// Handle vault root cases
+		if (relativePath === '.' || relativePath === '/' || relativePath === '') {
+			return this.app.vault.getRoot();
+		}
+
+		// Handle absolute paths ending with /. (vault root with trailing .)
+		if (vaultBasePath && (relativePath.endsWith('/.') || relativePath.endsWith('.'))) {
+			const withoutDot = relativePath.replace(/\/?\.$/, '');
+			if (withoutDot === vaultBasePath || withoutDot + '/' === vaultBasePath) {
+				return this.app.vault.getRoot();
+			}
+		}
+
+		// Convert absolute path to relative path
+		if (vaultBasePath && relativePath.startsWith(vaultBasePath)) {
+			relativePath = relativePath.slice(vaultBasePath.length);
+			// Remove leading slash
+			if (relativePath.startsWith('/')) {
+				relativePath = relativePath.slice(1);
+			}
+			// Handle empty string (vault root)
+			if (relativePath === '' || relativePath === '.') {
+				return this.app.vault.getRoot();
+			}
+		}
+
+		const folder = this.app.vault.getAbstractFileByPath(relativePath);
+		if (folder && folder instanceof TFolder) {
+			return folder;
+		}
+
+		console.log(`[VC] Could not find folder: ${dir} (resolved to: ${relativePath})`);
+		return null;
+	}
+
+	/**
 	 * Load all agents from the configured agent directories
 	 */
 	async loadAgents(directories: string[]): Promise<CustomAgent[]> {
 		const agents: CustomAgent[] = [];
 
 		for (const dir of directories) {
-			const folder = this.app.vault.getAbstractFileByPath(dir);
-			if (!folder || !(folder instanceof TFolder)) {
-				console.log(`[VC] Agent directory not found or not a folder: "${dir}"`);
+			const folder = this.getFolderFromPath(dir);
+			if (!folder) {
+				console.log(`[VC] Agent directory not found: "${dir}"`);
 				continue;
 			}
 
@@ -184,8 +241,8 @@ export class CustomizationLoader {
 		const skills: CustomSkill[] = [];
 
 		for (const dir of directories) {
-			const folder = this.app.vault.getAbstractFileByPath(dir);
-			if (!folder || !(folder instanceof TFolder)) {
+			const folder = this.getFolderFromPath(dir);
+			if (!folder) {
 				continue;
 			}
 
@@ -235,8 +292,8 @@ export class CustomizationLoader {
 		const instructions: CustomInstruction[] = [];
 
 		for (const dir of directories) {
-			const folder = this.app.vault.getAbstractFileByPath(dir);
-			if (!folder || !(folder instanceof TFolder)) {
+			const folder = this.getFolderFromPath(dir);
+			if (!folder) {
 				continue;
 			}
 

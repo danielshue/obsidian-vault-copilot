@@ -1,6 +1,7 @@
 import { CopilotClient, CopilotSession, SessionEvent, defineTool } from "@github/copilot-sdk";
 import { App, TFile, Notice } from "obsidian";
 import { SkillRegistry, VaultCopilotSkill } from "./SkillRegistry";
+import { CustomizationLoader, CustomInstruction } from "./CustomizationLoader";
 
 export interface CopilotServiceConfig {
 	model: string;
@@ -34,10 +35,13 @@ export class CopilotService {
 	private config: CopilotServiceConfig;
 	private messageHistory: ChatMessage[] = [];
 	private eventHandlers: ((event: SessionEvent) => void)[] = [];
+	private customizationLoader: CustomizationLoader;
+	private loadedInstructions: CustomInstruction[] = [];
 
 	constructor(app: App, config: CopilotServiceConfig) {
 		this.app = app;
 		this.config = config;
+		this.customizationLoader = new CustomizationLoader(app);
 	}
 
 	/**
@@ -90,6 +94,12 @@ export class CopilotService {
 			await this.session.destroy();
 		}
 
+		// Load instructions from configured directories
+		if (this.config.instructionDirectories && this.config.instructionDirectories.length > 0) {
+			this.loadedInstructions = await this.customizationLoader.loadInstructions(this.config.instructionDirectories);
+			console.log('[Vault Copilot] Loaded instructions:', this.loadedInstructions.map(i => i.name));
+		}
+
 		// Combine built-in tools with registered plugin skills
 		const builtInTools = this.createObsidianTools();
 		const registeredTools = this.convertRegisteredSkillsToTools();
@@ -108,12 +118,16 @@ export class CopilotService {
 		// Add skill directories if configured
 		if (this.config.skillDirectories && this.config.skillDirectories.length > 0) {
 			sessionConfig.skillDirectories = this.config.skillDirectories;
+			console.log('[Vault Copilot] Skill directories:', this.config.skillDirectories);
 		}
 
 		// Add custom agents from agent directories if configured
 		if (this.config.agentDirectories && this.config.agentDirectories.length > 0) {
 			sessionConfig.customAgents = this.buildCustomAgentsConfig();
+			console.log('[Vault Copilot] Agent directories:', this.config.agentDirectories);
 		}
+
+		console.log('[Vault Copilot] Creating session with config:', JSON.stringify(sessionConfig, null, 2));
 
 		this.session = await this.client!.createSession(sessionConfig as any);
 
@@ -447,6 +461,8 @@ You are running inside Obsidian and have access to the user's vault through the 
 The following directories are configured for extending your capabilities:
 
 ${this.getCustomizationDirectoriesInfo()}
+
+${this.getLoadedInstructionsContent()}
 `;
 	}
 
@@ -485,6 +501,23 @@ File pattern: \`*.instructions.md\``);
 		}
 
 		return sections.join('\n\n');
+	}
+
+	/**
+	 * Get the content of loaded instructions to include in the system prompt
+	 */
+	private getLoadedInstructionsContent(): string {
+		if (this.loadedInstructions.length === 0) {
+			return '';
+		}
+
+		const parts: string[] = ['## User-Defined Instructions\n\nThe following instructions have been loaded from the vault and should be followed:'];
+
+		for (const instruction of this.loadedInstructions) {
+			parts.push(`\n### ${instruction.name}${instruction.applyTo ? ` (applies to: ${instruction.applyTo})` : ''}\n\n${instruction.content}`);
+		}
+
+		return parts.join('\n');
 	}
 
 	private createObsidianTools() {

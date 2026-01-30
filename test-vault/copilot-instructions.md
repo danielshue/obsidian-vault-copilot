@@ -55,6 +55,10 @@ When modifying existing documents:
 - Use numbered lists for sequential steps or ordered items
 - Include a brief summary or purpose at the top of each document after the frontmatter
 
+## Daily Notes
+
+Daily notes go into the "Daily Notes" folder that is located in the root of the vault. The filenames should follow the format YYYY-MM-DD.md.
+
 ## Example Document
 
 ```markdown
