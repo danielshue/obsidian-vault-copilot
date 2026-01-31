@@ -1060,7 +1060,7 @@ export class CopilotChatView extends ItemView {
 	/**
 	 * Handle slash command
 	 */
-	private async handleSlashCommand(message: string): Promise<boolean> {
+	private async handleSlashCommand(message: string, chipFilePaths: string[] = []): Promise<boolean> {
 		if (!message.startsWith("/")) return false;
 
 		const match = message.match(/^\/([\w-]+)(?:\s+([\s\S]*))?$/);
@@ -1071,6 +1071,14 @@ export class CopilotChatView extends ItemView {
 		const command = SLASH_COMMANDS.find(c => c.name === commandName.toLowerCase());
 		
 		if (!command) {
+			// Check if it's a custom prompt
+			const promptInfo = this.plugin.promptCache.getPromptByName(commandName);
+			if (promptInfo) {
+				// Execute the custom prompt with args
+				await this.executePrompt(promptInfo, args?.trim() || "", chipFilePaths);
+				return true;
+			}
+			
 			// Unknown command - show help
 			await this.renderMessage({ role: "user", content: message, timestamp: new Date() });
 			const helpMsg = `Unknown command: /${commandName}\n\nType **/help** to see available commands.`;
@@ -1124,10 +1132,10 @@ export class CopilotChatView extends ItemView {
 			welcomeEl.remove();
 		}
 
-		// Check if this is a slash command
+		// Check if this is a slash command (includes custom prompts)
 		if (message.startsWith("/")) {
 			try {
-				const handled = await this.handleSlashCommand(message);
+				const handled = await this.handleSlashCommand(message, chipFilePaths);
 				if (handled) {
 					this.isProcessing = false;
 					this.updateUIState();
@@ -1496,11 +1504,17 @@ export class CopilotChatView extends ItemView {
 
 	/**
 	 * Execute a custom prompt (VS Code compatible)
+	 * @param promptInfo - The cached prompt info
+	 * @param args - Optional user-provided arguments to append to the prompt
+	 * @param chipFilePaths - Optional attached note paths from inline # chips
 	 */
-	private async executePrompt(promptInfo: CachedPromptInfo): Promise<void> {
+	private async executePrompt(promptInfo: CachedPromptInfo, args: string = "", chipFilePaths: string[] = []): Promise<void> {
 		// Clear the input
 		this.inputEl.innerHTML = "";
 		this.autoResizeInput();
+		
+		// Reset placeholder to default
+		this.inputEl.setAttribute('data-placeholder', 'Ask Vault Copilot anything or type / for prompts');
 		
 		// Load the full prompt content
 		const fullPrompt = await this.plugin.promptCache.getFullPrompt(promptInfo.name);
@@ -1518,8 +1532,15 @@ export class CopilotChatView extends ItemView {
 			welcomeEl.remove();
 		}
 		
-		// Display a user message showing which prompt was executed
-		const userMessage = `Run prompt: **${promptInfo.name}**\n\n> ${promptInfo.description}`;
+		// Display a user message showing which prompt was executed (with args if provided)
+		let userMessage = `Run prompt: **${promptInfo.name}**\n\n> ${promptInfo.description}`;
+		if (args) {
+			userMessage += `\n\n**Arguments:** ${args}`;
+		}
+		if (chipFilePaths.length > 0) {
+			const fileNames = chipFilePaths.map(p => p.split('/').pop()).join(', ');
+			userMessage += `\n\n**Context:** ${fileNames}`;
+		}
 		await this.renderMessage({ role: "user", content: userMessage, timestamp: new Date() });
 		
 		// Scroll the new user message to the top of the visible area
@@ -1556,6 +1577,30 @@ export class CopilotChatView extends ItemView {
 			
 			// Process #tool:name references in the body
 			content = this.promptProcessor.processToolReferences(content, fullPrompt.tools);
+			
+			// Add context from attached notes (inline # chips)
+			if (chipFilePaths.length > 0) {
+				const attachedContext: string[] = [];
+				for (const filePath of chipFilePaths) {
+					const file = this.app.vault.getAbstractFileByPath(filePath);
+					if (file instanceof TFile) {
+						try {
+							const fileContent = await this.app.vault.cachedRead(file);
+							attachedContext.push(`--- Content of "${file.path}" ---\n${fileContent}\n--- End of "${file.path}" ---`);
+						} catch (e) {
+							console.error(`Failed to read attached note: ${file.path}`, e);
+						}
+					}
+				}
+				if (attachedContext.length > 0) {
+					content = `${attachedContext.join("\n\n")}\n\n${content}`;
+				}
+			}
+			
+			// Append user arguments to the prompt
+			if (args) {
+				content = `${content}\n\n**User Input:**\n${args}`;
+			}
 
 			// Override model if specified in prompt
 			const originalModel = this.plugin.settings.model;

@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "da901a7d61355a84",
+        "id": "72f19fa95bfb8d6f",
         "type": "tabs",
         "children": [
           {
-            "id": "1d09d6ca0a3c32bc",
+            "id": "d1fe42cc8eff7acf",
             "type": "leaf",
             "state": {
               "type": "empty",
@@ -186,14 +186,16 @@
       "bases:Create new base": false
     }
   },
-  "active": "1d09d6ca0a3c32bc",
+  "active": "569e4b37a819b0e6",
   "lastOpenFiles": [
+    "Daily Notes/2026-02-01.md",
+    "Reference/Prompts/create-daily-note.prompt.md",
+    "Daily.md",
+    "Welcome.md",
     "copilot-instructions.md",
     "Reference/Instructions/documentation.instructions.md",
     "Daily Notes/2026-01-31.md",
-    "Welcome.md",
     "Reference/Skills/obsidian-tasks/skill.md",
-    "Reference/Prompts/create-daily-note.prompt.md",
     "Reference/Prompts/create-release.prompt.md",
     "Reference/Prompts/code-review.prompt.md",
     "Daily Notes/2026-01-30.md",
@@ -213,8 +215,6 @@
     "Projects/Project Beta.md",
     "MyOtherCustomAgents/daily-journal.agent.md",
     "Reference/Agents/vault-organizer.agent.md",
-    "Reference/Agents/readme-specialist.agent.md",
-    "Reference/AI Integration Patterns.md",
     "Reference/Skills/obsidian-tasks",
     "Reference/Skills/obsidian-task",
     "MyOtherCustomAgents",

@@ -7,6 +7,17 @@ import { App, TFile, TAbstractFile, EventRef } from "obsidian";
 import { CustomizationLoader, CustomPrompt } from "./CustomizationLoader";
 
 /**
+ * Convert a prompt name to a slug for use as a command (e.g., "Summarize Note" -> "summarize-note")
+ */
+function slugifyPromptName(name: string): string {
+	return name
+		.toLowerCase()
+		.trim()
+		.replace(/\s+/g, '-')     // Replace spaces with hyphens
+		.replace(/[^\w-]/g, '');   // Remove non-word characters except hyphens
+}
+
+/**
  * Lightweight prompt info for caching (same as CustomPrompt but can be extended)
  */
 export interface CachedPromptInfo {
@@ -130,11 +141,20 @@ export class PromptCache {
 	}
 
 	/**
-	 * Get a cached prompt by name.
+	 * Get a cached prompt by name or slug (case-insensitive).
+	 * Supports both exact name match (e.g., "Summarize Note") and slug match (e.g., "summarize-note").
 	 */
 	getPromptByName(name: string): CachedPromptInfo | undefined {
+		const lowerName = name.toLowerCase();
+		const inputSlug = slugifyPromptName(name);
+		
 		for (const prompt of this.cachedPrompts.values()) {
-			if (prompt.name === name) {
+			// Match by exact name (case-insensitive)
+			if (prompt.name.toLowerCase() === lowerName) {
+				return prompt;
+			}
+			// Match by slug (supports "/summarize-note" matching "Summarize Note")
+			if (slugifyPromptName(prompt.name) === inputSlug) {
 				return prompt;
 			}
 		}

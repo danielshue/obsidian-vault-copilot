@@ -2,6 +2,17 @@ import { CachedPromptInfo } from "../../copilot/PromptCache";
 import { SLASH_COMMANDS, SlashCommand } from "./SlashCommands";
 
 /**
+ * Convert a prompt name to a slug for use as a command (e.g., "Summarize Note" -> "summarize-note")
+ */
+export function slugifyPromptName(name: string): string {
+	return name
+		.toLowerCase()
+		.trim()
+		.replace(/\s+/g, '-')     // Replace spaces with hyphens
+		.replace(/[^\w-]/g, '');   // Remove non-word characters except hyphens
+}
+
+/**
  * Manages the prompt picker dropdown UI that appears when user types '/'
  */
 export class PromptPicker {
@@ -37,7 +48,8 @@ export class PromptPicker {
 	 * Works with contenteditable div
 	 */
 	handleInput(): void {
-		const value = this.inputEl.innerText || "";
+		// Trim to remove trailing newlines from contenteditable
+		const value = (this.inputEl.innerText || "").trim();
 		
 		// Check if the user is typing a prompt command (starts with /)
 		if (value.startsWith('/') && !value.includes(' ')) {
@@ -104,8 +116,8 @@ export class PromptPicker {
 	 * Update the prompt picker with filtered prompts matching the query
 	 */
 	update(query: string): void {
-		// Get the search term (remove the leading /)
-		const searchTerm = query.slice(1).toLowerCase();
+		// Get the search term (remove the leading / and trailing whitespace/newlines)
+		const searchTerm = query.slice(1).toLowerCase().trim();
 		
 		// Get prompts from cache
 		const allPrompts = this.getPrompts();
@@ -117,10 +129,11 @@ export class PromptPicker {
 			path: `builtin:${cmd.name}`,
 		}));
 		
-		// Combine and filter
+		// Combine and filter (match by name, slug, or description)
 		const allItems = [...builtInItems, ...allPrompts];
 		this.filteredPrompts = allItems.filter(p => 
 			p.name.toLowerCase().includes(searchTerm) ||
+			slugifyPromptName(p.name).includes(searchTerm) ||
 			p.description.toLowerCase().includes(searchTerm)
 		);
 		
@@ -152,9 +165,10 @@ export class PromptPicker {
 				cls: `vc-prompt-picker-item ${index === this.selectedIndex ? 'vc-selected' : ''}`
 			});
 			
-			// Command name on the left
+			// Command name on the left (use slug for custom prompts)
 			const nameEl = itemEl.createDiv({ cls: "vc-prompt-picker-name" });
-			nameEl.setText(`/${prompt.name}`);
+			const displayName = prompt.path.startsWith('builtin:') ? prompt.name : slugifyPromptName(prompt.name);
+			nameEl.setText(`/${displayName}`);
 			
 			// Description on the right
 			const descEl = itemEl.createDiv({ cls: "vc-prompt-picker-desc" });
@@ -203,22 +217,27 @@ export class PromptPicker {
 		// Hide the picker
 		this.hide();
 		
-		if (selectedPrompt.path.startsWith('builtin:')) {
-			// It's a built-in slash command - just fill in the command name
-			this.inputEl.innerText = `/${selectedPrompt.name} `;
-			this.inputEl.focus();
-			// Move cursor to end
-			const range = document.createRange();
-			range.selectNodeContents(this.inputEl);
-			range.collapse(false);
-			const sel = window.getSelection();
-			if (sel) {
-				sel.removeAllRanges();
-				sel.addRange(range);
-			}
-		} else {
-			// It's a custom prompt - execute it
-			await this.onSelect(selectedPrompt);
+		// Fill in the command/prompt name - let user add arguments before sending
+		// Use slugified name for custom prompts to match the regex in handleSlashCommand
+		const commandName = selectedPrompt.path.startsWith('builtin:') 
+			? selectedPrompt.name 
+			: slugifyPromptName(selectedPrompt.name);
+		this.inputEl.innerText = `/${commandName} `;
+		
+		// Update placeholder to show argument hint if available
+		if (selectedPrompt.argumentHint) {
+			this.inputEl.setAttribute('data-placeholder', selectedPrompt.argumentHint);
+		}
+		
+		this.inputEl.focus();
+		// Move cursor to end
+		const range = document.createRange();
+		range.selectNodeContents(this.inputEl);
+		range.collapse(false);
+		const sel = window.getSelection();
+		if (sel) {
+			sel.removeAllRanges();
+			sel.addRange(range);
 		}
 	}
 }
