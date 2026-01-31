@@ -21,6 +21,7 @@ import { PromptProcessor } from "./PromptProcessor";
 import { MessageRenderer, UsedReference } from "./MessageRenderer";
 import { SessionManager } from "./SessionManager";
 import { ToolExecutionRenderer } from "./ToolExecutionRenderer";
+import { VoiceChatService, RecordingState } from "../../voice-chat";
 
 export const COPILOT_VIEW_TYPE = "copilot-chat-view";
 
@@ -55,6 +56,11 @@ export class CopilotChatView extends ItemView {
 	private messageRenderer: MessageRenderer;
 	private sessionManager: SessionManager;
 	private toolExecutionRenderer: ToolExecutionRenderer;
+	
+	// Voice chat
+	private voiceChatService: VoiceChatService | null = null;
+	private voiceBtn: HTMLButtonElement | null = null;
+	private voiceStateUnsubscribe: (() => void) | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, copilotService: CopilotService) {
 		super(leaf);
@@ -102,6 +108,15 @@ export class CopilotChatView extends ItemView {
 			this,
 			(toolName, args) => this.executeTool(toolName, args)
 		);
+		
+		// Initialize VoiceChatService
+		this.voiceChatService = new VoiceChatService({
+			whisper: {
+				model: 'base',
+				language: 'en',
+			},
+			showNotices: true,
+		});
 	}
 
 	getViewType(): string {
@@ -386,13 +401,20 @@ export class CopilotChatView extends ItemView {
 		// Right side icons
 		const toolbarRight = inputToolbar.createDiv({ cls: "vc-toolbar-right" });
 		
-		// Voice button (placeholder)
-		const voiceBtn = toolbarRight.createEl("button", { 
-			cls: "vc-toolbar-btn",
-			attr: { "aria-label": "Voice input (coming soon)" }
+		// Voice button - wired up to VoiceChatService
+		this.voiceBtn = toolbarRight.createEl("button", { 
+			cls: "vc-toolbar-btn vc-voice-btn",
+			attr: { "aria-label": "Voice input" }
 		});
-		voiceBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>`;
-		voiceBtn.addEventListener("click", () => new Notice("Voice input coming soon!"));
+		this.updateVoiceButtonState('idle');
+		this.voiceBtn.addEventListener("click", () => this.handleVoiceInput());
+		
+		// Subscribe to voice chat state changes
+		if (this.voiceChatService) {
+			this.voiceStateUnsubscribe = this.voiceChatService.on('stateChange', (state) => {
+				this.updateVoiceButtonState(state);
+			});
+		}
 
 		// Send button
 		this.sendButton = toolbarRight.createEl("button", { 
@@ -459,6 +481,98 @@ export class CopilotChatView extends ItemView {
 
 		// Register keyboard shortcuts
 		this.registerKeyboardShortcuts();
+	}
+
+	/**
+	 * Handle voice input button click
+	 */
+	private async handleVoiceInput(): Promise<void> {
+		if (!this.voiceChatService) {
+			new Notice('Voice input is not available');
+			return;
+		}
+
+		const state = this.voiceChatService.getState();
+
+		if (state === 'recording') {
+			// Stop recording and transcribe
+			try {
+				const result = await this.voiceChatService.stopRecording();
+				if (result.text) {
+					// Insert transcribed text into input
+					this.insertTextAtCursor(result.text);
+				}
+			} catch (error) {
+				console.error('Voice transcription failed:', error);
+			}
+		} else if (state === 'idle' || state === 'error') {
+			// Start recording
+			try {
+				await this.voiceChatService.startRecording();
+			} catch (error) {
+				console.error('Failed to start recording:', error);
+			}
+		}
+		// If processing, do nothing (wait for it to complete)
+	}
+
+	/**
+	 * Insert text at the current cursor position in the input
+	 */
+	private insertTextAtCursor(text: string): void {
+		const selection = window.getSelection();
+		if (selection && selection.rangeCount > 0) {
+			const range = selection.getRangeAt(0);
+			if (this.inputEl.contains(range.commonAncestorContainer)) {
+				const textNode = document.createTextNode(text);
+				range.deleteContents();
+				range.insertNode(textNode);
+				range.setStartAfter(textNode);
+				range.setEndAfter(textNode);
+				selection.removeAllRanges();
+				selection.addRange(range);
+			} else {
+				// Cursor not in input, append at end
+				this.inputEl.appendChild(document.createTextNode(text));
+			}
+		} else {
+			// No selection, append at end
+			this.inputEl.appendChild(document.createTextNode(text));
+		}
+		this.autoResizeInput();
+		this.inputEl.focus();
+	}
+
+	/**
+	 * Update the voice button visual state based on recording state
+	 */
+	private updateVoiceButtonState(state: RecordingState): void {
+		if (!this.voiceBtn) return;
+
+		// Remove all state classes
+		this.voiceBtn.removeClass('vc-voice-recording', 'vc-voice-processing', 'vc-voice-error');
+
+		// Update icon and state
+		switch (state) {
+			case 'recording':
+				this.voiceBtn.addClass('vc-voice-recording');
+				this.voiceBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>`;
+				this.voiceBtn.setAttribute('aria-label', 'Stop recording');
+				break;
+			case 'processing':
+				this.voiceBtn.addClass('vc-voice-processing');
+				this.voiceBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="m4.93 4.93 2.83 2.83"></path><path d="m16.24 16.24 2.83 2.83"></path><path d="M2 12h4"></path><path d="M18 12h4"></path><path d="m4.93 19.07 2.83-2.83"></path><path d="m16.24 7.76 2.83-2.83"></path></svg>`;
+				this.voiceBtn.setAttribute('aria-label', 'Processing...');
+				break;
+			case 'error':
+				this.voiceBtn.addClass('vc-voice-error');
+				// Fall through to idle icon
+			case 'idle':
+			default:
+				this.voiceBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>`;
+				this.voiceBtn.setAttribute('aria-label', 'Voice input');
+				break;
+		}
 	}
 
 	private async startService(): Promise<void> {
@@ -981,6 +1095,15 @@ export class CopilotChatView extends ItemView {
 		if (this.promptCacheUnsubscribe) {
 			this.promptCacheUnsubscribe();
 			this.promptCacheUnsubscribe = null;
+		}
+		// Unsubscribe from voice state changes and destroy service
+		if (this.voiceStateUnsubscribe) {
+			this.voiceStateUnsubscribe();
+			this.voiceStateUnsubscribe = null;
+		}
+		if (this.voiceChatService) {
+			this.voiceChatService.destroy();
+			this.voiceChatService = null;
 		}
 	}
 
