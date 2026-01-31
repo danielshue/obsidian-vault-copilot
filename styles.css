@@ -5,7 +5,7 @@
 	display: flex;
 	flex-direction: column;
 	height: 100%;
-	background: var(--background-primary);
+	background: var(--background-secondary);
 	overflow: hidden;
 }
 
@@ -15,8 +15,8 @@
 	align-items: center;
 	justify-content: flex-end;
 	padding: 8px 12px;
-	border-bottom: none;
-	background: transparent;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
 }
 
 .vc-chat-header h4 {
@@ -80,6 +80,7 @@
 	flex-direction: column;
 	gap: 16px;
 	min-height: 0;
+	background: var(--background-secondary);
 }
 
 /* Welcome Message */
@@ -125,44 +126,46 @@
 	margin: 0 0 16px 0;
 }
 
-.vc-quick-action {
-	margin-bottom: 24px;
-}
-
-.vc-suggestion-btn {
-	width: 100%;
-	padding: 10px 16px;
-	background: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
-	cursor: pointer;
-	color: var(--text-normal);
-	text-align: left;
-	transition: background 0.15s, border-color 0.15s;
-}
-
-.vc-suggestion-btn:hover {
-	background: var(--background-modifier-hover);
-	border-color: var(--interactive-accent);
-}
-
 .vc-examples,
-.vc-commands,
-.vc-capabilities {
+.vc-commands {
 	margin-top: 24px;
 	text-align: left;
 }
 
-.vc-examples-title,
-.vc-commands-title,
+/* Capabilities Card */
+.vc-capabilities-card {
+	margin-top: 24px;
+	text-align: left;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 16px;
+	background: var(--background-primary);
+}
+
 .vc-capabilities-title {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+	margin: 0 0 16px 0;
+	text-align: center;
+}
+
+.vc-examples-title {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-muted);
+	margin: 0 0 12px 0;
+	letter-spacing: 0.5px;
+	text-align: center;
+}
+
+.vc-commands-title {
 	font-size: 13px;
 	font-weight: 500;
 	color: var(--text-normal);
 	margin: 0 0 12px 0;
 }
 
-.vc-examples-list,
 .vc-commands-list {
 	list-style: none;
 	padding: 0;
@@ -173,21 +176,112 @@
 }
 
 .vc-capabilities-list {
-	list-style: disc;
-	padding: 0 0 0 20px;
+	list-style: none;
+	padding: 0;
 	margin: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: 10px;
 }
 
-.vc-examples-list li {
-	padding: 6px 12px;
-	background: var(--background-secondary);
-	border-radius: 6px;
+.vc-capability-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
 	color: var(--text-muted);
-	font-size: 12px;
-	line-height: 1.4;
+	font-size: 13px;
+}
+
+.vc-capability-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	opacity: 0.8;
+}
+
+.vc-capability-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.vc-capability-text {
+	color: var(--text-muted);
+}
+
+.vc-capabilities-footer {
+	margin-top: 16px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-capabilities-link {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--text-accent);
+	font-size: 13px;
+	text-decoration: none;
+	justify-content: center;
+}
+
+.vc-capabilities-link:hover {
+	text-decoration: underline;
+}
+
+.vc-capabilities-link svg {
+	opacity: 0.8;
+}
+
+.vc-examples-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.vc-example-btn {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	padding: 10px 14px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	cursor: pointer;
+	color: var(--text-muted);
+	text-align: left;
+	font-size: 13px;
+	transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.vc-example-btn:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
+}
+
+.vc-example-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	opacity: 0.8;
+	flex-shrink: 0;
+}
+
+.vc-example-btn:hover .vc-example-icon {
+	color: var(--interactive-accent);
+	opacity: 1;
+}
+
+.vc-example-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.vc-example-text {
+	flex: 1;
 }
 
 .vc-commands-list li {
@@ -197,12 +291,7 @@
 	line-height: 1.6;
 }
 
-.vc-capabilities-list li {
-	padding: 0;
-	color: var(--text-muted);
-	font-size: 12px;
-	line-height: 1.4;
-}
+
 
 .vc-command-code {
 	background: var(--code-background);
@@ -221,7 +310,10 @@
 }
 
 .vc-message-user {
-	background: var(--background-secondary);
+	background: var(--background-secondary-alt);
+	border-radius: 8px;
+	padding: 12px;
+	margin: 4px 0;
 }
 
 .vc-message-assistant {
@@ -309,45 +401,366 @@
 	color: var(--text-error);
 }
 
+/* Used References (collapsible) */
+.vc-used-references {
+	margin: 8px 12px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.vc-refs-header {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	padding: 4px 8px;
+	border-radius: 4px;
+	user-select: none;
+}
+
+.vc-refs-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-refs-toggle-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: transform 0.15s ease;
+}
+
+.vc-refs-expanded .vc-refs-toggle-icon {
+	transform: rotate(90deg);
+}
+
+.vc-refs-label {
+	color: var(--text-muted);
+}
+
+.vc-refs-content {
+	margin-top: 8px;
+	padding-left: 8px;
+	border-left: 2px solid var(--background-modifier-border);
+}
+
+.vc-refs-group {
+	margin-bottom: 8px;
+}
+
+.vc-refs-group:last-child {
+	margin-bottom: 0;
+}
+
+.vc-refs-group-label {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-weight: 500;
+	color: var(--text-muted);
+	margin-bottom: 4px;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.vc-refs-group-label svg {
+	color: var(--text-muted);
+}
+
+.vc-refs-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.vc-refs-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 6px;
+	border-radius: 4px;
+}
+
+.vc-refs-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-refs-item-icon {
+	display: flex;
+	align-items: center;
+	color: var(--text-faint);
+}
+
+.vc-refs-item-name {
+	color: var(--text-normal);
+	font-size: 12px;
+}
+
+.vc-refs-clickable {
+	cursor: pointer;
+}
+
+.vc-refs-clickable:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+.vc-refs-item-path {
+	color: var(--text-faint);
+	font-size: 11px;
+	margin-left: auto;
+	max-width: 200px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 /* Input Area */
 .vc-input-area {
-	padding: 12px 2px 9px 2px;
+	padding: 8px 2px 8px 2px;
 	border-top: none;
-	background: var(--background-primary);
+	background: var(--background-secondary);
 	flex-shrink: 0;
 }
 
 .vc-input-wrapper {
 	display: flex;
 	flex-direction: column;
-	background: var(--background-secondary);
+	background: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
-	padding: 10px 12px;
+	border-radius: 12px;
+	padding: 0;
 	transition: border-color 0.15s;
 	position: relative;
 }
 
 .vc-input-wrapper:focus-within {
-	border-color: var(--interactive-accent);
+	border-color: var(--background-modifier-border);
 }
 
+/* Add Context button inside input wrapper */
+.vc-add-context {
+	display: inline-flex;
+	align-items: center;
+	align-self: flex-start;
+	gap: 6px;
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	outline: none !important;
+	color: var(--text-muted);
+	font-size: 12px;
+	cursor: pointer;
+	padding: 8px 12px 4px 12px;
+	border-radius: 0 !important;
+	transition: color 0.15s;
+}
+
+.vc-add-context:hover {
+	color: var(--text-normal);
+	background: transparent !important;
+}
+
+.vc-add-context:focus,
+.vc-add-context:active {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-add-context svg {
+	flex-shrink: 0;
+}
+
+/* Context Row - Add Context button and chips in a row */
+.vc-context-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 12px 4px 12px;
+}
+
+/* Attachments Container - inline with Add Context button */
+.vc-attachments {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+.vc-attachment-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 6px 2px 8px;
+	background: var(--interactive-accent);
+	border: none;
+	border-radius: 12px;
+	font-size: 12px;
+	color: var(--text-on-accent);
+	white-space: nowrap;
+}
+
+.vc-attachment-icon {
+	display: flex;
+	align-items: center;
+	color: var(--text-on-accent);
+}
+
+.vc-attachment-name {
+	max-width: 150px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vc-attachment-remove {
+	display: flex;
+	align-items: center;
+	padding: 2px;
+	border-radius: 50%;
+	cursor: pointer;
+	color: var(--text-on-accent);
+	opacity: 0.8;
+	transition: opacity 0.15s, background 0.15s;
+}
+
+.vc-attachment-remove:hover {
+	opacity: 1;
+	background: rgba(255, 255, 255, 0.2);
+}
+
+/* Context Picker (for # trigger) - VS Code style */
+.vc-context-picker {
+	position: absolute;
+	bottom: 100%;
+	left: 0;
+	right: 0;
+	max-height: 320px;
+	overflow-y: auto;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	margin-bottom: 4px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	z-index: 100;
+	font-size: 13px;
+}
+
+.vc-context-picker-empty {
+	padding: 8px 12px;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.vc-context-picker-item {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 4px 10px;
+	cursor: pointer;
+	min-height: 22px;
+}
+
+.vc-context-picker-item:hover,
+.vc-context-picker-item.vc-selected {
+	background: var(--background-modifier-hover);
+}
+
+.vc-context-picker-name {
+	flex-shrink: 0;
+	color: var(--text-normal);
+	font-size: 13px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 50%;
+}
+
+.vc-context-picker-path {
+	flex: 1;
+	font-size: 13px;
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-align: right;
+}
+
+/* Inline chip style (inside contenteditable) */
+.vc-inline-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 6px 2px 8px;
+	background: var(--interactive-accent);
+	border: none;
+	border-radius: 12px;
+	font-size: 12px;
+	color: var(--text-on-accent);
+	white-space: nowrap;
+	vertical-align: middle;
+	margin: 0 2px;
+	user-select: none;
+}
+
+.vc-inline-chip .vc-attachment-icon {
+	color: var(--text-on-accent);
+	display: inline-flex;
+	align-items: center;
+}
+
+.vc-inline-chip .vc-attachment-remove {
+	color: var(--text-on-accent);
+	opacity: 0.8;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+}
+
+.vc-inline-chip .vc-attachment-remove:hover {
+	opacity: 1;
+	background: rgba(255, 255, 255, 0.2);
+	border-radius: 50%;
+}
+
+/* Contenteditable input */
 .vc-input {
-	width: 100%;
+	flex: 1 1 100%;
+	min-width: 100px;
 	background: transparent;
 	border: none;
-	resize: none;
 	font-size: 13px;
-	line-height: 1.4;
+	line-height: 1.6;
 	color: var(--text-normal);
-	min-height: 18px;
+	min-height: 24px;
 	max-height: 200px;
 	outline: none;
-	margin-bottom: 2px;
+	padding: 8px 12px;
+	overflow-y: auto;
+	white-space: pre-wrap;
+	word-wrap: break-word;
 }
 
-.vc-input::placeholder {
+.vc-input:focus {
+	outline: none;
+	border: none;
+	box-shadow: none;
+}
+
+/* Placeholder for contenteditable */
+.vc-input:empty::before {
+	content: attr(data-placeholder);
 	color: var(--text-muted);
+	pointer-events: none;
+}
+
+.vc-input:focus:empty::before {
+	content: attr(data-placeholder);
 }
 
 /* Input Toolbar */
@@ -356,6 +769,30 @@
 	align-items: center;
 	justify-content: space-between;
 	gap: 4px;
+	padding: 4px 8px 8px 8px;
+	background: transparent;
+}
+
+/* Override all button styles inside input toolbar */
+.vc-input-toolbar button,
+.vc-input-toolbar select {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	outline: none !important;
+	border-radius: 0 !important;
+}
+
+.vc-input-toolbar button:hover,
+.vc-input-toolbar button:focus,
+.vc-input-toolbar button:active,
+.vc-input-toolbar select:hover,
+.vc-input-toolbar select:focus,
+.vc-input-toolbar select:active {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	outline: none !important;
 }
 
 .vc-toolbar-left {
@@ -403,7 +840,7 @@
 /* Model Selector */
 .vc-model-selector {
 	padding: 2px 14px 2px 4px;
-	background: transparent;
+	background-color: transparent;
 	border: none !important;
 	box-shadow: none !important;
 	color: var(--text-muted);
@@ -411,13 +848,23 @@
 	cursor: pointer;
 	outline: none;
 	transition: color 0.15s;
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-	background-repeat: no-repeat;
-	background-position: right 2px center;
 	-webkit-appearance: none;
 	-moz-appearance: none;
 	appearance: none;
 	white-space: nowrap;
+}
+
+.vc-model-selector::after {
+	content: '';
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	margin-left: 4px;
+	vertical-align: middle;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
 }
 
 .vc-model-selector:hover {
@@ -430,8 +877,8 @@
 
 /* Agent Selector */
 .vc-agent-selector {
-	padding: 2px 14px 2px 4px;
-	background: transparent;
+	padding: 2px 4px 2px 4px;
+	background-color: transparent;
 	border: none !important;
 	box-shadow: none !important;
 	color: var(--text-muted);
@@ -439,13 +886,23 @@
 	cursor: pointer;
 	outline: none;
 	transition: color 0.15s;
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-	background-repeat: no-repeat;
-	background-position: right 2px center;
 	-webkit-appearance: none;
 	-moz-appearance: none;
 	appearance: none;
 	white-space: nowrap;
+}
+
+.vc-agent-selector::after {
+	content: '';
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	margin-left: 4px;
+	vertical-align: middle;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
 }
 
 .vc-agent-selector:hover {
@@ -462,6 +919,46 @@
 
 .vc-agent-selector.vc-agent-selected:hover {
 	color: var(--interactive-accent-hover);
+}
+
+/* Tool Selector */
+.vc-tool-selector {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	background: transparent;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-muted);
+	cursor: pointer;
+	outline: none;
+	transition: color 0.15s;
+	border-radius: 4px;
+}
+
+.vc-tool-selector:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.vc-tool-selector:focus {
+	color: var(--text-normal);
+}
+
+.vc-tool-selector.vc-tools-filtered {
+	color: var(--interactive-accent);
+}
+
+.vc-tool-selector.vc-tools-filtered:hover {
+	color: var(--interactive-accent-hover);
+}
+
+.vc-tool-selector svg {
+	width: 16px;
+	height: 16px;
 }
 
 .vc-agent-desc {
@@ -845,64 +1342,6 @@
 
 .vc-banner-change-btn:hover {
 	background: rgba(255, 255, 255, 0.3);
-}
-
-/* Attachments Container */
-.vc-attachments {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	padding: 8px 12px;
-	margin-bottom: 8px;
-	background: var(--background-primary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 12px 12px 0 0;
-	border-bottom: none;
-}
-
-.vc-attachments.vc-has-attachments + .vc-input-wrapper {
-	border-radius: 0 0 12px 12px;
-	border-top: none;
-}
-
-.vc-attachment-chip {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 4px 8px 4px 10px;
-	background: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 16px;
-	font-size: 12px;
-	color: var(--text-normal);
-}
-
-.vc-attachment-icon {
-	display: flex;
-	align-items: center;
-	color: var(--text-muted);
-}
-
-.vc-attachment-name {
-	max-width: 150px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.vc-attachment-remove {
-	display: flex;
-	align-items: center;
-	padding: 2px;
-	border-radius: 50%;
-	cursor: pointer;
-	color: var(--text-muted);
-	transition: color 0.15s, background 0.15s;
-}
-
-.vc-attachment-remove:hover {
-	color: var(--text-error);
-	background: rgba(var(--color-red-rgb), 0.1);
 }
 
 /* ================================
@@ -1327,8 +1766,8 @@
 	align-items: center;
 	justify-content: space-between;
 	padding: 8px 12px;
-	border-bottom: none;
-	background: transparent;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
 	flex-shrink: 0;
 }
 
@@ -1718,6 +2157,226 @@
 }
 
 /* ================================
+   TOOL PICKER MODAL (VS Code style)
+   ================================ */
+
+.vc-tool-picker-modal {
+	width: 650px;
+	max-width: 90vw;
+}
+
+.vc-tool-picker-modal .modal-content {
+	padding: 0;
+}
+
+.vc-tool-picker-content {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+/* Search row with badge and OK button */
+.vc-tp-search-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.vc-tp-search-input {
+	flex: 1;
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.vc-tp-search-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
+}
+
+.vc-tp-search-input::placeholder {
+	color: var(--text-faint);
+}
+
+.vc-tp-selected-count {
+	padding: 4px 10px;
+	background: var(--background-modifier-hover);
+	border-radius: 4px;
+	font-size: 12px;
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+.vc-tp-ok-btn {
+	padding: 6px 16px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	border-radius: 4px;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.vc-tp-ok-btn:hover {
+	background: var(--interactive-accent-hover);
+}
+
+/* Description text */
+.vc-tp-description {
+	padding: 10px 12px;
+	font-size: 12px;
+	color: var(--text-muted);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* Tree container */
+.vc-tp-tree {
+	flex: 1;
+	overflow-y: auto;
+	max-height: 450px;
+	padding: 4px 0;
+}
+
+/* Group (top-level: Built-In, Plugin, MCP servers) */
+.vc-tp-group {
+	/* No additional styling needed */
+}
+
+.vc-tp-group-header {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 8px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.vc-tp-group-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-tp-chevron {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.vc-tp-checkbox {
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	cursor: pointer;
+	accent-color: var(--interactive-accent);
+}
+
+.vc-tp-group-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-tp-icon {
+	font-size: 14px;
+	width: 18px;
+	text-align: center;
+}
+
+/* Children container */
+.vc-tp-children {
+	margin-left: 20px;
+}
+
+/* Category (subcategory within Built-In) */
+.vc-tp-category {
+	/* No additional styling needed */
+}
+
+.vc-tp-category-header {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 8px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.vc-tp-category-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-tp-category-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	color: var(--text-normal);
+}
+
+.vc-tp-category-tools {
+	margin-left: 20px;
+}
+
+/* Tool item */
+.vc-tp-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.vc-tp-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-tp-item.vc-tp-depth-1 {
+	padding-left: 28px;
+}
+
+.vc-tp-item.vc-tp-depth-2 {
+	padding-left: 48px;
+}
+
+.vc-tp-item-name {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-tp-item-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-left: 8px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Tool Summary (Settings Tab) */
+.vc-tool-summary {
+	padding: 8px 12px;
+	background: var(--background-modifier-hover);
+	border-radius: 6px;
+	margin-bottom: 12px;
+}
+
+/* ================================
    SKILLS & MCP TABLE SECTION
    ================================ */
 
@@ -1840,6 +2499,119 @@
 .vc-badge-disabled {
 	background: var(--background-modifier-border);
 	color: var(--text-muted);
+}
+
+.vc-badge-warning {
+	background: rgba(var(--color-yellow-rgb), 0.15);
+	color: var(--color-yellow);
+}
+
+.vc-badge-error {
+	background: rgba(var(--color-red-rgb), 0.15);
+	color: var(--color-red);
+}
+
+/* MCP Server Settings Section */
+.vc-mcp-header-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 8px;
+}
+
+.vc-mcp-header-row h4 {
+	margin: 0;
+}
+
+.vc-mcp-refresh-btn {
+	padding: 4px 10px;
+	font-size: 12px;
+	background: var(--background-modifier-border);
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-muted);
+}
+
+.vc-mcp-refresh-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.vc-mcp-source-section {
+	margin-bottom: 16px;
+}
+
+.vc-mcp-source-header {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-muted);
+	margin: 0 0 8px 0;
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-mcp-table {
+	font-size: 12px;
+}
+
+.vc-mcp-command {
+	font-family: var(--font-monospace);
+	font-size: 10px;
+	color: var(--text-faint);
+	margin-top: 2px;
+	max-width: 200px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vc-mcp-tools-count {
+	font-size: 10px;
+	color: var(--text-faint);
+	margin-top: 2px;
+}
+
+.vc-mcp-actions {
+	white-space: nowrap;
+}
+
+.vc-mcp-action-btn {
+	padding: 4px 10px;
+	font-size: 11px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.vc-mcp-start-btn {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.vc-mcp-start-btn:hover {
+	background: var(--interactive-accent-hover);
+}
+
+.vc-mcp-start-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.vc-mcp-stop-btn {
+	background: rgba(var(--color-red-rgb), 0.15);
+	color: var(--color-red);
+}
+
+.vc-mcp-stop-btn:hover {
+	background: rgba(var(--color-red-rgb), 0.25);
+}
+
+.vc-mcp-connecting {
+	font-size: 11px;
+	color: var(--text-muted);
+	font-style: italic;
 }
 
 /* Table Summary */
@@ -2039,102 +2811,56 @@
 	left: 0;
 	right: 0;
 	margin-bottom: 4px;
-	max-height: 280px;
+	max-height: 320px;
 	overflow-y: auto;
 	background: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+	border-radius: 6px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 	z-index: 100;
+	font-size: 13px;
 }
 
 .vc-prompt-picker-empty {
-	padding: 12px 16px;
+	padding: 8px 12px;
 	color: var(--text-muted);
 	font-size: 13px;
-	text-align: center;
 }
 
 .vc-prompt-picker-item {
 	display: flex;
 	flex-direction: row;
-	align-items: flex-start;
-	gap: 10px;
-	padding: 8px 12px;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 4px 10px;
 	cursor: pointer;
-	transition: background 0.1s;
-	border-bottom: 1px solid var(--background-modifier-border);
-	position: relative;
+	min-height: 22px;
 }
 
-.vc-prompt-picker-item:last-child {
-	border-bottom: none;
-}
-
-.vc-prompt-picker-item:hover {
-	background: var(--background-modifier-hover);
-}
-
+.vc-prompt-picker-item:hover,
 .vc-prompt-picker-item.vc-selected {
 	background: var(--background-modifier-hover);
 }
 
-.vc-prompt-picker-item.vc-selected::before {
-	content: "";
-	position: absolute;
-	left: 0;
-	top: 0;
-	bottom: 0;
-	width: 3px;
-	background: var(--interactive-accent);
-}
-
-.vc-prompt-picker-icon {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 20px;
-	height: 20px;
-	color: var(--text-muted);
-	flex-shrink: 0;
-	margin-top: 2px;
-}
-
-.vc-prompt-picker-content {
-	flex: 1;
-	min-width: 0;
-}
-
-.vc-prompt-picker-header {
-	padding: 8px 12px 4px;
-	font-size: 11px;
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	color: var(--text-muted);
-	border-bottom: 1px solid var(--background-modifier-border);
-}
-
 .vc-prompt-picker-name {
-	font-weight: 500;
+	flex-shrink: 0;
 	color: var(--text-normal);
 	font-size: 13px;
-}
-
-.vc-prompt-picker-model {
-	font-size: 11px;
-	color: var(--text-muted);
-	background: var(--background-secondary);
-	padding: 1px 6px;
-	border-radius: 4px;
-	margin-left: auto;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 50%;
 }
 
 .vc-prompt-picker-desc {
-	font-size: 12px;
+	flex: 1;
+	font-size: 13px;
 	color: var(--text-muted);
-	margin-top: 2px;
-	line-height: 1.4;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-align: right;
 }
 
 /* Scrollbar styling for prompt picker */
@@ -2153,4 +2879,261 @@
 
 .vc-prompt-picker::-webkit-scrollbar-thumb:hover {
 	background: var(--background-modifier-border-hover);
+}
+
+/* ================================
+   MCP APPS - Inline App Rendering
+   ================================ */
+
+/* MCP App Container */
+.vc-mcp-app {
+	margin: 12px 0;
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-mcp-app.vc-mcp-app-loading {
+	padding: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	color: var(--text-muted);
+}
+
+.vc-mcp-app.vc-mcp-app-error {
+	padding: 16px;
+	background: rgba(var(--color-red-rgb), 0.1);
+	border-color: var(--text-error);
+}
+
+.vc-mcp-app-error-content {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+}
+
+.vc-mcp-app-error-icon {
+	color: var(--text-error);
+	flex-shrink: 0;
+}
+
+.vc-mcp-app-error-message {
+	flex: 1;
+}
+
+.vc-mcp-app-error-title {
+	font-weight: 500;
+	color: var(--text-error);
+	margin-bottom: 4px;
+}
+
+.vc-mcp-app-error-detail {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+/* MCP App Header */
+.vc-mcp-app-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	background: var(--background-modifier-border);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-mcp-app-header-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-mcp-app-header-icon {
+	color: var(--text-muted);
+}
+
+.vc-mcp-app-header-title {
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-mcp-app-header-server {
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.vc-mcp-app-header-actions {
+	display: flex;
+	gap: 4px;
+}
+
+.vc-mcp-app-action-btn {
+	background: transparent !important;
+	border: none !important;
+	padding: 4px;
+	border-radius: 4px !important;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s, background 0.15s;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-mcp-app-action-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover) !important;
+}
+
+/* MCP App Iframe */
+.vc-mcp-app-iframe {
+	display: block;
+	width: 100%;
+	min-height: 200px;
+	border: none;
+	background: var(--background-primary);
+}
+
+/* MCP App Fullscreen */
+.vc-mcp-app-fullscreen {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 1000;
+	background: var(--background-primary);
+}
+
+.vc-mcp-app-fullscreen .vc-mcp-app-iframe {
+	height: calc(100vh - 44px);
+	max-height: none;
+}
+
+/* Tool Execution Indicator */
+.vc-tool-execution {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	margin: 8px 0;
+	background: var(--background-secondary);
+	border-radius: 6px;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.vc-tool-execution-icon {
+	color: var(--interactive-accent);
+}
+
+.vc-tool-execution.vc-tool-execution-running .vc-tool-execution-icon {
+	animation: vc-spin 1s linear infinite;
+}
+
+.vc-tool-execution-name {
+	font-weight: 500;
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 12px;
+}
+
+.vc-tool-execution-status {
+	margin-left: auto;
+	font-size: 11px;
+}
+
+.vc-tool-execution.vc-tool-execution-complete .vc-tool-execution-icon {
+	color: var(--color-green);
+}
+
+.vc-tool-execution.vc-tool-execution-error .vc-tool-execution-icon {
+	color: var(--color-red);
+}
+
+/* MCP App Result with UI */
+.vc-mcp-app-result {
+	margin: 12px 0;
+}
+
+.vc-mcp-app-result-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	background: var(--background-secondary);
+	border-radius: 6px 6px 0 0;
+	border: 1px solid var(--background-modifier-border);
+	border-bottom: none;
+}
+
+.vc-mcp-app-result-header-icon {
+	color: var(--color-green);
+}
+
+.vc-mcp-app-result-header-text {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.vc-mcp-app-result-header-tool {
+	font-weight: 500;
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+}
+
+.vc-mcp-app-result .vc-mcp-app {
+	border-radius: 0 0 6px 6px;
+	margin: 0;
+}
+
+/* Collapsible Tool Details */
+.vc-tool-details {
+	margin-top: 8px;
+}
+
+.vc-tool-details-toggle {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 8px;
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-muted);
+	font-size: 11px;
+	transition: color 0.15s, background 0.15s;
+}
+
+.vc-tool-details-toggle:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.vc-tool-details-content {
+	margin-top: 8px;
+	padding: 8px 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	overflow-x: auto;
+	display: none;
+}
+
+.vc-tool-details.vc-expanded .vc-tool-details-content {
+	display: block;
+}
+
+.vc-tool-details-content pre {
+	margin: 0;
+	white-space: pre-wrap;
+	word-break: break-all;
 }
