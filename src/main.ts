@@ -1,7 +1,7 @@
 import { Plugin, Notice, WorkspaceLeaf } from "obsidian";
 import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession } from "./settings";
 import { CopilotService, CopilotServiceConfig, ChatMessage } from "./copilot/CopilotService";
-import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/CopilotChatView";
+import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/ChatView";
 import { 
 	SkillRegistry, 
 	getSkillRegistry, 
@@ -11,6 +11,7 @@ import {
 	McpServerConfig,
 	SkillRegistryEvent
 } from "./copilot/SkillRegistry";
+import { McpManager } from "./copilot/McpManager";
 import { AgentCache, CachedAgentInfo } from "./copilot/AgentCache";
 import { PromptCache, CachedPromptInfo } from "./copilot/PromptCache";
 import { CustomPrompt } from "./copilot/CustomizationLoader";
@@ -195,6 +196,7 @@ export default class CopilotPlugin extends Plugin {
 	skillRegistry: SkillRegistry;
 	agentCache: AgentCache;
 	promptCache: PromptCache;
+	mcpManager: McpManager;
 	private statusBarEl: HTMLElement | null = null;
 
 	async onload(): Promise<void> {
@@ -211,6 +213,10 @@ export default class CopilotPlugin extends Plugin {
 		this.promptCache = new PromptCache(this.app);
 		await this.promptCache.initialize(this.settings.promptDirectories);
 
+		// Initialize MCP manager for stdio MCP server support
+		this.mcpManager = new McpManager(this.app);
+		await this.mcpManager.initialize();
+
 		// Initialize Copilot service
 		this.copilotService = new CopilotService(this.app, this.getServiceConfig());
 
@@ -221,7 +227,7 @@ export default class CopilotPlugin extends Plugin {
 		);
 
 		// Add ribbon icon to open chat
-		this.addRibbonIcon("message-square", "Open GitHub Copilot for Obsidian", () => {
+		this.addRibbonIcon("message-square", "Open Vault Copilot", () => {
 			this.activateChatView();
 		});
 
@@ -263,14 +269,14 @@ export default class CopilotPlugin extends Plugin {
 				const activeFile = this.app.workspace.getActiveFile();
 				if (activeFile && this.copilotService) {
 					// The view will handle the actual message sending
-					new Notice("Opening Copilot to summarize note...");
+					new Notice("Opening Vault Copilot to summarize note...");
 				}
 			},
 		});
 
 		this.addCommand({
 			id: "copilot-connect",
-			name: "Connect to Copilot",
+			name: "Connect to Vault Copilot",
 			callback: async () => {
 				await this.connectCopilot();
 			},
@@ -278,7 +284,7 @@ export default class CopilotPlugin extends Plugin {
 
 		this.addCommand({
 			id: "copilot-disconnect",
-			name: "Disconnect from Copilot",
+			name: "Disconnect from Vault Copilot",
 			callback: async () => {
 				await this.disconnectCopilot();
 			},
@@ -293,6 +299,7 @@ export default class CopilotPlugin extends Plugin {
 
 	async onunload(): Promise<void> {
 		await this.disconnectCopilot();
+		await this.mcpManager?.shutdown();
 		this.agentCache?.destroy();
 		this.promptCache?.destroy();
 	}
@@ -342,6 +349,7 @@ export default class CopilotPlugin extends Plugin {
 			cliUrl: this.settings.cliUrl || undefined,
 			streaming: this.settings.streaming,
 			skillRegistry: this.skillRegistry,
+			mcpManager: this.mcpManager,
 			skillDirectories: resolvePaths(this.settings.skillDirectories),
 			agentDirectories: resolvePaths(this.settings.agentDirectories),
 			instructionDirectories: resolvePaths(this.settings.instructionDirectories),
@@ -424,7 +432,7 @@ export default class CopilotPlugin extends Plugin {
 		this.statusBarEl.empty();
 		
 		const statusEl = this.statusBarEl.createSpan({ cls: "vc-status" });
-		statusEl.setAttribute("aria-label", isConnected ? "Toggle Copilot window" : "Connect to Copilot");
+		statusEl.setAttribute("aria-label", isConnected ? "Toggle Vault Copilot window" : "Connect to Vault Copilot");
 		
 		// GitHub Copilot logo SVG
 		const logoEl = statusEl.createSpan({ cls: "vc-status-logo" });
@@ -512,13 +520,13 @@ export default class CopilotPlugin extends Plugin {
 			},
 			
 			sendMessage: async (prompt: string) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("VaultCopilot service not initialized");
 				if (!service.isConnected()) await plugin.connectCopilot();
 				return await service.sendMessage(prompt);
 			},
 			
 			sendMessageStreaming: async (prompt, onDelta, onComplete) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				if (!service.isConnected()) await plugin.connectCopilot();
 				return await service.sendMessageStreaming(prompt, onDelta, onComplete);
 			},
@@ -526,7 +534,7 @@ export default class CopilotPlugin extends Plugin {
 			getMessageHistory: () => service?.getMessageHistory() ?? [],
 			
 			clearHistory: async () => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.clearHistory();
 			},
 			
@@ -621,62 +629,62 @@ export default class CopilotPlugin extends Plugin {
 			// ===== Note Operations =====
 			
 			readNote: async (path) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.readNote(path);
 			},
 			
 			searchNotes: async (query, limit = 10) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.searchNotes(query, limit);
 			},
 			
 			createNote: async (path, content) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.createNote(path, content);
 			},
 			
 			getActiveNote: async () => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.getActiveNote();
 			},
 			
 			listNotes: async (folder) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.listNotes(folder);
 			},
 			
 			appendToNote: async (path, content) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.appendToNote(path, content);
 			},
 			
 			batchReadNotes: async (paths) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.batchReadNotes(paths);
 			},
 			
 			updateNote: async (path, content) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.updateNote(path, content);
 			},
 			
 			deleteNote: async (path) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.deleteNote(path);
 			},
 			
 			getRecentChanges: async (limit = 10) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.getRecentChanges(limit);
 			},
 			
 			getDailyNote: async (date) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.getDailyNote(date);
 			},
 			
 			renameNote: async (oldPath, newPath) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				return await service.renameNote(oldPath, newPath);
 			},
 			
@@ -751,7 +759,7 @@ export default class CopilotPlugin extends Plugin {
 			},
 			
 			executePrompt: async (name: string, variables?: Record<string, string>) => {
-				if (!service) throw new Error("Copilot service not initialized");
+				if (!service) throw new Error("Vault Copilot service not initialized");
 				if (!service.isConnected()) await plugin.connectCopilot();
 				
 				const prompt = await plugin.promptCache.getFullPrompt(name);

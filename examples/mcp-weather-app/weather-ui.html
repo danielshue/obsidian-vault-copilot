@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Weather Dashboard</title>
+	<style>
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+		
+		body {
+			font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+			background: var(--color-background-primary, #1e1e1e);
+			color: var(--color-text-primary, #dcddde);
+			padding: 16px;
+			line-height: 1.5;
+		}
+		
+		.container {
+			max-width: 400px;
+		}
+		
+		.header {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			margin-bottom: 16px;
+		}
+		
+		.weather-icon {
+			font-size: 48px;
+		}
+		
+		.header-text h1 {
+			font-size: 24px;
+			font-weight: 600;
+			margin-bottom: 4px;
+		}
+		
+		.header-text p {
+			font-size: 14px;
+			color: var(--color-text-secondary, #a7a7a7);
+		}
+		
+		.card {
+			background: var(--color-background-secondary, #252525);
+			border-radius: 8px;
+			padding: 16px;
+			margin-bottom: 12px;
+		}
+		
+		.temperature {
+			font-size: 48px;
+			font-weight: 300;
+			margin-bottom: 8px;
+		}
+		
+		.condition {
+			font-size: 18px;
+			text-transform: capitalize;
+			margin-bottom: 16px;
+		}
+		
+		.details {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 12px;
+		}
+		
+		.detail-item {
+			padding: 12px;
+			background: var(--color-background-primary, #1e1e1e);
+			border-radius: 6px;
+		}
+		
+		.detail-label {
+			font-size: 12px;
+			color: var(--color-text-secondary, #a7a7a7);
+			margin-bottom: 4px;
+		}
+		
+		.detail-value {
+			font-size: 18px;
+			font-weight: 500;
+		}
+		
+		.actions {
+			display: flex;
+			gap: 8px;
+			margin-top: 16px;
+		}
+		
+		button {
+			flex: 1;
+			padding: 10px 16px;
+			font-size: 14px;
+			font-weight: 500;
+			border: none;
+			border-radius: 6px;
+			cursor: pointer;
+			transition: background 0.15s, transform 0.1s;
+		}
+		
+		button:hover {
+			transform: translateY(-1px);
+		}
+		
+		button:active {
+			transform: translateY(0);
+		}
+		
+		.btn-primary {
+			background: #7c3aed;
+			color: white;
+		}
+		
+		.btn-primary:hover {
+			background: #6d28d9;
+		}
+		
+		.btn-secondary {
+			background: var(--color-background-secondary, #3d3d3d);
+			color: var(--color-text-primary, #dcddde);
+		}
+		
+		.btn-secondary:hover {
+			background: var(--color-background-tertiary, #4d4d4d);
+		}
+		
+		.search-form {
+			display: flex;
+			gap: 8px;
+			margin-bottom: 16px;
+		}
+		
+		input {
+			flex: 1;
+			padding: 10px 14px;
+			font-size: 14px;
+			background: var(--color-background-secondary, #252525);
+			border: 1px solid var(--color-border-primary, #3d3d3d);
+			border-radius: 6px;
+			color: var(--color-text-primary, #dcddde);
+			outline: none;
+		}
+		
+		input:focus {
+			border-color: #7c3aed;
+		}
+		
+		input::placeholder {
+			color: var(--color-text-tertiary, #666);
+		}
+		
+		.loading {
+			display: none;
+			text-align: center;
+			padding: 24px;
+			color: var(--color-text-secondary, #a7a7a7);
+		}
+		
+		.loading.visible {
+			display: block;
+		}
+		
+		.spinner {
+			display: inline-block;
+			width: 20px;
+			height: 20px;
+			border: 2px solid var(--color-border-primary, #3d3d3d);
+			border-top-color: #7c3aed;
+			border-radius: 50%;
+			animation: spin 0.8s linear infinite;
+			margin-right: 8px;
+			vertical-align: middle;
+		}
+		
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
+		
+		.error {
+			background: rgba(239, 68, 68, 0.1);
+			border: 1px solid #ef4444;
+			color: #ef4444;
+			padding: 12px;
+			border-radius: 6px;
+			margin-bottom: 12px;
+			display: none;
+		}
+		
+		.error.visible {
+			display: block;
+		}
+		
+		.timestamp {
+			font-size: 11px;
+			color: var(--color-text-tertiary, #666);
+			margin-top: 12px;
+			text-align: right;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<form class="search-form" id="searchForm">
+			<input type="text" id="locationInput" placeholder="Enter city name..." value="New York">
+			<button type="submit" class="btn-primary">Search</button>
+		</form>
+		
+		<div class="error" id="error"></div>
+		<div class="loading" id="loading"><span class="spinner"></span>Loading weather...</div>
+		
+		<div id="weatherContent" style="display: none;">
+			<div class="header">
+				<span class="weather-icon" id="weatherIcon">☀️</span>
+				<div class="header-text">
+					<h1 id="location">New York</h1>
+					<p id="condition">Sunny</p>
+				</div>
+			</div>
+			
+			<div class="card">
+				<div class="temperature" id="temperature">22°C</div>
+				<div class="details">
+					<div class="detail-item">
+						<div class="detail-label">Humidity</div>
+						<div class="detail-value" id="humidity">65%</div>
+					</div>
+					<div class="detail-item">
+						<div class="detail-label">Wind</div>
+						<div class="detail-value" id="wind">12 km/h</div>
+					</div>
+				</div>
+			</div>
+			
+			<div class="actions">
+				<button type="button" class="btn-secondary" onclick="getForecast()">3-Day Forecast</button>
+				<button type="button" class="btn-primary" onclick="refreshWeather()">Refresh</button>
+			</div>
+			
+			<div class="timestamp" id="timestamp"></div>
+		</div>
+	</div>
+
+	<script>
+		// MCP Apps JSON-RPC communication
+		let requestId = 0;
+		let pendingRequests = new Map();
+		let hostContext = null;
+		let initialized = false;
+		let currentLocation = 'New York';
+		
+		// Weather icons by condition
+		const weatherIcons = {
+			sunny: '☀️',
+			cloudy: '☁️',
+			rainy: '🌧️',
+			snowy: '❄️',
+			windy: '💨',
+			default: '🌤️'
+		};
+		
+		// Send JSON-RPC message to host
+		function sendMessage(method, params, callback) {
+			const id = ++requestId;
+			const message = {
+				jsonrpc: '2.0',
+				id,
+				method,
+				params
+			};
+			
+			if (callback) {
+				pendingRequests.set(id, callback);
+			}
+			
+			parent.postMessage(JSON.stringify(message), '*');
+		}
+		
+		// Handle incoming messages from host
+		window.addEventListener('message', (event) => {
+			let message;
+			try {
+				message = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+			} catch {
+				return;
+			}
+			
+			if (message.jsonrpc !== '2.0') return;
+			
+			// Handle response
+			if (message.id !== undefined && pendingRequests.has(message.id)) {
+				const callback = pendingRequests.get(message.id);
+				pendingRequests.delete(message.id);
+				
+				if (message.error) {
+					callback(new Error(message.error.message), null);
+				} else {
+					callback(null, message.result);
+				}
+				return;
+			}
+			
+			// Handle notifications
+			if (message.method) {
+				handleNotification(message.method, message.params);
+			}
+		});
+		
+		function handleNotification(method, params) {
+			switch (method) {
+				case 'ui/notifications/tool-input':
+					// Tool is being called with these arguments
+					if (params?.arguments?.location) {
+						currentLocation = params.arguments.location;
+						document.getElementById('locationInput').value = currentLocation;
+					}
+					showLoading(true);
+					break;
+					
+				case 'ui/notifications/tool-result':
+					// Tool completed, update UI with result
+					showLoading(false);
+					if (params?.structuredContent) {
+						updateWeatherDisplay(params.structuredContent);
+					}
+					break;
+					
+				case 'ui/notifications/context-changed':
+					// Host context changed (e.g., theme)
+					if (params?.theme) {
+						// Could update styles here
+					}
+					break;
+			}
+		}
+		
+		// Initialize MCP App
+		function initialize() {
+			sendMessage('ui/initialize', {
+				appCapabilities: {}
+			}, (err, result) => {
+				if (err) {
+					showError('Failed to initialize: ' + err.message);
+					return;
+				}
+				
+				initialized = true;
+				hostContext = result.hostContext;
+				
+				// Check if we have initial tool data
+				if (hostContext?.toolInfo?.tool) {
+					console.log('Initialized with tool context:', hostContext.toolInfo);
+				}
+				
+				// Fetch initial weather
+				getWeather(currentLocation);
+			});
+		}
+		
+		// Call the get_weather tool
+		function getWeather(location) {
+			showLoading(true);
+			showError('');
+			currentLocation = location;
+			
+			sendMessage('tools/call', {
+				name: 'get_weather',
+				arguments: { location }
+			}, (err, result) => {
+				showLoading(false);
+				
+				if (err) {
+					showError('Failed to get weather: ' + err.message);
+					return;
+				}
+				
+				if (result?.structuredContent) {
+					updateWeatherDisplay(result.structuredContent);
+				} else if (result?.content?.[0]?.text) {
+					// Text-only response
+					showError(result.content[0].text);
+				}
+			});
+		}
+		
+		// Call the get_forecast tool
+		function getForecast() {
+			sendMessage('tools/call', {
+				name: 'get_forecast',
+				arguments: { location: currentLocation, days: 3 }
+			}, (err, result) => {
+				if (err) {
+					showError('Failed to get forecast: ' + err.message);
+					return;
+				}
+				
+				if (result?.structuredContent?.forecast) {
+					alert('Forecast: ' + JSON.stringify(result.structuredContent.forecast, null, 2));
+				}
+			});
+		}
+		
+		// Refresh weather for current location
+		function refreshWeather() {
+			getWeather(currentLocation);
+		}
+		
+		// Update UI with weather data
+		function updateWeatherDisplay(data) {
+			document.getElementById('weatherContent').style.display = 'block';
+			document.getElementById('location').textContent = data.location || 'Unknown';
+			document.getElementById('condition').textContent = data.condition || 'Unknown';
+			document.getElementById('temperature').textContent = `${data.temperature}°${data.temperatureUnit || 'C'}`;
+			document.getElementById('humidity').textContent = `${data.humidity}%`;
+			document.getElementById('wind').textContent = `${data.windSpeed} ${data.windUnit || 'km/h'}`;
+			document.getElementById('weatherIcon').textContent = weatherIcons[data.condition] || weatherIcons.default;
+			
+			if (data.timestamp) {
+				document.getElementById('timestamp').textContent = 'Updated: ' + new Date(data.timestamp).toLocaleTimeString();
+			}
+		}
+		
+		// UI helpers
+		function showLoading(visible) {
+			document.getElementById('loading').classList.toggle('visible', visible);
+			if (visible) {
+				document.getElementById('weatherContent').style.display = 'none';
+			}
+		}
+		
+		function showError(message) {
+			const errorEl = document.getElementById('error');
+			errorEl.textContent = message;
+			errorEl.classList.toggle('visible', !!message);
+		}
+		
+		// Form submission
+		document.getElementById('searchForm').addEventListener('submit', (e) => {
+			e.preventDefault();
+			const location = document.getElementById('locationInput').value.trim();
+			if (location) {
+				getWeather(location);
+			}
+		});
+		
+		// Start initialization
+		initialize();
+	</script>
+</body>
+</html>

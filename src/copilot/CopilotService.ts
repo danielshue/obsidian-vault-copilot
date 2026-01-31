@@ -2,6 +2,8 @@ import { CopilotClient, CopilotSession, SessionEvent, defineTool } from "@github
 import { App, TFile, Notice } from "obsidian";
 import { SkillRegistry, VaultCopilotSkill } from "./SkillRegistry";
 import { CustomizationLoader, CustomInstruction } from "./CustomizationLoader";
+import { McpManager, McpManagerEvent } from "./McpManager";
+import { McpTool } from "./McpTypes";
 
 export interface CopilotServiceConfig {
 	model: string;
@@ -10,6 +12,8 @@ export interface CopilotServiceConfig {
 	streaming: boolean;
 	/** Skill registry for plugin-registered skills */
 	skillRegistry?: SkillRegistry;
+	/** MCP Manager for MCP server tools */
+	mcpManager?: McpManager;
 	/** Directories containing skill definition files */
 	skillDirectories?: string[];
 	/** Directories containing custom agent definition files */
@@ -18,6 +22,8 @@ export interface CopilotServiceConfig {
 	instructionDirectories?: string[];
 	/** Directories containing prompt files */
 	promptDirectories?: string[];
+	/** Optional allowlist of tool names to enable (SDK availableTools) */
+	availableTools?: string[];
 }
 
 export interface ChatMessage {
@@ -39,11 +45,24 @@ export class CopilotService {
 	private eventHandlers: ((event: SessionEvent) => void)[] = [];
 	private customizationLoader: CustomizationLoader;
 	private loadedInstructions: CustomInstruction[] = [];
+	private mcpEventUnsubscribe: (() => void) | null = null;
 
 	constructor(app: App, config: CopilotServiceConfig) {
 		this.app = app;
 		this.config = config;
 		this.customizationLoader = new CustomizationLoader(app);
+		
+		// Subscribe to MCP server changes to update tools
+		if (config.mcpManager) {
+			const listener = (event: McpManagerEvent) => {
+				if (event.type === "server-tools-updated" || event.type === "server-status-changed") {
+					// Tools changed - recreate session to pick up new tools
+					console.log("[CopilotService] MCP tools changed, session will use updated tools on next message");
+				}
+			};
+			config.mcpManager.on(listener);
+			this.mcpEventUnsubscribe = () => config.mcpManager?.off(listener);
+		}
 	}
 
 	/**
@@ -72,6 +91,12 @@ export class CopilotService {
 	 * Stop the Copilot client and clean up resources
 	 */
 	async stop(): Promise<void> {
+		// Clean up MCP listener
+		if (this.mcpEventUnsubscribe) {
+			this.mcpEventUnsubscribe();
+			this.mcpEventUnsubscribe = null;
+		}
+		
 		if (this.session) {
 			await this.session.destroy();
 			this.session = null;
@@ -102,10 +127,15 @@ export class CopilotService {
 			console.log('[Vault Copilot] Loaded instructions:', this.loadedInstructions.map(i => i.name));
 		}
 
-		// Combine built-in tools with registered plugin skills
+		// Combine built-in tools with registered plugin skills and MCP tools
 		const builtInTools = this.createObsidianTools();
 		const registeredTools = this.convertRegisteredSkillsToTools();
-		const tools = [...builtInTools, ...registeredTools];
+		const mcpTools = this.convertMcpToolsToSdkTools();
+		const tools = [...builtInTools, ...registeredTools, ...mcpTools];
+		
+		if (mcpTools.length > 0) {
+			console.log('[Vault Copilot] Registered MCP tools:', mcpTools.map(t => t.name));
+		}
 
 		// Build session config
 		const sessionConfig: Record<string, unknown> = {
@@ -116,6 +146,12 @@ export class CopilotService {
 				content: this.getSystemPrompt(),
 			},
 		};
+
+		// Add tool filtering if configured (SDK availableTools/excludedTools)
+		if (this.config.availableTools && this.config.availableTools.length > 0) {
+			sessionConfig.availableTools = this.config.availableTools;
+			console.log('[Vault Copilot] Available tools filter:', this.config.availableTools.length, 'tools');
+		}
 
 		// Add skill directories if configured
 		if (this.config.skillDirectories && this.config.skillDirectories.length > 0) {
@@ -173,6 +209,45 @@ export class CopilotService {
 			});
 			
 			tools.push(tool);
+		}
+
+		return tools;
+	}
+
+	/**
+	 * Convert MCP tools from connected servers to SDK-compatible tools
+	 */
+	private convertMcpToolsToSdkTools(): ReturnType<typeof defineTool>[] {
+		if (!this.config.mcpManager) {
+			return [];
+		}
+
+		const tools: ReturnType<typeof defineTool>[] = [];
+		const mcpTools = this.config.mcpManager.getAllTools();
+
+		for (const { serverId, serverName, tool } of mcpTools) {
+			// Create a unique tool name that includes the server name to avoid collisions
+			// Format: mcp_<serverName>_<toolName>
+			const sanitizedServerName = serverName.replace(/[^a-zA-Z0-9_]/g, '_');
+			const toolName = `mcp_${sanitizedServerName}_${tool.name}`;
+
+			const sdkTool = defineTool(toolName, {
+				description: `[MCP: ${serverName}] ${tool.description || tool.name}`,
+				parameters: (tool.inputSchema || { type: "object", properties: {} }) as any,
+				handler: async (args: Record<string, unknown>) => {
+					try {
+						const result = await this.config.mcpManager!.callTool(serverId, tool.name, args);
+						return result;
+					} catch (error) {
+						return {
+							success: false,
+							error: error instanceof Error ? error.message : String(error),
+						};
+					}
+				},
+			});
+
+			tools.push(sdkTool);
 		}
 
 		return tools;
@@ -522,6 +597,17 @@ File pattern: \`*.instructions.md\``);
 		return parts.join('\n');
 	}
 
+	/**
+	 * Get the list of loaded instructions (for displaying in UI)
+	 */
+	getLoadedInstructions(): Array<{ name: string; path: string; applyTo?: string }> {
+		return this.loadedInstructions.map(i => ({
+			name: i.name,
+			path: i.path,
+			applyTo: i.applyTo
+		}));
+	}
+
 	private createObsidianTools() {
 		return [
 			defineTool("read_note", {
@@ -722,6 +808,20 @@ File pattern: \`*.instructions.md\``);
 				},
 				handler: async (args: { oldPath: string; newPath: string }) => {
 					return await this.renameNote(args.oldPath, args.newPath);
+				},
+			}),
+
+			defineTool("fetch_web_page", {
+				description: "Fetch and extract content from a web page URL. Returns the text content of the page.",
+				parameters: {
+					type: "object",
+					properties: {
+						url: { type: "string", description: "The URL of the web page to fetch" }
+					},
+					required: ["url"]
+				},
+				handler: async (args: { url: string }) => {
+					return await this.fetchWebPage(args.url);
 				},
 			}),
 		];
@@ -1069,5 +1169,95 @@ File pattern: \`*.instructions.md\``);
 		} catch (error) {
 			return { success: false, error: `Failed to rename note: ${error}` };
 		}
+	}
+
+	async fetchWebPage(url: string): Promise<{ success: boolean; url?: string; title?: string; content?: string; error?: string }> {
+		try {
+			// Validate URL
+			let parsedUrl: URL;
+			try {
+				parsedUrl = new URL(url);
+				if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+					return { success: false, error: `Invalid URL protocol. Only http and https are supported.` };
+				}
+			} catch {
+				return { success: false, error: `Invalid URL: ${url}` };
+			}
+
+			// Fetch the page
+			const response = await fetch(url, {
+				method: 'GET',
+				headers: {
+					'User-Agent': 'Mozilla/5.0 (compatible; ObsidianVaultCopilot/1.0)',
+					'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+				},
+			});
+
+			if (!response.ok) {
+				return { success: false, error: `Failed to fetch URL: ${response.status} ${response.statusText}` };
+			}
+
+			const html = await response.text();
+			
+			// Extract title
+			const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+			const title = titleMatch && titleMatch[1] ? titleMatch[1].trim() : parsedUrl.hostname;
+
+			// Extract text content from HTML
+			const content = this.extractTextFromHtml(html);
+
+			// Truncate if too long (limit to ~50k chars to avoid overwhelming context)
+			const maxLength = 50000;
+			const truncatedContent = content.length > maxLength 
+				? content.substring(0, maxLength) + '\n\n[Content truncated...]'
+				: content;
+
+			return { 
+				success: true, 
+				url: url,
+				title: title,
+				content: truncatedContent 
+			};
+		} catch (error) {
+			return { success: false, error: `Failed to fetch web page: ${error}` };
+		}
+	}
+
+	/**
+	 * Extract readable text content from HTML, removing scripts, styles, and tags
+	 */
+	private extractTextFromHtml(html: string): string {
+		// Remove script and style elements
+		let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+		text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+		text = text.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
+		
+		// Remove HTML comments
+		text = text.replace(/<!--[\s\S]*?-->/g, '');
+		
+		// Replace common block elements with newlines
+		text = text.replace(/<\/(p|div|h[1-6]|li|tr|br|hr)[^>]*>/gi, '\n');
+		text = text.replace(/<(br|hr)[^>]*\/?>/gi, '\n');
+		
+		// Remove all remaining HTML tags
+		text = text.replace(/<[^>]+>/g, ' ');
+		
+		// Decode common HTML entities
+		text = text.replace(/&nbsp;/g, ' ');
+		text = text.replace(/&amp;/g, '&');
+		text = text.replace(/&lt;/g, '<');
+		text = text.replace(/&gt;/g, '>');
+		text = text.replace(/&quot;/g, '"');
+		text = text.replace(/&#39;/g, "'");
+		text = text.replace(/&mdash;/g, '—');
+		text = text.replace(/&ndash;/g, '–');
+		text = text.replace(/&#?\w+;/g, ' '); // Remove other entities
+		
+		// Clean up whitespace
+		text = text.replace(/[ \t]+/g, ' '); // Multiple spaces/tabs to single space
+		text = text.replace(/\n\s*\n/g, '\n\n'); // Multiple newlines to double newline
+		text = text.trim();
+		
+		return text;
 	}
 }
