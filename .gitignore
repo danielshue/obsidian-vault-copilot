@@ -24,3 +24,4 @@ data.json
 # Test vault plugin files (deployed, not committed)
 test-vault/.obsidian/plugins/obsidian-vault-copilot/main.js
 test-vault/.obsidian/plugins/obsidian-vault-copilot/styles.css
+test-vault/.obsidian/workspace.json
