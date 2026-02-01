@@ -74,10 +74,12 @@ describe("types.ts", () => {
 				expect(VAULT_WRITE_TOOLS).toContain("update_note");
 				expect(VAULT_WRITE_TOOLS).toContain("replace_note");
 				expect(VAULT_WRITE_TOOLS).toContain("mark_tasks_complete");
+				expect(VAULT_WRITE_TOOLS).toContain("mark_tasks");
+				expect(VAULT_WRITE_TOOLS).toContain("create_task");
 			});
 
-			it("should have exactly 5 tools", () => {
-				expect(VAULT_WRITE_TOOLS).toHaveLength(5);
+			it("should have exactly 7 tools", () => {
+				expect(VAULT_WRITE_TOOLS).toHaveLength(7);
 			});
 
 			it("should not contain read tools", () => {
@@ -103,9 +105,10 @@ describe("types.ts", () => {
 			expect(uniqueTools.size).toBe(allTools.length);
 		});
 
-		it("should cover all 11 tool names", () => {
+		it("should cover all 15 tool names (including task tools)", () => {
 			const allTools = [...VAULT_READ_TOOLS, ...VAULT_WRITE_TOOLS, ...WEB_TOOLS];
-			expect(allTools).toHaveLength(11);
+			// 4 read + 7 write + 2 web = 13 (task tools overlap with write)
+			expect(allTools).toHaveLength(13);
 		});
 	});
 

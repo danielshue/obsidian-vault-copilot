@@ -6,6 +6,16 @@
  */
 
 import { App, TFile } from "obsidian";
+import {
+	parseTasksFromContent,
+	buildTaskLine,
+	filterTasks,
+	type ParsedTask,
+	type TaskPriority,
+	type TaskFilter,
+	type TaskOperationResult,
+	type CreateTaskOptions,
+} from "../realtime-agent/task-tools";
 
 /**
  * Normalize a vault path by removing leading slashes and backslashes
@@ -478,5 +488,219 @@ export async function webSearch(
 		return { success: true, query, results };
 	} catch (error) {
 		return { success: false, results: [], error: `Search failed: ${error}` };
+	}
+}
+
+// ============================================================================
+// Task Operations
+// ============================================================================
+
+// Re-export task types for convenience
+export type { ParsedTask, TaskPriority, TaskFilter, TaskOperationResult, CreateTaskOptions };
+
+/** Options for creating a task through VaultOperations */
+export interface CreateTaskVaultOptions extends Omit<CreateTaskOptions, "status"> {
+	/** Path to the note where the task should be added */
+	path: string;
+}
+
+/** Options for listing tasks */
+export interface ListTasksOptions extends TaskFilter {
+	/** Path to a specific note. If not provided, searches the active note */
+	path?: string;
+}
+
+/**
+ * Get all tasks from a note with full Obsidian Tasks metadata
+ */
+export async function getTasksFromNote(
+	app: App,
+	notePath?: string
+): Promise<TaskOperationResult> {
+	try {
+		let file: TFile | null = null;
+
+		if (notePath) {
+			const normalizedPath = normalizeVaultPath(notePath);
+			const abstractFile = app.vault.getAbstractFileByPath(normalizedPath);
+			if (abstractFile instanceof TFile) {
+				file = abstractFile;
+			}
+		} else {
+			file = app.workspace.getActiveFile();
+		}
+
+		if (!file) {
+			return {
+				success: false,
+				error: notePath ? `Note not found: ${notePath}` : "No active note",
+			};
+		}
+
+		const content = await app.vault.read(file);
+		const tasks = parseTasksFromContent(content, file.path);
+
+		return { success: true, tasks, path: file.path };
+	} catch (error) {
+		return { success: false, error: `Failed to get tasks: ${error}` };
+	}
+}
+
+/**
+ * Create a new task with Obsidian Tasks syntax
+ */
+export async function createTask(
+	app: App,
+	options: CreateTaskVaultOptions
+): Promise<WriteResult> {
+	try {
+		const normalizedPath = normalizeVaultPath(options.path);
+		const file = app.vault.getAbstractFileByPath(normalizedPath);
+		if (!file || !(file instanceof TFile)) {
+			return { success: false, error: `Note not found: ${options.path}` };
+		}
+
+		const taskLine = buildTaskLine({
+			description: options.description,
+			priority: options.priority,
+			dueDate: options.dueDate,
+			scheduledDate: options.scheduledDate,
+			startDate: options.startDate,
+			recurrence: options.recurrence,
+			tags: options.tags,
+		});
+
+		await app.vault.append(file, "\n" + taskLine);
+		return { success: true, path: file.path };
+	} catch (error) {
+		return { success: false, error: `Failed to create task: ${error}` };
+	}
+}
+
+/**
+ * Update task status (complete/incomplete) with bidirectional support
+ * 
+ * @param app - Obsidian App instance
+ * @param tasks - Array of task description texts to modify
+ * @param complete - true to mark complete ([x]), false to mark incomplete ([ ])
+ * @param exceptions - Task texts to exclude from the operation
+ * @param notePath - Optional note path, defaults to active note
+ */
+export async function updateTaskStatus(
+	app: App,
+	tasks: string[],
+	complete: boolean,
+	exceptions: string[] = [],
+	notePath?: string
+): Promise<MarkTasksResult> {
+	try {
+		let file: TFile | null = null;
+
+		if (notePath) {
+			const normalizedPath = normalizeVaultPath(notePath);
+			const abstractFile = app.vault.getAbstractFileByPath(normalizedPath);
+			if (abstractFile instanceof TFile) {
+				file = abstractFile;
+			}
+		} else {
+			file = app.workspace.getActiveFile();
+		}
+
+		if (!file) {
+			return { success: false, error: "No note specified or active" };
+		}
+
+		let content = await app.vault.read(file);
+		let modified = false;
+		let tasksMarked = 0;
+
+		// Determine the source and target status patterns
+		const sourcePattern = complete ? "- [ ]" : "- [x]";
+		const targetPattern = complete ? "- [x]" : "- [ ]";
+		const sourcePatternAlt = complete ? "- [ ]" : "- [X]"; // Handle uppercase X
+
+		for (const task of tasks) {
+			if (exceptions.includes(task)) continue;
+
+			const escapedTask = escapeRegex(task);
+			
+			// Match both lowercase and uppercase status
+			const taskRegex = new RegExp(
+				`- \\[${complete ? " " : "[xX]"}\\]\\s*${escapedTask}`,
+				"g"
+			);
+			
+			const newContent = content.replace(taskRegex, (match) => {
+				// Replace just the checkbox part while preserving the rest
+				if (match.startsWith(sourcePattern) || match.startsWith(sourcePatternAlt)) {
+					return targetPattern + match.slice(5);
+				}
+				return targetPattern + " " + task;
+			});
+
+			if (newContent !== content) {
+				content = newContent;
+				modified = true;
+				tasksMarked++;
+			}
+		}
+
+		if (modified) {
+			await app.vault.modify(file, content);
+			return { success: true, path: file.path, tasksMarked };
+		} else {
+			const status = complete ? "unchecked" : "checked";
+			return { success: false, error: `No matching ${status} tasks found` };
+		}
+	} catch (error) {
+		return { success: false, error: `Failed to update tasks: ${error}` };
+	}
+}
+
+/**
+ * List tasks with filtering options
+ */
+export async function listTasks(
+	app: App,
+	options: ListTasksOptions
+): Promise<TaskOperationResult> {
+	try {
+		let file: TFile | null = null;
+
+		if (options.path) {
+			const normalizedPath = normalizeVaultPath(options.path);
+			const abstractFile = app.vault.getAbstractFileByPath(normalizedPath);
+			if (abstractFile instanceof TFile) {
+				file = abstractFile;
+			}
+		} else {
+			file = app.workspace.getActiveFile();
+		}
+
+		if (!file) {
+			return {
+				success: false,
+				error: options.path ? `Note not found: ${options.path}` : "No active note",
+			};
+		}
+
+		const content = await app.vault.read(file);
+		const allTasks = parseTasksFromContent(content, file.path);
+
+		// Apply filters
+		const filteredTasks = filterTasks(allTasks, {
+			completed: options.completed,
+			priority: options.priority,
+			dueBefore: options.dueBefore,
+			dueAfter: options.dueAfter,
+			dueOn: options.dueOn,
+			tags: options.tags,
+			query: options.query,
+			limit: options.limit,
+		});
+
+		return { success: true, tasks: filteredTasks, path: file.path };
+	} catch (error) {
+		return { success: false, error: `Failed to list tasks: ${error}` };
 	}
 }

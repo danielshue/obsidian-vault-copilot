@@ -126,8 +126,6 @@ export class CliManager {
 
 	private runInstallCommand(command: string, args: string[]): Promise<boolean> {
 		return new Promise((resolve) => {
-			new Notice(`Installing GitHub Copilot CLI... This may take a moment.`);
-
 			const child = spawn(command, args, { 
 				shell: true,
 				stdio: "pipe"
@@ -146,7 +144,6 @@ export class CliManager {
 
 			child.on("close", (code) => {
 				if (code === 0) {
-					new Notice("GitHub Copilot CLI installed successfully!");
 					this.cachedStatus = null; // Invalidate cache
 					resolve(true);
 				} else {
@@ -176,8 +173,6 @@ export class CliManager {
 	 */
 	async openForAuthentication(vaultPath?: string): Promise<void> {
 		return new Promise((resolve) => {
-			new Notice("Opening GitHub Copilot CLI for authentication...");
-
 			// Build CLI command with vault path if provided
 			// Use --add-dir to grant access to the vault directory
 			const normalizedPath = vaultPath?.replace(/\\/g, "/");
@@ -221,7 +216,6 @@ export class CliManager {
 				}
 			}
 
-			new Notice("A terminal window has been opened. The CLI will authenticate automatically on first use.");
 			setTimeout(resolve, 1000);
 		});
 	}
@@ -241,8 +235,6 @@ export class CliManager {
 		return new Promise((resolve) => {
 			// Normalize path for cross-platform compatibility
 			const normalizedPath = vaultPath.replace(/\\/g, "/");
-			
-			new Notice("Initializing GitHub Copilot for vault...");
 
 			exec(
 				`${this.cliPath} --add-dir "${normalizedPath}"`,
@@ -253,7 +245,6 @@ export class CliManager {
 						new Notice(`Failed to initialize vault: ${errorMsg}`);
 						resolve({ success: false, error: errorMsg });
 					} else {
-						new Notice("Vault initialized for GitHub Copilot successfully!");
 						this.cachedStatus = null; // Invalidate cache
 						resolve({ success: true });
 					}

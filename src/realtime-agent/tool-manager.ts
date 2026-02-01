@@ -12,11 +12,13 @@ import {
 	VAULT_READ_TOOLS,
 	VAULT_WRITE_TOOLS,
 	WEB_TOOLS,
+	TASK_TOOLS,
 	logger,
 } from "./types";
 import { createVaultTools } from "./vault-tools";
 import { createWebTools } from "./web-tools";
 import { createMcpTools } from "./mcp-tools";
+import { createAllTaskTools, TASK_TOOL_NAMES } from "./task-tools";
 
 /**
  * Check if a specific tool is enabled based on configuration
@@ -43,9 +45,34 @@ export function isToolEnabled(
 	if (WEB_TOOLS.includes(toolName) && config.webAccess !== undefined) {
 		return config.webAccess;
 	}
+	// Task tools follow vaultWrite setting since most modify tasks
+	if (TASK_TOOLS.includes(toolName) && config.vaultWrite !== undefined) {
+		// get_tasks and list_tasks are read-only, respect vaultRead
+		if (toolName === "get_tasks" || toolName === "list_tasks") {
+			return config.vaultRead !== false;
+		}
+		return config.vaultWrite;
+	}
 
 	// Default to enabled
 	return true;
+}
+
+/**
+ * Get set of tools that require approval
+ */
+export function getToolsRequiringApproval(
+	config: RealtimeToolConfig
+): Set<RealtimeToolName> {
+	const requiresApproval = new Set<RealtimeToolName>();
+	
+	if (config.requiresApproval) {
+		for (const toolName of config.requiresApproval) {
+			requiresApproval.add(toolName);
+		}
+	}
+	
+	return requiresApproval;
 }
 
 /**
@@ -58,10 +85,13 @@ export function createAllTools(
 	onToolExecution: ToolExecutionCallback | null
 ): ReturnType<typeof tool>[] {
 	const tools: ReturnType<typeof tool>[] = [];
+	const requiresApproval = getToolsRequiringApproval(toolConfig);
 
 	// Add MCP tools if McpManager is available and mcpTools is enabled
 	if (toolConfig.mcpTools !== false && mcpManager?.hasConnectedServers()) {
-		const mcpTools = createMcpTools(mcpManager, onToolExecution);
+		// MCP tools require approval if mcpTools approval is in the list or if there are any approval requirements
+		const mcpNeedsApproval = requiresApproval.size > 0;
+		const mcpTools = createMcpTools(mcpManager, onToolExecution, mcpNeedsApproval);
 		if (mcpTools.length > 0) {
 			logger.info(
 				`Added ${mcpTools.length} MCP tools to voice agent`
@@ -71,8 +101,9 @@ export function createAllTools(
 	}
 
 	// Create all vault and web tools
-	const vaultTools = createVaultTools(app, onToolExecution);
-	const webTools = createWebTools(onToolExecution);
+	const vaultTools = createVaultTools(app, onToolExecution, requiresApproval);
+	const webTools = createWebTools(onToolExecution, requiresApproval);
+	const taskTools = createAllTaskTools(app, onToolExecution, requiresApproval);
 
 	// Build a map of tool name to tool for filtering
 	const toolMap: Array<{
@@ -87,6 +118,11 @@ export function createAllTools(
 
 	// Map web tools
 	for (const t of webTools) {
+		toolMap.push({ name: t.name as RealtimeToolName, tool: t });
+	}
+
+	// Map task tools
+	for (const t of taskTools) {
 		toolMap.push({ name: t.name as RealtimeToolName, tool: t });
 	}
 

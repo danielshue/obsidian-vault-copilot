@@ -12,10 +12,14 @@ import * as McpOps from "../copilot/McpOperations";
 
 /**
  * Create MCP tools from connected MCP servers
+ * @param mcpManager - MCP Manager instance
+ * @param onToolExecution - Callback for tool execution
+ * @param requiresApproval - Whether MCP tools require approval (default: true for security)
  */
 export function createMcpTools(
 	mcpManager: McpManager | undefined,
-	onToolExecution: ToolExecutionCallback | null
+	onToolExecution: ToolExecutionCallback | null,
+	requiresApproval: boolean = false
 ): ReturnType<typeof tool>[] {
 	if (!mcpManager) return [];
 
@@ -34,6 +38,7 @@ export function createMcpTools(
 				name: def.name,
 				description: def.description,
 				parameters: zodSchema,
+				needsApproval: requiresApproval,
 				execute: async (args) => {
 					const result = await McpOps.callMcpTool(
 						mcpManager,

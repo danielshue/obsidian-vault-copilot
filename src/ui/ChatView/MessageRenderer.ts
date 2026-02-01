@@ -357,7 +357,6 @@ export class MessageRenderer {
 	 */
 	private async sendToTTS(text: string, button: HTMLButtonElement): Promise<void> {
 		if (!text.trim()) {
-			new Notice("No text to read");
 			return;
 		}
 
@@ -373,8 +372,6 @@ export class MessageRenderer {
 			
 			// Placeholder: simulate TTS processing
 			await new Promise(resolve => setTimeout(resolve, 500));
-			
-			new Notice("TTS: Feature coming soon");
 		} catch (error) {
 			console.error('TTS error:', error);
 			new Notice(`TTS error: ${error instanceof Error ? error.message : String(error)}`);

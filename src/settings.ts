@@ -32,6 +32,25 @@ export interface CopilotSession {
 	};
 }
 
+/** Voice conversation for realtime agent history */
+export interface VoiceConversation {
+	id: string;
+	name: string;
+	createdAt: number;
+	messages: VoiceMessage[];
+}
+
+/** Message in a voice conversation */
+export interface VoiceMessage {
+	role: 'user' | 'assistant' | 'system' | 'tool';
+	content: string;
+	timestamp: number;
+	type?: 'message' | 'function_call' | 'function_call_output';
+	toolName?: string;
+	toolArgs?: string;
+	toolOutput?: string;
+}
+
 export interface OpenAISettings {
 	/** Whether OpenAI is enabled */
 	enabled: boolean;
@@ -56,6 +75,8 @@ export interface CopilotPluginSettings {
 	cliPath: string;
 	cliUrl: string;
 	streaming: boolean;
+	/** Enable tracing to capture agent execution details */
+	tracingEnabled: boolean;
 	showInStatusBar: boolean;
 	sessions: CopilotSession[];
 	activeSessionId: string | null;
@@ -95,6 +116,8 @@ export interface CopilotPluginSettings {
 		realtimeLanguage?: string;
 		/** Tool configuration for realtime agent */
 		realtimeToolConfig?: RealtimeToolConfig;
+		/** Voice conversation history */
+		conversations?: VoiceConversation[];
 	};
 	/** OpenAI settings */
 	openai: OpenAISettings;
@@ -106,6 +129,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	cliPath: "",
 	cliUrl: "",
 	streaming: true,
+	tracingEnabled: false,
 	showInStatusBar: true,
 	sessions: [],
 	activeSessionId: null,
@@ -361,36 +385,43 @@ export class CopilotSettingTab extends PluginSettingTab {
 		if (!this.mainSettingsContainer) return;
 		this.mainSettingsContainer.empty();
 
-		// Vault Initialization Section - only if CLI is installed
+		// Vault Initialization Section - only if CLI is installed and vault not already initialized
 		if (status.installed) {
-			const initSection = this.mainSettingsContainer.createDiv({ cls: "vc-settings-section" });
-			initSection.createEl("h3", { text: "Vault Setup" });
+			// Check if vault is already initialized (has .github/copilot-instructions.md)
+			const vaultInitialized = this.app.vault.getAbstractFileByPath(".github/copilot-instructions.md") !== null;
 			
-			const initDesc = initSection.createEl("p", { 
-				text: "Initialize GitHub Copilot for this vault to enable context-aware assistance.",
-				cls: "vc-status-desc"
-			});
-			
-			const initBtnRow = initSection.createDiv({ cls: "vc-btn-row" });
-			const initBtn = initBtnRow.createEl("button", { text: "Initialize Vault", cls: "vc-btn-primary" });
-			initBtn.addEventListener("click", async () => {
-				const vaultPath = this.getVaultPath();
-				if (!vaultPath) {
-					new Notice("Could not determine vault path");
-					return;
-				}
-				initBtn.disabled = true;
-				initBtn.textContent = "Initializing...";
-				const result = await this.cliManager.initializeVault(vaultPath);
-				initBtn.disabled = false;
-				initBtn.textContent = "Initialize Vault";
-			});
-			
-			const cmdPreview = initSection.createDiv({ cls: "vc-cmd-group" });
-			cmdPreview.createEl("label", { text: "Command that will be run:" });
-			const vaultPath = this.getVaultPath() || "<vault_path>";
-			const normalizedPath = vaultPath.replace(/\\/g, "/");
-			cmdPreview.createEl("code", { text: `copilot --add-dir "${normalizedPath}"`, cls: "vc-code-block" });
+			if (!vaultInitialized) {
+				const initSection = this.mainSettingsContainer.createDiv({ cls: "vc-settings-section" });
+				initSection.createEl("h3", { text: "Vault Setup" });
+				
+				const initDesc = initSection.createEl("p", { 
+					text: "Initialize GitHub Copilot for this vault to enable context-aware assistance.",
+					cls: "vc-status-desc"
+				});
+				
+				const initBtnRow = initSection.createDiv({ cls: "vc-btn-row" });
+				const initBtn = initBtnRow.createEl("button", { text: "Initialize Vault", cls: "vc-btn-primary" });
+				initBtn.addEventListener("click", async () => {
+					const vaultPath = this.getVaultPath();
+					if (!vaultPath) {
+						new Notice("Could not determine vault path");
+						return;
+					}
+					initBtn.disabled = true;
+					initBtn.textContent = "Initializing...";
+					const result = await this.cliManager.initializeVault(vaultPath);
+					initBtn.disabled = false;
+					initBtn.textContent = "Initialize Vault";
+					// Re-render to hide section if initialization succeeded
+					this.renderMainSettingsIfReady(status);
+				});
+				
+				const cmdPreview = initSection.createDiv({ cls: "vc-cmd-group" });
+				cmdPreview.createEl("label", { text: "Command that will be run:" });
+				const vaultPath = this.getVaultPath() || "<vault_path>";
+				const normalizedPath = vaultPath.replace(/\\/g, "/");
+				cmdPreview.createEl("code", { text: `copilot --add-dir "${normalizedPath}"`, cls: "vc-code-block" });
+			}
 		}
 
 		// Chat Preferences Section
@@ -411,6 +442,32 @@ export class CopilotSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
+
+		// Streaming toggle
+		new Setting(section)
+			.setName("Streaming")
+			.setDesc("Streaming keeps the UI responsive and avoids waiting for the entire final result before updating the screen.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.streaming)
+					.onChange(async (value) => {
+						this.plugin.settings.streaming = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// Tracing toggle
+		new Setting(section)
+			.setName("Tracing")
+			.setDesc("Enable tracing to capture detailed execution information including LLM generations, tool calls, and agent handoffs. View traces via the gear menu.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.tracingEnabled)
+					.onChange(async (value) => {
+						this.plugin.settings.tracingEnabled = value;
+						await this.plugin.saveSettings();
+					})
+			);
 
 		// Status bar toggle
 		new Setting(section)
@@ -457,7 +514,6 @@ export class CopilotSettingTab extends PluginSettingTab {
 								this.plugin.settings.defaultDisabledTools = [];
 								await this.plugin.saveSettings();
 								this.updateToolSummary(toolSummaryEl);
-								new Notice("Default tool selection saved");
 							}
 						});
 						modal.open();

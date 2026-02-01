@@ -44,7 +44,11 @@ export type RealtimeToolName =
 	| "append_to_note"
 	| "update_note"
 	| "replace_note"
-	| "mark_tasks_complete"
+	| "mark_tasks_complete" // deprecated, kept for backward compatibility
+	| "get_tasks"
+	| "mark_tasks"
+	| "create_task"
+	| "list_tasks"
 	| "fetch_web_page"
 	| "web_search";
 
@@ -60,6 +64,8 @@ export interface RealtimeToolConfig {
 	webAccess?: boolean;
 	/** Enable MCP tools */
 	mcpTools?: boolean;
+	/** Tools that require user approval before execution */
+	requiresApproval?: RealtimeToolName[];
 }
 
 /** Default tool configuration - all enabled */
@@ -99,12 +105,28 @@ export interface RealtimeHistoryItem {
 	output?: string;
 }
 
+/** Tool approval request from the agent */
+export interface ToolApprovalRequest {
+	/** Unique ID for this approval request */
+	id: string;
+	/** Name of the tool requesting approval */
+	toolName: string;
+	/** Arguments the tool will be called with */
+	args: unknown;
+	/** The raw approval item from the SDK (for approve/reject calls) */
+	approvalItem: unknown;
+	/** The raw item from the SDK (for reject calls) */
+	rawItem: unknown;
+}
+
 /** Event types emitted by RealtimeAgentService */
 export interface RealtimeAgentEvents {
 	stateChange: (state: RealtimeAgentState) => void;
 	transcript: (item: RealtimeHistoryItem) => void;
 	historyUpdated: (history: RealtimeHistoryItem[]) => void;
+	user_transcription: (item: RealtimeHistoryItem) => void;
 	toolExecution: (toolName: string, args: unknown, result: unknown) => void;
+	toolApprovalRequested: (request: ToolApprovalRequest) => void;
 	error: (error: Error) => void;
 	interrupted: () => void;
 }
@@ -129,7 +151,17 @@ export const VAULT_WRITE_TOOLS: RealtimeToolName[] = [
 	"append_to_note",
 	"update_note",
 	"replace_note",
-	"mark_tasks_complete",
+	"mark_tasks_complete", // deprecated
+	"mark_tasks",
+	"create_task",
+];
+
+/** Task-specific tool names */
+export const TASK_TOOLS: RealtimeToolName[] = [
+	"get_tasks",
+	"mark_tasks",
+	"create_task",
+	"list_tasks",
 ];
 
 export const WEB_TOOLS: RealtimeToolName[] = ["fetch_web_page", "web_search"];

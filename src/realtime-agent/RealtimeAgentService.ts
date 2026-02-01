@@ -5,7 +5,7 @@
  * with support for tools, interruptions, and live transcription.
  */
 
-import { App, Notice } from "obsidian";
+import { App } from "obsidian";
 import { RealtimeAgent, RealtimeSession } from "@openai/agents/realtime";
 import {
 	RealtimeAgentConfig,
@@ -14,12 +14,14 @@ import {
 	RealtimeHistoryItem,
 	RealtimeToolConfig,
 	ToolExecutionCallback,
+	ToolApprovalRequest,
 	DEFAULT_TOOL_CONFIG,
 	REALTIME_MODEL,
 	logger,
 } from "./types";
 import { createAllTools, getToolNames } from "./tool-manager";
 import { handlePossibleJsonToolCall, mightBeJsonToolCall } from "./workarounds";
+import { getTracingService } from "../copilot/TracingService";
 
 export class RealtimeAgentService {
 	private app: App;
@@ -33,6 +35,11 @@ export class RealtimeAgentService {
 	> = new Map();
 	private onToolExecution: ToolExecutionCallback | null = null;
 	private toolConfig: RealtimeToolConfig;
+	private currentTraceId: string = "";
+	/** Tools approved for the entire session (user clicked "Allow for session") */
+	private sessionApprovedTools: Set<string> = new Set();
+	/** Counter for generating unique approval request IDs */
+	private approvalRequestCounter: number = 0;
 
 	constructor(app: App, config: RealtimeAgentConfig) {
 		this.app = app;
@@ -145,6 +152,13 @@ export class RealtimeAgentService {
 		try {
 			this.setState("connecting");
 
+			// Start a trace for this voice session
+			const tracingService = getTracingService();
+			this.currentTraceId = tracingService.startTrace("Voice Conversation", {
+				voice: this.config.voice,
+				language: this.config.language,
+			});
+
 			// Create all tools for the agent
 			const allTools = createAllTools(
 				this.app,
@@ -169,22 +183,44 @@ export class RealtimeAgentService {
 					this.config.instructions ||
 					`You are a helpful voice assistant for an Obsidian knowledge vault.
 
-YOUR AVAILABLE TOOLS (use these EXACT names):
+## LANGUAGE: ENGLISH ONLY
+You MUST respond in English only. Do not use Spanish, French, German or any other language.
+Regardless of the user's language, always respond in English.
+
+YOUR AVAILABLE TOOLS:
 ${toolNamesStr}
 
-CRITICAL RULES:
-1. To mark tasks complete, call the "mark_tasks_complete" tool with the note path
-2. To modify notes, call "update_note" or "append_to_note" 
-3. NEVER output text that looks like code, JSON, or function calls
-4. NEVER invent tool names - only use the tools listed above
-5. When you need to take an action, USE A TOOL - don't describe what you would do
+## CRITICAL: YOU MUST CALL TOOLS - NEVER DESCRIBE ACTIONS
 
-WRONG: Saying "update_checklist(...)" or outputting JSON
-RIGHT: Actually calling the mark_tasks_complete tool
+When users ask you to do something, you MUST use the appropriate tool. NEVER respond with text that describes what you would do.
 
+### Task Completion
+When asked to mark tasks complete:
+- CALL: mark_tasks_complete with task_list array
+- WRONG: "Mark the following tasks as completed..." (this is just text, not a tool call)
+- WRONG: Outputting JSON or code syntax
+
+### Note Modifications  
+When asked to update, edit, or change note content:
+- CALL: update_note (find/replace) or replace_note (full rewrite) or append_to_note
+- WRONG: Describing changes in text
+
+### Examples
+User: "Check off all my tasks except the weekly review"
+YOU MUST: Call mark_tasks_complete tool with the task text strings
+NEVER: Say "I'll mark these tasks..." and list them
+
+User: "Add a note about my meeting"
+YOU MUST: Call append_to_note or create_note tool
+NEVER: Say "Here's what I would add..."
+
+## Context Updates
 When [INTERNAL CONTEXT UPDATE] messages arrive, note them silently - do not speak about them.
 
-Be conversational. After using a tool, briefly confirm what you did.`,
+## Response Style
+Be conversational and brief. After using a tool successfully, confirm with a short acknowledgment like "Done" or "Got it, marked those complete."
+
+Remember: If you find yourself typing out instructions or code instead of calling a tool, STOP and call the tool instead.`,
 				tools: allTools,
 				voice: this.config.voice || "alloy",
 			});
@@ -230,7 +266,6 @@ Be conversational. After using a tool, briefly confirm what you did.`,
 			await this.session.connect({ apiKey: ephemeralKey });
 
 			this.setState("connected");
-			new Notice("Realtime agent connected");
 		} catch (error) {
 			this.setState("error");
 			this.emit(
@@ -249,6 +284,9 @@ Be conversational. After using a tool, briefly confirm what you did.`,
 
 		// Handle history updates (transcripts)
 		this.session.on("history_updated", (history) => {
+			// Debug: Log all history items to understand the structure
+			logger.debug("History updated with", history.length, "items");
+			
 			// Debug: Check for function_call items in history
 			const functionCalls = history.filter(
 				(item) => item.type === "function_call"
@@ -281,6 +319,24 @@ Be conversational. After using a tool, briefly confirm what you did.`,
 					}
 				}
 
+				// Handle user audio input items specifically
+				if (item.type === "message" && item.role === "user") {
+					// User audio input comes through with audio content type
+					if ("content" in item && Array.isArray(item.content)) {
+						for (const contentItem of item.content) {
+							// Audio items may have transcript at the content item level
+							if ("transcript" in contentItem) {
+								result.transcript = contentItem.transcript as string;
+							}
+							// Or check for input_audio type
+							if (contentItem.type === "input_audio" && "transcript" in contentItem) {
+								result.transcript = contentItem.transcript as string;
+							}
+						}
+					}
+					logger.debug("User message found:", result);
+				}
+
 				if (item.type === "function_call") {
 					if ("name" in item) result.name = item.name as string;
 					if ("arguments" in item)
@@ -295,18 +351,57 @@ Be conversational. After using a tool, briefly confirm what you did.`,
 
 			// Emit individual transcript items for messages with content
 			const lastItem = items[items.length - 1];
+			logger.info("[WORKAROUND-DEBUG] History lastItem:", JSON.stringify({
+				type: lastItem?.type,
+				role: lastItem?.role,
+				hasContent: !!lastItem?.content,
+				contentPreview: lastItem?.content?.substring(0, 50),
+				hasTranscript: !!lastItem?.transcript
+			}));
 			if (lastItem && (lastItem.content || lastItem.transcript)) {
 				this.emit("transcript", lastItem);
 
 				// WORKAROUND: Detect structured output that looks like a tool call
-				if (mightBeJsonToolCall(lastItem)) {
+				const shouldTriggerWorkaround = mightBeJsonToolCall(lastItem);
+				logger.info("[WORKAROUND-DEBUG] mightBeJsonToolCall result:", shouldTriggerWorkaround);
+				if (shouldTriggerWorkaround) {
 					const content =
 						lastItem.content || lastItem.transcript || "";
+					logger.info("[WORKAROUND-DEBUG] Invoking workaround handler:", content.substring(0, 100));
 					handlePossibleJsonToolCall(
 						this.app,
 						content,
 						this.onToolExecution
-					);
+					).catch((err) => {
+						logger.warn("Error in workaround handler:", err);
+					});
+				}
+			}
+		});
+
+		// Handle user input audio transcription completed
+		// Note: Use type assertion as this event may not be in the SDK's typed events
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(this.session as any).on("input_audio_transcription_completed", (event: unknown) => {
+			logger.debug("User audio transcription completed:", event);
+			
+			// Capture user transcription and emit to history
+			// The event contains the transcribed text from user speech
+			if (event && typeof event === 'object') {
+				const eventObj = event as Record<string, unknown>;
+				const transcript = typeof eventObj.transcript === 'string' ? eventObj.transcript : '';
+				if (transcript && transcript.trim()) {
+					const userItem: RealtimeHistoryItem = {
+						type: 'message',
+						role: 'user',
+						content: transcript,
+						transcript: transcript
+					};
+					logger.debug("Emitting user transcript to history:", userItem);
+					// Emit as a transcript event for immediate UI updates
+					this.emit("transcript", userItem);
+					// Also emit a user_transcription event to update conversation history
+					this.emit("user_transcription", userItem);
 				}
 			}
 		});
@@ -337,6 +432,18 @@ Be conversational. After using a tool, briefly confirm what you did.`,
 					tool.name,
 					details.toolCall
 				);
+				// Add a span for this tool call
+				if (this.currentTraceId) {
+					const tracingService = getTracingService();
+					const spanId = tracingService.addSpan(
+						this.currentTraceId,
+						tool.name,
+						"tool_call",
+						{ arguments: details.toolCall }
+					);
+					// Store spanId on details for completion
+					(details as Record<string, unknown>)._spanId = spanId;
+				}
 			}
 		);
 
@@ -349,6 +456,12 @@ Be conversational. After using a tool, briefly confirm what you did.`,
 					"result:",
 					result?.substring(0, 200)
 				);
+				// Complete the span
+				const spanId = (details as Record<string, unknown>)._spanId as string;
+				if (spanId) {
+					const tracingService = getTracingService();
+					tracingService.completeSpan(spanId);
+				}
 				this.emit("toolExecution", tool.name, details.toolCall, result);
 			}
 		);
@@ -364,9 +477,68 @@ Be conversational. After using a tool, briefly confirm what you did.`,
 			}
 		});
 
+		// Handle tool approval requests
+		this.session.on("tool_approval_requested", (_context, _agent, request) => {
+			// Handle both RealtimeToolApprovalRequest and RealtimeMcpApprovalRequest
+			let toolName: string;
+			let args: unknown = {};
+			
+			if (request.type === 'function_approval') {
+				// Regular function tool
+				toolName = request.tool?.name || "unknown";
+				// Args are in the approvalItem's rawItem
+				const rawItem = request.approvalItem?.rawItem as Record<string, unknown>;
+				args = rawItem?.arguments || rawItem?.call_id || {};
+			} else {
+				// MCP tool approval
+				toolName = request.approvalItem?.toolName || "mcp_tool";
+				const rawItem = request.approvalItem?.rawItem as Record<string, unknown>;
+				args = rawItem?.arguments || {};
+			}
+			
+			logger.info(`Tool approval requested: ${toolName}`, args);
+			
+			// Check if this tool is already approved for the session
+			if (this.sessionApprovedTools.has(toolName)) {
+				logger.debug(`Auto-approving ${toolName} (session-approved)`);
+				this.session?.approve(request.approvalItem);
+				return;
+			}
+			
+			// Emit approval request to UI
+			const approvalRequest: ToolApprovalRequest = {
+				id: `approval-${++this.approvalRequestCounter}`,
+				toolName,
+				args,
+				approvalItem: request.approvalItem,
+				rawItem: request.approvalItem?.rawItem,
+			};
+			
+			this.emit("toolApprovalRequested", approvalRequest);
+		});
+
 		// Handle errors
 		this.session.on("error", (error) => {
-			this.emit("error", new Error(String(error.error)));
+			// Log full error for debugging
+			logger.debug("Session error received:", error);
+			
+			// Extract error message
+			const errorObj = error as Record<string, unknown>;
+			const errorMessage = String(errorObj.error || errorObj.message || error);
+			
+			// Skip transient/non-critical errors that the SDK handles internally
+			const transientErrors = [
+				'buffer', 'audio', 'timeout', 'reconnect', 'interrupt'
+			];
+			const isTransient = transientErrors.some(t => 
+				errorMessage.toLowerCase().includes(t)
+			);
+			
+			if (!isTransient) {
+				this.emit("error", new Error(errorMessage));
+			} else {
+				logger.debug("Suppressed transient error:", errorMessage);
+			}
 		});
 	}
 
@@ -375,16 +547,72 @@ Be conversational. After using a tool, briefly confirm what you did.`,
 	 */
 	async disconnect(): Promise<void> {
 		try {
+			// End the trace for this voice session
+			if (this.currentTraceId) {
+				const tracingService = getTracingService();
+				tracingService.endTrace(this.currentTraceId);
+				this.currentTraceId = "";
+			}
+			
 			if (this.session) {
 				this.session.close();
 				this.session = null;
 			}
 			this.agent = null;
+			// Clear session approvals on disconnect
+			this.sessionApprovedTools.clear();
 			this.setState("idle");
 		} catch (error) {
 			logger.error("Error disconnecting:", error);
 			this.setState("idle");
 		}
+	}
+
+	/**
+	 * Approve a tool execution request
+	 */
+	approveTool(request: ToolApprovalRequest): void {
+		if (!this.session) {
+			logger.warn("Cannot approve tool: no active session");
+			return;
+		}
+		logger.info(`Approving tool: ${request.toolName}`);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		this.session.approve(request.approvalItem as any);
+	}
+
+	/**
+	 * Approve a tool execution and allow it for the rest of the session
+	 */
+	approveToolForSession(request: ToolApprovalRequest): void {
+		if (!this.session) {
+			logger.warn("Cannot approve tool: no active session");
+			return;
+		}
+		logger.info(`Approving tool for session: ${request.toolName}`);
+		this.sessionApprovedTools.add(request.toolName);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		this.session.approve(request.approvalItem as any);
+	}
+
+	/**
+	 * Reject a tool execution request
+	 */
+	rejectTool(request: ToolApprovalRequest): void {
+		if (!this.session) {
+			logger.warn("Cannot reject tool: no active session");
+			return;
+		}
+		logger.info(`Rejecting tool: ${request.toolName}`);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		this.session.reject(request.approvalItem as any);
+	}
+
+	/**
+	 * Check if a tool is approved for the session
+	 */
+	isToolApprovedForSession(toolName: string): boolean {
+		return this.sessionApprovedTools.has(toolName);
 	}
 
 	/**

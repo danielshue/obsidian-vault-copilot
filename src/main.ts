@@ -17,6 +17,7 @@ import { PromptCache, CachedPromptInfo } from "./copilot/PromptCache";
 import { CustomPrompt } from "./copilot/CustomizationLoader";
 import { OpenAIService } from "./copilot/OpenAIService";
 import { AIProviderType } from "./copilot/AIProvider";
+import { getTracingService } from "./copilot/TracingService";
 
 /**
  * Session info returned by the API
@@ -225,6 +226,11 @@ export default class CopilotPlugin extends Plugin {
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
+		// Initialize tracing if enabled
+		if (this.settings.tracingEnabled) {
+			getTracingService().enable();
+		}
+
 		// Initialize skill registry
 		this.skillRegistry = getSkillRegistry();
 
@@ -279,7 +285,6 @@ export default class CopilotPlugin extends Plugin {
 				if (this.copilotService) {
 					await this.copilotService.clearHistory();
 					await this.activateChatView();
-					new Notice("Started new Copilot chat");
 				}
 			},
 		});
@@ -292,7 +297,6 @@ export default class CopilotPlugin extends Plugin {
 				const activeFile = this.app.workspace.getActiveFile();
 				if (activeFile && this.copilotService) {
 					// The view will handle the actual message sending
-					new Notice("Opening Vault Copilot to summarize note...");
 				}
 			},
 		});
@@ -337,6 +341,14 @@ export default class CopilotPlugin extends Plugin {
 		// Update service config when settings change
 		if (this.copilotService) {
 			this.copilotService.updateConfig(this.getServiceConfig());
+		}
+		
+		// Update tracing when setting changes
+		const tracingService = getTracingService();
+		if (this.settings.tracingEnabled) {
+			tracingService.enable();
+		} else {
+			tracingService.disable();
 		}
 		
 		// Update agent cache when agent directories change
@@ -428,7 +440,6 @@ export default class CopilotPlugin extends Plugin {
 			try {
 				await this.openaiService.initialize();
 				this.updateStatusBar();
-				new Notice("Connected to OpenAI");
 			} catch (error) {
 				new Notice(`Failed to connect to OpenAI: ${error}`);
 			}
@@ -441,7 +452,6 @@ export default class CopilotPlugin extends Plugin {
 			try {
 				await this.copilotService.start();
 				this.updateStatusBar();
-				new Notice("Connected to GitHub Copilot");
 			} catch (error) {
 				new Notice(`Failed to connect to Copilot: ${error}`);
 			}
@@ -551,7 +561,6 @@ export default class CopilotPlugin extends Plugin {
 			await this.saveSettings();
 			
 			this.activateChatView();
-			new Notice(`Loaded session: ${session.name}`);
 		}
 	}
 

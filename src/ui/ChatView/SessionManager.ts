@@ -1,4 +1,3 @@
-import { Notice } from "obsidian";
 import { CopilotSession, CopilotPluginSettings } from "../../settings";
 import { CopilotService, ChatMessage } from "../../copilot/CopilotService";
 
@@ -122,8 +121,6 @@ export class SessionManager {
 		this.callbacks.onHeaderUpdate();
 		this.callbacks.onSessionPanelHide();
 		this.callbacks.onSessionLoaded();
-
-		new Notice(`Loaded: ${session.name}`);
 	}
 
 	/**

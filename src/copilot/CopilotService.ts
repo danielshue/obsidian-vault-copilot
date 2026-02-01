@@ -6,12 +6,15 @@ import { McpManager, McpManagerEvent } from "./McpManager";
 import { McpTool } from "./McpTypes";
 import { normalizeVaultPath, ensureMarkdownExtension } from "./pathUtils";
 import * as VaultOps from "./VaultOperations";
+import { getTracingService } from "./TracingService";
 
 export interface CopilotServiceConfig {
 	model: string;
 	cliPath?: string;
 	cliUrl?: string;
 	streaming: boolean;
+	/** Enable tracing and SDK debug logging */
+	tracingEnabled?: boolean;
 	/** Skill registry for plugin-registered skills */
 	skillRegistry?: SkillRegistry;
 	/** MCP Manager for MCP server tools */
@@ -85,8 +88,65 @@ export class CopilotService {
 			clientOptions.cliUrl = this.config.cliUrl;
 		}
 
+		// Enable SDK debug logging when tracing is enabled
+		if (this.config.tracingEnabled) {
+			clientOptions.logLevel = "debug";
+			
+			// Intercept console.log/warn/error to capture SDK logs
+			this.interceptConsoleLogs();
+		}
+
 		this.client = new CopilotClient(clientOptions);
 		await this.client.start();
+	}
+
+	/**
+	 * Intercept console logs to capture SDK diagnostics
+	 */
+	private interceptConsoleLogs(): void {
+		const tracingService = getTracingService();
+		
+		// Store original console methods
+		const originalLog = console.log.bind(console);
+		const originalWarn = console.warn.bind(console);
+		const originalError = console.error.bind(console);
+		
+		// Intercept console.log
+		console.log = (...args: unknown[]) => {
+			originalLog(...args);
+			const message = args.map(arg => 
+				typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+			).join(' ');
+			
+			// Only capture copilot-related logs
+			if (message.includes('[Copilot') || message.includes('copilot')) {
+				tracingService.addSdkLog('info', message, 'copilot-sdk');
+			}
+		};
+		
+		// Intercept console.warn
+		console.warn = (...args: unknown[]) => {
+			originalWarn(...args);
+			const message = args.map(arg => 
+				typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+			).join(' ');
+			
+			if (message.includes('[Copilot') || message.includes('copilot')) {
+				tracingService.addSdkLog('warning', message, 'copilot-sdk');
+			}
+		};
+		
+		// Intercept console.error
+		console.error = (...args: unknown[]) => {
+			originalError(...args);
+			const message = args.map(arg => 
+				typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+			).join(' ');
+			
+			if (message.includes('[Copilot') || message.includes('copilot')) {
+				tracingService.addSdkLog('error', message, 'copilot-sdk');
+			}
+		};
 	}
 
 	/**

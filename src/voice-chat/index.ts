@@ -14,6 +14,7 @@ export {
 	type RealtimeToolConfig,
 	type RealtimeToolName,
 	type ToolExecutionCallback,
+	type ToolApprovalRequest,
 	DEFAULT_TOOL_CONFIG,
 } from '../realtime-agent';
 

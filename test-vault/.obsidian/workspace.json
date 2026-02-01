@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "751b89fa48b38e44",
+        "id": "3201f487c9720701",
         "type": "tabs",
         "children": [
           {
-            "id": "58952b2b677dfccb",
+            "id": "8b563aa71f92a399",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -176,7 +176,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 411.5
+    "width": 572.5
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -190,9 +190,11 @@
       "bases:Create new base": false
     }
   },
-  "active": "58952b2b677dfccb",
+  "active": "8b563aa71f92a399",
   "lastOpenFiles": [
     "Daily Notes/2026-01-30.md",
+    "voice-conversation-voice-chat-2-1-2026--11-36-35-am-2026-02-01.md",
+    "Daily Notes/2026-01-27.md",
     "Daily Notes/2026-01-28.md",
     "MyOtherCustomAgents/daily-journal.agent.md",
     "Reference/Getting Started.md",
@@ -217,8 +219,6 @@
     "MyOtherCustomAgents/project-planner.agent.md",
     "2026-01-30 Project Beta.md",
     "Projects/Project Alpha.md",
-    "Projects/Project Beta.md",
-    "Reference/Agents/vault-organizer.agent.md",
     "Reference/Skills/obsidian-tasks",
     "Reference/Skills/obsidian-task",
     "MyOtherCustomAgents",

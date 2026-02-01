@@ -6,14 +6,17 @@
 
 import { tool } from "@openai/agents/realtime";
 import { z } from "zod";
-import type { ToolExecutionCallback } from "./types";
+import type { ToolExecutionCallback, RealtimeToolName } from "./types";
 import * as VaultOps from "../copilot/VaultOperations";
 
 /**
  * Create web access tools for the realtime agent
+ * @param onToolExecution - Callback for tool execution
+ * @param requiresApproval - Set of tool names that require user approval
  */
 export function createWebTools(
-	onToolExecution: ToolExecutionCallback | null
+	onToolExecution: ToolExecutionCallback | null,
+	requiresApproval: Set<RealtimeToolName> = new Set()
 ): ReturnType<typeof tool>[] {
 	const tools: ReturnType<typeof tool>[] = [];
 
@@ -25,6 +28,7 @@ export function createWebTools(
 			parameters: z.object({
 				url: z.string().describe("The URL of the web page to fetch"),
 			}),
+			needsApproval: requiresApproval.has("fetch_web_page"),
 			execute: async ({ url }) => {
 				const result = await VaultOps.fetchWebPage(url);
 				if (result.success) {
@@ -52,6 +56,7 @@ export function createWebTools(
 					.optional()
 					.describe("Maximum number of results to return (default: 5)"),
 			}),
+			needsApproval: requiresApproval.has("web_search"),
 			execute: async ({ query, limit = 5 }) => {
 				const result = await VaultOps.webSearch(query, limit);
 				onToolExecution?.(

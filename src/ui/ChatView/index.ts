@@ -40,6 +40,12 @@ export type { SessionManagerCallbacks } from "./SessionManager";
 export { ToolExecutionRenderer } from "./ToolExecutionRenderer";
 export type { ToolExecutionCallback } from "./ToolExecutionRenderer";
 
+// Tracing
+export { TracingModal, openTracingPopout } from "./TracingModal";
+
+// Conversation History
+export { ConversationHistoryModal } from "./ConversationHistoryModal";
+
 // Utilities
 export { SLASH_COMMANDS } from "./SlashCommands";
 export type { SlashCommand } from "./SlashCommands";

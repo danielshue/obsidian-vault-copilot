@@ -421,14 +421,12 @@ export class SessionPanel {
 		
 		await this.plugin.saveSettings();
 		this.render();
-		new Notice(`Archived: ${session.name}`);
 	}
 
 	async unarchiveSession(session: CopilotSession): Promise<void> {
 		session.archived = false;
 		await this.plugin.saveSettings();
 		this.render();
-		new Notice(`Unarchived: ${session.name}`);
 	}
 
 	async deleteSession(session: CopilotSession): Promise<void> {
@@ -481,7 +479,6 @@ export class SessionPanel {
 				session.name = newName;
 				await this.plugin.saveSettings();
 				this.render();
-				new Notice(`Renamed to: ${newName}`);
 			}
 			close();
 		};
