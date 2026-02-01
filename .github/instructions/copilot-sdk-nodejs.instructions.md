@@ -536,6 +536,7 @@ await withClient(async (client) => {
 9. **Use systemMessage with mode: "append"** to preserve safety guardrails
 10. **Handle both delta and final events** when streaming is enabled
 11. **Leverage TypeScript types** for compile-time safety
+12. **Write unit tests for new code** - Every new module, function, or feature should have corresponding tests in `src/tests/`
 
 ## Common Patterns
 
@@ -715,3 +716,250 @@ async function waitForEvent<T extends SessionEvent["type"]>(
 const message = await waitForEvent(session, "assistant.message");
 console.log(message.data.content);
 ```
+
+## Testing
+
+### Test-Driven Development
+
+**Always write unit tests when adding new code.** After implementing a new module, function, or feature, create corresponding tests in `src/tests/` before considering the work complete. This ensures:
+
+- Code behaves as expected
+- Regressions are caught early
+- Documentation of intended behavior
+- Confidence when refactoring
+
+### Test Framework
+
+This project uses **Vitest** for unit testing. All unit tests are stored in the `src/tests/` folder.
+
+### Running Tests
+
+```bash
+# Run all tests once
+npm test
+
+# Run tests in watch mode (re-runs on file changes)
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+```
+
+### Test File Structure
+
+Organize tests to mirror the source code structure:
+
+```
+src/
+  tests/
+    realtime-agent/
+      types.test.ts
+      workarounds.test.ts
+      tool-manager.test.ts
+    copilot/
+      CopilotService.test.ts
+      McpManager.test.ts
+    ui/
+      ChatView.test.ts
+```
+
+### Test File Naming
+
+- Use `.test.ts` suffix for test files
+- Name test files after the module they test: `MyModule.ts` → `MyModule.test.ts`
+
+### Writing Tests
+
+Use `describe`, `it`, and `expect` from Vitest:
+
+```typescript
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { myFunction, MyClass } from "../myModule";
+
+describe("MyClass", () => {
+  let instance: MyClass;
+
+  beforeEach(() => {
+    instance = new MyClass();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe("myMethod", () => {
+    it("should return expected value", () => {
+      const result = instance.myMethod("input");
+      expect(result).toBe("expected output");
+    });
+
+    it("should handle edge cases", () => {
+      expect(instance.myMethod("")).toBe("");
+      expect(instance.myMethod(null as any)).toBeUndefined();
+    });
+  });
+});
+```
+
+### Mocking Dependencies
+
+Use `vi.mock()` and `vi.fn()` for mocking:
+
+```typescript
+import { vi } from "vitest";
+
+// Mock an entire module
+vi.mock("../externalDependency", () => ({
+  fetchData: vi.fn().mockResolvedValue({ data: "mocked" }),
+}));
+
+// Mock a specific function
+const mockCallback = vi.fn();
+mockCallback.mockReturnValue("mocked value");
+
+// Spy on object methods
+const spy = vi.spyOn(console, "log");
+expect(spy).toHaveBeenCalledWith("expected message");
+```
+
+### Mocking Obsidian API
+
+The project includes a mock for the Obsidian API at `src/__mocks__/obsidian.ts`. This is automatically resolved via the Vitest config alias:
+
+```typescript
+// vitest.config.ts
+export default defineConfig({
+  test: {
+    alias: {
+      obsidian: path.resolve(__dirname, "src/__mocks__/obsidian.ts"),
+    },
+  },
+});
+```
+
+The mock provides common Obsidian classes and utilities:
+
+```typescript
+import { TFile, App, Notice } from "obsidian";
+
+// In tests, these use mocked implementations
+const file = new TFile();
+file.path = "test/path.md";
+file.basename = "path";
+
+const notice = new Notice("Test message");
+```
+
+### Testing Async Code
+
+Handle async operations with `async/await`:
+
+```typescript
+describe("async operations", () => {
+  it("should handle promises", async () => {
+    const result = await asyncFunction();
+    expect(result).toBe("expected");
+  });
+
+  it("should handle rejected promises", async () => {
+    await expect(failingAsyncFunction()).rejects.toThrow("error message");
+  });
+
+  it("should handle timeouts", async () => {
+    vi.useFakeTimers();
+
+    const promise = functionWithTimeout();
+    vi.advanceTimersByTime(5000);
+
+    await expect(promise).resolves.toBe("done");
+
+    vi.useRealTimers();
+  });
+});
+```
+
+### Testing Event Handlers
+
+Test event-driven code by simulating events:
+
+```typescript
+describe("event handlers", () => {
+  it("should respond to events", async () => {
+    const handler = vi.fn();
+    session.on(handler);
+
+    // Simulate event
+    await session.send({ prompt: "test" });
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "assistant.message",
+      }),
+    );
+  });
+});
+```
+
+### Testing Tools
+
+Test custom tool definitions:
+
+```typescript
+import { describe, it, expect } from "vitest";
+
+describe("custom tool", () => {
+  const tool = {
+    name: "my_tool",
+    description: "Does something",
+    parameters: {
+      type: "object",
+      properties: {
+        input: { type: "string" },
+      },
+      required: ["input"],
+    },
+    handler: async (args: { input: string }) => {
+      return { result: args.input.toUpperCase() };
+    },
+  };
+
+  it("should have correct metadata", () => {
+    expect(tool.name).toBe("my_tool");
+    expect(tool.parameters.required).toContain("input");
+  });
+
+  it("should execute handler correctly", async () => {
+    const result = await tool.handler({ input: "hello" });
+    expect(result).toEqual({ result: "HELLO" });
+  });
+});
+```
+
+### Coverage Configuration
+
+The coverage is configured in `vitest.config.ts`:
+
+```typescript
+export default defineConfig({
+  test: {
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      exclude: ["node_modules/", "src/__mocks__/", "**/*.test.ts"],
+    },
+  },
+});
+```
+
+### Test Best Practices
+
+1. **Keep tests focused** - Each test should verify one specific behavior
+2. **Use descriptive names** - Test names should describe what is being tested and expected outcome
+3. **Arrange-Act-Assert** - Structure tests with clear setup, execution, and verification phases
+4. **Test edge cases** - Include tests for null, undefined, empty strings, boundary values
+5. **Avoid test interdependence** - Tests should not depend on other tests or execution order
+6. **Mock external dependencies** - Isolate the unit under test by mocking I/O and external services
+7. **Use `beforeEach`/`afterEach`** - Set up and clean up test state consistently
+8. **Restore mocks after tests** - Call `vi.restoreAllMocks()` to prevent test pollution
+9. **Test both success and failure paths** - Verify error handling and edge cases
+10. **Keep tests fast** - Avoid real network calls, file I/O, or long timeouts in unit tests

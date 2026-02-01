@@ -1,0 +1,186 @@
+/**
+ * Type definitions for the Realtime Agent Service
+ */
+
+/** Default model for OpenAI Realtime API */
+export const REALTIME_MODEL = "gpt-4o-realtime-preview" as const;
+
+/** Log levels for debug logging */
+export type LogLevel = "debug" | "info" | "warn" | "error" | "none";
+
+/** Available voice options for OpenAI Realtime */
+export type RealtimeVoice =
+	| "alloy"
+	| "ash"
+	| "ballad"
+	| "coral"
+	| "echo"
+	| "fable"
+	| "onyx"
+	| "nova"
+	| "sage"
+	| "shimmer"
+	| "verse";
+
+/** Turn detection modes */
+export type TurnDetectionMode = "semantic_vad" | "server_vad";
+
+/** Realtime agent state */
+export type RealtimeAgentState =
+	| "idle"
+	| "connecting"
+	| "connected"
+	| "speaking"
+	| "listening"
+	| "error";
+
+/** Tool names that can be conditionally enabled/disabled */
+export type RealtimeToolName =
+	| "read_note"
+	| "search_notes"
+	| "get_active_note"
+	| "list_notes"
+	| "create_note"
+	| "append_to_note"
+	| "update_note"
+	| "replace_note"
+	| "mark_tasks_complete"
+	| "fetch_web_page"
+	| "web_search";
+
+/** Configuration for which tools are enabled */
+export interface RealtimeToolConfig {
+	/** Enable/disable specific tools. If not specified, tool is enabled by default */
+	enabled?: Partial<Record<RealtimeToolName, boolean>>;
+	/** Enable all vault read tools (read_note, search_notes, get_active_note, list_notes) */
+	vaultRead?: boolean;
+	/** Enable all vault write tools (create_note, append_to_note, update_note, replace_note, mark_tasks_complete) */
+	vaultWrite?: boolean;
+	/** Enable web tools (fetch_web_page, web_search) */
+	webAccess?: boolean;
+	/** Enable MCP tools */
+	mcpTools?: boolean;
+}
+
+/** Default tool configuration - all enabled */
+export const DEFAULT_TOOL_CONFIG: RealtimeToolConfig = {
+	vaultRead: true,
+	vaultWrite: true,
+	webAccess: true,
+	mcpTools: true,
+};
+
+/** Configuration for RealtimeAgentService */
+export interface RealtimeAgentConfig {
+	/** OpenAI API key */
+	apiKey: string;
+	/** Voice to use for responses */
+	voice?: RealtimeVoice;
+	/** Turn detection mode */
+	turnDetection?: TurnDetectionMode;
+	/** Instructions for the agent */
+	instructions?: string;
+	/** Optional MCP Manager for exposing MCP tools */
+	mcpManager?: import("../copilot/McpManager").McpManager;
+	/** Tool configuration for conditional enabling */
+	toolConfig?: RealtimeToolConfig;
+	/** Language for speech recognition (e.g., 'en', 'es', 'fr'). Defaults to auto-detect. */
+	language?: string;
+}
+
+/** History item from conversation */
+export interface RealtimeHistoryItem {
+	type: "message" | "function_call" | "function_call_output";
+	role?: "user" | "assistant" | "system";
+	content?: string;
+	transcript?: string;
+	name?: string;
+	arguments?: string;
+	output?: string;
+}
+
+/** Event types emitted by RealtimeAgentService */
+export interface RealtimeAgentEvents {
+	stateChange: (state: RealtimeAgentState) => void;
+	transcript: (item: RealtimeHistoryItem) => void;
+	historyUpdated: (history: RealtimeHistoryItem[]) => void;
+	toolExecution: (toolName: string, args: unknown, result: unknown) => void;
+	error: (error: Error) => void;
+	interrupted: () => void;
+}
+
+/** Callback type for tool execution */
+export type ToolExecutionCallback = (
+	toolName: string,
+	args: unknown,
+	result: unknown
+) => void;
+
+/** Tool category definitions for tool enablement checking */
+export const VAULT_READ_TOOLS: RealtimeToolName[] = [
+	"read_note",
+	"search_notes",
+	"get_active_note",
+	"list_notes",
+];
+
+export const VAULT_WRITE_TOOLS: RealtimeToolName[] = [
+	"create_note",
+	"append_to_note",
+	"update_note",
+	"replace_note",
+	"mark_tasks_complete",
+];
+
+export const WEB_TOOLS: RealtimeToolName[] = ["fetch_web_page", "web_search"];
+
+/** Logger configuration */
+let currentLogLevel: LogLevel = "info";
+
+const LOG_LEVELS: Record<LogLevel, number> = {
+	debug: 0,
+	info: 1,
+	warn: 2,
+	error: 3,
+	none: 4,
+};
+
+/**
+ * Set the log level for realtime agent logging
+ */
+export function setLogLevel(level: LogLevel): void {
+	currentLogLevel = level;
+}
+
+/**
+ * Get the current log level
+ */
+export function getLogLevel(): LogLevel {
+	return currentLogLevel;
+}
+
+/**
+ * Logger utility for realtime agent
+ */
+export const logger = {
+	debug: (message: string, ...args: unknown[]): void => {
+		if (LOG_LEVELS[currentLogLevel] <= LOG_LEVELS.debug) {
+			console.log(`[RealtimeAgent] ${message}`, ...args);
+		}
+	},
+	info: (message: string, ...args: unknown[]): void => {
+		if (LOG_LEVELS[currentLogLevel] <= LOG_LEVELS.info) {
+			console.log(`[RealtimeAgent] ${message}`, ...args);
+		}
+	},
+	warn: (message: string, ...args: unknown[]): void => {
+		if (LOG_LEVELS[currentLogLevel] <= LOG_LEVELS.warn) {
+			console.warn(`[RealtimeAgent] ${message}`, ...args);
+		}
+	},
+	error: (message: string, ...args: unknown[]): void => {
+		if (LOG_LEVELS[currentLogLevel] <= LOG_LEVELS.error) {
+			console.error(`[RealtimeAgent] ${message}`, ...args);
+		}
+	},
+};

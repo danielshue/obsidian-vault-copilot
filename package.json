@@ -10,7 +10,10 @@
 		"deploy": "node deploy.mjs",
 		"build:deploy": "npm run build && npm run deploy",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"lint": "eslint ."
+		"lint": "eslint .",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage"
 	},
 	"keywords": [
 		"obsidian",
@@ -22,13 +25,15 @@
 	"devDependencies": {
 		"@eslint/js": "9.30.1",
 		"@types/node": "^16.11.6",
+		"@vitest/coverage-v8": "^4.0.18",
 		"esbuild": "0.25.5",
 		"eslint-plugin-obsidianmd": "0.1.9",
 		"globals": "14.0.0",
 		"jiti": "2.6.1",
 		"tslib": "2.4.0",
 		"typescript": "^5.8.3",
-		"typescript-eslint": "8.35.1"
+		"typescript-eslint": "8.35.1",
+		"vitest": "^4.0.18"
 	},
 	"dependencies": {
 		"@github/copilot-sdk": "latest",

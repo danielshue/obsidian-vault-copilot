@@ -1,6 +1,8 @@
 export { LocalWhisperService, type LocalWhisperConfig } from './LocalWhisperService';
 export { OpenAIWhisperService, type OpenAIWhisperConfig } from './OpenAIWhisperService';
 export { VoiceChatService, type VoiceChatServiceConfig, type VoiceBackend } from './VoiceChatService';
+
+// Re-export from refactored realtime-agent module
 export {
 	RealtimeAgentService,
 	type RealtimeAgentConfig,
@@ -11,14 +13,10 @@ export {
 	type TurnDetectionMode,
 	type RealtimeToolConfig,
 	type RealtimeToolName,
+	type ToolExecutionCallback,
 	DEFAULT_TOOL_CONFIG,
-} from './RealtimeAgentService';
-export {
-	TaskExecutorService,
-	type TaskExecutorConfig,
-	type TaskResult,
-	type TaskExecutionCallback,
-} from './TaskExecutorService';
+} from '../realtime-agent';
+
 export type {
 	RecordingState,
 	TranscriptionSegment,

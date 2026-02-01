@@ -1,5 +1,5 @@
 import { App, ItemView, TFile } from "obsidian";
-import { CopilotService } from "../../copilot/CopilotService";
+import * as VaultOps from "../../copilot/VaultOperations";
 
 /**
  * Processes prompt content with variable substitution and file reference resolution
@@ -185,8 +185,7 @@ export class PromptProcessor {
 	 * Fetches web pages and adds their content as context
 	 */
 	async processFetchReferences(
-		message: string,
-		copilotService: CopilotService
+		message: string
 	): Promise<{
 		processedMessage: string;
 		fetchedUrls: string[];
@@ -210,7 +209,7 @@ export class PromptProcessor {
 			if (!url) continue;
 			
 			try {
-				const result = await copilotService.fetchWebPage(url);
+				const result = await VaultOps.fetchWebPage(url);
 				if (result.success && result.content) {
 					fetchedUrls.push(url);
 					fetchedContext.push(

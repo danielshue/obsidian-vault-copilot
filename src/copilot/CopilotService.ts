@@ -5,6 +5,7 @@ import { CustomizationLoader, CustomInstruction } from "./CustomizationLoader";
 import { McpManager, McpManagerEvent } from "./McpManager";
 import { McpTool } from "./McpTypes";
 import { normalizeVaultPath, ensureMarkdownExtension } from "./pathUtils";
+import * as VaultOps from "./VaultOperations";
 
 export interface CopilotServiceConfig {
 	model: string;
@@ -822,7 +823,7 @@ File pattern: \`*.instructions.md\``);
 					required: ["url"]
 				},
 				handler: async (args: { url: string }) => {
-					return await this.fetchWebPage(args.url);
+					return await VaultOps.fetchWebPage(args.url);
 				},
 			}),
 		];
@@ -1180,93 +1181,4 @@ File pattern: \`*.instructions.md\``);
 		}
 	}
 
-	async fetchWebPage(url: string): Promise<{ success: boolean; url?: string; title?: string; content?: string; error?: string }> {
-		try {
-			// Validate URL
-			let parsedUrl: URL;
-			try {
-				parsedUrl = new URL(url);
-				if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-					return { success: false, error: `Invalid URL protocol. Only http and https are supported.` };
-				}
-			} catch {
-				return { success: false, error: `Invalid URL: ${url}` };
-			}
-
-			// Fetch the page
-			const response = await fetch(url, {
-				method: 'GET',
-				headers: {
-					'User-Agent': 'Mozilla/5.0 (compatible; ObsidianVaultCopilot/1.0)',
-					'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-				},
-			});
-
-			if (!response.ok) {
-				return { success: false, error: `Failed to fetch URL: ${response.status} ${response.statusText}` };
-			}
-
-			const html = await response.text();
-			
-			// Extract title
-			const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-			const title = titleMatch && titleMatch[1] ? titleMatch[1].trim() : parsedUrl.hostname;
-
-			// Extract text content from HTML
-			const content = this.extractTextFromHtml(html);
-
-			// Truncate if too long (limit to ~50k chars to avoid overwhelming context)
-			const maxLength = 50000;
-			const truncatedContent = content.length > maxLength 
-				? content.substring(0, maxLength) + '\n\n[Content truncated...]'
-				: content;
-
-			return { 
-				success: true, 
-				url: url,
-				title: title,
-				content: truncatedContent 
-			};
-		} catch (error) {
-			return { success: false, error: `Failed to fetch web page: ${error}` };
-		}
-	}
-
-	/**
-	 * Extract readable text content from HTML, removing scripts, styles, and tags
-	 */
-	private extractTextFromHtml(html: string): string {
-		// Remove script and style elements
-		let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-		text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-		text = text.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
-		
-		// Remove HTML comments
-		text = text.replace(/<!--[\s\S]*?-->/g, '');
-		
-		// Replace common block elements with newlines
-		text = text.replace(/<\/(p|div|h[1-6]|li|tr|br|hr)[^>]*>/gi, '\n');
-		text = text.replace(/<(br|hr)[^>]*\/?>/gi, '\n');
-		
-		// Remove all remaining HTML tags
-		text = text.replace(/<[^>]+>/g, ' ');
-		
-		// Decode common HTML entities
-		text = text.replace(/&nbsp;/g, ' ');
-		text = text.replace(/&amp;/g, '&');
-		text = text.replace(/&lt;/g, '<');
-		text = text.replace(/&gt;/g, '>');
-		text = text.replace(/&quot;/g, '"');
-		text = text.replace(/&#39;/g, "'");
-		text = text.replace(/&mdash;/g, '—');
-		text = text.replace(/&ndash;/g, '–');
-		text = text.replace(/&#?\w+;/g, ' '); // Remove other entities
-		
-		// Clean up whitespace
-		text = text.replace(/[ \t]+/g, ' '); // Multiple spaces/tabs to single space
-		text = text.replace(/\n\s*\n/g, '\n\n'); // Multiple newlines to double newline
-		text = text.trim();
-		
-		return text;
-	}
 }

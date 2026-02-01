@@ -21,7 +21,7 @@ import { PromptProcessor } from "./PromptProcessor";
 import { MessageRenderer, UsedReference } from "./MessageRenderer";
 import { SessionManager } from "./SessionManager";
 import { ToolExecutionRenderer } from "./ToolExecutionRenderer";
-import { VoiceChatService, RecordingState, RealtimeAgentService, RealtimeAgentState, RealtimeHistoryItem, TaskExecutionCallback } from "../../voice-chat";
+import { VoiceChatService, RecordingState, RealtimeAgentService, RealtimeAgentState, RealtimeHistoryItem } from "../../voice-chat";
 import { getOpenAIApiKey } from "../../copilot/AIProvider";
 
 export const COPILOT_VIEW_TYPE = "copilot-chat-view";
@@ -662,11 +662,6 @@ Be proactive: When the user asks about their notes or content, use the tools to 
 			toolConfig: this.plugin.settings.voice?.realtimeToolConfig,
 		});
 
-		// Set up task execution callback to display subagent activity in chat
-		this.realtimeAgentService.setTaskExecutionCallback((phase, details) => {
-			this.handleTaskExecution(phase, details);
-		});
-
 		// Subscribe to state changes
 		this.realtimeAgentUnsubscribes.push(
 			this.realtimeAgentService.on('stateChange', (state) => {
@@ -810,59 +805,6 @@ Be proactive: When the user asks about their notes or content, use the tools to 
 		// Add a small indicator that this is from voice
 		const indicatorEl = messageEl.createDiv({ cls: "vc-transcript-indicator" });
 		indicatorEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path></svg>`;
-		
-		// Scroll to bottom
-		this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
-	}
-
-	/**
-	 * Handle task execution events from the subagent
-	 * Displays subagent activity in the chat view
-	 */
-	private handleTaskExecution(
-		phase: "started" | "tool_call" | "completed" | "error",
-		details: {
-			task?: string;
-			toolName?: string;
-			toolArgs?: unknown;
-			result?: { success: boolean; message: string; details?: unknown };
-			error?: string;
-		}
-	): void {
-		switch (phase) {
-			case "started":
-				this.addTaskExecutionMessage("started", `🤖 Executing task: ${details.task || "..."}`);
-				break;
-			case "tool_call":
-				// Show tool calls with a subtle style
-				this.addTaskExecutionMessage(
-					"tool_call",
-					`  ↳ ${details.toolName}${details.toolArgs ? ` (${JSON.stringify(details.toolArgs).substring(0, 50)}...)` : ""}`
-				);
-				break;
-			case "completed":
-				if (details.result?.success) {
-					this.addTaskExecutionMessage("completed", `✅ ${details.result.message}`);
-				} else {
-					this.addTaskExecutionMessage("error", `⚠️ ${details.result?.message || "Task completed with issues"}`);
-				}
-				break;
-			case "error":
-				this.addTaskExecutionMessage("error", `❌ Error: ${details.error}`);
-				break;
-		}
-	}
-
-	/**
-	 * Add a task execution message to the chat display
-	 */
-	private addTaskExecutionMessage(type: "started" | "tool_call" | "completed" | "error", text: string): void {
-		const messageEl = this.messagesContainer.createDiv({
-			cls: `vc-message vc-message-assistant vc-task-execution vc-task-${type}`
-		});
-		
-		const contentEl = messageEl.createDiv({ cls: "vc-message-content vc-task-content" });
-		contentEl.createEl("p", { text, cls: "vc-task-text" });
 		
 		// Scroll to bottom
 		this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
@@ -1614,7 +1556,7 @@ Be proactive: When the user asks about their notes or content, use the tools to 
 		}
 
 		// Process #fetch URL references
-		const { processedMessage, fetchedUrls, fetchedContext } = await this.promptProcessor.processFetchReferences(message, this.copilotService);
+		const { processedMessage, fetchedUrls, fetchedContext } = await this.promptProcessor.processFetchReferences(message);
 
 		// Extract and process [[filename]] inline references
 		const inlineNoteRefs = this.extractInlineNoteReferences(processedMessage);
