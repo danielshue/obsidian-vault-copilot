@@ -157,9 +157,16 @@ export class PromptProcessor {
 
 	/**
 	 * Normalize a path by resolving ../ and ./ components
+	 * Also handles cross-platform path separators
 	 */
 	normalizePath(path: string): string {
-		const parts = path.split('/').filter(p => p !== '.');
+		// Convert backslashes to forward slashes (Windows compatibility)
+		let normalized = path.replace(/\\/g, '/');
+		
+		// Remove leading/trailing slashes for processing
+		normalized = normalized.replace(/^\/+|\/+$/g, '');
+		
+		const parts = normalized.split('/').filter(p => p !== '.');
 		const result: string[] = [];
 		
 		for (const part of parts) {

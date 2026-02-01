@@ -4,6 +4,7 @@ import { SkillRegistry, VaultCopilotSkill } from "./SkillRegistry";
 import { CustomizationLoader, CustomInstruction } from "./CustomizationLoader";
 import { McpManager, McpManagerEvent } from "./McpManager";
 import { McpTool } from "./McpTypes";
+import { normalizeVaultPath, ensureMarkdownExtension } from "./pathUtils";
 
 export interface CopilotServiceConfig {
 	model: string;
@@ -829,7 +830,8 @@ File pattern: \`*.instructions.md\``);
 
 	async readNote(path: string): Promise<{ success: boolean; content?: string; error?: string }> {
 		try {
-			const file = this.app.vault.getAbstractFileByPath(path);
+			const normalizedPath = normalizeVaultPath(path);
+			const file = this.app.vault.getAbstractFileByPath(normalizedPath);
 			if (!file || !(file instanceof TFile)) {
 				return { success: false, error: `Note not found: ${path}` };
 			}
@@ -881,8 +883,8 @@ File pattern: \`*.instructions.md\``);
 
 	async createNote(path: string, content: string): Promise<{ success: boolean; path?: string; error?: string }> {
 		try {
-			// Ensure path ends with .md
-			const normalizedPath = path.endsWith(".md") ? path : `${path}.md`;
+			// Normalize path and ensure .md extension
+			const normalizedPath = ensureMarkdownExtension(path);
 			
 			// Check if file already exists
 			const existing = this.app.vault.getAbstractFileByPath(normalizedPath);
@@ -922,8 +924,9 @@ File pattern: \`*.instructions.md\``);
 
 	async listNotes(folder?: string): Promise<{ notes: Array<{ path: string; title: string }> }> {
 		const files = this.app.vault.getMarkdownFiles();
+		const normalizedFolder = folder ? normalizeVaultPath(folder) : undefined;
 		const notes = files
-			.filter(file => !folder || file.path.startsWith(folder))
+			.filter(file => !normalizedFolder || file.path.startsWith(normalizedFolder))
 			.map(file => ({
 				path: file.path,
 				title: file.basename,
@@ -935,7 +938,8 @@ File pattern: \`*.instructions.md\``);
 
 	async appendToNote(path: string, content: string): Promise<{ success: boolean; error?: string }> {
 		try {
-			const file = this.app.vault.getAbstractFileByPath(path);
+			const normalizedPath = normalizeVaultPath(path);
+			const file = this.app.vault.getAbstractFileByPath(normalizedPath);
 			if (!file || !(file instanceof TFile)) {
 				return { success: false, error: `Note not found: ${path}` };
 			}
@@ -950,7 +954,8 @@ File pattern: \`*.instructions.md\``);
 		const results = await Promise.all(
 			paths.map(async (path) => {
 				try {
-					const file = this.app.vault.getAbstractFileByPath(path);
+					const normalizedPath = normalizeVaultPath(path);
+					const file = this.app.vault.getAbstractFileByPath(normalizedPath);
 					if (!file || !(file instanceof TFile)) {
 						return { path, success: false, error: `Note not found: ${path}` };
 					}
@@ -966,7 +971,8 @@ File pattern: \`*.instructions.md\``);
 
 	async updateNote(path: string, content: string): Promise<{ success: boolean; error?: string }> {
 		try {
-			const file = this.app.vault.getAbstractFileByPath(path);
+			const normalizedPath = normalizeVaultPath(path);
+			const file = this.app.vault.getAbstractFileByPath(normalizedPath);
 			if (!file || !(file instanceof TFile)) {
 				return { success: false, error: `Note not found: ${path}` };
 			}
@@ -979,7 +985,8 @@ File pattern: \`*.instructions.md\``);
 
 	async deleteNote(path: string): Promise<{ success: boolean; error?: string }> {
 		try {
-			const file = this.app.vault.getAbstractFileByPath(path);
+			const normalizedPath = normalizeVaultPath(path);
+			const file = this.app.vault.getAbstractFileByPath(normalizedPath);
 			if (!file || !(file instanceof TFile)) {
 				return { success: false, error: `Note not found: ${path}` };
 			}
@@ -1011,7 +1018,8 @@ File pattern: \`*.instructions.md\``);
 		content: string
 	): Promise<{ success: boolean; error?: string }> {
 		try {
-			const file = this.app.vault.getAbstractFileByPath(path);
+			const normalizedPath = normalizeVaultPath(path);
+			const file = this.app.vault.getAbstractFileByPath(normalizedPath);
 			if (!file || !(file instanceof TFile)) {
 				return { success: false, error: `Note not found: ${path}` };
 			}
@@ -1150,13 +1158,14 @@ File pattern: \`*.instructions.md\``);
 
 	async renameNote(oldPath: string, newPath: string): Promise<{ success: boolean; newPath?: string; error?: string }> {
 		try {
-			const file = this.app.vault.getAbstractFileByPath(oldPath);
+			const normalizedOldPath = normalizeVaultPath(oldPath);
+			const file = this.app.vault.getAbstractFileByPath(normalizedOldPath);
 			if (!file || !(file instanceof TFile)) {
 				return { success: false, error: `Note not found: ${oldPath}` };
 			}
 
-			// Ensure new path ends with .md
-			const normalizedNewPath = newPath.endsWith(".md") ? newPath : `${newPath}.md`;
+			// Normalize new path and ensure .md extension
+			const normalizedNewPath = ensureMarkdownExtension(newPath);
 
 			// Check if target already exists
 			const existing = this.app.vault.getAbstractFileByPath(normalizedNewPath);

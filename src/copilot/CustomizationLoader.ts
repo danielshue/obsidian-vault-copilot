@@ -13,6 +13,7 @@
  */
 
 import { App, TFile, TFolder, FileSystemAdapter } from "obsidian";
+import { normalizeVaultPath, isVaultRoot, toVaultRelativePath } from "./pathUtils";
 
 /**
  * Parsed agent from .agent.md file
@@ -171,50 +172,49 @@ export class CustomizationLoader {
 	}
 
 	/**
-	 * Convert a directory path to a vault-relative path and get the folder
-	 * Handles absolute paths, vault root (.), and relative paths
-	 */
-	private getFolderFromPath(dir: string): TFolder | null {
-		const vaultBasePath = this.getVaultBasePath();
-		let relativePath = dir;
-
-		// Normalize path separators
-		relativePath = relativePath.replace(/\\/g, '/');
-
-		// Handle vault root cases
-		if (relativePath === '.' || relativePath === '/' || relativePath === '') {
+ * Convert a directory path to a vault-relative path and get the folder
+ * Handles absolute paths, vault root (.), and relative paths
+ * Cross-platform compatible (Windows, Mac, Linux)
+ */
+private getFolderFromPath(dir: string): TFolder | null {
+	const vaultBasePath = this.getVaultBasePath();
+	
+	// Handle vault root cases first
+	if (isVaultRoot(dir)) {
+		return this.app.vault.getRoot();
+	}
+	
+	// Normalize the path
+	let relativePath = normalizeVaultPath(dir);
+	
+	// Handle absolute paths ending with /. (vault root with trailing .)
+	if (vaultBasePath && (relativePath.endsWith('/.') || relativePath === '.')) {
+		const withoutDot = relativePath.replace(/\/?\.$/, '');
+		const normalizedVaultPath = normalizeVaultPath(vaultBasePath);
+		if (withoutDot === normalizedVaultPath || withoutDot === '') {
 			return this.app.vault.getRoot();
 		}
-
-		// Handle absolute paths ending with /. (vault root with trailing .)
-		if (vaultBasePath && (relativePath.endsWith('/.') || relativePath.endsWith('.'))) {
-			const withoutDot = relativePath.replace(/\/?\.$/, '');
-			if (withoutDot === vaultBasePath || withoutDot + '/' === vaultBasePath) {
-				return this.app.vault.getRoot();
-			}
-		}
-
-		// Convert absolute path to relative path
-		if (vaultBasePath && relativePath.startsWith(vaultBasePath)) {
-			relativePath = relativePath.slice(vaultBasePath.length);
-			// Remove leading slash
-			if (relativePath.startsWith('/')) {
-				relativePath = relativePath.slice(1);
-			}
-			// Handle empty string (vault root)
-			if (relativePath === '' || relativePath === '.') {
-				return this.app.vault.getRoot();
-			}
-		}
-
-		const folder = this.app.vault.getAbstractFileByPath(relativePath);
-		if (folder && folder instanceof TFolder) {
-			return folder;
-		}
-
-		console.log(`[VC] Could not find folder: ${dir} (resolved to: ${relativePath})`);
-		return null;
 	}
+	
+	// Convert absolute path to relative path
+	if (vaultBasePath) {
+		relativePath = toVaultRelativePath(relativePath, vaultBasePath);
+	}
+	
+	// Handle empty string after processing (vault root)
+	if (isVaultRoot(relativePath)) {
+		return this.app.vault.getRoot();
+	}
+	
+	// Obsidian's getAbstractFileByPath expects vault-relative paths with forward slashes
+	const folder = this.app.vault.getAbstractFileByPath(relativePath);
+	if (folder && folder instanceof TFolder) {
+		return folder;
+	}
+	
+	console.log(`[VC] Could not find folder: ${dir} (resolved to: ${relativePath})`);
+	return null;
+}
 
 	/**
 	 * Load all agents from the configured agent directories
