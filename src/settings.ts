@@ -1345,6 +1345,10 @@ export class CopilotSettingTab extends PluginSettingTab {
 		
 		helpContent.createEl("h4", { text: "About Vault Copilot" });
 		helpContent.createEl("p", {
+			text: `Version ${this.plugin.manifest.version}`,
+			cls: "vc-version-info"
+		});
+		helpContent.createEl("p", {
 			text: "Vault Copilot brings AI assistance into Obsidian by connecting to your GitHub Copilot account. It uses the GitHub Copilot CLI SDK along with Agent Skills, MCP tools, and plugin-defined skills to enable powerful operations inside your vault. The assistant can read and search notes, create and update content, help organize information, and support workflows that span multiple plugins."
 		});
 		helpContent.createEl("p", {

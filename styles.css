@@ -3386,3 +3386,11 @@
 .vc-task-error {
 	border-left-color: var(--color-red);
 }
+
+/* Version info in settings */
+.vc-version-info {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin-top: -0.5em;
+	margin-bottom: 1em;
+}

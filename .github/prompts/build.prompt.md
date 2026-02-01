@@ -2,7 +2,6 @@
 agent: 'agent'
 name: build
 description: Build and deploy the Obsidian plugin to the test vault
-model: 'claude-3-5-sonnet-20241022'
 ---
 Build and deploy the Obsidian Vault Copilot plugin to the test vault for local testing.
 
