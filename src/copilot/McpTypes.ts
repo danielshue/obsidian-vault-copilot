@@ -121,6 +121,8 @@ export interface VaultMcpConfig {
 	version: 1;
 	/** Override enabled state per server ID */
 	enabled: Record<string, boolean>;
+	/** Auto-start state per server ID */
+	autoStart: Record<string, boolean>;
 	/** Vault-specific custom servers */
 	servers: McpServerConfig[];
 	/** Auto-discovery settings */
@@ -139,6 +141,7 @@ export interface VaultMcpConfig {
 export const DEFAULT_VAULT_MCP_CONFIG: VaultMcpConfig = {
 	version: 1,
 	enabled: {},
+	autoStart: {},
 	servers: [],
 	autoDiscovery: {
 		claudeDesktop: true,

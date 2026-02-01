@@ -4,17 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "da901a7d61355a84",
+        "id": "751b89fa48b38e44",
         "type": "tabs",
         "children": [
           {
-            "id": "1d09d6ca0a3c32bc",
+            "id": "58952b2b677dfccb",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "Daily Notes/2026-01-30.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "2026-01-30"
             }
           }
         ]
@@ -172,7 +176,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 432.5
+    "width": 411.5
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -186,18 +190,21 @@
       "bases:Create new base": false
     }
   },
-  "active": "f4349356017f98ec",
+  "active": "58952b2b677dfccb",
   "lastOpenFiles": [
-    "copilot-instructions.md",
-    "Reference/Instructions/documentation.instructions.md",
+    "Daily Notes/2026-01-30.md",
+    "Daily Notes/2026-01-28.md",
+    "MyOtherCustomAgents/daily-journal.agent.md",
+    "Reference/Getting Started.md",
     "Daily Notes/2026-01-31.md",
+    "copilot-instructions.md",
     "Welcome.md",
+    "Reference/AI Integration Patterns.md",
+    "Reference/Instructions/documentation.instructions.md",
     "Reference/Skills/obsidian-tasks/skill.md",
     "Reference/Prompts/create-daily-note.prompt.md",
     "Reference/Prompts/create-release.prompt.md",
     "Reference/Prompts/code-review.prompt.md",
-    "Daily Notes/2026-01-30.md",
-    "Daily Notes/2026-01-28.md",
     "Reference/Prompts/meeting-update.prompt.md",
     "Reference/Prompts/summarize-note.prompt.md",
     "Reference/Prompts/extract-tasks.prompt.md",
@@ -211,10 +218,7 @@
     "2026-01-30 Project Beta.md",
     "Projects/Project Alpha.md",
     "Projects/Project Beta.md",
-    "MyOtherCustomAgents/daily-journal.agent.md",
     "Reference/Agents/vault-organizer.agent.md",
-    "Reference/Agents/readme-specialist.agent.md",
-    "Reference/AI Integration Patterns.md",
     "Reference/Skills/obsidian-tasks",
     "Reference/Skills/obsidian-task",
     "MyOtherCustomAgents",

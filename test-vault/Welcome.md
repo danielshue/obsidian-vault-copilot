@@ -18,4 +18,3 @@ This is a test vault for developing the **GitHub Copilot** plugin for Obsidian.
 ## Tags
 
 #welcome #test #obsidian
-I

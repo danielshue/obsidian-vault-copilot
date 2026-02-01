@@ -21,7 +21,8 @@ import { PromptProcessor } from "./PromptProcessor";
 import { MessageRenderer, UsedReference } from "./MessageRenderer";
 import { SessionManager } from "./SessionManager";
 import { ToolExecutionRenderer } from "./ToolExecutionRenderer";
-import { VoiceChatService, RecordingState } from "../../voice-chat";
+import { VoiceChatService, RecordingState, RealtimeAgentService, RealtimeAgentState, RealtimeHistoryItem, TaskExecutionCallback } from "../../voice-chat";
+import { getOpenAIApiKey } from "../../copilot/AIProvider";
 
 export const COPILOT_VIEW_TYPE = "copilot-chat-view";
 
@@ -61,6 +62,11 @@ export class CopilotChatView extends ItemView {
 	private voiceChatService: VoiceChatService | null = null;
 	private voiceBtn: HTMLButtonElement | null = null;
 	private voiceStateUnsubscribe: (() => void) | null = null;
+	
+	// Realtime agent
+	private realtimeAgentService: RealtimeAgentService | null = null;
+	private agentBtn: HTMLButtonElement | null = null;
+	private realtimeAgentUnsubscribes: (() => void)[] = [];
 
 	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, copilotService: CopilotService) {
 		super(leaf);
@@ -424,6 +430,19 @@ export class CopilotChatView extends ItemView {
 			});
 		}
 
+		// Realtime agent button - only shown when enabled in settings
+		if (this.plugin.settings.voice?.realtimeAgentEnabled) {
+			this.agentBtn = toolbarRight.createEl("button", { 
+				cls: "vc-toolbar-btn vc-agent-btn",
+				attr: { "aria-label": "Start voice agent" }
+			});
+			this.updateAgentButtonState('idle');
+			this.agentBtn.addEventListener("click", () => this.handleAgentToggle());
+			
+			// Initialize realtime agent service
+			this.initRealtimeAgentService();
+		}
+
 		// Send button
 		this.sendButton = toolbarRight.createEl("button", { 
 			cls: "vc-send-btn",
@@ -582,6 +601,315 @@ export class CopilotChatView extends ItemView {
 			default:
 				this.voiceBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>`;
 				this.voiceBtn.setAttribute('aria-label', 'Voice input');
+				break;
+		}
+	}
+
+	/**
+	 * Initialize the realtime agent service with event handlers
+	 */
+	private initRealtimeAgentService(): void {
+		const apiKey = getOpenAIApiKey(this.plugin.settings.openai?.apiKey);
+		if (!apiKey) {
+			console.warn('OpenAI API key not configured for realtime agent');
+			return;
+		}
+
+		// Build instructions including MCP tool availability
+		let instructions = this.selectedAgent?.description 
+			? `You are ${this.selectedAgent.name}. ${this.selectedAgent.description}. You have access to the user's Obsidian vault.`
+			: 'You are a helpful assistant with access to the user\'s Obsidian notes.';
+
+		// Add detailed tool usage guidance
+		instructions += `
+
+IMPORTANT: You have powerful tools to interact with the user's Obsidian vault:
+- Use get_active_note to see the note the user currently has open - ALWAYS check this first when the user asks about "this note" or "the current note"
+- Use search_notes to find notes by keywords when the user references topics or asks questions
+- Use read_note to read specific notes by path
+- Use list_notes to browse the vault structure
+
+Be proactive: When the user asks about their notes or content, use the tools to find and read relevant information. Don't just ask what they want - actually look it up. When they mention "this note" or "my current note", immediately use get_active_note.`;
+
+		// Add MCP tools info if available
+		if (this.plugin.mcpManager?.hasConnectedServers()) {
+			const mcpTools = this.plugin.mcpManager.getAllTools();
+			const mcpToolCount = mcpTools.length;
+			if (mcpToolCount > 0) {
+				instructions += `\n\nYou also have access to ${mcpToolCount} MCP tools from connected servers:`;
+				// Group by server and list tool names
+				const byServer = new Map<string, string[]>();
+				for (const t of mcpTools) {
+					if (!byServer.has(t.serverName)) {
+						byServer.set(t.serverName, []);
+					}
+					byServer.get(t.serverName)!.push(t.tool.name);
+				}
+				for (const [serverName, toolNames] of byServer) {
+					instructions += `\n- ${serverName}: ${toolNames.join(', ')}`;
+				}
+				instructions += `\nUse these MCP tools when relevant to the user's questions.`;
+			}
+		}
+
+		this.realtimeAgentService = new RealtimeAgentService(this.app, {
+			apiKey,
+			voice: this.plugin.settings.voice?.realtimeVoice || 'alloy',
+			turnDetection: this.plugin.settings.voice?.realtimeTurnDetection || 'server_vad',
+			language: this.plugin.settings.voice?.realtimeLanguage || 'en',
+			instructions,
+			mcpManager: this.plugin.mcpManager,
+			toolConfig: this.plugin.settings.voice?.realtimeToolConfig,
+		});
+
+		// Set up task execution callback to display subagent activity in chat
+		this.realtimeAgentService.setTaskExecutionCallback((phase, details) => {
+			this.handleTaskExecution(phase, details);
+		});
+
+		// Subscribe to state changes
+		this.realtimeAgentUnsubscribes.push(
+			this.realtimeAgentService.on('stateChange', (state) => {
+				this.updateAgentButtonState(state);
+			})
+		);
+
+		// Subscribe to transcript updates - display in chat
+		this.realtimeAgentUnsubscribes.push(
+			this.realtimeAgentService.on('transcript', (item) => {
+				this.handleRealtimeTranscript(item);
+			})
+		);
+
+		// Subscribe to tool executions
+		this.realtimeAgentUnsubscribes.push(
+			this.realtimeAgentService.on('toolExecution', (toolName, args, result) => {
+				console.log(`[RealtimeAgent] Tool executed: ${toolName}`, args, result);
+			})
+		);
+
+		// Subscribe to errors
+		this.realtimeAgentUnsubscribes.push(
+			this.realtimeAgentService.on('error', (error) => {
+				new Notice(`Voice agent error: ${error.message}`);
+			})
+		);
+	}
+
+	/**
+	 * Handle toggle of the realtime agent button
+	 */
+	private async handleAgentToggle(): Promise<void> {
+		if (!this.realtimeAgentService) {
+			this.initRealtimeAgentService();
+		}
+
+		if (!this.realtimeAgentService) {
+			new Notice('Failed to initialize voice agent. Check your OpenAI API key.');
+			return;
+		}
+
+		const state = this.realtimeAgentService.getState();
+		
+		if (state === 'idle' || state === 'error') {
+			// Start the agent
+			try {
+				await this.realtimeAgentService.connect();
+				
+				// Pass the current note content as initial context
+				const activeFile = this.app.workspace.getActiveFile();
+				if (activeFile) {
+					try {
+						const content = await this.app.vault.read(activeFile);
+						const truncatedContent = content.length > 6000 
+							? content.substring(0, 6000) + '\n\n[Content truncated...]' 
+							: content;
+						this.realtimeAgentService.sendContext(
+							`The user is currently looking at a note called "${activeFile.basename}" (path: ${activeFile.path}). Here is its content:\n\n${truncatedContent}`
+						);
+					} catch {
+						// Fall back to just the name if we can't read
+						this.realtimeAgentService.sendContext(
+							`The user is currently looking at a note called "${activeFile.basename}" (path: ${activeFile.path}).`
+						);
+					}
+					new Notice(`Voice agent connected. Shared: ${activeFile.basename}`);
+				} else {
+					new Notice('Voice agent connected. Start speaking!');
+				}
+
+				// Listen for when user opens a different note and share it with the agent
+				const fileOpenRef = this.app.workspace.on('file-open', async (file) => {
+					if (file && this.realtimeAgentService?.isConnected()) {
+						try {
+							const content = await this.app.vault.read(file);
+							const truncatedContent = content.length > 6000 
+								? content.substring(0, 6000) + '\n\n[Content truncated...]' 
+								: content;
+							this.realtimeAgentService.sendContext(
+								`The user switched to a different note called "${file.basename}" (path: ${file.path}). Here is its content:\n\n${truncatedContent}`
+							);
+							console.log(`[RealtimeAgent] Shared note context: ${file.basename}`);
+						} catch (e) {
+							console.warn('[RealtimeAgent] Failed to read opened file:', e);
+						}
+					}
+				});
+				
+				// Store unsubscribe function for cleanup
+				this.realtimeAgentUnsubscribes.push(() => {
+					this.app.workspace.offref(fileOpenRef);
+				});
+
+			} catch (error) {
+				new Notice(`Failed to connect voice agent: ${error instanceof Error ? error.message : String(error)}`);
+			}
+		} else {
+			// Stop the agent
+			this.realtimeAgentService.disconnect();
+			new Notice('Voice agent disconnected.');
+		}
+	}
+
+	/**
+	 * Handle transcript updates from the realtime agent
+	 */
+	/**
+	 * Handle transcript updates from the realtime agent
+	 * Note: Transcripts are NOT displayed in the main chat view.
+	 * The voice agent speaks responses directly; we only log for debugging.
+	 */
+	private handleRealtimeTranscript(item: RealtimeHistoryItem): void {
+		// Get the text from content or transcript
+		const text = item.content || item.transcript || '';
+		const role = item.role || 'assistant';
+		
+		// Skip system context messages - these are internal
+		if (text.includes('[SYSTEM CONTEXT') || text.includes('DO NOT RESPOND TO THIS')) {
+			return;
+		}
+		
+		// Log for debugging only - voice transcripts stay out of main chat
+		console.log(`[RealtimeAgent] ${role}: ${text}`);
+		
+		// Voice agent output is audible, not written to chat
+		// The main chat view is reserved for text-based interactions
+	}
+
+	/**
+	 * Add a transcript message to the chat display
+	 */
+	private addTranscriptMessage(role: 'user' | 'assistant', text: string): void {
+		const messageEl = this.messagesContainer.createDiv({
+			cls: `vc-message vc-message-${role} vc-message-transcript`
+		});
+		
+		const contentEl = messageEl.createDiv({ cls: "vc-message-content" });
+		contentEl.createEl("p", { text });
+		
+		// Add a small indicator that this is from voice
+		const indicatorEl = messageEl.createDiv({ cls: "vc-transcript-indicator" });
+		indicatorEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path></svg>`;
+		
+		// Scroll to bottom
+		this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+	}
+
+	/**
+	 * Handle task execution events from the subagent
+	 * Displays subagent activity in the chat view
+	 */
+	private handleTaskExecution(
+		phase: "started" | "tool_call" | "completed" | "error",
+		details: {
+			task?: string;
+			toolName?: string;
+			toolArgs?: unknown;
+			result?: { success: boolean; message: string; details?: unknown };
+			error?: string;
+		}
+	): void {
+		switch (phase) {
+			case "started":
+				this.addTaskExecutionMessage("started", `🤖 Executing task: ${details.task || "..."}`);
+				break;
+			case "tool_call":
+				// Show tool calls with a subtle style
+				this.addTaskExecutionMessage(
+					"tool_call",
+					`  ↳ ${details.toolName}${details.toolArgs ? ` (${JSON.stringify(details.toolArgs).substring(0, 50)}...)` : ""}`
+				);
+				break;
+			case "completed":
+				if (details.result?.success) {
+					this.addTaskExecutionMessage("completed", `✅ ${details.result.message}`);
+				} else {
+					this.addTaskExecutionMessage("error", `⚠️ ${details.result?.message || "Task completed with issues"}`);
+				}
+				break;
+			case "error":
+				this.addTaskExecutionMessage("error", `❌ Error: ${details.error}`);
+				break;
+		}
+	}
+
+	/**
+	 * Add a task execution message to the chat display
+	 */
+	private addTaskExecutionMessage(type: "started" | "tool_call" | "completed" | "error", text: string): void {
+		const messageEl = this.messagesContainer.createDiv({
+			cls: `vc-message vc-message-assistant vc-task-execution vc-task-${type}`
+		});
+		
+		const contentEl = messageEl.createDiv({ cls: "vc-message-content vc-task-content" });
+		contentEl.createEl("p", { text, cls: "vc-task-text" });
+		
+		// Scroll to bottom
+		this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+	}
+
+	/**
+	 * Update the agent button visual state based on realtime agent state
+	 */
+	private updateAgentButtonState(state: RealtimeAgentState): void {
+		if (!this.agentBtn) return;
+
+		// Remove all state classes
+		this.agentBtn.removeClass('vc-agent-connecting', 'vc-agent-connected', 'vc-agent-speaking', 'vc-agent-listening', 'vc-agent-error');
+
+		// Agent icon SVG (robot/agent icon)
+		const agentIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="10" x="3" y="11" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" x2="8" y1="16" y2="16"></line><line x1="16" x2="16" y1="16" y2="16"></line></svg>`;
+		
+		// Pulsing/active icon for connected states
+		const activeIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="10" x="3" y="11" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" x2="8" y1="16" y2="16"></line><line x1="16" x2="16" y1="16" y2="16"></line></svg>`;
+
+		// Update icon and state
+		switch (state) {
+			case 'connecting':
+				this.agentBtn.addClass('vc-agent-connecting');
+				this.agentBtn.innerHTML = agentIcon;
+				this.agentBtn.setAttribute('aria-label', 'Connecting...');
+				break;
+			case 'connected':
+			case 'listening':
+				this.agentBtn.addClass('vc-agent-connected');
+				this.agentBtn.innerHTML = activeIcon;
+				this.agentBtn.setAttribute('aria-label', 'Voice agent active - click to stop');
+				break;
+			case 'speaking':
+				this.agentBtn.addClass('vc-agent-speaking');
+				this.agentBtn.innerHTML = activeIcon;
+				this.agentBtn.setAttribute('aria-label', 'Agent speaking - click to interrupt');
+				break;
+			case 'error':
+				this.agentBtn.addClass('vc-agent-error');
+				this.agentBtn.innerHTML = agentIcon;
+				this.agentBtn.setAttribute('aria-label', 'Voice agent error - click to retry');
+				break;
+			case 'idle':
+			default:
+				this.agentBtn.innerHTML = agentIcon;
+				this.agentBtn.setAttribute('aria-label', 'Start voice agent');
 				break;
 		}
 	}
@@ -1115,6 +1443,15 @@ export class CopilotChatView extends ItemView {
 		if (this.voiceChatService) {
 			this.voiceChatService.destroy();
 			this.voiceChatService = null;
+		}
+		// Cleanup realtime agent service
+		for (const unsubscribe of this.realtimeAgentUnsubscribes) {
+			unsubscribe();
+		}
+		this.realtimeAgentUnsubscribes = [];
+		if (this.realtimeAgentService) {
+			this.realtimeAgentService.destroy();
+			this.realtimeAgentService = null;
 		}
 	}
 

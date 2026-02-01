@@ -64,6 +64,9 @@ export class McpManager {
 		await this.discoverServers();
 
 		this.initialized = true;
+
+		// Auto-start servers that have autoStart enabled (async, don't block)
+		this.autoStartServers();
 	}
 
 	/**
@@ -155,6 +158,50 @@ export class McpManager {
 			await this.startServer(id);
 		} else {
 			await this.stopServer(id);
+		}
+	}
+
+	/**
+	 * Check if a server should auto-start
+	 */
+	isServerAutoStart(id: string): boolean {
+		return this.vaultConfig.autoStart[id] ?? false;
+	}
+
+	/**
+	 * Set server auto-start state
+	 */
+	async setServerAutoStart(id: string, autoStart: boolean): Promise<void> {
+		this.vaultConfig.autoStart[id] = autoStart;
+		await this.saveVaultConfig();
+	}
+
+	/**
+	 * Auto-start servers that have autoStart enabled
+	 * Called asynchronously during initialization
+	 */
+	private autoStartServers(): void {
+		const serversToStart = Array.from(this.servers.keys()).filter(
+			(id) => this.isServerAutoStart(id)
+		);
+
+		if (serversToStart.length === 0) {
+			return;
+		}
+
+		console.log(`[McpManager] Auto-starting ${serversToStart.length} server(s)...`);
+
+		// Start servers in parallel, don't await to not block
+		for (const id of serversToStart) {
+			this.startServer(id)
+				.then(() => {
+					const server = this.servers.get(id);
+					console.log(`[McpManager] Auto-started: ${server?.config.name || id}`);
+				})
+				.catch((error) => {
+					const server = this.servers.get(id);
+					console.warn(`[McpManager] Failed to auto-start ${server?.config.name || id}:`, error);
+				});
 		}
 	}
 
@@ -429,6 +476,10 @@ export class McpManager {
 				this.vaultConfig = {
 					...DEFAULT_VAULT_MCP_CONFIG,
 					...parsed,
+					autoStart: {
+						...DEFAULT_VAULT_MCP_CONFIG.autoStart,
+						...parsed.autoStart,
+					},
 					autoDiscovery: {
 						...DEFAULT_VAULT_MCP_CONFIG.autoDiscovery,
 						...parsed.autoDiscovery,

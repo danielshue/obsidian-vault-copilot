@@ -9,6 +9,7 @@ import { ToolCatalog } from "./copilot/ToolCatalog";
 import { ToolPickerModal } from "./ui/ChatView";
 import { AIProviderType, getOpenAIApiKey } from "./copilot/AIProvider";
 import { OpenAIService } from "./copilot/OpenAIService";
+import { RealtimeVoice, TurnDetectionMode, RealtimeToolConfig, DEFAULT_TOOL_CONFIG } from "./voice-chat";
 
 // Robot mascot logo (base64 encoded PNG, 48x48)
 const COPILOT_LOGO_DATA_URL = "data:image/png;base64,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";
@@ -84,6 +85,16 @@ export interface CopilotPluginSettings {
 		autoSynthesize?: 'off' | 'on';
 		/** Speech timeout in milliseconds (0 to disable) */
 		speechTimeout?: number;
+		/** Enable realtime voice agent */
+		realtimeAgentEnabled?: boolean;
+		/** Voice for realtime agent responses */
+		realtimeVoice?: 'alloy' | 'ash' | 'ballad' | 'coral' | 'echo' | 'fable' | 'onyx' | 'nova' | 'sage' | 'shimmer' | 'verse';
+		/** Turn detection mode for realtime agent */
+		realtimeTurnDetection?: 'semantic_vad' | 'server_vad';
+		/** Language for speech recognition (ISO 639-1 code like 'en', 'es', 'fr') */
+		realtimeLanguage?: string;
+		/** Tool configuration for realtime agent */
+		realtimeToolConfig?: RealtimeToolConfig;
 	};
 	/** OpenAI settings */
 	openai: OpenAISettings;
@@ -108,6 +119,11 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 		language: 'auto',
 		autoSynthesize: 'off',
 		speechTimeout: 0,
+		realtimeAgentEnabled: false,
+		realtimeVoice: 'alloy',
+		realtimeTurnDetection: 'server_vad',
+		realtimeLanguage: 'en',
+		realtimeToolConfig: { ...DEFAULT_TOOL_CONFIG },
 	},
 	openai: {
 		enabled: false,
@@ -538,6 +554,31 @@ export class CopilotSettingTab extends PluginSettingTab {
 				});
 			});
 
+		// 5. Realtime Agent Settings
+		voiceSection.createEl("h4", { text: "Realtime Voice Agent (Experimental)" });
+		voiceSection.createEl("p", { 
+			text: "Enable two-way voice conversations with an AI agent that can access your notes. This feature is experimental and may have issues.",
+			cls: "vc-status-desc"
+		});
+
+		// Container for realtime agent conditional settings
+		const realtimeConditionalContainer = voiceSection.createDiv({ cls: "vc-realtime-conditional" });
+
+		new Setting(voiceSection)
+			.setName("Enable Realtime Agent")
+			.setDesc("Show the agent button next to the microphone for two-way voice conversations")
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.voice!.realtimeAgentEnabled || false);
+				toggle.onChange(async (value) => {
+					this.plugin.settings.voice!.realtimeAgentEnabled = value;
+					await this.plugin.saveSettings();
+					this.renderRealtimeConditionalSettings(realtimeConditionalContainer);
+				});
+			});
+
+		voiceSection.appendChild(realtimeConditionalContainer);
+		this.renderRealtimeConditionalSettings(realtimeConditionalContainer);
+
 		// Container for conditional settings (created before backend dropdown so we can reference it)
 		const conditionalContainer = voiceSection.createDiv({ cls: "vc-voice-conditional" });
 
@@ -743,6 +784,155 @@ export class CopilotSettingTab extends PluginSettingTab {
 		}
 	}
 
+	private renderRealtimeConditionalSettings(container: HTMLElement): void {
+		container.empty();
+		
+		if (!this.plugin.settings.voice?.realtimeAgentEnabled) {
+			return;
+		}
+
+		const realtimeSection = container.createDiv({ cls: "vc-realtime-settings" });
+
+		// Voice selection
+		new Setting(realtimeSection)
+			.setName("Voice")
+			.setDesc("Select the voice for the realtime agent")
+			.addDropdown((dropdown) => {
+				const voices = [
+					{ value: 'alloy', name: 'Alloy' },
+					{ value: 'ash', name: 'Ash' },
+					{ value: 'ballad', name: 'Ballad' },
+					{ value: 'coral', name: 'Coral' },
+					{ value: 'echo', name: 'Echo' },
+					{ value: 'fable', name: 'Fable' },
+					{ value: 'onyx', name: 'Onyx' },
+					{ value: 'nova', name: 'Nova' },
+					{ value: 'sage', name: 'Sage' },
+					{ value: 'shimmer', name: 'Shimmer' },
+					{ value: 'verse', name: 'Verse' },
+				];
+				for (const voice of voices) {
+					dropdown.addOption(voice.value, voice.name);
+				}
+				dropdown.setValue(this.plugin.settings.voice!.realtimeVoice || 'alloy');
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.voice!.realtimeVoice = value as RealtimeVoice;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// Turn detection mode
+		new Setting(realtimeSection)
+			.setName("Turn Detection")
+			.setDesc("How the agent detects when you've finished speaking")
+			.addDropdown((dropdown) => {
+				dropdown.addOption('server_vad', 'Server VAD (Voice Activity Detection)');
+				dropdown.addOption('semantic_vad', 'Semantic VAD (Smarter, context-aware)');
+				dropdown.setValue(this.plugin.settings.voice!.realtimeTurnDetection || 'server_vad');
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.voice!.realtimeTurnDetection = value as TurnDetectionMode;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// Language for speech recognition
+		new Setting(realtimeSection)
+			.setName("Language")
+			.setDesc("Language for speech recognition (improves accuracy)")
+			.addDropdown((dropdown) => {
+				dropdown.addOption('', 'Auto-detect');
+				dropdown.addOption('en', 'English');
+				dropdown.addOption('es', 'Spanish');
+				dropdown.addOption('fr', 'French');
+				dropdown.addOption('de', 'German');
+				dropdown.addOption('it', 'Italian');
+				dropdown.addOption('pt', 'Portuguese');
+				dropdown.addOption('nl', 'Dutch');
+				dropdown.addOption('ja', 'Japanese');
+				dropdown.addOption('ko', 'Korean');
+				dropdown.addOption('zh', 'Chinese');
+				dropdown.addOption('ru', 'Russian');
+				dropdown.addOption('ar', 'Arabic');
+				dropdown.addOption('hi', 'Hindi');
+				dropdown.setValue(this.plugin.settings.voice!.realtimeLanguage || 'en');
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.voice!.realtimeLanguage = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// Tool Configuration Section
+		realtimeSection.createEl("h4", { text: "Tool Capabilities", cls: "setting-item-heading" });
+
+		// Vault Read Tools
+		new Setting(realtimeSection)
+			.setName("Vault Read Access")
+			.setDesc("Allow reading notes, searching, and listing files")
+			.addToggle((toggle) => {
+				const config = this.plugin.settings.voice?.realtimeToolConfig || DEFAULT_TOOL_CONFIG;
+				toggle.setValue(config.vaultRead ?? true);
+				toggle.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					this.plugin.settings.voice.realtimeToolConfig = {
+						...this.plugin.settings.voice.realtimeToolConfig,
+						vaultRead: value,
+					};
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// Vault Write Tools
+		new Setting(realtimeSection)
+			.setName("Vault Write Access")
+			.setDesc("Allow creating and modifying notes")
+			.addToggle((toggle) => {
+				const config = this.plugin.settings.voice?.realtimeToolConfig || DEFAULT_TOOL_CONFIG;
+				toggle.setValue(config.vaultWrite ?? true);
+				toggle.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					this.plugin.settings.voice.realtimeToolConfig = {
+						...this.plugin.settings.voice.realtimeToolConfig,
+						vaultWrite: value,
+					};
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// Web Access Tools
+		new Setting(realtimeSection)
+			.setName("Web Access")
+			.setDesc("Allow searching the web and fetching web pages")
+			.addToggle((toggle) => {
+				const config = this.plugin.settings.voice?.realtimeToolConfig || DEFAULT_TOOL_CONFIG;
+				toggle.setValue(config.webAccess ?? true);
+				toggle.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					this.plugin.settings.voice.realtimeToolConfig = {
+						...this.plugin.settings.voice.realtimeToolConfig,
+						webAccess: value,
+					};
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// MCP Tools
+		new Setting(realtimeSection)
+			.setName("MCP Tools")
+			.setDesc("Allow using tools from connected MCP servers")
+			.addToggle((toggle) => {
+				const config = this.plugin.settings.voice?.realtimeToolConfig || DEFAULT_TOOL_CONFIG;
+				toggle.setValue(config.mcpTools ?? true);
+				toggle.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					this.plugin.settings.voice.realtimeToolConfig = {
+						...this.plugin.settings.voice.realtimeToolConfig,
+						mcpTools: value,
+					};
+					await this.plugin.saveSettings();
+				});
+			});
+	}
+
 	private updateToolSummary(container: HTMLElement): void {
 		container.empty();
 		const summary = this.toolCatalog.getToolsSummary(this.plugin.settings);
@@ -881,6 +1071,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 			const headerRow2 = thead.createEl("tr");
 			headerRow2.createEl("th", { text: "Name" });
 			headerRow2.createEl("th", { text: "Type" });
+			headerRow2.createEl("th", { text: "Auto Start" });
 			headerRow2.createEl("th", { text: "Status" });
 			headerRow2.createEl("th", { text: "Actions" });
 			
@@ -918,6 +1109,20 @@ export class CopilotSettingTab extends PluginSettingTab {
 		row.createEl("td", { 
 			text: config.transport === "stdio" ? "stdio" : "HTTP",
 			cls: "vc-mcp-type" 
+		});
+		
+		// Auto Start cell
+		const autoStartCell = row.createEl("td", { cls: "vc-mcp-autostart" });
+		const autoStartCheckbox = autoStartCell.createEl("input", {
+			type: "checkbox",
+			cls: "vc-mcp-autostart-checkbox"
+		});
+		autoStartCheckbox.checked = this.plugin.mcpManager.isServerAutoStart(config.id);
+		autoStartCheckbox.addEventListener("change", async () => {
+			await this.plugin.mcpManager.setServerAutoStart(config.id, autoStartCheckbox.checked);
+			new Notice(autoStartCheckbox.checked 
+				? `${config.name} will auto-start on launch` 
+				: `${config.name} will not auto-start`);
 		});
 		
 		// Status cell
