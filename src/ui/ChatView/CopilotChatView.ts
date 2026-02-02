@@ -572,6 +572,15 @@ export class CopilotChatView extends ItemView {
 	 * Called from settings panel when it closes.
 	 */
 	refreshFromSettings(): void {
+		// Validate current model is still in available list
+		const availableModels = getAvailableModels(this.plugin.settings);
+		const firstModel = availableModels[0];
+		if (firstModel && !availableModels.includes(this.plugin.settings.model)) {
+			// Current model no longer available, switch to first available
+			this.plugin.settings.model = firstModel;
+			this.plugin.saveSettings();
+		}
+		
 		// Update model selector text
 		this.updateModelSelectorText();
 		

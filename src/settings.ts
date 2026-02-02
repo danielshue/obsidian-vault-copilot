@@ -590,6 +590,13 @@ export class CopilotSettingTab extends PluginSettingTab {
 						const result = await this.cliManager.fetchAvailableModels();
 						if (result.models.length > 0) {
 							this.plugin.settings.availableModels = result.models;
+							
+							// Validate current model is still available
+							const firstModel = result.models[0];
+							if (firstModel && !result.models.includes(this.plugin.settings.model)) {
+								this.plugin.settings.model = firstModel;
+							}
+							
 							await this.plugin.saveSettings();
 							
 							// Update the dropdown
@@ -597,6 +604,16 @@ export class CopilotSettingTab extends PluginSettingTab {
 								this.populateModelDropdown(modelDropdown);
 								modelDropdown.setValue(this.plugin.settings.model);
 							}
+							
+							// Immediately update any open chat views
+							const chatLeaves = this.app.workspace.getLeavesOfType(COPILOT_VIEW_TYPE);
+							for (const leaf of chatLeaves) {
+								const view = leaf.view as CopilotChatView;
+								if (view?.refreshFromSettings) {
+									view.refreshFromSettings();
+								}
+							}
+							
 							new Notice(`Found ${result.models.length} models`);
 						} else {
 							new Notice(result.error || "Could not discover models");
