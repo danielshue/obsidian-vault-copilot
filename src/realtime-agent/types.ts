@@ -40,6 +40,12 @@ export type RealtimeToolName =
 	| "search_notes"
 	| "get_active_note"
 	| "list_notes"
+	| "open_note"
+	| "open_daily_note"
+	| "open_weekly_note"
+	| "open_monthly_note"
+	| "open_quarterly_note"
+	| "open_yearly_note"
 	| "create_note"
 	| "append_to_note"
 	| "update_note"
@@ -90,6 +96,8 @@ export interface BaseVoiceAgentConfig {
 	toolConfig?: RealtimeToolConfig;
 	/** Optional MCP Manager for exposing MCP tools */
 	mcpManager?: import("../copilot/McpManager").McpManager;
+	/** Periodic notes settings for weekly/monthly/quarterly/yearly notes */
+	periodicNotesSettings?: import("../settings").PeriodicNotesSettings;
 }
 
 /** Configuration for MainVaultAssistant (extends base config) */
@@ -172,6 +180,12 @@ export const VAULT_READ_TOOLS: RealtimeToolName[] = [
 	"search_notes",
 	"get_active_note",
 	"list_notes",
+	"open_note",
+	"open_daily_note",
+	"open_weekly_note",
+	"open_monthly_note",
+	"open_quarterly_note",
+	"open_yearly_note",
 ];
 
 export const VAULT_WRITE_TOOLS: RealtimeToolName[] = [

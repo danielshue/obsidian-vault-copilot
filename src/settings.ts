@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, Notice, FileSystemAdapter } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice, FileSystemAdapter, moment } from "obsidian";
 import CopilotPlugin from "./main";
 import { CliManager, CliStatus } from "./copilot/CliManager";
 import { SkillInfo, SkillRegistryEvent, McpServerConfig } from "./copilot/SkillRegistry";
@@ -10,6 +10,7 @@ import { ToolPickerModal } from "./ui/ChatView";
 import { AIProviderType, getOpenAIApiKey } from "./copilot/AIProvider";
 import { OpenAIService } from "./copilot/OpenAIService";
 import { RealtimeVoice, TurnDetectionMode, RealtimeToolConfig, DEFAULT_TOOL_CONFIG } from "./voice-chat";
+import { periodicNoteIcons, wrapIcon } from "./ui/assets/periodicNotesIcons";
 
 // Robot mascot logo (base64 encoded PNG, 48x48)
 const COPILOT_LOGO_DATA_URL = "data:image/png;base64,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";
@@ -68,6 +69,69 @@ export interface OpenAISettings {
 	temperature: number;
 }
 
+/** Periodic note granularity */
+export type PeriodicNoteGranularity = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+
+/** Configuration for a single periodic note type */
+export interface PeriodicNoteConfig {
+	/** Whether this periodic note type is enabled */
+	enabled: boolean;
+	/** Date format for the filename (moment.js format) */
+	format: string;
+	/** Folder where notes are stored */
+	folder: string;
+	/** Path to the template file (optional) */
+	templatePath?: string;
+}
+
+/** Periodic notes settings - compatible with obsidian-periodic-notes plugin */
+export interface PeriodicNotesSettings {
+	/** Daily notes configuration */
+	daily: PeriodicNoteConfig;
+	/** Weekly notes configuration */
+	weekly: PeriodicNoteConfig;
+	/** Monthly notes configuration */
+	monthly: PeriodicNoteConfig;
+	/** Quarterly notes configuration */
+	quarterly: PeriodicNoteConfig;
+	/** Yearly notes configuration */
+	yearly: PeriodicNoteConfig;
+}
+
+/** Default periodic notes settings */
+export const DEFAULT_PERIODIC_NOTES: PeriodicNotesSettings = {
+	daily: {
+		enabled: true,
+		format: 'YYYY-MM-DD',
+		folder: 'Daily Notes',
+		templatePath: undefined,
+	},
+	weekly: {
+		enabled: false,
+		format: 'gggg-[W]ww',
+		folder: 'Weekly Notes',
+		templatePath: undefined,
+	},
+	monthly: {
+		enabled: false,
+		format: 'YYYY-MM',
+		folder: 'Monthly Notes',
+		templatePath: undefined,
+	},
+	quarterly: {
+		enabled: false,
+		format: 'YYYY-[Q]Q',
+		folder: 'Quarterly Notes',
+		templatePath: undefined,
+	},
+	yearly: {
+		enabled: false,
+		format: 'YYYY',
+		folder: 'Yearly Notes',
+		templatePath: undefined,
+	},
+};
+
 export interface CopilotPluginSettings {
 	/** AI provider to use: 'copilot' or 'openai' */
 	aiProvider: AIProviderType;
@@ -123,6 +187,8 @@ export interface CopilotPluginSettings {
 	};
 	/** OpenAI settings */
 	openai: OpenAISettings;
+	/** Periodic notes settings (daily, weekly, monthly, quarterly, yearly) */
+	periodicNotes: PeriodicNotesSettings;
 }
 
 export const DEFAULT_SETTINGS: CopilotPluginSettings = {
@@ -161,6 +227,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 		maxTokens: 4096,
 		temperature: 0.7,
 	},
+	periodicNotes: { ...DEFAULT_PERIODIC_NOTES },
 };
 
 export const AVAILABLE_MODELS = [
@@ -523,8 +590,164 @@ export class CopilotSettingTab extends PluginSettingTab {
 					});
 			});
 
+		// Periodic Notes Settings Section
+		this.renderPeriodicNotesSettings(this.mainSettingsContainer);
+
 		// Voice Chat Settings Section
 		this.renderVoiceSettings(this.mainSettingsContainer);
+	}
+
+	private renderPeriodicNotesSettings(container: HTMLElement): void {
+		const section = container.createDiv({ cls: "vc-settings-section" });
+		section.createEl("h3", { text: "Periodic Notes" });
+		
+		section.createEl("p", { 
+			text: "Configure periodic notes (daily, weekly, monthly, quarterly, yearly) with custom folders, date formats, and templates. These settings are used by the Note Manager voice agent.",
+			cls: "vc-status-desc"
+		});
+
+		// Ensure periodic notes settings exist
+		if (!this.plugin.settings.periodicNotes) {
+			this.plugin.settings.periodicNotes = { ...DEFAULT_PERIODIC_NOTES };
+		}
+
+		const noteTypes: Array<{ key: keyof PeriodicNotesSettings; label: string; defaultFormat: string; formatHelp: string; icon: string }> = [
+			{ 
+				key: 'daily', 
+				label: 'Daily Notes', 
+				defaultFormat: 'YYYY-MM-DD',
+				formatHelp: 'Common formats: YYYY-MM-DD, DD-MM-YYYY, MMMM D, YYYY',
+				icon: periodicNoteIcons.daily
+			},
+			{ 
+				key: 'weekly', 
+				label: 'Weekly Notes', 
+				defaultFormat: 'gggg-[W]ww',
+				formatHelp: 'Common formats: gggg-[W]ww (2026-W05), YYYY-[Week]-ww',
+				icon: periodicNoteIcons.weekly
+			},
+			{ 
+				key: 'monthly', 
+				label: 'Monthly Notes', 
+				defaultFormat: 'YYYY-MM',
+				formatHelp: 'Common formats: YYYY-MM, MMMM YYYY, MM-YYYY',
+				icon: periodicNoteIcons.monthly
+			},
+			{ 
+				key: 'quarterly', 
+				label: 'Quarterly Notes', 
+				defaultFormat: 'YYYY-[Q]Q',
+				formatHelp: 'Common formats: YYYY-[Q]Q (2026-Q1), [Q]Q-YYYY',
+				icon: periodicNoteIcons.quarterly
+			},
+			{ 
+				key: 'yearly', 
+				label: 'Yearly Notes', 
+				defaultFormat: 'YYYY',
+				formatHelp: 'Common formats: YYYY, [Year] YYYY',
+				icon: periodicNoteIcons.yearly
+			},
+		];
+
+		for (const noteType of noteTypes) {
+			const config = this.plugin.settings.periodicNotes[noteType.key];
+			
+			// Create collapsible section for each note type
+			const noteSection = section.createEl("details", { cls: "vc-periodic-note-section" });
+			const summary = noteSection.createEl("summary", { cls: "vc-periodic-note-header" });
+			
+			// Header with icon and toggle
+			const headerRow = summary.createDiv({ cls: "vc-periodic-header-row" });
+			
+			// Add icon
+			const iconEl = headerRow.createSpan({ cls: "vc-periodic-icon" });
+			iconEl.innerHTML = wrapIcon(noteType.icon, 20);
+			
+			headerRow.createEl("span", { text: noteType.label, cls: "vc-periodic-label" });
+			
+			const statusBadge = headerRow.createEl("span", { 
+				text: config.enabled ? "Enabled" : "Disabled",
+				cls: `vc-periodic-badge ${config.enabled ? "vc-badge-ok" : "vc-badge-disabled"}`
+			});
+
+			const content = noteSection.createDiv({ cls: "vc-periodic-content" });
+
+			// Enable toggle
+			new Setting(content)
+				.setName("Enabled")
+				.setDesc(`Enable ${noteType.label.toLowerCase()} support`)
+				.addToggle((toggle) => {
+					toggle.setValue(config.enabled);
+					toggle.onChange(async (value) => {
+						this.plugin.settings.periodicNotes[noteType.key].enabled = value;
+						statusBadge.setText(value ? "Enabled" : "Disabled");
+						statusBadge.removeClass("vc-badge-ok", "vc-badge-disabled");
+						statusBadge.addClass(value ? "vc-badge-ok" : "vc-badge-disabled");
+						await this.plugin.saveSettings();
+					});
+				});
+
+			// Folder setting
+			new Setting(content)
+				.setName("Folder")
+				.setDesc("Folder where notes are stored (relative to vault root)")
+				.addText((text) => {
+					text.setPlaceholder(DEFAULT_PERIODIC_NOTES[noteType.key].folder);
+					text.setValue(config.folder);
+					text.onChange(async (value) => {
+						this.plugin.settings.periodicNotes[noteType.key].folder = value || DEFAULT_PERIODIC_NOTES[noteType.key].folder;
+						await this.plugin.saveSettings();
+					});
+				});
+
+			// Format setting
+			new Setting(content)
+				.setName("Date Format")
+				.setDesc(noteType.formatHelp)
+				.addText((text) => {
+					text.setPlaceholder(noteType.defaultFormat);
+					text.setValue(config.format);
+					text.onChange(async (value) => {
+						this.plugin.settings.periodicNotes[noteType.key].format = value || noteType.defaultFormat;
+						await this.plugin.saveSettings();
+					});
+				});
+
+			// Template setting
+			new Setting(content)
+				.setName("Template")
+				.setDesc("Path to template file (optional)")
+				.addText((text) => {
+					text.setPlaceholder("Templates/periodic-template.md");
+					text.setValue(config.templatePath || "");
+					text.onChange(async (value) => {
+						this.plugin.settings.periodicNotes[noteType.key].templatePath = value || undefined;
+						await this.plugin.saveSettings();
+					});
+				});
+		}
+
+		// Help text about moment.js formats
+		const helpEl = section.createDiv({ cls: "vc-periodic-help" });
+		helpEl.innerHTML = `
+			<details>
+				<summary>Date Format Reference (moment.js)</summary>
+				<table class="vc-format-table">
+					<tr><td><code>YYYY</code></td><td>4-digit year (2026)</td></tr>
+					<tr><td><code>YY</code></td><td>2-digit year (26)</td></tr>
+					<tr><td><code>MM</code></td><td>Month as 2 digits (01-12)</td></tr>
+					<tr><td><code>M</code></td><td>Month as number (1-12)</td></tr>
+					<tr><td><code>MMMM</code></td><td>Month name (January)</td></tr>
+					<tr><td><code>MMM</code></td><td>Short month (Jan)</td></tr>
+					<tr><td><code>DD</code></td><td>Day as 2 digits (01-31)</td></tr>
+					<tr><td><code>D</code></td><td>Day as number (1-31)</td></tr>
+					<tr><td><code>ww</code></td><td>Week of year (01-53)</td></tr>
+					<tr><td><code>gggg</code></td><td>ISO week year</td></tr>
+					<tr><td><code>Q</code></td><td>Quarter (1-4)</td></tr>
+					<tr><td><code>[text]</code></td><td>Literal text (escaped)</td></tr>
+				</table>
+			</details>
+		`;
 	}
 
 	private renderVoiceSettings(container: HTMLElement): void {

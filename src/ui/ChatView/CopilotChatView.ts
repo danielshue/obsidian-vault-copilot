@@ -665,6 +665,7 @@ export class CopilotChatView extends ItemView {
 			mcpManager: this.plugin.mcpManager,
 			toolConfig: this.plugin.settings.voice?.realtimeToolConfig,
 			voiceAgentDirectories: this.plugin.settings.voice?.voiceAgentDirectories,
+			periodicNotesSettings: this.plugin.settings.periodicNotes,
 		});
 
 		// Subscribe to state changes

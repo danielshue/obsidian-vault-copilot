@@ -2529,6 +2529,82 @@
 	color: var(--color-red);
 }
 
+/* Periodic Notes Settings Section */
+.vc-periodic-note-section {
+	margin-top: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.vc-periodic-note-section summary {
+	cursor: pointer;
+	list-style: none;
+}
+
+.vc-periodic-note-section summary::-webkit-details-marker {
+	display: none;
+}
+
+.vc-periodic-note-header {
+	padding: 10px 14px;
+	background: var(--background-primary);
+}
+
+.vc-periodic-header-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.vc-periodic-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
+}
+
+.vc-periodic-icon svg {
+	width: 20px;
+	height: 20px;
+	color: var(--text-muted);
+	fill: var(--text-muted);
+}
+
+.vc-periodic-label {
+	font-weight: 500;
+	color: var(--text-normal);
+	flex: 1;
+}
+
+.vc-periodic-badge {
+	font-size: 11px;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-weight: 500;
+}
+
+.vc-periodic-content {
+	padding: 12px 14px;
+	background: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-periodic-content .setting-item {
+	padding: 8px 0;
+	border-bottom: none;
+}
+
+.vc-periodic-content .setting-item:first-child {
+	padding-top: 0;
+}
+
+.vc-periodic-content .setting-item:last-child {
+	padding-bottom: 0;
+}
+
 /* MCP Server Settings Section */
 .vc-mcp-header-row {
 	display: flex;

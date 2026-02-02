@@ -9,17 +9,20 @@ import { tool } from "@openai/agents/realtime";
 import { z } from "zod";
 import type { ToolExecutionCallback, RealtimeToolName } from "./types";
 import * as VaultOps from "../copilot/VaultOperations";
+import type { PeriodicNotesSettings } from "../settings";
 
 /**
  * Create vault read/write tools for the realtime agent
  * @param app - Obsidian App instance
  * @param onToolExecution - Callback for tool execution
  * @param requiresApproval - Set of tool names that require user approval
+ * @param periodicNotesSettings - Optional periodic notes settings for weekly/monthly/quarterly/yearly notes
  */
 export function createVaultTools(
 	app: App,
 	onToolExecution: ToolExecutionCallback | null,
-	requiresApproval: Set<RealtimeToolName> = new Set()
+	requiresApproval: Set<RealtimeToolName> = new Set(),
+	periodicNotesSettings?: PeriodicNotesSettings
 ): ReturnType<typeof tool>[] {
 	const tools: ReturnType<typeof tool>[] = [];
 
@@ -101,6 +104,155 @@ export function createVaultTools(
 			execute: async ({ folder, limit = 20 }) => {
 				const result = await VaultOps.listNotes(app, folder, limit);
 				onToolExecution?.("list_notes", { folder, limit }, { count: result.notes.length });
+				return JSON.stringify(result);
+			},
+		})
+	);
+
+	// Open note tool - navigate to a specific note
+	tools.push(
+		tool({
+			name: "open_note",
+			description: "Open a note in the editor by its path. Use this when the user wants to navigate to or view a specific note.",
+			parameters: z.object({
+				path: z
+					.string()
+					.describe('The path to the note file (e.g., "folder/note.md" or "note")'),
+			}),
+			needsApproval: requiresApproval.has("open_note"),
+			execute: async ({ path }) => {
+				const result = await VaultOps.openNote(app, path);
+				onToolExecution?.("open_note", { path }, result);
+				return JSON.stringify(result);
+			},
+		})
+	);
+
+	// Open daily note tool - navigate to a daily note by date
+	tools.push(
+		tool({
+			name: "open_daily_note",
+			description:
+				"Open the daily note for a specific date. Supports natural language dates like 'today', 'yesterday', 'last monday', '3 days ago', or specific dates like '2026-01-28' or 'January 28, 2026'. Creates the note if it doesn't exist.",
+			parameters: z.object({
+				date: z
+					.string()
+					.describe(
+						"The date for the daily note. Accepts: 'today', 'yesterday', 'tomorrow', 'X days ago', 'last monday', 'YYYY-MM-DD', 'MM/DD/YYYY', or 'Month Day, Year'"
+					),
+				createIfMissing: z
+					.boolean()
+					.optional()
+					.describe("Whether to create the note if it doesn't exist (default: true)"),
+			}),
+			needsApproval: requiresApproval.has("open_daily_note"),
+			execute: async ({ date, createIfMissing = true }) => {
+				const result = await VaultOps.openDailyNote(app, date, createIfMissing);
+				onToolExecution?.("open_daily_note", { date, createIfMissing }, result);
+				return JSON.stringify(result);
+			},
+		})
+	);
+
+	// Open weekly note tool
+	tools.push(
+		tool({
+			name: "open_weekly_note",
+			description:
+				"Open the weekly note for a specific week. Supports expressions like 'this week', 'last week', 'next week', '2 weeks ago', 'W05', or 'week 5 2026'. Creates the note if it doesn't exist.",
+			parameters: z.object({
+				period: z
+					.string()
+					.describe(
+						"The week period. Accepts: 'this week', 'last week', 'next week', 'X weeks ago', 'W05', 'week 5', 'week 5 2026'"
+					),
+				createIfMissing: z
+					.boolean()
+					.optional()
+					.describe("Whether to create the note if it doesn't exist (default: true)"),
+			}),
+			needsApproval: requiresApproval.has("open_weekly_note"),
+			execute: async ({ period, createIfMissing = true }) => {
+				const result = await VaultOps.openPeriodicNote(app, period, 'weekly', periodicNotesSettings, createIfMissing);
+				onToolExecution?.("open_weekly_note", { period, createIfMissing }, result);
+				return JSON.stringify(result);
+			},
+		})
+	);
+
+	// Open monthly note tool
+	tools.push(
+		tool({
+			name: "open_monthly_note",
+			description:
+				"Open the monthly note for a specific month. Supports expressions like 'this month', 'last month', 'next month', '2 months ago', 'January 2026', 'Jan 2026', or '2026-01'. Creates the note if it doesn't exist.",
+			parameters: z.object({
+				period: z
+					.string()
+					.describe(
+						"The month period. Accepts: 'this month', 'last month', 'next month', 'X months ago', 'January 2026', 'Jan', 'YYYY-MM'"
+					),
+				createIfMissing: z
+					.boolean()
+					.optional()
+					.describe("Whether to create the note if it doesn't exist (default: true)"),
+			}),
+			needsApproval: requiresApproval.has("open_monthly_note"),
+			execute: async ({ period, createIfMissing = true }) => {
+				const result = await VaultOps.openPeriodicNote(app, period, 'monthly', periodicNotesSettings, createIfMissing);
+				onToolExecution?.("open_monthly_note", { period, createIfMissing }, result);
+				return JSON.stringify(result);
+			},
+		})
+	);
+
+	// Open quarterly note tool
+	tools.push(
+		tool({
+			name: "open_quarterly_note",
+			description:
+				"Open the quarterly note for a specific quarter. Supports expressions like 'this quarter', 'last quarter', 'next quarter', 'Q1', 'Q1 2026', or '2026-Q1'. Creates the note if it doesn't exist.",
+			parameters: z.object({
+				period: z
+					.string()
+					.describe(
+						"The quarter period. Accepts: 'this quarter', 'last quarter', 'next quarter', 'Q1', 'Q1 2026', '2026-Q1'"
+					),
+				createIfMissing: z
+					.boolean()
+					.optional()
+					.describe("Whether to create the note if it doesn't exist (default: true)"),
+			}),
+			needsApproval: requiresApproval.has("open_quarterly_note"),
+			execute: async ({ period, createIfMissing = true }) => {
+				const result = await VaultOps.openPeriodicNote(app, period, 'quarterly', periodicNotesSettings, createIfMissing);
+				onToolExecution?.("open_quarterly_note", { period, createIfMissing }, result);
+				return JSON.stringify(result);
+			},
+		})
+	);
+
+	// Open yearly note tool
+	tools.push(
+		tool({
+			name: "open_yearly_note",
+			description:
+				"Open the yearly note for a specific year. Supports expressions like 'this year', 'last year', 'next year', '2 years ago', or '2026'. Creates the note if it doesn't exist.",
+			parameters: z.object({
+				period: z
+					.string()
+					.describe(
+						"The year period. Accepts: 'this year', 'last year', 'next year', 'X years ago', '2026'"
+					),
+				createIfMissing: z
+					.boolean()
+					.optional()
+					.describe("Whether to create the note if it doesn't exist (default: true)"),
+			}),
+			needsApproval: requiresApproval.has("open_yearly_note"),
+			execute: async ({ period, createIfMissing = true }) => {
+				const result = await VaultOps.openPeriodicNote(app, period, 'yearly', periodicNotesSettings, createIfMissing);
+				onToolExecution?.("open_yearly_note", { period, createIfMissing }, result);
 				return JSON.stringify(result);
 			},
 		})

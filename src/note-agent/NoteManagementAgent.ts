@@ -135,7 +135,8 @@ export class NoteManagementAgent extends BaseVoiceAgent {
 			this.app,
 			this.toolConfig,
 			this.config.mcpManager,
-			this.onToolExecution
+			this.onToolExecution,
+			this.config.periodicNotesSettings
 		);
 	}
 

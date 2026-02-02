@@ -5,6 +5,7 @@
 import type { App } from "obsidian";
 import type { tool } from "@openai/agents/realtime";
 import type { McpManager } from "../copilot/McpManager";
+import type { PeriodicNotesSettings } from "../settings";
 import {
 	RealtimeToolConfig,
 	RealtimeToolName,
@@ -82,7 +83,8 @@ export function createAllTools(
 	app: App,
 	toolConfig: RealtimeToolConfig,
 	mcpManager: McpManager | undefined,
-	onToolExecution: ToolExecutionCallback | null
+	onToolExecution: ToolExecutionCallback | null,
+	periodicNotesSettings?: PeriodicNotesSettings
 ): ReturnType<typeof tool>[] {
 	const tools: ReturnType<typeof tool>[] = [];
 	const requiresApproval = getToolsRequiringApproval(toolConfig);
@@ -101,7 +103,7 @@ export function createAllTools(
 	}
 
 	// Create all vault and web tools
-	const vaultTools = createVaultTools(app, onToolExecution, requiresApproval);
+	const vaultTools = createVaultTools(app, onToolExecution, requiresApproval, periodicNotesSettings);
 	const webTools = createWebTools(onToolExecution, requiresApproval);
 	const taskTools = createAllTaskTools(app, onToolExecution, requiresApproval);
 
@@ -153,6 +155,7 @@ export function getToolNames(tools: ReturnType<typeof tool>[]): string[] {
  * @param toolConfig - Tool configuration for approvals, etc.
  * @param mcpManager - Optional MCP manager for MCP tools
  * @param onToolExecution - Optional callback for tool execution events
+ * @param periodicNotesSettings - Optional periodic notes settings for weekly/monthly/quarterly/yearly notes
  * @returns Array of tools filtered to the allowlist
  */
 export function createToolsForAgent(
@@ -160,14 +163,15 @@ export function createToolsForAgent(
 	app: App,
 	toolConfig: RealtimeToolConfig,
 	mcpManager: McpManager | undefined,
-	onToolExecution: ToolExecutionCallback | null
+	onToolExecution: ToolExecutionCallback | null,
+	periodicNotesSettings?: PeriodicNotesSettings
 ): ReturnType<typeof tool>[] {
 	const tools: ReturnType<typeof tool>[] = [];
 	const requiresApproval = getToolsRequiringApproval(toolConfig);
 	const allowedSet = new Set(allowedToolNames);
 
 	// Create all available tools
-	const vaultTools = createVaultTools(app, onToolExecution, requiresApproval);
+	const vaultTools = createVaultTools(app, onToolExecution, requiresApproval, periodicNotesSettings);
 	const webTools = createWebTools(onToolExecution, requiresApproval);
 	const taskTools = createAllTaskTools(app, onToolExecution, requiresApproval);
 

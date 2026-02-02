@@ -109,7 +109,8 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 			this.app,
 			this.toolConfig,
 			(this.config as MainVaultAssistantConfig).mcpManager,
-			this.onToolExecution
+			this.onToolExecution,
+			(this.config as MainVaultAssistantConfig).periodicNotesSettings
 		);
 	}
 

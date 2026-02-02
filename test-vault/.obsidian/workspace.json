@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "086a928ca4d2851a",
+        "id": "1ed1564e6458b07e",
         "type": "tabs",
         "children": [
           {
-            "id": "3eabeefc2abd04e2",
+            "id": "368890792da84012",
             "type": "leaf",
             "state": {
               "type": "empty",
@@ -186,8 +186,10 @@
       "bases:Create new base": false
     }
   },
-  "active": "f4349356017f98ec",
+  "active": "368890792da84012",
   "lastOpenFiles": [
+    "Reference/Prompts/create-daily-note.prompt.md",
+    "Reference/Prompts/add-task.prompt.md",
     "Daily Notes/2026-01-30.md",
     "voice-conversation-voice-chat-2-1-2026--11-36-35-am-2026-02-01.md",
     "Daily Notes/2026-01-27.md",
@@ -200,14 +202,12 @@
     "Reference/AI Integration Patterns.md",
     "Reference/Instructions/documentation.instructions.md",
     "Reference/Skills/obsidian-tasks/skill.md",
-    "Reference/Prompts/create-daily-note.prompt.md",
     "Reference/Prompts/create-release.prompt.md",
     "Reference/Prompts/code-review.prompt.md",
     "Reference/Prompts/meeting-update.prompt.md",
     "Reference/Prompts/summarize-note.prompt.md",
     "Reference/Prompts/extract-tasks.prompt.md",
     "Reference/Prompts/daily-review.prompt.md",
-    "Reference/Prompts/add-task.prompt.md",
     "Reference/Prompts",
     "Projects/Meeting - Project Alpha and Beta - 2026-01-30.md",
     "Todays Activities - 2026-01-30.md",

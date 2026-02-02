@@ -16,6 +16,18 @@ import {
 	type TaskOperationResult,
 	type CreateTaskOptions,
 } from "../realtime-agent/task-tools";
+import type { PeriodicNotesSettings, PeriodicNoteConfig } from "../settings";
+
+// Obsidian bundles moment.js globally - use window.moment for the callable instance
+declare global {
+	interface Window {
+		moment: typeof import('moment');
+	}
+}
+const moment = window.moment;
+
+/** Periodic note granularity/type */
+export type PeriodicNoteGranularity = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 /**
  * Normalize a vault path by removing leading slashes and backslashes
@@ -156,6 +168,508 @@ export async function getActiveNote(app: App): Promise<GetActiveNoteResult> {
 			path: activeFile.path,
 			title: activeFile.basename,
 		};
+	}
+}
+
+// ============================================================================
+// Note Navigation Operations
+// ============================================================================
+
+export interface OpenNoteResult {
+	success: boolean;
+	path?: string;
+	error?: string;
+}
+
+/**
+ * Open a note in the editor by its path
+ */
+export async function openNote(app: App, path: string): Promise<OpenNoteResult> {
+	try {
+		const normalizedPath = normalizeVaultPath(path);
+		const file = app.vault.getAbstractFileByPath(normalizedPath);
+		if (!file || !(file instanceof TFile)) {
+			return { success: false, error: `Note not found: ${path}` };
+		}
+
+		// Open the file in the active leaf
+		await app.workspace.getLeaf().openFile(file);
+		return { success: true, path: file.path };
+	} catch (error) {
+		return { success: false, error: `Failed to open note: ${error}` };
+	}
+}
+
+export interface OpenDailyNoteResult {
+	success: boolean;
+	path?: string;
+	created?: boolean;
+	error?: string;
+}
+
+/**
+ * Get the daily notes configuration from Obsidian
+ */
+function getDailyNotesConfig(app: App): { folder: string; format: string } {
+	// Try to get config from daily-notes plugin
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const dailyNotesPlugin = (app as any).internalPlugins?.plugins?.["daily-notes"];
+	if (dailyNotesPlugin?.instance?.options) {
+		const options = dailyNotesPlugin.instance.options;
+		return {
+			folder: options.folder || "Daily Notes",
+			format: options.format || "YYYY-MM-DD",
+		};
+	}
+	// Default configuration
+	return { folder: "Daily Notes", format: "YYYY-MM-DD" };
+}
+
+/**
+ * Format a date according to a format string using moment.js
+ */
+function formatDate(date: Date, format: string): string {
+	return moment(date).format(format);
+}
+
+/**
+ * Parse a date string in various formats using moment.js
+ */
+function parseDate(dateStr: string): Date | null {
+	// Handle relative dates
+	const lower = dateStr.toLowerCase().trim();
+	const today = moment().startOf('day');
+	
+	if (lower === "today") {
+		return today.toDate();
+	}
+	if (lower === "yesterday") {
+		return today.subtract(1, 'day').toDate();
+	}
+	if (lower === "tomorrow") {
+		return today.add(1, 'day').toDate();
+	}
+	
+	// Handle "X days ago"
+	const daysAgoMatch = lower.match(/^(\d+)\s*days?\s*ago$/);
+	if (daysAgoMatch && daysAgoMatch[1]) {
+		return moment().startOf('day').subtract(parseInt(daysAgoMatch[1], 10), 'days').toDate();
+	}
+	
+	// Handle "last monday", "last tuesday", etc.
+	const lastDayMatch = lower.match(/^last\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/);
+	if (lastDayMatch && lastDayMatch[1]) {
+		const dayIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(lastDayMatch[1]);
+		let result = moment().startOf('day').day(dayIndex);
+		if (result.isSameOrAfter(moment().startOf('day'))) {
+			result = result.subtract(1, 'week');
+		}
+		return result.toDate();
+	}
+	
+	// Handle "next monday", "next tuesday", etc.
+	const nextDayMatch = lower.match(/^next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/);
+	if (nextDayMatch && nextDayMatch[1]) {
+		const dayIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(nextDayMatch[1]);
+		let result = moment().startOf('day').day(dayIndex);
+		if (result.isSameOrBefore(moment().startOf('day'))) {
+			result = result.add(1, 'week');
+		}
+		return result.toDate();
+	}
+	
+	// Try to parse with moment (handles ISO, various date formats)
+	const parsed = moment(dateStr, [
+		'YYYY-MM-DD',
+		'M/D/YYYY',
+		'MM/DD/YYYY',
+		'D/M/YYYY',
+		'DD/MM/YYYY',
+		'MMMM D, YYYY',
+		'MMM D, YYYY',
+		'MMMM DD, YYYY',
+		'MMM DD, YYYY',
+		'D MMMM YYYY',
+		'DD MMMM YYYY',
+	], true);
+	
+	if (parsed.isValid()) {
+		return parsed.toDate();
+	}
+	
+	// Fallback: let moment try to parse naturally
+	const natural = moment(dateStr);
+	if (natural.isValid()) {
+		return natural.toDate();
+	}
+	
+	return null;
+}
+
+/**
+ * Open a daily note for a specific date, creating it if it doesn't exist
+ */
+export async function openDailyNote(
+	app: App,
+	dateInput: string,
+	createIfMissing = true
+): Promise<OpenDailyNoteResult> {
+	try {
+		const date = parseDate(dateInput);
+		if (!date) {
+			return { success: false, error: `Could not parse date: ${dateInput}` };
+		}
+		
+		const config = getDailyNotesConfig(app);
+		const filename = formatDate(date, config.format);
+		const path = `${config.folder}/${filename}.md`;
+		
+		let file = app.vault.getAbstractFileByPath(path);
+		let created = false;
+		
+		// Create the note if it doesn't exist
+		if (!file && createIfMissing) {
+			// Create parent folder if needed
+			const folderExists = app.vault.getAbstractFileByPath(config.folder);
+			if (!folderExists) {
+				await app.vault.createFolder(config.folder);
+			}
+			
+			// Create with a basic template
+			const formattedDate = date.toLocaleDateString("en-US", {
+				weekday: "long",
+				year: "numeric",
+				month: "long",
+				day: "numeric",
+			});
+			const content = `# ${formattedDate}\n\n## Tasks\n\n- [ ] \n\n## Notes\n\n`;
+			await app.vault.create(path, content);
+			file = app.vault.getAbstractFileByPath(path);
+			created = true;
+		}
+		
+		if (!file || !(file instanceof TFile)) {
+			return { success: false, error: `Daily note not found: ${path}` };
+		}
+		
+		// Open the file
+		await app.workspace.getLeaf().openFile(file);
+		return { success: true, path: file.path, created };
+	} catch (error) {
+		return { success: false, error: `Failed to open daily note: ${error}` };
+	}
+}
+
+// ============================================================================
+// Periodic Notes Operations (Weekly, Monthly, Quarterly, Yearly)
+// ============================================================================
+
+export interface OpenPeriodicNoteResult {
+	success: boolean;
+	path?: string;
+	created?: boolean;
+	granularity?: PeriodicNoteGranularity;
+	error?: string;
+}
+
+/**
+ * Get the quarter number (1-4) for a date using moment.js
+ */
+function getQuarter(date: Date): number {
+	return moment(date).quarter();
+}
+
+/**
+ * Format a date according to a moment.js format string
+ * Moment.js handles all standard tokens: YYYY, MM, DD, gggg, ww, Q, etc.
+ */
+function formatDateAdvanced(date: Date, format: string): string {
+	return moment(date).format(format);
+}
+
+/**
+ * Parse a period expression to a date for periodic notes using moment.js
+ * Supports expressions like:
+ * - "this week", "last week", "next week"
+ * - "this month", "last month", "2 months ago"
+ * - "this quarter", "Q1 2026", "last quarter"
+ * - "this year", "2025", "last year"
+ */
+function parsePeriodExpression(
+	expr: string,
+	granularity: PeriodicNoteGranularity
+): Date | null {
+	const lower = expr.toLowerCase().trim();
+	const today = moment().startOf('day');
+	
+	// Handle "this", "current", "now"
+	if (lower === 'this' || lower === 'current' || lower === 'now' || lower === 'today') {
+		return today.toDate();
+	}
+	
+	// For daily notes, use the existing parseDate function
+	if (granularity === 'daily') {
+		return parseDate(expr);
+	}
+	
+	// Weekly expressions
+	if (granularity === 'weekly') {
+		if (lower === 'this week' || lower === 'current week') {
+			return moment().startOf('week').toDate();
+		}
+		if (lower === 'last week' || lower === 'previous week') {
+			return moment().subtract(1, 'week').startOf('week').toDate();
+		}
+		if (lower === 'next week') {
+			return moment().add(1, 'week').startOf('week').toDate();
+		}
+		// Handle "X weeks ago"
+		const weeksAgoMatch = lower.match(/^(\d+)\s*weeks?\s*ago$/);
+		if (weeksAgoMatch && weeksAgoMatch[1]) {
+			return moment().subtract(parseInt(weeksAgoMatch[1], 10), 'weeks').startOf('week').toDate();
+		}
+		// Handle "in X weeks"
+		const weeksAheadMatch = lower.match(/^in\s*(\d+)\s*weeks?$/);
+		if (weeksAheadMatch && weeksAheadMatch[1]) {
+			return moment().add(parseInt(weeksAheadMatch[1], 10), 'weeks').startOf('week').toDate();
+		}
+		// Handle week number like "W05" or "week 5"
+		const weekNumMatch = lower.match(/^(?:w|week\s*)(\d{1,2})(?:\s*(\d{4}))?$/);
+		if (weekNumMatch && weekNumMatch[1]) {
+			const weekNum = parseInt(weekNumMatch[1], 10);
+			const year = weekNumMatch[2] ? parseInt(weekNumMatch[2], 10) : moment().year();
+			return moment().year(year).week(weekNum).startOf('week').toDate();
+		}
+	}
+	
+	// Monthly expressions
+	if (granularity === 'monthly') {
+		if (lower === 'this month' || lower === 'current month') {
+			return moment().startOf('month').toDate();
+		}
+		if (lower === 'last month' || lower === 'previous month') {
+			return moment().subtract(1, 'month').startOf('month').toDate();
+		}
+		if (lower === 'next month') {
+			return moment().add(1, 'month').startOf('month').toDate();
+		}
+		// Handle "X months ago"
+		const monthsAgoMatch = lower.match(/^(\d+)\s*months?\s*ago$/);
+		if (monthsAgoMatch && monthsAgoMatch[1]) {
+			return moment().subtract(parseInt(monthsAgoMatch[1], 10), 'months').startOf('month').toDate();
+		}
+		// Handle "in X months"
+		const monthsAheadMatch = lower.match(/^in\s*(\d+)\s*months?$/);
+		if (monthsAheadMatch && monthsAheadMatch[1]) {
+			return moment().add(parseInt(monthsAheadMatch[1], 10), 'months').startOf('month').toDate();
+		}
+		// Handle month names like "January 2026" or "Jan 2026" or just "January"
+		const monthParsed = moment(lower, ['MMMM YYYY', 'MMM YYYY', 'MMMM', 'MMM'], true);
+		if (monthParsed.isValid()) {
+			// If no year specified, use current year
+			if (!lower.match(/\d{4}/)) {
+				monthParsed.year(moment().year());
+			}
+			return monthParsed.startOf('month').toDate();
+		}
+		// Handle "YYYY-MM" format
+		const yymmParsed = moment(lower, 'YYYY-MM', true);
+		if (yymmParsed.isValid()) {
+			return yymmParsed.startOf('month').toDate();
+		}
+	}
+	
+	// Quarterly expressions
+	if (granularity === 'quarterly') {
+		if (lower === 'this quarter' || lower === 'current quarter') {
+			return moment().startOf('quarter').toDate();
+		}
+		if (lower === 'last quarter' || lower === 'previous quarter') {
+			return moment().subtract(1, 'quarter').startOf('quarter').toDate();
+		}
+		if (lower === 'next quarter') {
+			return moment().add(1, 'quarter').startOf('quarter').toDate();
+		}
+		// Handle "X quarters ago"
+		const quartersAgoMatch = lower.match(/^(\d+)\s*quarters?\s*ago$/);
+		if (quartersAgoMatch && quartersAgoMatch[1]) {
+			return moment().subtract(parseInt(quartersAgoMatch[1], 10), 'quarters').startOf('quarter').toDate();
+		}
+		// Handle "Q1 2026" or "Q1" or "2026-Q1"
+		const qMatch = lower.match(/^q([1-4])(?:\s*(\d{4}))?$/);
+		if (qMatch && qMatch[1]) {
+			const q = parseInt(qMatch[1], 10);
+			const year = qMatch[2] ? parseInt(qMatch[2], 10) : moment().year();
+			return moment().year(year).quarter(q).startOf('quarter').toDate();
+		}
+		const qMatch2 = lower.match(/^(\d{4})-?q([1-4])$/);
+		if (qMatch2 && qMatch2[1] && qMatch2[2]) {
+			const year = parseInt(qMatch2[1], 10);
+			const q = parseInt(qMatch2[2], 10);
+			return moment().year(year).quarter(q).startOf('quarter').toDate();
+		}
+	}
+	
+	// Yearly expressions
+	if (granularity === 'yearly') {
+		if (lower === 'this year' || lower === 'current year') {
+			return moment().startOf('year').toDate();
+		}
+		if (lower === 'last year' || lower === 'previous year') {
+			return moment().subtract(1, 'year').startOf('year').toDate();
+		}
+		if (lower === 'next year') {
+			return moment().add(1, 'year').startOf('year').toDate();
+		}
+		// Handle "X years ago"
+		const yearsAgoMatch = lower.match(/^(\d+)\s*years?\s*ago$/);
+		if (yearsAgoMatch && yearsAgoMatch[1]) {
+			return moment().subtract(parseInt(yearsAgoMatch[1], 10), 'years').startOf('year').toDate();
+		}
+		// Handle plain year "2026"
+		const yearMatch = lower.match(/^(\d{4})$/);
+		if (yearMatch && yearMatch[1]) {
+			return moment().year(parseInt(yearMatch[1], 10)).startOf('year').toDate();
+		}
+	}
+	
+	// Fallback: try standard date parsing
+	return parseDate(expr);
+}
+
+/**
+ * Get default template content for a periodic note
+ */
+function getDefaultPeriodicTemplate(
+	granularity: PeriodicNoteGranularity,
+	date: Date
+): string {
+	const m = moment(date);
+	switch (granularity) {
+		case 'daily': {
+			return `# ${m.format('dddd, MMMM D, YYYY')}\n\n## Tasks\n\n- [ ] \n\n## Notes\n\n`;
+		}
+		case 'weekly': {
+			return `# Week ${m.week()}, ${m.weekYear()}\n\n## Goals\n\n- [ ] \n\n## Notes\n\n## Review\n\n`;
+		}
+		case 'monthly': {
+			return `# ${m.format('MMMM YYYY')}\n\n## Goals\n\n- [ ] \n\n## Projects\n\n## Notes\n\n## Review\n\n`;
+		}
+		case 'quarterly': {
+			return `# Q${m.quarter()} ${m.year()}\n\n## Objectives\n\n- [ ] \n\n## Key Results\n\n## Notes\n\n## Review\n\n`;
+		}
+		case 'yearly': {
+			return `# ${m.year()}\n\n## Vision\n\n## Goals\n\n- [ ] \n\n## Themes\n\n## Notes\n\n## Review\n\n`;
+		}
+	}
+}
+
+/**
+ * Open a periodic note (weekly, monthly, quarterly, or yearly)
+ */
+export async function openPeriodicNote(
+	app: App,
+	periodExpression: string,
+	granularity: PeriodicNoteGranularity,
+	settings?: PeriodicNotesSettings,
+	createIfMissing = true
+): Promise<OpenPeriodicNoteResult> {
+	try {
+		// Get config for this granularity
+		const config: PeriodicNoteConfig = settings?.[granularity] ?? getDefaultPeriodicConfig(granularity);
+		
+		// Check if this type is enabled
+		if (!config.enabled && settings) {
+			return { 
+				success: false, 
+				error: `${granularity.charAt(0).toUpperCase() + granularity.slice(1)} notes are not enabled. Enable them in settings.`,
+				granularity 
+			};
+		}
+		
+		// Parse the period expression to a date
+		const date = parsePeriodExpression(periodExpression, granularity);
+		if (!date) {
+			return { 
+				success: false, 
+				error: `Could not parse ${granularity} period: ${periodExpression}`,
+				granularity 
+			};
+		}
+		
+		// Format the filename
+		const filename = formatDateAdvanced(date, config.format);
+		const path = `${config.folder}/${filename}.md`;
+		
+		let file = app.vault.getAbstractFileByPath(path);
+		let created = false;
+		
+		// Create the note if it doesn't exist
+		if (!file && createIfMissing) {
+			// Create parent folder if needed
+			const folderExists = app.vault.getAbstractFileByPath(config.folder);
+			if (!folderExists) {
+				await app.vault.createFolder(config.folder);
+			}
+			
+			// Get template content
+			let content: string;
+			if (config.templatePath) {
+				// Try to load from template
+				const templateFile = app.vault.getAbstractFileByPath(config.templatePath);
+				if (templateFile instanceof TFile) {
+					content = await app.vault.read(templateFile);
+					// Replace template variables
+					content = content
+						.replace(/\{\{date\}\}/g, formatDateAdvanced(date, config.format))
+						.replace(/\{\{title\}\}/g, filename);
+				} else {
+					content = getDefaultPeriodicTemplate(granularity, date);
+				}
+			} else {
+				content = getDefaultPeriodicTemplate(granularity, date);
+			}
+			
+			await app.vault.create(path, content);
+			file = app.vault.getAbstractFileByPath(path);
+			created = true;
+		}
+		
+		if (!file || !(file instanceof TFile)) {
+			return { 
+				success: false, 
+				error: `${granularity.charAt(0).toUpperCase() + granularity.slice(1)} note not found: ${path}`,
+				granularity 
+			};
+		}
+		
+		// Open the file
+		await app.workspace.getLeaf().openFile(file);
+		return { success: true, path: file.path, created, granularity };
+	} catch (error) {
+		return { 
+			success: false, 
+			error: `Failed to open ${granularity} note: ${error}`,
+			granularity 
+		};
+	}
+}
+
+/**
+ * Get default config for a granularity (used when settings not provided)
+ */
+function getDefaultPeriodicConfig(granularity: PeriodicNoteGranularity): PeriodicNoteConfig {
+	switch (granularity) {
+		case 'daily':
+			return { enabled: true, format: 'YYYY-MM-DD', folder: 'Daily Notes' };
+		case 'weekly':
+			return { enabled: true, format: 'gggg-[W]ww', folder: 'Weekly Notes' };
+		case 'monthly':
+			return { enabled: true, format: 'YYYY-MM', folder: 'Monthly Notes' };
+		case 'quarterly':
+			return { enabled: true, format: 'YYYY-[Q]Q', folder: 'Quarterly Notes' };
+		case 'yearly':
+			return { enabled: true, format: 'YYYY', folder: 'Yearly Notes' };
 	}
 }
 
