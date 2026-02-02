@@ -205,16 +205,23 @@ export function createToolsForAgent(
 		}
 	}
 
-	// Add MCP tools if enabled and any MCP tool names are in the allowlist
-	// (MCP tools are dynamic, so we include them if mcpTools is not explicitly disabled)
+	// Add MCP tools if enabled and tool names are in the allowlist
+	// MCP tools are filtered by the allowlist like other tools
 	if (toolConfig.mcpTools !== false && mcpManager?.hasConnectedServers()) {
 		const mcpNeedsApproval = requiresApproval.size > 0;
 		const mcpTools = createMcpTools(mcpManager, onToolExecution, mcpNeedsApproval);
 		
-		// Include all MCP tools (they're dynamically named based on server)
-		if (mcpTools.length > 0) {
-			logger.info(`Added ${mcpTools.length} MCP tools to agent`);
-			tools.push(...mcpTools);
+		// Filter MCP tools by allowlist too
+		let addedCount = 0;
+		for (const mcpTool of mcpTools) {
+			const toolName = (mcpTool as { name?: string }).name || "";
+			if (allowedSet.has(toolName)) {
+				tools.push(mcpTool);
+				addedCount++;
+			}
+		}
+		if (addedCount > 0) {
+			logger.info(`Added ${addedCount} MCP tools to agent (filtered by allowlist)`);
 		}
 	}
 

@@ -15,8 +15,7 @@
  */
 
 import { App } from "obsidian";
-import { tool } from "@openai/agents/realtime";
-import { z } from "zod";
+import type { tool } from "@openai/agents/realtime";
 import { BaseVoiceAgent } from "../realtime-agent/BaseVoiceAgent";
 import {
 	RealtimeToolConfig,
@@ -24,6 +23,7 @@ import {
 	logger,
 } from "../realtime-agent/types";
 import { createMcpTools } from "../realtime-agent/mcp-tools";
+import { createOutputTools } from "../realtime-agent/output-tools";
 import type { VoiceAgentDefinition } from "../copilot/CustomizationLoader";
 import {
 	getVoiceAgentRegistry,
@@ -75,13 +75,13 @@ You connect to Microsoft 365 through the WorkIQ MCP server. You can help with:
 - "Find experts in data science"
 - "Who reports to Sarah?"
 
-## EULA and Consent
+## Authentication
 
-WorkIQ requires acceptance of the End User License Agreement (EULA) on first use.
-If the user encounters consent issues:
-1. Use the accept_workiq_eula tool to accept the terms
-2. They may need admin consent for their Microsoft 365 tenant
-3. Direct them to contact their admin if access is denied
+WorkIQ uses Microsoft Entra ID (Azure AD) authentication.
+On first use, a browser window will open for sign-in.
+If the user encounters permission issues:
+1. They may need admin consent for their Microsoft 365 tenant
+2. Direct them to contact their IT administrator if access is denied
 
 ## How to Handle Requests
 
@@ -90,10 +90,10 @@ If the user encounters consent issues:
 2. Summarize results conversationally
 3. Offer to provide more details if needed
 
-### When consent/EULA issues occur:
-1. Offer to accept the EULA if not already done
-2. Explain that admin consent may be required
-3. Suggest contacting their IT administrator
+### When authentication issues occur:
+1. Explain that a browser window should open for Microsoft sign-in
+2. Admin consent may be required for M365 API access
+3. Suggest contacting their IT administrator if permission denied
 
 ## Response Style
 Be efficient and helpful. Summarize data naturally:
@@ -117,7 +117,6 @@ export class WorkIQAgent extends BaseVoiceAgent {
 	private toolConfig: RealtimeToolConfig;
 	private voiceAgentDefinition: VoiceAgentDefinition | null = null;
 	private mcpToolPattern: RegExp[];
-	private eulaAccepted = false;
 
 	constructor(
 		app: App,
@@ -155,8 +154,13 @@ export class WorkIQAgent extends BaseVoiceAgent {
 	getTools(): ReturnType<typeof tool>[] {
 		const tools: ReturnType<typeof tool>[] = [];
 
-		// Add EULA acceptance tool
-		tools.push(this.createEulaAcceptanceTool());
+		// Add output tools (send_to_chat) for displaying content in ChatView
+		const outputTools = createOutputTools(
+			this.getChatOutputCallback(),
+			this.name,
+			new Set() // No approval needed for output tools
+		);
+		tools.push(...outputTools);
 
 		// Get tools from definition if specified
 		const definedTools = this.voiceAgentDefinition?.tools || [];
@@ -193,74 +197,9 @@ export class WorkIQAgent extends BaseVoiceAgent {
 		}
 
 		logger.info(
-			`[${this.name}] Created ${tools.length} WorkIQ tools (including EULA tool)`
+			`[${this.name}] Created ${tools.length} WorkIQ tools`
 		);
 		return tools;
-	}
-
-	/**
-	 * Create the EULA acceptance tool
-	 */
-	private createEulaAcceptanceTool(): ReturnType<typeof tool> {
-		return tool({
-			name: "accept_workiq_eula",
-			description:
-				"Accept the WorkIQ End User License Agreement (EULA). Required on first use before querying Microsoft 365 data. Run this if the user encounters consent or licensing issues.",
-			parameters: z.object({
-				confirm: z
-					.boolean()
-					.describe(
-						"Set to true to confirm acceptance of the EULA terms"
-					),
-			}),
-			execute: async ({ confirm }): Promise<string> => {
-				if (!confirm) {
-					return "EULA acceptance cancelled. The user must confirm acceptance to use WorkIQ.";
-				}
-
-				try {
-					logger.info("[WorkIQ] Accepting EULA...");
-
-					// Execute the workiq accept-eula command
-					const { exec } = await import("child_process");
-					const { promisify } = await import("util");
-					const execAsync = promisify(exec);
-
-					try {
-						// Try npx first (most common)
-						await execAsync("npx -y @microsoft/workiq accept-eula");
-					} catch {
-						// Fall back to global install
-						try {
-							await execAsync("workiq accept-eula");
-						} catch (fallbackError) {
-							logger.error(
-								"[WorkIQ] EULA acceptance failed:",
-								fallbackError
-							);
-							return `Failed to accept EULA. Please run 'npx -y @microsoft/workiq accept-eula' manually in a terminal. Error: ${fallbackError}`;
-						}
-					}
-
-					this.eulaAccepted = true;
-					logger.info("[WorkIQ] EULA accepted successfully");
-
-					// Notify via callback
-					if (this.onToolExecution) {
-						this.onToolExecution(
-							"accept_workiq_eula",
-							{ confirm },
-							"EULA accepted"
-						);
-					}
-
-					return "WorkIQ EULA accepted successfully. You can now query Microsoft 365 data. Note: If this is your first time using WorkIQ, you may also need admin consent for your Microsoft 365 tenant. A consent dialog will appear when you first query data.";
-				} catch (error) {
-					logger.error("[WorkIQ] Error accepting EULA:", error);
-					return `Error accepting EULA: ${error}. Please try running 'npx -y @microsoft/workiq accept-eula' manually.`;
-				}
-			},
-		});
 	}
 
 	/**

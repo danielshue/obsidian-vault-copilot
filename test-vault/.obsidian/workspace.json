@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "71bd5259dd99c195",
+        "id": "5e51440a56f9ecc1",
         "type": "tabs",
         "children": [
           {
-            "id": "5ddee2a5a1e682ff",
+            "id": "96290fea86075a4d",
             "type": "leaf",
             "state": {
               "type": "empty",
@@ -172,7 +172,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 572.5
+    "width": 853.5
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -187,11 +187,12 @@
       "templater-obsidian:Templater": false
     }
   },
-  "active": "5ddee2a5a1e682ff",
+  "active": "f4349356017f98ec",
   "lastOpenFiles": [
+    "Daily Notes/2026-02-03.md",
+    "Daily Notes/2026-02-02.md",
     "Reference/Prompts/create-daily-note.prompt.md",
     "Reference/Prompts/daily-review.prompt.md",
-    "Daily Notes/2026-02-02.md",
     "Daily Notes/2026-02-01.md",
     "Daily Notes/2026-01-30.md",
     "Daily Notes/2026-01-31.md",
@@ -215,7 +216,6 @@
     "Reference/Prompts",
     "Projects/Meeting - Project Alpha and Beta - 2026-01-30.md",
     "Todays Activities - 2026-01-30.md",
-    "MyOtherCustomAgents/meeting-notes.agent.md",
     "Reference/Skills/obsidian-tasks",
     "Reference/Skills/obsidian-task",
     "MyOtherCustomAgents",

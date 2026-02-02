@@ -53,12 +53,12 @@ function formatDuration(ms: number): string {
 
 /**
  * Determine effective source for a log entry
- * - 'voice' for realtime-agent logs
+ * - 'voice' for realtime-agent logs or logs starting with [RealtimeAgent]
  * - 'service' for logs starting with [CopilotService] or [Vault Copilot]
  * - 'cli' for other copilot-cli/copilot-sdk logs
  */
 function getEffectiveSource(log: { source: string; message: string }): 'voice' | 'cli' | 'service' {
-	if (log.source === 'realtime-agent') {
+	if (log.source === 'realtime-agent' || log.message.startsWith('[RealtimeAgent]')) {
 		return 'voice';
 	}
 	if (log.message.startsWith('[CopilotService]') || log.message.startsWith('[Vault Copilot]')) {

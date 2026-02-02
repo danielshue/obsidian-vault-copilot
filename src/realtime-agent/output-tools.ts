@@ -27,7 +27,12 @@ export function createOutputTools(
 	tools.push(
 		tool({
 			name: "send_to_chat",
-			description: `Display formatted content in the chat window. Use this tool to show structured data like tables, lists, meeting schedules, task summaries, or any content that is better read than spoken. The content will be rendered as Markdown in the chat interface. You can include [[wikilinks]] to link to notes in the vault, and standard markdown links [text](url) or HTML links for external URLs. After using this tool, briefly tell the user you've displayed the information in the chat.`,
+			description: `Display formatted content in the chat window instead of speaking it. Use this tool when:
+- The user explicitly asks to "output to chat", "send to chat", "display in chat", "show me in the chat", or similar
+- Showing structured data like tables, lists, meeting schedules, task summaries
+- The content is better read than spoken (long lists, detailed schedules, etc.)
+
+The content will be rendered as Markdown. You can include [[wikilinks]] to vault notes and standard markdown links. After using this tool, briefly tell the user you've displayed the information in the chat.`,
 			parameters: z.object({
 				content: z
 					.string()
