@@ -2,6 +2,14 @@ import { App, ItemView, TFile } from "obsidian";
 import * as VaultOps from "../../copilot/VaultOperations";
 
 /**
+ * Result of resolving markdown file links
+ */
+export interface ResolvedFileLinks {
+	content: string;
+	resolvedFiles: Array<{ name: string; path: string }>;
+}
+
+/**
  * Processes prompt content with variable substitution and file reference resolution
  */
 export class PromptProcessor {
@@ -104,25 +112,64 @@ export class PromptProcessor {
 	}
 
 	/**
+	 * Process ${input:name:description} and ${input:name:description|option1|option2} variables
+	 * Uses provided user input for the first variable, defaults for others
+	 */
+	processInputVariables(content: string, userInput?: string): string {
+		// Match ${input:name:description} or ${input:name:description|opt1|opt2|...}
+		const inputRegex = /\$\{input:([^:}]+):([^}]+)\}/g;
+		let firstInputReplaced = false;
+		
+		return content.replace(inputRegex, (match, varName, descAndOptions) => {
+			// Check if there are options (pipe-delimited after the description)
+			const parts = descAndOptions.split('|');
+			const description = parts[0]?.trim() || varName;
+			const options = parts.slice(1).map((opt: string) => opt.trim()).filter((opt: string) => opt);
+			
+			// For the first input variable, use user's input if available
+			if (!firstInputReplaced && userInput) {
+				firstInputReplaced = true;
+				return userInput;
+			}
+			
+			// For subsequent variables or when no user input, use first option as default
+			if (options.length > 0) {
+				return options[0];
+			}
+			
+			// No default available - return placeholder
+			return `[${description}]`;
+		});
+	}
+
+	/**
 	 * Resolve Markdown file links and include referenced file content
-	 * Supports [link text](relative/path.md) syntax
+	 * Supports [link text](relative/path.md) and [[wikilink]] syntax
 	 */
 	async resolveMarkdownFileLinks(content: string, promptPath: string): Promise<string> {
-		// Match Markdown links: [text](path.md) or [text](path)
-		const linkRegex = /\[([^\]]*)\]\(([^)]+\.md)\)/g;
-		const matches = [...content.matchAll(linkRegex)];
-		
-		if (matches.length === 0) return content;
+		const result = await this.resolveMarkdownFileLinksWithTracking(content, promptPath);
+		return result.content;
+	}
+
+	/**
+	 * Resolve Markdown file links and include referenced file content, returning list of resolved files
+	 * Supports [link text](relative/path.md) and [[wikilink]] syntax
+	 */
+	async resolveMarkdownFileLinksWithTracking(content: string, promptPath: string): Promise<ResolvedFileLinks> {
+		const resolvedFiles: Array<{ name: string; path: string }> = [];
 		
 		// Get the directory of the prompt file for relative path resolution
 		const promptDir = promptPath.substring(0, promptPath.lastIndexOf('/'));
 		
-		for (const match of matches) {
+		// First, process Markdown links: [text](path.md)
+		const mdLinkRegex = /\[([^\]]*)\]\(([^)]+\.md)\)/g;
+		const mdMatches = [...content.matchAll(mdLinkRegex)];
+		
+		for (const match of mdMatches) {
 			const fullMatch = match[0];
 			const linkText = match[1] || '';
 			const linkPath = match[2];
 			
-			// Skip if no path captured
 			if (!linkPath) continue;
 			
 			// Resolve relative path from prompt file location
@@ -130,18 +177,15 @@ export class PromptProcessor {
 			if (!linkPath.startsWith('/')) {
 				resolvedPath = promptDir ? `${promptDir}/${linkPath}` : linkPath;
 			}
-			
-			// Normalize the path (handle ../ etc)
 			resolvedPath = this.normalizePath(resolvedPath);
 			
-			// Try to read the linked file
 			const linkedFile = this.app.vault.getAbstractFileByPath(resolvedPath);
 			if (linkedFile instanceof TFile) {
 				try {
 					const linkedContent = await this.app.vault.cachedRead(linkedFile);
-					// Replace the link with the file content, wrapped with context
 					const replacement = `\n\n---\n**Referenced file: ${linkText || linkedFile.basename}** (${resolvedPath})\n\n${linkedContent}\n\n---\n`;
 					content = content.replace(fullMatch, replacement);
+					resolvedFiles.push({ name: linkText || linkedFile.basename, path: resolvedPath });
 				} catch (error) {
 					console.warn(`[VC] Could not read linked file: ${resolvedPath}`, error);
 					content = content.replace(fullMatch, `[Could not read: ${resolvedPath}]`);
@@ -152,7 +196,39 @@ export class PromptProcessor {
 			}
 		}
 		
-		return content;
+		// Then, process Obsidian wikilinks: [[filename]] or [[filename|display text]]
+		const wikiLinkRegex = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+		const wikiMatches = [...content.matchAll(wikiLinkRegex)];
+		
+		for (const match of wikiMatches) {
+			const fullMatch = match[0];
+			const linkTarget = match[1]?.trim();
+			const displayText = match[2]?.trim();
+			
+			// Skip if no link target (shouldn't happen with this regex, but guard for safety)
+			if (!linkTarget) continue;
+			
+			// Use Obsidian's link resolution (handles partial paths, aliases, etc.)
+			const linkedFile = this.app.metadataCache.getFirstLinkpathDest(linkTarget, promptPath);
+			
+			if (linkedFile instanceof TFile) {
+				try {
+					const linkedContent = await this.app.vault.cachedRead(linkedFile);
+					const displayName = displayText || linkedFile.basename;
+					const replacement = `\n\n---\n**Referenced file: ${displayName}** (${linkedFile.path})\n\n${linkedContent}\n\n---\n`;
+					content = content.replace(fullMatch, replacement);
+					resolvedFiles.push({ name: displayName, path: linkedFile.path });
+				} catch (error) {
+					console.warn(`[VC] Could not read wikilinked file: ${linkTarget}`, error);
+					content = content.replace(fullMatch, `[Could not read: ${linkTarget}]`);
+				}
+			} else {
+				console.warn(`[VC] Wikilinked file not found: ${linkTarget}`);
+				content = content.replace(fullMatch, `[File not found: ${linkTarget}]`);
+			}
+		}
+		
+		return { content, resolvedFiles };
 	}
 
 	/**

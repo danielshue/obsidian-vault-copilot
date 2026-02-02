@@ -170,8 +170,11 @@ export interface VaultCopilotAPI {
 	/** Get the currently active note */
 	getActiveNote(): Promise<{ hasActiveNote: boolean; path?: string; title?: string; content?: string }>;
 	
-	/** List notes in a folder */
-	listNotes(folder?: string): Promise<{ notes: Array<{ path: string; title: string }> }>;
+	/** List notes and subfolders in a folder (non-recursive) */
+	listNotes(folder?: string): Promise<{ items: Array<{ path: string; name: string; type: 'file' | 'folder' }> }>;
+	
+	/** List all notes recursively from a folder */
+	listNotesRecursively(folder?: string, limit?: number): Promise<{ notes: Array<{ path: string; title: string }>; total: number; truncated: boolean }>;
 	
 	/** Append content to a note */
 	appendToNote(path: string, content: string): Promise<{ success: boolean; error?: string }>;
@@ -444,6 +447,7 @@ export default class CopilotPlugin extends Plugin {
 			cliPath: this.settings.cliPath || undefined,
 			cliUrl: this.settings.cliUrl || undefined,
 			streaming: this.settings.streaming,
+			requestTimeout: this.settings.requestTimeout,
 			tracingEnabled: this.settings.tracingEnabled,
 			skillRegistry: this.skillRegistry,
 			mcpManager: this.mcpManager,
@@ -715,8 +719,16 @@ export default class CopilotPlugin extends Plugin {
 			
 			createSession: async (name?: string) => {
 				const now = Date.now();
+				const sessionId = `session-${now}`;
+				
+				// Create the SDK session first to get the actual session ID
+				let actualSessionId = sessionId;
+				if (copilotService) {
+					actualSessionId = await copilotService.createSession(sessionId);
+				}
+				
 				const newSession: CopilotSession = {
-					id: `session-${now}`,
+					id: actualSessionId,
 					name: name || `Chat ${new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
 					createdAt: now,
 					lastUsedAt: now,
@@ -726,10 +738,6 @@ export default class CopilotPlugin extends Plugin {
 				plugin.settings.sessions.push(newSession);
 				plugin.settings.activeSessionId = newSession.id;
 				await plugin.saveSettings();
-				
-				if (copilotService) {
-					await copilotService.createSession();
-				}
 				
 				return toSessionInfo(newSession);
 			},
@@ -816,6 +824,11 @@ export default class CopilotPlugin extends Plugin {
 			listNotes: async (folder) => {
 				if (!copilotService) throw new Error("Vault Copilot service not initialized");
 				return await copilotService.listNotes(folder);
+			},
+			
+			listNotesRecursively: async (folder, limit) => {
+				if (!copilotService) throw new Error("Vault Copilot service not initialized");
+				return await copilotService.listNotesRecursively(folder, limit);
 			},
 			
 			appendToNote: async (path, content) => {

@@ -22,6 +22,8 @@ export interface CachedPromptInfo {
 	agent?: string;
 	/** Optional hint text shown in the chat input field */
 	argumentHint?: string;
+	/** Optional timeout in seconds for this prompt (overrides default) */
+	timeout?: number;
 	/** Full path to the prompt file */
 	path: string;
 }
@@ -339,6 +341,7 @@ export class PromptCache {
 			model: frontmatter.model ? String(frontmatter.model) : undefined,
 			agent: frontmatter.agent ? String(frontmatter.agent) : undefined,
 			argumentHint: frontmatter['argument-hint'] ? String(frontmatter['argument-hint']) : undefined,
+			timeout: typeof frontmatter.timeout === 'number' ? frontmatter.timeout : undefined,
 			path,
 		};
 	}

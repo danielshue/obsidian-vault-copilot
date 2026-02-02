@@ -29,7 +29,16 @@ export interface CopilotServiceConfig {
 	promptDirectories?: string[];
 	/** Optional allowlist of tool names to enable (SDK availableTools) */
 	availableTools?: string[];
+	/** Request timeout in milliseconds (default: 120000 - 2 minutes) */
+	requestTimeout?: number;
+	/** Stop timeout in milliseconds before forcing (default: 10000 - 10 seconds) */
+	stopTimeout?: number;
 }
+
+/** Default timeout for requests (2 minutes) */
+const DEFAULT_REQUEST_TIMEOUT = 120000;
+/** Default timeout for graceful stop (10 seconds) */
+const DEFAULT_STOP_TIMEOUT = 10000;
 
 export interface ChatMessage {
 	role: "user" | "assistant";
@@ -72,6 +81,7 @@ export class CopilotService {
 
 	/**
 	 * Initialize and start the Copilot client
+	 * Handles specific error conditions like missing CLI or connection failures
 	 */
 	async start(): Promise<void> {
 		if (this.client) {
@@ -97,7 +107,42 @@ export class CopilotService {
 		}
 
 		this.client = new CopilotClient(clientOptions);
-		await this.client.start();
+		
+		try {
+			await this.client.start();
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			
+			// Handle specific error types with user-friendly messages
+			if (errorMessage.includes('ENOENT') || errorMessage.toLowerCase().includes('not found')) {
+				this.client = null;
+				throw new Error(
+					'GitHub Copilot CLI not found. Please ensure it is installed and in your PATH. ' +
+					'Run "npm install -g @github/copilot-cli" or specify the path in settings.'
+				);
+			}
+			
+			if (errorMessage.includes('ECONNREFUSED') || errorMessage.toLowerCase().includes('connection refused')) {
+				this.client = null;
+				throw new Error(
+					'Could not connect to GitHub Copilot CLI server. ' +
+					'Please ensure the CLI is running and accessible.'
+				);
+			}
+			
+			if (errorMessage.includes('EACCES') || errorMessage.toLowerCase().includes('permission')) {
+				this.client = null;
+				throw new Error(
+					'Permission denied when starting GitHub Copilot CLI. ' +
+					'Please check file permissions and try running with appropriate access.'
+				);
+			}
+			
+			// Log and rethrow unknown errors
+			console.error('[Vault Copilot] Failed to start Copilot client:', error);
+			this.client = null;
+			throw error;
+		}
 	}
 
 	/**
@@ -197,6 +242,7 @@ export class CopilotService {
 
 	/**
 	 * Stop the Copilot client and clean up resources
+	 * Uses timeout and force stop for graceful shutdown
 	 */
 	async stop(): Promise<void> {
 		// Clean up MCP listener
@@ -206,11 +252,33 @@ export class CopilotService {
 		}
 		
 		if (this.session) {
-			await this.session.destroy();
+			try {
+				await this.session.destroy();
+			} catch (error) {
+				console.warn('[Vault Copilot] Error destroying session:', error);
+			}
 			this.session = null;
 		}
+		
 		if (this.client) {
-			await this.client.stop();
+			const stopTimeout = this.config.stopTimeout ?? DEFAULT_STOP_TIMEOUT;
+			
+			try {
+				// Try graceful stop with timeout
+				const stopPromise = this.client.stop();
+				const timeoutPromise = new Promise<never>((_, reject) => 
+					setTimeout(() => reject(new Error('Stop timeout')), stopTimeout)
+				);
+				
+				await Promise.race([stopPromise, timeoutPromise]);
+			} catch (error) {
+				console.warn('[Vault Copilot] Graceful stop timed out, forcing stop...');
+				try {
+					await this.client.forceStop();
+				} catch (forceError) {
+					console.error('[Vault Copilot] Force stop failed:', forceError);
+				}
+			}
 			this.client = null;
 		}
 		this.messageHistory = [];
@@ -218,8 +286,9 @@ export class CopilotService {
 
 	/**
 	 * Create a new chat session with Obsidian-specific tools
+	 * @param sessionId Optional session ID for persistence. If provided, the session can be resumed later.
 	 */
-	async createSession(): Promise<void> {
+	async createSession(sessionId?: string): Promise<string> {
 		// Auto-start client if not running
 		if (!this.client) {
 			await this.start();
@@ -255,6 +324,11 @@ export class CopilotService {
 			},
 		};
 
+		// Add session ID for persistence if provided
+		if (sessionId) {
+			sessionConfig.sessionId = sessionId;
+		}
+
 		// Add tool filtering if configured (SDK availableTools/excludedTools)
 		if (this.config.availableTools && this.config.availableTools.length > 0) {
 			sessionConfig.availableTools = this.config.availableTools;
@@ -283,6 +357,98 @@ export class CopilotService {
 		});
 
 		this.messageHistory = [];
+		
+		const actualSessionId = this.session.sessionId;
+		console.log('[Vault Copilot] Session created with ID:', actualSessionId);
+		return actualSessionId;
+	}
+
+	/**
+	 * Resume an existing session by its ID (preserves AI conversation context)
+	 * @param sessionId The session ID to resume
+	 * @returns The session ID if successful
+	 */
+	async resumeSession(sessionId: string): Promise<string> {
+		// Auto-start client if not running
+		if (!this.client) {
+			await this.start();
+		}
+
+		if (this.session) {
+			await this.session.destroy();
+		}
+
+		// Load instructions from configured directories
+		if (this.config.instructionDirectories && this.config.instructionDirectories.length > 0) {
+			this.loadedInstructions = await this.customizationLoader.loadInstructions(this.config.instructionDirectories);
+			console.log('[Vault Copilot] Loaded instructions:', this.loadedInstructions.map(i => i.name));
+		}
+
+		// Combine built-in tools with registered plugin skills and MCP tools
+		const builtInTools = this.createObsidianTools();
+		const registeredTools = this.convertRegisteredSkillsToTools();
+		const mcpTools = this.convertMcpToolsToSdkTools();
+		const tools = [...builtInTools, ...registeredTools, ...mcpTools];
+		
+		if (mcpTools.length > 0) {
+			console.log('[Vault Copilot] Registered MCP tools for resumed session:', mcpTools.map(t => t.name));
+		}
+
+		console.log('[Vault Copilot] Resuming session:', sessionId);
+
+		try {
+			this.session = await this.client!.resumeSession(sessionId, {
+				tools,
+			});
+
+			// Set up event handler
+			this.session.on((event: SessionEvent) => {
+				this.handleSessionEvent(event);
+			});
+
+			// Restore message history from the SDK session
+			const events = await this.session.getMessages();
+			this.messageHistory = this.convertEventsToMessageHistory(events);
+			
+			console.log('[Vault Copilot] Session resumed with', this.messageHistory.length, 'messages');
+			return this.session.sessionId;
+		} catch (error) {
+			console.warn('[Vault Copilot] Failed to resume session, creating new one:', error);
+			// Session doesn't exist anymore, create a new one
+			return this.createSession(sessionId);
+		}
+	}
+
+	/**
+	 * Convert SDK session events to our message history format
+	 */
+	private convertEventsToMessageHistory(events: SessionEvent[]): ChatMessage[] {
+		const messages: ChatMessage[] = [];
+		
+		for (const event of events) {
+			if (event.type === 'user.message') {
+				messages.push({
+					role: 'user',
+					content: (event.data as { content?: string })?.content || '',
+					timestamp: new Date(),
+				});
+			} else if (event.type === 'assistant.message') {
+				messages.push({
+					role: 'assistant',
+					content: (event.data as { content?: string })?.content || '',
+					timestamp: new Date(),
+				});
+			}
+		}
+		
+		return messages;
+	}
+
+	/**
+	 * Get the current session ID
+	 */
+	getSessionId(): string | null {
+		return this.session?.sessionId ?? null;
 	}
 
 	/**
@@ -373,11 +539,17 @@ export class CopilotService {
 
 	/**
 	 * Send a message and wait for the complete response
+	 * @param prompt The message to send
+	 * @param timeout Optional timeout in milliseconds (uses config.requestTimeout if not specified)
 	 */
-	async sendMessage(prompt: string): Promise<string> {
+	async sendMessage(prompt: string, timeout?: number): Promise<string> {
 		if (!this.session) {
 			await this.createSession();
 		}
+
+		// Log the prompt to tracing service
+		const tracingService = getTracingService();
+		tracingService.addSdkLog('info', `[User Prompt]\n${prompt}`, 'copilot-prompt');
 
 		this.messageHistory.push({
 			role: "user",
@@ -385,29 +557,56 @@ export class CopilotService {
 			timestamp: new Date(),
 		});
 
-		const response = await this.session!.sendAndWait({ prompt });
+		const requestTimeout = timeout ?? this.config.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT;
 		
-		const assistantContent = response?.data?.content || "";
-		this.messageHistory.push({
-			role: "assistant",
-			content: assistantContent,
-			timestamp: new Date(),
-		});
+		try {
+			const response = await this.session!.sendAndWait({ prompt }, requestTimeout);
+			
+			const assistantContent = response?.data?.content || "";
+			
+			// Log the response to tracing service
+			tracingService.addSdkLog('info', `[Assistant Response]\n${assistantContent.substring(0, 500)}${assistantContent.length > 500 ? '...' : ''}`, 'copilot-response');
+			
+			this.messageHistory.push({
+				role: "assistant",
+				content: assistantContent,
+				timestamp: new Date(),
+			});
 
-		return assistantContent;
+			return assistantContent;
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			tracingService.addSdkLog('error', `[Request Error] ${errorMessage}`, 'copilot-error');
+			
+			if (errorMessage.toLowerCase().includes('timeout')) {
+				console.error('[Vault Copilot] Request timed out after', requestTimeout, 'ms');
+				throw new Error(`Request timed out after ${requestTimeout / 1000} seconds`);
+			}
+			
+			throw error;
+		}
 	}
 
 	/**
 	 * Send a message with streaming response
+	 * @param prompt The message to send
+	 * @param onDelta Callback for each delta chunk
+	 * @param onComplete Optional callback when complete
+	 * @param timeout Optional timeout in milliseconds (uses config.requestTimeout if not specified)
 	 */
 	async sendMessageStreaming(
 		prompt: string, 
 		onDelta: (delta: string) => void,
-		onComplete?: (fullContent: string) => void
+		onComplete?: (fullContent: string) => void,
+		timeout?: number
 	): Promise<void> {
 		if (!this.session) {
 			await this.createSession();
 		}
+
+		// Log the prompt to tracing service
+		const tracingService = getTracingService();
+		tracingService.addSdkLog('info', `[User Prompt (Streaming)]\n${prompt}`, 'copilot-prompt');
 
 		this.messageHistory.push({
 			role: "user",
@@ -416,9 +615,46 @@ export class CopilotService {
 		});
 
 		let fullContent = "";
+		const requestTimeout = timeout ?? this.config.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT;
 
 		return new Promise<void>((resolve, reject) => {
+			let timeoutId: NodeJS.Timeout | null = null;
+			let hasCompleted = false;
+			
+			const cleanup = () => {
+				hasCompleted = true;
+				if (timeoutId) {
+					clearTimeout(timeoutId);
+					timeoutId = null;
+				}
+			};
+			
+			// Set up timeout
+			timeoutId = setTimeout(async () => {
+				if (!hasCompleted) {
+					cleanup();
+					unsubscribe();
+					
+					// Try to abort the request
+					try {
+						await this.session?.abort();
+					} catch (abortError) {
+						console.warn('[Vault Copilot] Error aborting timed-out request:', abortError);
+					}
+					
+					tracingService.addSdkLog('error', `[Streaming Timeout] Request timed out after ${requestTimeout / 1000} seconds`, 'copilot-error');
+					reject(new Error(`Streaming request timed out after ${requestTimeout / 1000} seconds`));
+				}
+			}, requestTimeout);
+			
 			const unsubscribe = this.session!.on((event: SessionEvent) => {
+				if (hasCompleted) return;
+				
+				// Log all events for debugging (except deltas which are too verbose)
+				if (event.type !== "assistant.message_delta") {
+					tracingService.addSdkLog('debug', `[SDK Event] ${event.type}: ${JSON.stringify(event.data).substring(0, 200)}`, 'copilot-event');
+				}
+				
 				if (event.type === "assistant.message_delta") {
 					const delta = (event.data as { deltaContent: string }).deltaContent;
 					fullContent += delta;
@@ -426,24 +662,34 @@ export class CopilotService {
 				} else if (event.type === "assistant.message") {
 					fullContent = (event.data as { content: string }).content;
 				} else if (event.type === "session.idle") {
+					cleanup();
 					this.messageHistory.push({
 						role: "assistant",
 						content: fullContent,
 						timestamp: new Date(),
 					});
+					
+					// Log the response to tracing service
+					tracingService.addSdkLog('info', `[Assistant Response (Streaming)]\n${fullContent.substring(0, 500)}${fullContent.length > 500 ? '...' : ''}`, 'copilot-response');
+					
 					if (onComplete) {
 						onComplete(fullContent);
 					}
 					unsubscribe();
 					resolve();
 				} else if (event.type === "session.error") {
+					cleanup();
+					const errorData = event.data as { message?: string };
+					tracingService.addSdkLog('error', `[Streaming Error] ${errorData.message || "Unknown error"}`, 'copilot-error');
 					unsubscribe();
-					reject(new Error("Session error during streaming"));
+					reject(new Error(errorData.message || "Session error during streaming"));
 				}
 			});
 
 			this.session!.send({ prompt }).catch((err) => {
+				cleanup();
 				unsubscribe();
+				tracingService.addSdkLog('error', `[Send Error] ${err.message || err}`, 'copilot-error');
 				reject(err);
 			});
 		});
@@ -451,10 +697,16 @@ export class CopilotService {
 
 	/**
 	 * Abort the current operation
+	 * Call this to cancel an in-progress request
 	 */
 	async abort(): Promise<void> {
 		if (this.session) {
-			await this.session.abort();
+			try {
+				await this.session.abort();
+				console.log('[Vault Copilot] Request aborted');
+			} catch (error) {
+				console.warn('[Vault Copilot] Error during abort:', error);
+			}
 		}
 	}
 
@@ -483,26 +735,32 @@ export class CopilotService {
 	}
 
 	/**
-	 * Load a previous session by restoring message history
-	 * Note: This recreates the session context by replaying the message history
+	 * Load a previous session using SDK session persistence
+	 * This resumes the actual AI conversation context from the SDK
+	 * @param sessionId The session ID to load
+	 * @param messages Optional fallback messages if session can't be resumed (for backward compatibility)
 	 */
-	async loadSession(sessionId: string, messages: ChatMessage[]): Promise<void> {
+	async loadSession(sessionId: string, messages?: ChatMessage[]): Promise<void> {
 		if (!this.client) {
 			await this.start();
 		}
 
-		// Create a fresh session
-		await this.createSession();
-
-		// Restore the message history
-		this.messageHistory = messages.map(msg => ({
-			...msg,
-			timestamp: new Date(msg.timestamp),
-		}));
-
-		// Session ID is tracked externally by the plugin settings
-		// The actual chat context would need to be rebuilt by the model
-		// For a full implementation, the SDK would need to support session persistence
+		try {
+			// Try to resume the session using SDK persistence
+			await this.resumeSession(sessionId);
+			console.log('[Vault Copilot] Session loaded via SDK persistence');
+		} catch (error) {
+			console.warn('[Vault Copilot] Could not resume session, creating new with fallback messages:', error);
+			// Fallback: create a new session and restore message history manually
+			await this.createSession(sessionId);
+			
+			if (messages) {
+				this.messageHistory = messages.map(msg => ({
+					...msg,
+					timestamp: new Date(msg.timestamp),
+				}));
+			}
+		}
 	}
 
 	/**
@@ -552,7 +810,8 @@ export class CopilotService {
 - **Recent changes**: Use get_recent_changes to see recently modified files
 - **Daily notes**: Use get_daily_note to get today's or a specific date's daily note
 - **Active note**: Use get_active_note to get the currently open note
-- **List notes**: Use list_notes to browse notes in folders
+- **List notes**: Use list_notes to browse notes and subfolders in a folder (non-recursive, shows file/folder types)
+- **List all notes**: Use list_notes_recursively to get ALL notes from a folder and its subfolders
 
 ## Available Slash Commands
 When the user asks about available commands, help, or what you can do, respond ONLY with this list of slash commands available in GitHub Copilot for Obsidian:
@@ -775,16 +1034,31 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 			}),
 
 			defineTool("list_notes", {
-				description: "List all notes in the vault or in a specific folder",
+				description: "List notes and subfolders in a folder (non-recursive). Returns items with type indicator (file/folder). Use with vault root or specific folder path.",
 				parameters: {
 					type: "object",
 					properties: {
-						folder: { type: "string", description: "Optional folder path to list notes from" }
+						folder: { type: "string", description: "Folder path to list (empty or '/' for vault root)" }
 					},
 					required: []
 				},
 				handler: async (args: { folder?: string }) => {
 					return await this.listNotes(args.folder);
+				},
+			}),
+
+			defineTool("list_notes_recursively", {
+				description: "List ALL notes recursively from a folder path (includes all subfolders). Returns flat list of all note paths. Useful for getting complete vault structure.",
+				parameters: {
+					type: "object",
+					properties: {
+						folder: { type: "string", description: "Folder path to list recursively (empty or '/' for entire vault)" },
+						limit: { type: "number", description: "Maximum number of notes to return (default: 200)" }
+					},
+					required: []
+				},
+				handler: async (args: { folder?: string; limit?: number }) => {
+					return await this.listNotesRecursively(args.folder, args.limit);
 				},
 			}),
 
@@ -1029,18 +1303,73 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 		}
 	}
 
-	async listNotes(folder?: string): Promise<{ notes: Array<{ path: string; title: string }> }> {
+	async listNotes(folder?: string): Promise<{ items: Array<{ path: string; name: string; type: 'file' | 'folder' }> }> {
+		const { TFolder, TFile } = await import('obsidian');
+		const normalizedFolder = folder ? normalizeVaultPath(folder) : '';
+		
+		// Get the target folder (or root)
+		let targetFolder;
+		if (normalizedFolder === '' || normalizedFolder === '/') {
+			targetFolder = this.app.vault.getRoot();
+		} else {
+			const abstractFile = this.app.vault.getAbstractFileByPath(normalizedFolder);
+			if (!abstractFile || !(abstractFile instanceof TFolder)) {
+				return { items: [] };
+			}
+			targetFolder = abstractFile;
+		}
+
+		// List immediate children only (non-recursive)
+		const items: Array<{ path: string; name: string; type: 'file' | 'folder' }> = [];
+		
+		for (const child of targetFolder.children) {
+			if (child instanceof TFolder) {
+				items.push({
+					path: child.path,
+					name: child.name,
+					type: 'folder'
+				});
+			} else if (child instanceof TFile && child.extension === 'md') {
+				items.push({
+					path: child.path,
+					name: child.basename,
+					type: 'file'
+				});
+			}
+		}
+
+		// Sort: folders first, then files, alphabetically
+		items.sort((a, b) => {
+			if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+			return a.name.localeCompare(b.name);
+		});
+
+		return { items: items.slice(0, 100) };
+	}
+
+	async listNotesRecursively(folder?: string, limit = 200): Promise<{ notes: Array<{ path: string; title: string }>; total: number; truncated: boolean }> {
 		const files = this.app.vault.getMarkdownFiles();
-		const normalizedFolder = folder ? normalizeVaultPath(folder) : undefined;
-		const notes = files
-			.filter(file => !normalizedFolder || file.path.startsWith(normalizedFolder))
+		const normalizedFolder = folder ? normalizeVaultPath(folder) : '';
+		
+		// Filter to folder (or all if no folder specified)
+		const filtered = normalizedFolder === '' || normalizedFolder === '/'
+			? files
+			: files.filter(file => file.path.startsWith(normalizedFolder + '/') || file.path === normalizedFolder);
+		
+		// Sort alphabetically by path
+		filtered.sort((a, b) => a.path.localeCompare(b.path));
+		
+		const total = filtered.length;
+		const truncated = total > limit;
+		
+		const notes = filtered
+			.slice(0, limit)
 			.map(file => ({
 				path: file.path,
 				title: file.basename,
-			}))
-			.slice(0, 100); // Limit to 100 notes
+			}));
 
-		return { notes };
+		return { notes, total, truncated };
 	}
 
 	async appendToNote(path: string, content: string): Promise<{ success: boolean; error?: string }> {

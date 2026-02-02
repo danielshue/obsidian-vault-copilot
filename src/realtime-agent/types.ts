@@ -42,6 +42,7 @@ export type RealtimeToolName =
 	| "search_notes"
 	| "get_active_note"
 	| "list_notes"
+	| "list_notes_recursively"
 	| "open_note"
 	| "open_daily_note"
 	| "open_weekly_note"
@@ -202,6 +203,7 @@ export const VAULT_READ_TOOLS: RealtimeToolName[] = [
 	"search_notes",
 	"get_active_note",
 	"list_notes",
+	"list_notes_recursively",
 	"open_note",
 	"open_daily_note",
 	"open_weekly_note",

@@ -71,8 +71,14 @@ export class SessionManager {
 		// Create new session
 		const now = Date.now();
 		const defaultName = `Chat ${new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+		const sessionId = `session-${now}`;
+		
+		// Create the SDK session with the ID for persistence
+		const actualSessionId = await this.copilotService.createSession(sessionId);
+		
+		// Use the actual session ID from the SDK (it may differ)
 		const newSession: CopilotSession = {
-			id: `session-${now}`,
+			id: actualSessionId || sessionId,
 			name: name || defaultName,
 			createdAt: now,
 			lastUsedAt: now,
@@ -83,9 +89,6 @@ export class SessionManager {
 		this.settings.sessions.push(newSession);
 		this.settings.activeSessionId = newSession.id;
 		await this.saveSettings();
-
-		// Clear the current view and create new session
-		await this.copilotService.createSession();
 		
 		// Notify view to update UI
 		this.callbacks.onClearUI();
@@ -152,11 +155,16 @@ export class SessionManager {
 			}
 		}
 
-		// Create a new session
+		// Create a new session with SDK persistence
 		const now = Date.now();
 		const defaultName = `Chat ${new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+		const sessionId = `session-${now}`;
+		
+		// Get the actual session ID from CopilotService (creates session if needed)
+		const actualSessionId = this.copilotService.getSessionId() || sessionId;
+		
 		const newSession: CopilotSession = {
-			id: `session-${now}`,
+			id: actualSessionId,
 			name: defaultName,
 			createdAt: now,
 			lastUsedAt: now,
@@ -169,7 +177,7 @@ export class SessionManager {
 		await this.saveSettings();
 		
 		this.callbacks.onHeaderUpdate();
-		console.log("[VC] Created new session:", newSession.name);
+		console.log("[VC] Created new session:", newSession.name, "with SDK ID:", actualSessionId);
 	}
 
 	/**

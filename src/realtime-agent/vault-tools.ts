@@ -89,21 +89,41 @@ export function createVaultTools(
 	tools.push(
 		tool({
 			name: "list_notes",
-			description: "List notes in a folder or the entire vault",
+			description: "List notes and subfolders in a folder (non-recursive). Returns items with type indicator (file/folder).",
 			parameters: z.object({
 				folder: z
 					.string()
 					.optional()
-					.describe("Folder path to list (empty for all notes)"),
+					.describe("Folder path to list (empty or '/' for vault root)"),
+			}),
+			needsApproval: requiresApproval.has("list_notes"),
+			execute: async ({ folder }) => {
+				const result = await VaultOps.listNotes(app, folder);
+				onToolExecution?.("list_notes", { folder }, { count: result.items.length });
+				return JSON.stringify(result);
+			},
+		})
+	);
+
+	// List notes recursively tool
+	tools.push(
+		tool({
+			name: "list_notes_recursively",
+			description: "List ALL notes recursively from a folder path (includes all subfolders). Returns flat list of all note paths.",
+			parameters: z.object({
+				folder: z
+					.string()
+					.optional()
+					.describe("Folder path to list recursively (empty or '/' for entire vault)"),
 				limit: z
 					.number()
 					.optional()
-					.describe("Maximum number of results (default: 20)"),
+					.describe("Maximum number of notes to return (default: 200)"),
 			}),
-			needsApproval: requiresApproval.has("list_notes"),
-			execute: async ({ folder, limit = 20 }) => {
-				const result = await VaultOps.listNotes(app, folder, limit);
-				onToolExecution?.("list_notes", { folder, limit }, { count: result.notes.length });
+			needsApproval: requiresApproval.has("list_notes_recursively"),
+			execute: async ({ folder, limit = 200 }) => {
+				const result = await VaultOps.listNotesRecursively(app, folder, limit);
+				onToolExecution?.("list_notes_recursively", { folder, limit }, { count: result.notes.length, total: result.total });
 				return JSON.stringify(result);
 			},
 		})

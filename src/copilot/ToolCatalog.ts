@@ -66,7 +66,14 @@ const BUILTIN_TOOLS: ToolInfo[] = [
 	{
 		id: "list_notes",
 		displayName: "List Notes",
-		description: "List all notes in the vault or folder",
+		description: "List notes and subfolders in a folder (non-recursive)",
+		source: "builtin",
+		enabledByDefault: true,
+	},
+	{
+		id: "list_notes_recursively",
+		displayName: "List Notes Recursively",
+		description: "List ALL notes recursively from a folder",
 		source: "builtin",
 		enabledByDefault: true,
 	},

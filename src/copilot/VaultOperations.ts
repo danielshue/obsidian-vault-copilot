@@ -734,28 +734,95 @@ function getDefaultPeriodicConfig(granularity: PeriodicNoteGranularity): Periodi
 
 export interface ListNotesResult {
 	success: boolean;
+	items: Array<{ path: string; name: string; type: 'file' | 'folder' }>;
+}
+
+export interface ListNotesRecursivelyResult {
+	success: boolean;
 	notes: Array<{ path: string; title: string }>;
+	total: number;
+	truncated: boolean;
 }
 
 export async function listNotes(
 	app: App,
 	folder?: string,
-	limit = 100
+	_limit = 100  // Kept for backward compatibility but not used (returns immediate children only)
 ): Promise<ListNotesResult> {
+	const { TFolder, TFile } = await import('obsidian');
+	const normalizedFolder = folder
+		? folder.replace(/\\/g, "/").replace(/\/+$/, "")
+		: '';
+
+	// Get the target folder (or root)
+	let targetFolder;
+	if (normalizedFolder === '' || normalizedFolder === '/') {
+		targetFolder = app.vault.getRoot();
+	} else {
+		const abstractFile = app.vault.getAbstractFileByPath(normalizedFolder);
+		if (!abstractFile || !(abstractFile instanceof TFolder)) {
+			return { success: true, items: [] };
+		}
+		targetFolder = abstractFile;
+	}
+
+	// List immediate children only (non-recursive)
+	const items: Array<{ path: string; name: string; type: 'file' | 'folder' }> = [];
+	
+	for (const child of targetFolder.children) {
+		if (child instanceof TFolder) {
+			items.push({
+				path: child.path,
+				name: child.name,
+				type: 'folder'
+			});
+		} else if (child instanceof TFile && child.extension === 'md') {
+			items.push({
+				path: child.path,
+				name: child.basename,
+				type: 'file'
+			});
+		}
+	}
+
+	// Sort: folders first, then files, alphabetically
+	items.sort((a, b) => {
+		if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+		return a.name.localeCompare(b.name);
+	});
+
+	return { success: true, items: items.slice(0, 100) };
+}
+
+export async function listNotesRecursively(
+	app: App,
+	folder?: string,
+	limit = 200
+): Promise<ListNotesRecursivelyResult> {
 	const files = app.vault.getMarkdownFiles();
 	const normalizedFolder = folder
 		? folder.replace(/\\/g, "/").replace(/\/+$/, "")
-		: undefined;
+		: '';
 
-	const notes = files
-		.filter((file) => !normalizedFolder || file.path.startsWith(normalizedFolder))
+	// Filter to folder (or all if no folder specified)
+	const filtered = normalizedFolder === '' || normalizedFolder === '/'
+		? files
+		: files.filter(file => file.path.startsWith(normalizedFolder + '/') || file.path === normalizedFolder);
+
+	// Sort alphabetically by path
+	filtered.sort((a, b) => a.path.localeCompare(b.path));
+
+	const total = filtered.length;
+	const truncated = total > limit;
+
+	const notes = filtered
 		.slice(0, limit)
-		.map((file) => ({
+		.map(file => ({
 			path: file.path,
 			title: file.basename,
 		}));
 
-	return { success: true, notes };
+	return { success: true, notes, total, truncated };
 }
 
 // ============================================================================

@@ -670,10 +670,10 @@ export class TracingService {
 
 	/**
 	 * Add an SDK diagnostic log entry
+	 * Note: SDK logs are always captured regardless of tracing being enabled
+	 * since they are useful for debugging even without full trace collection.
 	 */
 	addSdkLog(level: 'debug' | 'info' | 'warning' | 'error', message: string, source: string = 'sdk'): void {
-		if (!this.enabled) return;
-		
 		const entry: SDKLogEntry = {
 			timestamp: Date.now(),
 			level,

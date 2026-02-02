@@ -7,6 +7,7 @@ import { CachedAgentInfo } from "../../copilot/AgentCache";
 import { CachedPromptInfo } from "../../copilot/PromptCache";
 import { ToolCatalog } from "../../copilot/ToolCatalog";
 import { ToolPickerModal } from "./ToolPickerModal";
+import { PromptInputModal, parseInputVariables } from "./PromptInputModal";
 import { 
 	McpAppContainer,
 	UIResourceContent,
@@ -25,6 +26,7 @@ import { TracingModal } from "./TracingModal";
 import { ConversationHistoryModal } from "./ConversationHistoryModal";
 import { VoiceChatService, RecordingState, MainVaultAssistant, RealtimeAgentState, RealtimeHistoryItem, ToolApprovalRequest } from "../../voice-chat";
 import { getOpenAIApiKey } from "../../copilot/AIProvider";
+import { getTracingService } from "../../copilot/TracingService";
 
 export const COPILOT_VIEW_TYPE = "copilot-chat-view";
 
@@ -74,6 +76,11 @@ export class CopilotChatView extends ItemView {
 	private pendingToolApproval: ToolApprovalRequest | null = null;
 	private toolApprovalEl: HTMLElement | null = null;
 	private currentVoiceConversationId: string | null = null;
+	
+	// Input history for up/down arrow navigation
+	private inputHistory: string[] = [];
+	private historyIndex = -1;  // -1 means not navigating history
+	private savedCurrentInput = '';  // Save current input when navigating
 
 	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, copilotService: CopilotService) {
 		super(leaf);
@@ -96,8 +103,15 @@ export class CopilotChatView extends ItemView {
 						this.autoResizeInput();
 					}
 					this.attachedNotes = [];
+					// Clear input history for new session
+					this.inputHistory = [];
+					this.historyIndex = -1;
 				},
-				onSessionLoaded: () => {},
+				onSessionLoaded: () => {
+					// Clear input history when switching sessions
+					this.inputHistory = [];
+					this.historyIndex = -1;
+				},
 				onHeaderUpdate: () => this.updateHeaderTitle(),
 				onSessionPanelHide: () => {
 					if (this.sessionPanelVisible) {
@@ -418,9 +432,32 @@ export class CopilotChatView extends ItemView {
 				return;
 			}
 			
+			// Handle up/down arrow for input history navigation
+			if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+				// Only navigate history if input is empty or already navigating
+				const currentText = this.inputEl.textContent || '';
+				const isEmpty = currentText.trim() === '';
+				const isNavigating = this.historyIndex >= 0;
+				
+				if (this.inputHistory.length > 0 && (isEmpty || isNavigating)) {
+					e.preventDefault();
+					this.navigateHistory(e.key === "ArrowUp" ? 'up' : 'down');
+					return;
+				}
+			}
+			
 			if (e.key === "Enter" && !e.shiftKey) {
+				// Check if prompt was just selected - if so, don't auto-submit
+				if (this.promptPicker?.checkAndClearJustSelected()) {
+					return;
+				}
 				e.preventDefault();
 				this.sendMessage();
+			}
+			
+			// Reset history navigation on other key input
+			if (e.key !== "ArrowUp" && e.key !== "ArrowDown" && !e.ctrlKey && !e.metaKey) {
+				this.historyIndex = -1;
 			}
 		});
 
@@ -1475,8 +1512,18 @@ export class CopilotChatView extends ItemView {
 		try {
 			if (!this.copilotService.isConnected()) {
 				await this.copilotService.start();
-				// Create session to load instructions, agents, and tools
-				await this.copilotService.createSession();
+				
+				// Resume existing session if available, otherwise create new one
+				const activeSessionId = this.plugin.settings.activeSessionId;
+				if (activeSessionId) {
+					// Try to resume the session from SDK persistence
+					await this.copilotService.loadSession(activeSessionId);
+					console.log('[Vault Copilot] Resumed session:', activeSessionId);
+				} else {
+					// Create new session to load instructions, agents, and tools
+					await this.copilotService.createSession();
+				}
+				
 				this.plugin.updateStatusBar();
 			}
 		} catch (error) {
@@ -1650,8 +1697,8 @@ export class CopilotChatView extends ItemView {
 					};
 					await this.plugin.saveSettings();
 					
-					// Recreate the Copilot session with updated tools
-					await this.copilotService.createSession();
+					// Recreate the Copilot session with updated tools (maintains session ID for persistence)
+					await this.copilotService.createSession(currentSession.id);
 				}
 				
 				// Update UI
@@ -2059,6 +2106,7 @@ export class CopilotChatView extends ItemView {
 			createNote: (path: string, content: string) => Promise<Record<string, unknown>>;
 			getActiveNote: () => Promise<Record<string, unknown>>;
 			listNotes: (folder?: string) => Promise<Record<string, unknown>>;
+			listNotesRecursively: (folder?: string, limit?: number) => Promise<Record<string, unknown>>;
 			appendToNote: (path: string, content: string) => Promise<Record<string, unknown>>;
 			batchReadNotes: (paths: string[]) => Promise<Record<string, unknown>>;
 			updateNote: (path: string, content: string) => Promise<Record<string, unknown>>;
@@ -2079,6 +2127,8 @@ export class CopilotChatView extends ItemView {
 				return await service.getActiveNote();
 			case "list_notes":
 				return await service.listNotes(args.folder as string | undefined);
+			case "list_notes_recursively":
+				return await service.listNotesRecursively(args.folder as string | undefined, args.limit as number | undefined);
 			case "append_to_note":
 				return await service.appendToNote(args.path as string, args.content as string);
 			case "batch_read_notes":
@@ -2118,7 +2168,24 @@ export class CopilotChatView extends ItemView {
 
 		const [, commandName, args] = match;
 		if (!commandName) return false;
-		const command = SLASH_COMMANDS.find(c => c.name === commandName.toLowerCase());
+		
+		// Normalize the command name for comparison (lowercase)
+		const normalizedCommand = commandName.toLowerCase();
+		
+		// First check if it's a custom prompt
+		// Match by normalizing prompt names (replace spaces with hyphens, lowercase)
+		const promptInfo = this.plugin.promptCache.getPrompts().find(
+			p => p.name.toLowerCase().replace(/\s+/g, '-') === normalizedCommand ||
+			     p.name.toLowerCase() === normalizedCommand
+		);
+		
+		if (promptInfo) {
+			// It's a custom prompt - execute it with any additional args
+			await this.executePromptWithArgs(promptInfo, args?.trim() || "");
+			return true;
+		}
+		
+		const command = SLASH_COMMANDS.find(c => c.name === normalizedCommand);
 		
 		if (!command) {
 			// Unknown command - show help
@@ -2153,10 +2220,63 @@ export class CopilotChatView extends ItemView {
 		return true;
 	}
 
+	/**
+	 * Navigate through input history using up/down arrows
+	 */
+	private navigateHistory(direction: 'up' | 'down'): void {
+		if (this.inputHistory.length === 0) return;
+
+		// Save current input before starting navigation
+		if (this.historyIndex === -1) {
+			this.savedCurrentInput = this.inputEl.textContent || '';
+		}
+
+		if (direction === 'up') {
+			// Go back in history
+			if (this.historyIndex === -1) {
+				this.historyIndex = this.inputHistory.length - 1;
+			} else if (this.historyIndex > 0) {
+				this.historyIndex--;
+			}
+		} else {
+			// Go forward in history
+			if (this.historyIndex >= 0) {
+				this.historyIndex++;
+				if (this.historyIndex >= this.inputHistory.length) {
+					// Back to current input
+					this.historyIndex = -1;
+				}
+			}
+		}
+
+		// Update input content
+		if (this.historyIndex === -1) {
+			this.inputEl.textContent = this.savedCurrentInput;
+		} else {
+			this.inputEl.textContent = this.inputHistory[this.historyIndex] ?? '';
+		}
+
+		// Move cursor to end
+		const range = document.createRange();
+		const sel = window.getSelection();
+		if (this.inputEl.childNodes.length > 0) {
+			range.selectNodeContents(this.inputEl);
+			range.collapse(false);
+			sel?.removeAllRanges();
+			sel?.addRange(range);
+		}
+	}
+
 	private async sendMessage(): Promise<void> {
 		// Extract text and inline chip file paths from contenteditable
 		const { text: message, chipFilePaths } = this.extractInputContent();
 		if (!message || this.isProcessing) return;
+
+		// Add to input history (avoid duplicates of last entry)
+		if (this.inputHistory.length === 0 || this.inputHistory[this.inputHistory.length - 1] !== message) {
+			this.inputHistory.push(message);
+		}
+		this.historyIndex = -1;  // Reset navigation
 
 		this.isProcessing = true;
 		this.updateUIState();
@@ -2370,6 +2490,9 @@ export class CopilotChatView extends ItemView {
 				});
 			}
 
+			// Log tool context for debugging
+			this.logToolContext();
+
 			if (this.plugin.settings.streaming) {
 				await this.copilotService.sendMessageStreaming(
 					fullMessage,
@@ -2568,6 +2691,251 @@ export class CopilotChatView extends ItemView {
 	}
 
 	/**
+	 * Execute a custom prompt with additional user arguments
+	 * This is called when user types /prompt-name additional text here
+	 */
+	private async executePromptWithArgs(promptInfo: CachedPromptInfo, userArgs: string): Promise<void> {
+		// Load the full prompt content
+		const fullPrompt = await this.plugin.promptCache.getFullPrompt(promptInfo.name);
+		if (!fullPrompt) {
+			new Notice(`Could not load prompt: ${promptInfo.name}`);
+			return;
+		}
+		
+		// Check for input variables that need user selection (have options)
+		const inputVariables = parseInputVariables(fullPrompt.content);
+		
+		if (inputVariables.length > 0) {
+			// Show modal to collect input for variables with options
+			const modal = new PromptInputModal(this.app, inputVariables, (values) => {
+				// Continue execution with collected values
+				this.executePromptWithInputValues(promptInfo, fullPrompt, userArgs, values);
+			});
+			modal.open();
+			return;
+		}
+		
+		// No input variables need collection - execute directly
+		await this.executePromptWithInputValues(promptInfo, fullPrompt, userArgs, new Map());
+	}
+
+	/**
+	 * Execute a prompt after input variables have been collected
+	 */
+	private async executePromptWithInputValues(
+		promptInfo: CachedPromptInfo, 
+		fullPrompt: { content: string; path: string; agent?: string; model?: string; tools?: string[]; timeout?: number },
+		userArgs: string,
+		inputValues: Map<string, string>
+	): Promise<void> {
+		// Ensure we have a session
+		await this.ensureSessionExists();
+		
+		// Clear welcome message if present
+		const welcomeEl = this.messagesContainer.querySelector(".vc-welcome");
+		if (welcomeEl) {
+			welcomeEl.remove();
+		}
+		
+		// Build display message showing prompt and inputs
+		let userMessage = `Run prompt: **${promptInfo.name}**\n\n> ${promptInfo.description}`;
+		if (userArgs) {
+			userMessage += `\n\n**Input:** ${userArgs}`;
+		}
+		if (inputValues.size > 0) {
+			for (const [name, value] of inputValues) {
+				userMessage += `\n\n**${name}:** ${value}`;
+			}
+		}
+		await this.renderMessage({ role: "user", content: userMessage, timestamp: new Date() });
+		
+		// Collect all used references for display
+		const usedReferences: UsedReference[] = [];
+		
+		// Track agent if specified in prompt
+		if (fullPrompt.agent) {
+			const agent = this.plugin.agentCache.getAgentByName(fullPrompt.agent);
+			if (agent) {
+				console.log(`[VC] Prompt specifies agent: ${agent.name}`);
+				usedReferences.push({
+					type: "agent",
+					name: agent.name,
+					path: agent.path
+				});
+			} else {
+				console.warn(`[VC] Agent "${fullPrompt.agent}" specified in prompt not found`);
+			}
+		}
+		
+		// Set processing state
+		this.isProcessing = true;
+		this.updateUIState();
+		
+		try {
+			// Process the prompt content with VS Code compatible variable replacement
+			let content = await this.promptProcessor.processVariables(fullPrompt.content, fullPrompt.path);
+			
+			// Process ${userInput} - simple replacement with user's additional input
+			content = content.replace(/\$\{userInput\}/g, userArgs || '[No input provided]');
+			
+			// Process ${input:name:...} variables - replace with collected values or defaults
+			content = this.processInputVariablesWithValues(content, inputValues);
+			
+			// Process Markdown file links and wikilinks - resolve and include referenced content (with tracking)
+			const { content: contentWithLinks, resolvedFiles } = await this.promptProcessor.resolveMarkdownFileLinksWithTracking(content, fullPrompt.path);
+			content = contentWithLinks;
+			
+			// Add resolved files from prompt to references
+			for (const file of resolvedFiles) {
+				usedReferences.push({
+					type: "context",
+					name: file.name,
+					path: file.path
+				});
+			}
+			
+			// Process #tool:name references in the body
+			content = this.promptProcessor.processToolReferences(content, fullPrompt.tools);
+
+			// Process user arguments if provided (including file references)
+			const fetchedUrls: string[] = [];
+			const loadedInlineNotes: string[] = [];
+			
+			if (userArgs) {
+				// Process #fetch URL references in user args
+				const { processedMessage: processedUserArgs, fetchedUrls: urls, fetchedContext } = await this.promptProcessor.processFetchReferences(userArgs);
+				fetchedUrls.push(...urls);
+				
+				// Extract and process [[filename]] inline references in user args
+				const inlineNoteRefs = this.extractInlineNoteReferences(processedUserArgs);
+				const inlineNoteContext: string[] = [];
+				for (const noteName of inlineNoteRefs) {
+					const file = this.app.metadataCache.getFirstLinkpathDest(noteName, "");
+					if (file) {
+						try {
+							const noteContent = await this.app.vault.cachedRead(file);
+							inlineNoteContext.push(`--- Content of "${file.path}" ---\n${noteContent}\n--- End of "${file.path}" ---`);
+							loadedInlineNotes.push(file.basename);
+							
+							// Add to references
+							usedReferences.push({
+								type: "context",
+								name: file.basename,
+								path: file.path
+							});
+						} catch (e) {
+							console.error(`Failed to read inline note reference: ${noteName}`, e);
+						}
+					}
+				}
+				
+				// Add fetched URLs to references
+				for (const url of fetchedUrls) {
+					try {
+						usedReferences.push({
+							type: "url",
+							name: new URL(url).hostname,
+							path: url
+						});
+					} catch {
+						usedReferences.push({
+							type: "url",
+							name: url,
+							path: url
+						});
+					}
+				}
+				
+				// Build the user args section only if there's fetched/referenced content
+				// (raw user input is already used for ${userInput} in the prompt)
+				if (fetchedContext.length > 0 || inlineNoteContext.length > 0) {
+					let userArgsSection = `\n\n---\n**Referenced content:**\n`;
+					
+					// Add fetched web content
+					if (fetchedContext.length > 0) {
+						userArgsSection += `\n${fetchedContext.join("\n\n")}\n`;
+					}
+					
+					// Add inline note content
+					if (inlineNoteContext.length > 0) {
+						userArgsSection += `\n${inlineNoteContext.join("\n\n")}\n`;
+					}
+					
+					content += userArgsSection;
+				}
+			}
+			
+			// Render collapsible references section after the user message
+			if (usedReferences.length > 0) {
+				this.messageRenderer.renderUsedReferences(this.messagesContainer, usedReferences);
+			}
+
+			// Create streaming message element
+			this.currentStreamingMessageEl = this.createMessageElement("assistant", "");
+			this.scrollToBottom();
+
+			// Override model if specified in prompt
+			const originalModel = this.plugin.settings.model;
+			if (fullPrompt.model) {
+				this.copilotService.updateConfig({ model: fullPrompt.model });
+				console.log(`[VC] Prompt using model: ${fullPrompt.model}`);
+			}
+
+			// Calculate timeout (prompt can override default, specified in seconds, converted to ms)
+			const timeoutMs = fullPrompt.timeout ? fullPrompt.timeout * 1000 : undefined;
+
+			// Log tool context for debugging
+			this.logToolContext(fullPrompt.tools);
+
+			if (this.plugin.settings.streaming) {
+				await this.copilotService.sendMessageStreaming(
+					content,
+					(delta) => {
+						if (this.currentStreamingMessageEl) {
+							const contentEl = this.currentStreamingMessageEl.querySelector(".vc-message-content");
+							if (contentEl) {
+								contentEl.textContent += delta;
+							}
+						}
+						this.scrollToBottom();
+					},
+					async (fullContent) => {
+						if (this.currentStreamingMessageEl) {
+							await this.renderMarkdownContent(this.currentStreamingMessageEl, fullContent);
+							this.addCopyButton(this.currentStreamingMessageEl);
+						}
+						this.currentStreamingMessageEl = null;
+					},
+					timeoutMs
+				);
+			} else {
+				const response = await this.copilotService.sendMessage(content, timeoutMs);
+				if (this.currentStreamingMessageEl) {
+					await this.renderMarkdownContent(this.currentStreamingMessageEl, response);
+					this.addCopyButton(this.currentStreamingMessageEl);
+				}
+				this.currentStreamingMessageEl = null;
+			}
+
+			// Restore original model if we changed it
+			if (fullPrompt.model) {
+				this.copilotService.updateConfig({ model: originalModel });
+			}
+		} catch (error) {
+			new Notice(`Prompt execution error: ${error}`);
+			if (this.currentStreamingMessageEl) {
+				this.currentStreamingMessageEl.remove();
+				this.currentStreamingMessageEl = null;
+			}
+			this.addErrorMessage(String(error));
+		} finally {
+			this.isProcessing = false;
+			this.updateUIState();
+			this.scrollToBottom();
+		}
+	}
+
+	/**
 	 * Execute a custom prompt (VS Code compatible)
 	 */
 	private async executePrompt(promptInfo: CachedPromptInfo): Promise<void> {
@@ -2636,6 +3004,9 @@ export class CopilotChatView extends ItemView {
 				this.copilotService.updateConfig({ model: fullPrompt.model });
 				console.log(`[VC] Prompt using model: ${fullPrompt.model}`);
 			}
+
+			// Log tool context for debugging
+			this.logToolContext(fullPrompt.tools);
 
 			if (this.plugin.settings.streaming) {
 				await this.copilotService.sendMessageStreaming(
@@ -2716,6 +3087,33 @@ export class CopilotChatView extends ItemView {
 	}
 
 	/**
+	 * Process ${input:name:...} variables with pre-collected values
+	 */
+	private processInputVariablesWithValues(content: string, values: Map<string, string>): string {
+		// Match ${input:name:description} or ${input:name:description|opt1|opt2|...}
+		const inputRegex = /\$\{input:([^:}]+):([^}]+)\}/g;
+		
+		return content.replace(inputRegex, (match, varName, descAndOptions) => {
+			// Check if we have a collected value for this variable
+			if (values.has(varName)) {
+				return values.get(varName) || '';
+			}
+			
+			// Otherwise use first option as default
+			const parts = descAndOptions.split('|');
+			const options = parts.slice(1).map((opt: string) => opt.trim()).filter((opt: string) => opt);
+			
+			if (options.length > 0) {
+				return options[0];
+			}
+			
+			// No default available
+			const description = parts[0]?.trim() || varName;
+			return `[${description}]`;
+		});
+	}
+
+	/**
 	 * Extract [[filename]] inline note references from a message
 	 * Returns array of note names (without the brackets)
 	 */
@@ -2734,6 +3132,45 @@ export class CopilotChatView extends ItemView {
 			}
 		}
 		return noteRefs;
+	}
+
+	/**
+	 * Log tool context to SDK logs for debugging
+	 * Shows all available tools and which ones are enabled for this request
+	 */
+	private logToolContext(promptTools?: string[]): void {
+		if (!this.toolCatalog) return;
+		
+		const tracingService = getTracingService();
+		const currentSession = this.sessionManager.getCurrentSession();
+		const allTools = this.toolCatalog.getAllTools();
+		const enabledTools = this.toolCatalog.getEnabledTools(this.plugin.settings, currentSession);
+		const toolsBySource = this.toolCatalog.getToolsBySource();
+		
+		// Build detailed tool report
+		const lines: string[] = ['[Tool Context]'];
+		
+		// Prompt-specified tools (if any)
+		if (promptTools && promptTools.length > 0) {
+			lines.push(`\nPrompt specifies tools: ${promptTools.join(', ')}`);
+		}
+		
+		// Summary
+		lines.push(`\nEnabled: ${enabledTools.length}/${allTools.length} tools`);
+		
+		// Group by source
+		for (const [source, tools] of Object.entries(toolsBySource)) {
+			const sourceEnabled = tools.filter(t => enabledTools.includes(t.id));
+			if (tools.length > 0) {
+				lines.push(`\n[${source.toUpperCase()}] (${sourceEnabled.length}/${tools.length} enabled)`);
+				for (const tool of tools) {
+					const status = enabledTools.includes(tool.id) ? '✓' : '○';
+					lines.push(`  ${status} ${tool.id}`);
+				}
+			}
+		}
+		
+		tracingService.addSdkLog('info', lines.join('\n'), 'tool-context');
 	}
 
 	private scrollToBottom(): void {

@@ -5,10 +5,9 @@ date-modified: 2026-01-31
 description: Graduate-level tutor specialized in deep learning and mastery of specific topics
 name: tutor
 tools:
-  - create
-  - read
-  - search
-  - update
+  - list_notes_recursively
+  - read_note
+  - search_note
   - web_fetch
 ---
 

@@ -12,6 +12,7 @@ export class PromptPicker {
 	private filteredPrompts: CachedPromptInfo[] = [];
 	private onSelect: (prompt: CachedPromptInfo) => Promise<void>;
 	private getPrompts: () => CachedPromptInfo[];
+	private justSelected = false;  // Flag to prevent Enter auto-submit after selection
 
 	constructor(options: {
 		containerEl: HTMLElement;
@@ -30,6 +31,18 @@ export class PromptPicker {
 	 */
 	isVisible(): boolean {
 		return this.visible;
+	}
+
+	/**
+	 * Check if a selection just happened (and clear the flag)
+	 * Used to prevent Enter from auto-submitting right after selection
+	 */
+	checkAndClearJustSelected(): boolean {
+		if (this.justSelected) {
+			this.justSelected = false;
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -203,22 +216,27 @@ export class PromptPicker {
 		// Hide the picker
 		this.hide();
 		
-		if (selectedPrompt.path.startsWith('builtin:')) {
-			// It's a built-in slash command - just fill in the command name
-			this.inputEl.innerText = `/${selectedPrompt.name} `;
-			this.inputEl.focus();
-			// Move cursor to end
-			const range = document.createRange();
-			range.selectNodeContents(this.inputEl);
-			range.collapse(false);
-			const sel = window.getSelection();
-			if (sel) {
-				sel.removeAllRanges();
-				sel.addRange(range);
-			}
-		} else {
-			// It's a custom prompt - execute it
-			await this.onSelect(selectedPrompt);
+		// Set flag to prevent Enter from auto-submitting
+		this.justSelected = true;
+		
+		// Insert the prompt/command name into the input field
+		// Replace spaces with hyphens for slash command compatibility
+		// User can then add additional content before submitting
+		const normalizedName = selectedPrompt.name.replace(/\s+/g, '-');
+		this.inputEl.innerText = `/${normalizedName} `;
+		this.inputEl.focus();
+		
+		// Move cursor to end so user can type additional content
+		const range = document.createRange();
+		range.selectNodeContents(this.inputEl);
+		range.collapse(false);
+		const sel = window.getSelection();
+		if (sel) {
+			sel.removeAllRanges();
+			sel.addRange(range);
 		}
+		
+		// Trigger input event to update any listeners
+		this.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
 	}
 }

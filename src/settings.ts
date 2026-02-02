@@ -146,6 +146,8 @@ export interface CopilotPluginSettings {
 	cliPath: string;
 	cliUrl: string;
 	streaming: boolean;
+	/** Request timeout in milliseconds (default: 120000 = 2 minutes) */
+	requestTimeout: number;
 	/** Preferred timezone (IANA identifier, e.g., 'America/New_York'). If empty, uses system default. */
 	timezone: TimezoneId;
 	/** First day of the week for calendar calculations */
@@ -232,6 +234,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	cliPath: "",
 	cliUrl: "",
 	streaming: true,
+	requestTimeout: 120000, // 2 minutes
 	timezone: "", // Empty = use system default
 	weekStartDay: "sunday",
 	tracingEnabled: true,
@@ -636,6 +639,21 @@ export class CopilotSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// Request timeout
+		new Setting(section)
+			.setName("Request Timeout")
+			.setDesc("Maximum time to wait for AI responses (in seconds). Longer complex queries may need more time.")
+			.addText((text) => {
+				text
+					.setPlaceholder("120")
+					.setValue(String(this.plugin.settings.requestTimeout / 1000))
+					.onChange(async (value) => {
+						const seconds = parseInt(value, 10) || 120;
+						this.plugin.settings.requestTimeout = Math.max(10, seconds) * 1000; // Minimum 10 seconds
+						await this.plugin.saveSettings();
+					});
+			});
+
 		// Tracing toggle
 		new Setting(section)
 			.setName("Tracing")
@@ -993,14 +1011,6 @@ export class CopilotSettingTab extends PluginSettingTab {
 	}
 
 	private renderVoiceSettings(container: HTMLElement): void {
-		const voiceSection = container.createDiv({ cls: "vc-settings-section" });
-		voiceSection.createEl("h3", { text: "Voice Input" });
-		
-		voiceSection.createEl("p", { 
-			text: "Configure voice-to-text for hands-free chat input.",
-			cls: "vc-status-desc"
-		});
-
 		// Ensure voice settings exist
 		if (!this.plugin.settings.voice) {
 			this.plugin.settings.voice = {
@@ -1014,10 +1024,19 @@ export class CopilotSettingTab extends PluginSettingTab {
 			};
 		}
 
+		// Voice Input Section
+		const voiceSection = container.createDiv({ cls: "vc-settings-section" });
+		voiceSection.createEl("h3", { text: "Voice Input" });
+		
+		voiceSection.createEl("p", { 
+			text: "Configure voice-to-text for hands-free chat input.",
+			cls: "vc-status-desc"
+		});
+
 		// Container for voice input conditional settings
 		const voiceInputConditionalContainer = voiceSection.createDiv({ cls: "vc-voice-input-conditional" });
 
-		// 1. Enable Voice Input toggle - FIRST
+		// Enable Voice Input toggle
 		new Setting(voiceSection)
 			.setName("Enable Voice Input")
 			.setDesc("Show the microphone button in the chat view for voice-to-text input")
@@ -1032,6 +1051,40 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 		voiceSection.appendChild(voiceInputConditionalContainer);
 		this.renderVoiceInputConditionalSettings(voiceInputConditionalContainer);
+
+		// Realtime Voice Agent Section (separate)
+		this.renderRealtimeAgentSection(container);
+	}
+
+	/**
+	 * Render Realtime Voice Agent as a separate section
+	 */
+	private renderRealtimeAgentSection(container: HTMLElement): void {
+		const section = container.createDiv({ cls: "vc-settings-section" });
+		section.createEl("h3", { text: "Realtime Voice Agent (Experimental)" });
+		
+		section.createEl("p", { 
+			text: "Enable two-way voice conversations with an AI agent that can access your notes.",
+			cls: "vc-status-desc"
+		});
+
+		// Container for realtime agent conditional settings
+		const realtimeConditionalContainer = section.createDiv({ cls: "vc-realtime-conditional" });
+
+		new Setting(section)
+			.setName("Enable Realtime Agent")
+			.setDesc("Show the agent button next to the microphone for two-way voice conversations")
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.voice!.realtimeAgentEnabled || false);
+				toggle.onChange(async (value) => {
+					this.plugin.settings.voice!.realtimeAgentEnabled = value;
+					await this.plugin.saveSettings();
+					this.renderRealtimeConditionalSettings(realtimeConditionalContainer);
+				});
+			});
+
+		section.appendChild(realtimeConditionalContainer);
+		this.renderRealtimeConditionalSettings(realtimeConditionalContainer);
 	}
 
 	/**
@@ -1108,31 +1161,6 @@ export class CopilotSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
-
-		// 6. Realtime Agent Settings
-		container.createEl("h4", { text: "Realtime Voice Agent (Experimental)" });
-		container.createEl("p", { 
-			text: "Enable two-way voice conversations with an AI agent that can access your notes. This feature is experimental and may have issues.",
-			cls: "vc-status-desc"
-		});
-
-		// Container for realtime agent conditional settings
-		const realtimeConditionalContainer = container.createDiv({ cls: "vc-realtime-conditional" });
-
-		new Setting(container)
-			.setName("Enable Realtime Agent")
-			.setDesc("Show the agent button next to the microphone for two-way voice conversations")
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.voice!.realtimeAgentEnabled || false);
-				toggle.onChange(async (value) => {
-					this.plugin.settings.voice!.realtimeAgentEnabled = value;
-					await this.plugin.saveSettings();
-					this.renderRealtimeConditionalSettings(realtimeConditionalContainer);
-				});
-			});
-
-		container.appendChild(realtimeConditionalContainer);
-		this.renderRealtimeConditionalSettings(realtimeConditionalContainer);
 
 		// Container for conditional settings (created before backend dropdown so we can reference it)
 		const conditionalContainer = container.createDiv({ cls: "vc-voice-conditional" });
@@ -1968,10 +1996,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 	private renderAdvancedSettings(containerEl: HTMLElement): void {
 		const section = containerEl.createDiv({ cls: "vc-settings-section vc-settings-advanced" });
 		
-		const header = section.createEl("details");
-		header.createEl("summary", { text: "Advanced Settings" });
+		section.createEl("h2", { text: "Assistant Customization" });
 		
-		const content = header.createDiv({ cls: "vc-advanced-content" });
+		const content = section.createDiv({ cls: "vc-advanced-content" });
 
 		// Skill Directories Section
 		this.renderDirectoryList(

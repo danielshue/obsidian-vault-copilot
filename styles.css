@@ -597,7 +597,7 @@
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 6px;
-	padding: 8px 12px 4px 12px;
+	padding: 8px 12px 4px 0;
 }
 
 /* Attachments Container - inline with Add Context button */
@@ -4595,4 +4595,90 @@
 .vc-tool-approval-deny:hover {
 	background: var(--color-red);
 	color: white;
+}
+
+/* ================================
+   PROMPT INPUT MODAL
+   ================================ */
+
+.vc-prompt-input-modal {
+	width: 450px;
+	max-width: 90vw;
+}
+
+.vc-prompt-input-modal .modal-content {
+	padding: 0;
+}
+
+.vc-prompt-input-content {
+	display: flex;
+	flex-direction: column;
+	padding: 16px;
+	gap: 16px;
+}
+
+.vc-pi-group {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.vc-pi-label {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-pi-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.vc-pi-option {
+	padding: 8px 16px;
+	background: var(--background-modifier-hover);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	color: var(--text-normal);
+	font-size: 13px;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.vc-pi-option:hover {
+	background: var(--background-modifier-active-hover);
+	border-color: var(--interactive-accent);
+}
+
+.vc-pi-option-selected {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+.vc-pi-option-selected:hover {
+	background: var(--interactive-accent-hover);
+}
+
+.vc-pi-footer {
+	display: flex;
+	justify-content: flex-end;
+	padding-top: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-pi-submit {
+	padding: 8px 24px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	border-radius: 6px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.vc-pi-submit:hover {
+	background: var(--interactive-accent-hover);
 }
