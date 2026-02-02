@@ -169,8 +169,8 @@ export interface CopilotPluginSettings {
 	defaultDisabledTools?: string[];
 	/** Voice chat settings */
 	voice?: {
-		/** Voice backend: 'openai-whisper' or 'local-whisper' */
-		backend: 'openai-whisper' | 'local-whisper';
+		/** Voice backend: 'openai-whisper', 'azure-whisper', or 'local-whisper' */
+		backend: 'openai-whisper' | 'azure-whisper' | 'local-whisper';
 		/** URL of the local whisper.cpp server */
 		whisperServerUrl: string;
 		/** Language for voice recognition */
@@ -206,6 +206,15 @@ export interface CopilotPluginSettings {
 		};
 		/** Voice conversation history */
 		conversations?: VoiceConversation[];
+		/** Azure OpenAI settings for whisper */
+		azure?: {
+			/** Azure OpenAI endpoint (e.g., https://your-resource.openai.azure.com) */
+			endpoint: string;
+			/** Azure OpenAI deployment name for Whisper model */
+			deploymentName: string;
+			/** API version (default: 2024-06-01) */
+			apiVersion?: string;
+		};
 	};
 	/** OpenAI settings */
 	openai: OpenAISettings;
@@ -1019,10 +1028,11 @@ export class CopilotSettingTab extends PluginSettingTab {
 			.setDesc("Choose the speech-to-text service")
 			.addDropdown((dropdown) => {
 				dropdown.addOption('openai-whisper', 'OpenAI Whisper API (recommended)');
+				dropdown.addOption('azure-whisper', 'Azure OpenAI Whisper');
 				dropdown.addOption('local-whisper', 'Local Whisper Server');
 				dropdown.setValue(this.plugin.settings.voice!.backend);
 				dropdown.onChange(async (value) => {
-					this.plugin.settings.voice!.backend = value as 'openai-whisper' | 'local-whisper';
+					this.plugin.settings.voice!.backend = value as 'openai-whisper' | 'azure-whisper' | 'local-whisper';
 					await this.plugin.saveSettings();
 					// Re-render conditional settings
 					this.renderVoiceConditionalSettings(conditionalContainer);
@@ -1154,6 +1164,130 @@ export class CopilotSettingTab extends PluginSettingTab {
 						<li>Create a new secret key</li>
 						<li>Copy and paste here, or set <code>OPENAI_API_KEY</code> environment variable</li>
 					</ol>
+				</details>
+			`;
+
+		} else if (backend === 'azure-whisper') {
+			// Azure OpenAI Whisper settings
+			const azureSection = container.createDiv({ cls: "vc-voice-azure-settings" });
+			azureSection.createEl("h4", { text: "Azure OpenAI Whisper Settings" });
+			
+			// Import the Azure API key helper
+			const { getAzureOpenAIApiKey } = require('./voice-chat/AzureWhisperService');
+			
+			// API Key status indicator
+			const apiKeyFromEnv = getAzureOpenAIApiKey();
+			const hasEnvKey = !!apiKeyFromEnv;
+			
+			if (hasEnvKey) {
+				const envNotice = azureSection.createDiv({ cls: "vc-azure-env-notice" });
+				envNotice.innerHTML = `
+					<span class="vc-status-ok">✓</span>
+					<span>Using API key from <code>AZURE_OPENAI_KEY</code> environment variable</span>
+				`;
+			} else {
+				const envNotice = azureSection.createDiv({ cls: "vc-azure-env-notice vc-env-notice-warning" });
+				envNotice.innerHTML = `
+					<span class="vc-status-warning">⚠</span>
+					<span>Set <code>AZURE_OPENAI_KEY</code> environment variable with your Azure OpenAI API key</span>
+				`;
+			}
+
+			// Azure Endpoint
+			new Setting(azureSection)
+				.setName("Endpoint")
+				.setDesc("Your Azure OpenAI resource endpoint (e.g., https://your-resource.openai.azure.com)")
+				.addText((text) => {
+					text.setPlaceholder("https://your-resource.openai.azure.com");
+					text.setValue(this.plugin.settings.voice?.azure?.endpoint || "");
+					text.onChange(async (value) => {
+						if (!this.plugin.settings.voice) return;
+						if (!this.plugin.settings.voice.azure) {
+							this.plugin.settings.voice.azure = { endpoint: "", deploymentName: "" };
+						}
+						this.plugin.settings.voice.azure.endpoint = value;
+						await this.plugin.saveSettings();
+					});
+				});
+
+			// Deployment Name
+			new Setting(azureSection)
+				.setName("Deployment Name")
+				.setDesc("The name of your Whisper model deployment in Azure")
+				.addText((text) => {
+					text.setPlaceholder("whisper");
+					text.setValue(this.plugin.settings.voice?.azure?.deploymentName || "");
+					text.onChange(async (value) => {
+						if (!this.plugin.settings.voice) return;
+						if (!this.plugin.settings.voice.azure) {
+							this.plugin.settings.voice.azure = { endpoint: "", deploymentName: "" };
+						}
+						this.plugin.settings.voice.azure.deploymentName = value;
+						await this.plugin.saveSettings();
+					});
+				});
+
+			// API Version (optional)
+			new Setting(azureSection)
+				.setName("API Version")
+				.setDesc("Azure OpenAI API version (optional, defaults to 2024-06-01)")
+				.addText((text) => {
+					text.setPlaceholder("2024-06-01");
+					text.setValue(this.plugin.settings.voice?.azure?.apiVersion || "");
+					text.onChange(async (value) => {
+						if (!this.plugin.settings.voice) return;
+						if (!this.plugin.settings.voice.azure) {
+							this.plugin.settings.voice.azure = { endpoint: "", deploymentName: "" };
+						}
+						this.plugin.settings.voice.azure.apiVersion = value || undefined;
+						await this.plugin.saveSettings();
+					});
+				});
+
+			// Test button
+			new Setting(azureSection)
+				.setName("Test Connection")
+				.setDesc("Verify your Azure OpenAI configuration")
+				.addButton((button) => {
+					button.setButtonText("Test");
+					button.onClick(async () => {
+						button.setDisabled(true);
+						button.setButtonText("...");
+						try {
+							const { AzureWhisperService, getAzureOpenAIApiKey } = await import('./voice-chat/AzureWhisperService');
+							const service = new AzureWhisperService({
+								apiKey: getAzureOpenAIApiKey(),
+								endpoint: this.plugin.settings.voice?.azure?.endpoint,
+								deploymentName: this.plugin.settings.voice?.azure?.deploymentName,
+								apiVersion: this.plugin.settings.voice?.azure?.apiVersion,
+							});
+							const result = await service.testConnection();
+							if (result.success) {
+								new Notice("✓ Azure OpenAI connection successful!");
+							} else {
+								new Notice(`✗ Connection failed: ${result.error}`);
+							}
+						} catch (error) {
+							new Notice(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
+						}
+						button.setButtonText("Test");
+						button.setDisabled(false);
+					});
+				});
+
+			// Help text
+			const helpEl = azureSection.createDiv({ cls: "vc-azure-help" });
+			helpEl.innerHTML = `
+				<details>
+					<summary>Setting up Azure OpenAI Whisper</summary>
+					<ol>
+						<li>Go to the <a href="https://portal.azure.com/#blade/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/OpenAI" target="_blank">Azure OpenAI Service</a> in Azure Portal</li>
+						<li>Create or select an Azure OpenAI resource</li>
+						<li>Deploy a Whisper model (whisper-1 or whisper-large-v3)</li>
+						<li>Copy your endpoint URL and deployment name</li>
+						<li>Set your API key as <code>AZURE_OPENAI_KEY</code> environment variable</li>
+					</ol>
+					<p><a href="https://learn.microsoft.com/azure/ai-services/openai/whisper-quickstart" target="_blank">Azure OpenAI Whisper Documentation</a></p>
 				</details>
 			`;
 

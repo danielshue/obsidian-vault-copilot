@@ -3,10 +3,12 @@
  * Supports multiple backends:
  * - local-whisper: Uses MediaRecorder + local whisper.cpp server
  * - openai-whisper: Uses MediaRecorder + OpenAI Whisper API (recommended)
+ * - azure-whisper: Uses MediaRecorder + Azure OpenAI Whisper API
  */
 
 import { LocalWhisperService } from './LocalWhisperService';
 import { OpenAIWhisperService } from './OpenAIWhisperService';
+import { AzureWhisperService } from './AzureWhisperService';
 import {
 	RecordingState,
 	TranscriptionResult,
@@ -14,7 +16,7 @@ import {
 	VoiceChatEvents,
 } from './types';
 
-export type VoiceBackend = 'local-whisper' | 'openai-whisper';
+export type VoiceBackend = 'local-whisper' | 'openai-whisper' | 'azure-whisper';
 
 export interface VoiceChatServiceConfig {
 	/** Voice backend to use */
@@ -27,6 +29,14 @@ export interface VoiceChatServiceConfig {
 	openaiApiKey?: string;
 	/** OpenAI base URL (for openai-whisper backend) */
 	openaiBaseUrl?: string;
+	/** Azure OpenAI API key (for azure-whisper backend) */
+	azureApiKey?: string;
+	/** Azure OpenAI endpoint (for azure-whisper backend) */
+	azureEndpoint?: string;
+	/** Azure OpenAI deployment name (for azure-whisper backend) */
+	azureDeploymentName?: string;
+	/** Azure OpenAI API version (for azure-whisper backend) */
+	azureApiVersion?: string;
 	/** Audio input device ID (optional, uses default if not specified) */
 	audioDeviceId?: string;
 }
@@ -37,6 +47,10 @@ const DEFAULT_CONFIG: VoiceChatServiceConfig = {
 	whisperServerUrl: 'http://127.0.0.1:8080',
 	openaiApiKey: undefined,
 	openaiBaseUrl: undefined,
+	azureApiKey: undefined,
+	azureEndpoint: undefined,
+	azureDeploymentName: undefined,
+	azureApiVersion: undefined,
 	audioDeviceId: undefined,
 };
 
@@ -47,6 +61,7 @@ export class VoiceChatService {
 	private config: VoiceChatServiceConfig;
 	private localWhisper: LocalWhisperService | null = null;
 	private openaiWhisper: OpenAIWhisperService | null = null;
+	private azureWhisper: AzureWhisperService | null = null;
 	private activeBackend: VoiceBackend | null = null;
 	private state: RecordingState = 'idle';
 	private isInitialized: boolean = false;
@@ -68,6 +83,20 @@ export class VoiceChatService {
 				language: this.config.language?.split('-')[0] || 'en',
 			});
 			if (await openaiWhisper.isSupported()) {
+				return true;
+			}
+		}
+
+		// Check Azure whisper
+		if (this.config.backend === 'azure-whisper') {
+			const azureWhisper = new AzureWhisperService({
+				apiKey: this.config.azureApiKey,
+				endpoint: this.config.azureEndpoint,
+				deploymentName: this.config.azureDeploymentName,
+				apiVersion: this.config.azureApiVersion,
+				language: this.config.language?.split('-')[0] || 'en',
+			});
+			if (await azureWhisper.isSupported()) {
 				return true;
 			}
 		}
@@ -116,8 +145,34 @@ export class VoiceChatService {
 			}
 		}
 
+		// Try Azure whisper
+		if (this.config.backend === 'azure-whisper') {
+			try {
+				this.azureWhisper = new AzureWhisperService({
+					apiKey: this.config.azureApiKey,
+					endpoint: this.config.azureEndpoint,
+					deploymentName: this.config.azureDeploymentName,
+					apiVersion: this.config.azureApiVersion,
+					language: this.config.language?.split('-')[0] || 'en',
+					audioDeviceId: this.config.audioDeviceId,
+				});
+				
+				if (await this.azureWhisper.isSupported()) {
+					await this.azureWhisper.initialize();
+					this.activeBackend = 'azure-whisper';
+					this.isInitialized = true;
+					console.log('VoiceChatService: Initialized with azure-whisper backend');
+					return;
+				} else {
+					console.log('VoiceChatService: Azure Whisper not available, falling back');
+				}
+			} catch (error) {
+				console.log('VoiceChatService: Azure Whisper init failed, falling back:', error);
+			}
+		}
+
 		// Try local whisper
-		if (this.config.backend === 'local-whisper' || this.config.backend === 'openai-whisper') {
+		if (this.config.backend === 'local-whisper' || this.config.backend === 'openai-whisper' || this.config.backend === 'azure-whisper') {
 			try {
 				this.localWhisper = new LocalWhisperService({
 					serverUrl: this.config.whisperServerUrl,
@@ -143,7 +198,7 @@ export class VoiceChatService {
 			}
 		}
 
-		throw new Error('No voice backend available. Configure OpenAI API key or ensure whisper.cpp server is running.');
+		throw new Error('No voice backend available. Configure OpenAI API key, Azure OpenAI settings, or ensure whisper.cpp server is running.');
 	}
 
 	/**
@@ -186,6 +241,9 @@ export class VoiceChatService {
 			if (this.activeBackend === 'openai-whisper' && this.openaiWhisper) {
 				// OpenAI whisper: just start recording, transcription happens on stop
 				await this.openaiWhisper.startRecording();
+			} else if (this.activeBackend === 'azure-whisper' && this.azureWhisper) {
+				// Azure whisper: just start recording, transcription happens on stop
+				await this.azureWhisper.startRecording();
 			} else if (this.activeBackend === 'local-whisper' && this.localWhisper) {
 				// Local whisper: just start recording, transcription happens on stop
 				await this.localWhisper.startRecording();
@@ -214,6 +272,9 @@ export class VoiceChatService {
 			if (this.activeBackend === 'openai-whisper' && this.openaiWhisper) {
 				// OpenAI whisper: stop recording and transcribe via API
 				result = await this.openaiWhisper.stopRecording();
+			} else if (this.activeBackend === 'azure-whisper' && this.azureWhisper) {
+				// Azure whisper: stop recording and transcribe via API
+				result = await this.azureWhisper.stopRecording();
 			} else if (this.activeBackend === 'local-whisper' && this.localWhisper) {
 				// Local whisper: stop recording and transcribe via server
 				result = await this.localWhisper.stopRecording();
@@ -236,6 +297,8 @@ export class VoiceChatService {
 	cancelRecording(): void {
 		if (this.activeBackend === 'openai-whisper' && this.openaiWhisper) {
 			this.openaiWhisper.cancelRecording();
+		} else if (this.activeBackend === 'azure-whisper' && this.azureWhisper) {
+			this.azureWhisper.cancelRecording();
 		} else if (this.activeBackend === 'local-whisper' && this.localWhisper) {
 			this.localWhisper.cancelRecording();
 		}
@@ -281,6 +344,9 @@ export class VoiceChatService {
 		if (this.openaiWhisper) {
 			this.openaiWhisper.updateConfig({ language: language.split('-')[0] });
 		}
+		if (this.azureWhisper) {
+			this.azureWhisper.updateConfig({ language: language.split('-')[0] });
+		}
 	}
 
 	/**
@@ -320,6 +386,32 @@ export class VoiceChatService {
 			baseURL: this.config.openaiBaseUrl,
 		});
 		return await openaiWhisper.isSupported();
+	}
+
+	/**
+	 * Update Azure OpenAI settings
+	 */
+	setAzureConfig(apiKey?: string, endpoint?: string, deploymentName?: string, apiVersion?: string): void {
+		this.config.azureApiKey = apiKey;
+		this.config.azureEndpoint = endpoint;
+		this.config.azureDeploymentName = deploymentName;
+		this.config.azureApiVersion = apiVersion;
+		if (this.azureWhisper) {
+			this.azureWhisper.updateConfig({ apiKey, endpoint, deploymentName, apiVersion });
+		}
+	}
+
+	/**
+	 * Check if Azure Whisper is available
+	 */
+	async checkAzureWhisper(): Promise<boolean> {
+		const azureWhisper = new AzureWhisperService({
+			apiKey: this.config.azureApiKey,
+			endpoint: this.config.azureEndpoint,
+			deploymentName: this.config.azureDeploymentName,
+			apiVersion: this.config.azureApiVersion,
+		});
+		return await azureWhisper.isSupported();
 	}
 
 	/**
@@ -368,6 +460,10 @@ export class VoiceChatService {
 		if (this.openaiWhisper) {
 			this.openaiWhisper.destroy();
 			this.openaiWhisper = null;
+		}
+		if (this.azureWhisper) {
+			this.azureWhisper.destroy();
+			this.azureWhisper = null;
 		}
 		this.listeners.clear();
 		this.isInitialized = false;

@@ -2173,6 +2173,16 @@ export class CopilotChatView extends ItemView {
 		// Build message with attached notes context
 		let fullMessage = processedMessage;
 		
+		// Add selected agent instructions as context (prepended to message)
+		let agentInstructions: string | null = null;
+		if (this.selectedAgent) {
+			const fullAgent = await this.plugin.agentCache.getFullAgent(this.selectedAgent.name);
+			if (fullAgent?.instructions) {
+				agentInstructions = fullAgent.instructions;
+				fullMessage = `[Agent Instructions for "${fullAgent.name}"]\n${fullAgent.instructions}\n[End Agent Instructions]\n\nUser message:\n${fullMessage}`;
+			}
+		}
+		
 		// Add fetched web page content as context
 		if (fetchedContext.length > 0) {
 			fullMessage = `${fetchedContext.join("\n\n")}\n\n${fullMessage}`;

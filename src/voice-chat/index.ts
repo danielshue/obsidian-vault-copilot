@@ -1,5 +1,6 @@
 export { LocalWhisperService, type LocalWhisperConfig } from './LocalWhisperService';
 export { OpenAIWhisperService, type OpenAIWhisperConfig } from './OpenAIWhisperService';
+export { AzureWhisperService, type AzureWhisperConfig, getAzureOpenAIApiKey } from './AzureWhisperService';
 export { VoiceChatService, type VoiceChatServiceConfig, type VoiceBackend } from './VoiceChatService';
 
 // Re-export from refactored realtime-agent module
