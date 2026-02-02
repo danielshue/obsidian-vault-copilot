@@ -3852,6 +3852,18 @@
 	font-size: 11px;
 }
 
+.vc-sdk-log-source {
+	padding: 1px 4px;
+	border-radius: 3px;
+	font-size: 10px;
+	font-weight: 500;
+	flex-shrink: 0;
+	min-width: 36px;
+	text-align: center;
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
 .vc-sdk-log-level {
 	padding: 1px 4px;
 	border-radius: 3px;

@@ -8,7 +8,7 @@
  * - Session lifecycle (connect, disconnect, interrupt)
  */
 
-import { App } from "obsidian";
+import { App, requestUrl } from "obsidian";
 import { RealtimeAgent, RealtimeSession } from "@openai/agents/realtime";
 import type { tool } from "@openai/agents/realtime";
 import {
@@ -80,6 +80,81 @@ export abstract class BaseVoiceAgent {
 	 * Get the instructions for this agent (from markdown or hardcoded)
 	 */
 	abstract getInstructions(): string;
+
+	// =========================================================================
+	// Date/Time Context
+	// =========================================================================
+
+	/**
+	 * Get current date/time context to prepend to instructions.
+	 * This ensures the agent always knows the current date and time.
+	 * Uses the configured timezone and week start day from settings.
+	 */
+	protected getDateTimeContext(): string {
+		const now = new Date();
+		const timezone = this.config.timezone || undefined;
+		const weekStartDay = this.config.weekStartDay || "sunday";
+		
+		try {
+			const options: Intl.DateTimeFormatOptions = {
+				weekday: 'long',
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				timeZoneName: 'short',
+				...(timezone ? { timeZone: timezone } : {})
+			};
+			const formattedDate = now.toLocaleDateString('en-US', options);
+			
+			// Calculate ISO date in the configured timezone
+			let isoDate: string;
+			if (timezone) {
+				// Format date in the specified timezone using en-CA locale (gives YYYY-MM-DD format directly)
+				const tzOptions: Intl.DateTimeFormatOptions = {
+					year: 'numeric',
+					month: '2-digit',
+					day: '2-digit',
+					timeZone: timezone
+				};
+				// en-CA locale gives YYYY-MM-DD format directly
+				isoDate = new Intl.DateTimeFormat('en-CA', tzOptions).format(now);
+			} else {
+				const isoParts = now.toISOString().split('T');
+				isoDate = isoParts[0] || now.toISOString().substring(0, 10);
+			}
+			
+			// Capitalize week start day
+			const weekStartLabel = weekStartDay.charAt(0).toUpperCase() + weekStartDay.slice(1);
+			
+			return `## Current Date and Time\nToday is ${formattedDate}.\nFor tools and daily notes, use the date format: ${isoDate}\nWeek starts on: ${weekStartLabel}\n\n`;
+		} catch (e) {
+			// Fallback to system default if timezone is invalid
+			const options: Intl.DateTimeFormatOptions = {
+				weekday: 'long',
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				timeZoneName: 'short'
+			};
+			const formattedDate = now.toLocaleDateString('en-US', options);
+			const isoParts = now.toISOString().split('T');
+			const isoDate = isoParts[0] || now.toISOString().substring(0, 10);
+			
+			return `## Current Date and Time\nToday is ${formattedDate}.\nFor tools and daily notes, use the date format: ${isoDate}\n\n`;
+		}
+	}
+
+	/**
+	 * Get instructions with date/time context prepended.
+	 * Use this instead of getInstructions() when building the agent.
+	 */
+	protected getInstructionsWithContext(): string {
+		return this.getDateTimeContext() + this.getInstructions();
+	}
 
 	/**
 	 * Get the handoff description (when should other agents hand off to this one)
@@ -174,11 +249,12 @@ export abstract class BaseVoiceAgent {
 
 	/**
 	 * Get SDK RealtimeAgent instances for handoffs array
+	 * @param includeNestedHandoffs Whether to include nested handoffs (default: false to prevent recursion)
 	 */
-	protected getHandoffAgentInstances(): RealtimeAgent[] {
+	protected getHandoffAgentInstances(includeNestedHandoffs = false): RealtimeAgent[] {
 		const agents: RealtimeAgent[] = [];
 		for (const handoffAgent of this.handoffAgents.values()) {
-			const sdkAgent = handoffAgent.buildAgent();
+			const sdkAgent = handoffAgent.buildAgent(includeNestedHandoffs);
 			if (sdkAgent) {
 				agents.push(sdkAgent);
 			}
@@ -188,17 +264,24 @@ export abstract class BaseVoiceAgent {
 
 	/**
 	 * Build the RealtimeAgent instance with handoffs configured
+	 * @param includeHandoffs Whether to include handoff agents (default: true). Set to false when building as a handoff target to prevent infinite recursion.
 	 */
-	buildAgent(): RealtimeAgent {
+	buildAgent(includeHandoffs = true): RealtimeAgent {
+		// Return cached agent if already built with matching handoff config
+		if (this.agent) {
+			return this.agent;
+		}
+
 		const tools = this.getTools();
-		const handoffs = this.getHandoffAgentInstances();
+		// Only include handoffs for the main entry-point agent, not for nested handoff agents
+		const handoffs = includeHandoffs ? this.getHandoffAgentInstances(false) : [];
 
 		logger.info(`[${this.name}] Building agent with ${tools.length} tools and ${handoffs.length} handoffs`);
 
 		this.agent = new RealtimeAgent({
 			name: this.name,
 			handoffDescription: this.getHandoffDescription(),
-			instructions: this.getInstructions(),
+			instructions: this.getInstructionsWithContext(),
 			tools,
 			handoffs,
 			voice: this.config.voice || "alloy",
@@ -448,12 +531,47 @@ export abstract class BaseVoiceAgent {
 
 		// Handle errors
 		this.session.on("error", (error) => {
-			logger.debug(`[${this.name}] Session error:`, error);
+			// Log full error object for debugging
+			logger.debug(`[${this.name}] Session error (raw):`, error);
+			try {
+				logger.debug(`[${this.name}] Session error (JSON):`, JSON.stringify(error, null, 2));
+			} catch {
+				// Ignore JSON stringify errors
+			}
 
-			const errorObj = error as Record<string, unknown>;
-			const errorMessage = String(errorObj.error || errorObj.message || error);
+			// Extract error message from various error object shapes
+			let errorMessage: string;
+			if (error instanceof Error) {
+				errorMessage = error.message;
+			} else if (typeof error === 'string') {
+				errorMessage = error;
+			} else if (typeof error === 'object' && error !== null) {
+				const errorObj = error as Record<string, unknown>;
+				// Try common error properties
+				if (typeof errorObj.error === 'string') {
+					errorMessage = errorObj.error;
+				} else if (typeof errorObj.message === 'string') {
+					errorMessage = errorObj.message;
+				} else if (typeof errorObj.error === 'object' && errorObj.error !== null) {
+					// Nested error object (common in API responses)
+					const nested = errorObj.error as Record<string, unknown>;
+					errorMessage = String(nested.message || nested.code || JSON.stringify(nested));
+				} else {
+					// Fallback to JSON stringify
+					errorMessage = JSON.stringify(error);
+				}
+			} else {
+				errorMessage = String(error);
+			}
 
-			const transientErrors = ["buffer", "audio", "timeout", "reconnect", "interrupt"];
+			const transientErrors = [
+				"buffer", 
+				"audio", 
+				"timeout", 
+				"reconnect", 
+				"interrupt",
+				"conversation_already_has_active_response", // Occurs when context sent during response generation
+			];
 			const isTransient = transientErrors.some((t) =>
 				errorMessage.toLowerCase().includes(t)
 			);
@@ -472,31 +590,29 @@ export abstract class BaseVoiceAgent {
 
 	/**
 	 * Get ephemeral key for WebRTC connection
+	 * Uses Obsidian's requestUrl to bypass CORS restrictions
 	 */
 	protected async getEphemeralKey(): Promise<string> {
-		const response = await fetch(
-			"https://api.openai.com/v1/realtime/client_secrets",
-			{
-				method: "POST",
-				headers: {
-					Authorization: `Bearer ${this.config.apiKey}`,
-					"Content-Type": "application/json",
+		const response = await requestUrl({
+			url: "https://api.openai.com/v1/realtime/client_secrets",
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${this.config.apiKey}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				session: {
+					type: "realtime",
+					model: REALTIME_MODEL,
 				},
-				body: JSON.stringify({
-					session: {
-						type: "realtime",
-						model: REALTIME_MODEL,
-					},
-				}),
-			}
-		);
+			}),
+		});
 
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Failed to get ephemeral key: ${response.status} ${error}`);
+		if (response.status !== 200) {
+			throw new Error(`Failed to get ephemeral key: ${response.status} ${response.text}`);
 		}
 
-		const data = await response.json();
+		const data = response.json;
 		return data.client_secret?.value || data.value;
 	}
 

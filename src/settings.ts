@@ -7,6 +7,7 @@ import { DiscoveredMcpServer, isStdioConfig, McpConnectionStatus, McpServerSourc
 import { getSourceLabel, getSourceIcon } from "./copilot/McpManager";
 import { ToolCatalog } from "./copilot/ToolCatalog";
 import { ToolPickerModal } from "./ui/ChatView";
+import { FileSuggest } from "./ui/FileSuggest";
 import { AIProviderType, getOpenAIApiKey } from "./copilot/AIProvider";
 import { OpenAIService } from "./copilot/OpenAIService";
 import { RealtimeVoice, TurnDetectionMode, RealtimeToolConfig, DEFAULT_TOOL_CONFIG } from "./voice-chat";
@@ -132,6 +133,12 @@ export const DEFAULT_PERIODIC_NOTES: PeriodicNotesSettings = {
 	},
 };
 
+/** Supported timezone identifiers (IANA Time Zone Database) */
+export type TimezoneId = string; // e.g., 'America/New_York', 'Europe/London', 'Asia/Tokyo', 'UTC'
+
+/** Day of the week */
+export type WeekStartDay = 'sunday' | 'monday' | 'saturday';
+
 export interface CopilotPluginSettings {
 	/** AI provider to use: 'copilot' or 'openai' */
 	aiProvider: AIProviderType;
@@ -139,6 +146,10 @@ export interface CopilotPluginSettings {
 	cliPath: string;
 	cliUrl: string;
 	streaming: boolean;
+	/** Preferred timezone (IANA identifier, e.g., 'America/New_York'). If empty, uses system default. */
+	timezone: TimezoneId;
+	/** First day of the week for calendar calculations */
+	weekStartDay: WeekStartDay;
 	/** Enable tracing to capture agent execution details */
 	tracingEnabled: boolean;
 	showInStatusBar: boolean;
@@ -182,6 +193,17 @@ export interface CopilotPluginSettings {
 		realtimeToolConfig?: RealtimeToolConfig;
 		/** Directories to search for voice agent definition files (*.voice-agent.md) */
 		voiceAgentDirectories?: string[];
+		/** Per-agent definition file paths (takes precedence over directory scanning) */
+		voiceAgentFiles?: {
+			/** Main Vault Assistant definition file */
+			mainAssistant?: string;
+			/** Note Manager definition file */
+			noteManager?: string;
+			/** Task Manager definition file */
+			taskManager?: string;
+			/** WorkIQ agent definition file */
+			workiq?: string;
+		};
 		/** Voice conversation history */
 		conversations?: VoiceConversation[];
 	};
@@ -197,7 +219,9 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	cliPath: "",
 	cliUrl: "",
 	streaming: true,
-	tracingEnabled: false,
+	timezone: "", // Empty = use system default
+	weekStartDay: "sunday",
+	tracingEnabled: true,
 	showInStatusBar: true,
 	sessions: [],
 	activeSessionId: null,
@@ -217,6 +241,12 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 		realtimeLanguage: 'en',
 		realtimeToolConfig: { ...DEFAULT_TOOL_CONFIG },
 		voiceAgentDirectories: ["Reference/Agents"],
+		voiceAgentFiles: {
+			mainAssistant: "Reference/Agents/main-vault-assistant.voice-agent.md",
+			noteManager: "Reference/Agents/note-manager.voice-agent.md",
+			taskManager: "Reference/Agents/task-manager.voice-agent.md",
+			workiq: "Reference/Agents/workiq.voice-agent.md",
+		},
 	},
 	openai: {
 		enabled: false,
@@ -553,6 +583,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// Date & Time Preferences Section
+		this.renderDateTimeSettings(this.mainSettingsContainer);
+
 		// Tool Selection Defaults Section
 		const toolSection = this.mainSettingsContainer.createDiv({ cls: "vc-settings-section" });
 		toolSection.createEl("h3", { text: "Tool Selection" });
@@ -595,6 +628,122 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 		// Voice Chat Settings Section
 		this.renderVoiceSettings(this.mainSettingsContainer);
+	}
+
+	private renderDateTimeSettings(container: HTMLElement): void {
+		const section = container.createDiv({ cls: "vc-settings-section" });
+		section.createEl("h3", { text: "Date & Time" });
+		
+		section.createEl("p", { 
+			text: "Configure your preferred timezone and week start day. These settings are used throughout Vault Copilot for date calculations and AI context.",
+			cls: "vc-status-desc"
+		});
+
+		// Common IANA timezones organized by region
+		const timezones = [
+			{ value: "", name: "System Default" },
+			// Americas
+			{ value: "America/New_York", name: "Eastern Time (US & Canada)" },
+			{ value: "America/Chicago", name: "Central Time (US & Canada)" },
+			{ value: "America/Denver", name: "Mountain Time (US & Canada)" },
+			{ value: "America/Los_Angeles", name: "Pacific Time (US & Canada)" },
+			{ value: "America/Anchorage", name: "Alaska" },
+			{ value: "Pacific/Honolulu", name: "Hawaii" },
+			{ value: "America/Toronto", name: "Eastern Time (Canada)" },
+			{ value: "America/Vancouver", name: "Pacific Time (Canada)" },
+			{ value: "America/Sao_Paulo", name: "Brasilia Time" },
+			{ value: "America/Mexico_City", name: "Mexico City" },
+			// Europe
+			{ value: "Europe/London", name: "London (GMT/BST)" },
+			{ value: "Europe/Paris", name: "Paris (CET)" },
+			{ value: "Europe/Berlin", name: "Berlin (CET)" },
+			{ value: "Europe/Madrid", name: "Madrid (CET)" },
+			{ value: "Europe/Rome", name: "Rome (CET)" },
+			{ value: "Europe/Amsterdam", name: "Amsterdam (CET)" },
+			{ value: "Europe/Moscow", name: "Moscow" },
+			// Asia/Pacific
+			{ value: "Asia/Tokyo", name: "Tokyo (JST)" },
+			{ value: "Asia/Hong_Kong", name: "Hong Kong (HKT)" },
+			{ value: "Asia/Shanghai", name: "China Standard Time" },
+			{ value: "Asia/Singapore", name: "Singapore (SGT)" },
+			{ value: "Asia/Seoul", name: "Seoul (KST)" },
+			{ value: "Asia/Kolkata", name: "India Standard Time" },
+			{ value: "Asia/Dubai", name: "Dubai (GST)" },
+			{ value: "Australia/Sydney", name: "Sydney (AEST)" },
+			{ value: "Australia/Melbourne", name: "Melbourne (AEST)" },
+			{ value: "Australia/Perth", name: "Perth (AWST)" },
+			{ value: "Pacific/Auckland", name: "Auckland (NZST)" },
+			// Universal
+			{ value: "UTC", name: "Coordinated Universal Time (UTC)" },
+		];
+
+		// Timezone selection
+		new Setting(section)
+			.setName("Timezone")
+			.setDesc("Your preferred timezone for date/time display. Used by voice agents and AI assistants.")
+			.addDropdown((dropdown) => {
+				for (const tz of timezones) {
+					dropdown.addOption(tz.value, tz.name);
+				}
+				dropdown.setValue(this.plugin.settings.timezone || "");
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.timezone = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// Week start day selection
+		new Setting(section)
+			.setName("Week Starts On")
+			.setDesc("The first day of the week for calendar calculations (affects weekly notes and date context)")
+			.addDropdown((dropdown) => {
+				dropdown.addOption("sunday", "Sunday");
+				dropdown.addOption("monday", "Monday");
+				dropdown.addOption("saturday", "Saturday");
+				dropdown.setValue(this.plugin.settings.weekStartDay || "sunday");
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.weekStartDay = value as WeekStartDay;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// Preview of current date/time
+		const previewContainer = section.createDiv({ cls: "vc-datetime-preview" });
+		this.updateDateTimePreview(previewContainer);
+	}
+
+	private updateDateTimePreview(container: HTMLElement): void {
+		container.empty();
+		const now = new Date();
+		const timezone = this.plugin.settings.timezone || undefined;
+		const weekStartDay = this.plugin.settings.weekStartDay || "sunday";
+		
+		try {
+			const options: Intl.DateTimeFormatOptions = {
+				weekday: 'long',
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				timeZoneName: 'short',
+				...(timezone ? { timeZone: timezone } : {})
+			};
+			
+			const formattedDate = now.toLocaleDateString('en-US', options);
+			
+			const previewText = container.createDiv({ cls: "vc-datetime-preview-text" });
+			previewText.createEl("span", { text: "Current time in this timezone: ", cls: "vc-preview-label" });
+			previewText.createEl("strong", { text: formattedDate });
+
+			const weekInfo = container.createDiv({ cls: "vc-datetime-preview-week" });
+			weekInfo.createEl("span", { text: `Week starts on: ${weekStartDay.charAt(0).toUpperCase() + weekStartDay.slice(1)}` });
+		} catch (e) {
+			container.createEl("span", { 
+				text: "Invalid timezone selection", 
+				cls: "vc-datetime-preview-error" 
+			});
+		}
 	}
 
 	private renderPeriodicNotesSettings(container: HTMLElement): void {
@@ -1212,6 +1361,89 @@ export class CopilotSettingTab extends PluginSettingTab {
 					};
 					await this.plugin.saveSettings();
 				});
+			});
+
+		// Voice Agent Definition Files Section
+		realtimeSection.createEl("h4", { text: "Voice Agent Definition Files", cls: "setting-item-heading" });
+		realtimeSection.createEl("p", {
+			text: "Configure the instruction/prompt files for each voice agent. Start typing to see suggestions, or type a path manually.",
+			cls: "vc-status-desc"
+		});
+
+		// Main Vault Assistant file
+		new Setting(realtimeSection)
+			.setName("Main Vault Assistant")
+			.setDesc("Orchestrator agent that routes requests to specialists")
+			.addText((text) => {
+				text.setPlaceholder("Reference/Agents/main-vault-assistant.voice-agent.md");
+				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.mainAssistant || "");
+				text.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					if (!this.plugin.settings.voice.voiceAgentFiles) {
+						this.plugin.settings.voice.voiceAgentFiles = {};
+					}
+					this.plugin.settings.voice.voiceAgentFiles.mainAssistant = value || undefined;
+					await this.plugin.saveSettings();
+				});
+				// Add file suggester for autocomplete
+				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
+			});
+
+		// Note Manager file
+		new Setting(realtimeSection)
+			.setName("Note Manager")
+			.setDesc("Specialist for reading, searching, and editing notes")
+			.addText((text) => {
+				text.setPlaceholder("Reference/Agents/note-manager.voice-agent.md");
+				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.noteManager || "");
+				text.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					if (!this.plugin.settings.voice.voiceAgentFiles) {
+						this.plugin.settings.voice.voiceAgentFiles = {};
+					}
+					this.plugin.settings.voice.voiceAgentFiles.noteManager = value || undefined;
+					await this.plugin.saveSettings();
+				});
+				// Add file suggester for autocomplete
+				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
+			});
+
+		// Task Manager file
+		new Setting(realtimeSection)
+			.setName("Task Manager")
+			.setDesc("Specialist for managing tasks (create, complete, list)")
+			.addText((text) => {
+				text.setPlaceholder("Reference/Agents/task-manager.voice-agent.md");
+				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.taskManager || "");
+				text.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					if (!this.plugin.settings.voice.voiceAgentFiles) {
+						this.plugin.settings.voice.voiceAgentFiles = {};
+					}
+					this.plugin.settings.voice.voiceAgentFiles.taskManager = value || undefined;
+					await this.plugin.saveSettings();
+				});
+				// Add file suggester for autocomplete
+				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
+			});
+
+		// WorkIQ file
+		new Setting(realtimeSection)
+			.setName("WorkIQ")
+			.setDesc("Microsoft 365 integration agent")
+			.addText((text) => {
+				text.setPlaceholder("Reference/Agents/workiq.voice-agent.md");
+				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.workiq || "");
+				text.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					if (!this.plugin.settings.voice.voiceAgentFiles) {
+						this.plugin.settings.voice.voiceAgentFiles = {};
+					}
+					this.plugin.settings.voice.voiceAgentFiles.workiq = value || undefined;
+					await this.plugin.saveSettings();
+				});
+				// Add file suggester for autocomplete
+				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
 			});
 	}
 

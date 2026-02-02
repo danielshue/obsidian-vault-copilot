@@ -665,7 +665,10 @@ export class CopilotChatView extends ItemView {
 			mcpManager: this.plugin.mcpManager,
 			toolConfig: this.plugin.settings.voice?.realtimeToolConfig,
 			voiceAgentDirectories: this.plugin.settings.voice?.voiceAgentDirectories,
+			voiceAgentFiles: this.plugin.settings.voice?.voiceAgentFiles,
 			periodicNotesSettings: this.plugin.settings.periodicNotes,
+			timezone: this.plugin.settings.timezone,
+			weekStartDay: this.plugin.settings.weekStartDay,
 		});
 
 		// Subscribe to state changes
@@ -692,7 +695,11 @@ export class CopilotChatView extends ItemView {
 		// Subscribe to errors
 		this.realtimeAgentUnsubscribes.push(
 			this.realtimeAgentService.on('error', (error) => {
-				new Notice(`Voice agent error: ${error.message}`);
+				const errorMessage = error instanceof Error 
+					? error.message 
+					: (typeof error === 'string' ? error : JSON.stringify(error));
+				new Notice(`Voice agent error: ${errorMessage}`);
+				console.error('[VoiceAgent] Error:', error);
 			})
 		);
 

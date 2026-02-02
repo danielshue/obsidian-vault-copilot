@@ -42,20 +42,26 @@ You are the main coordinator that routes requests to specialist agents:
 
 ### Note Operations → Note Manager
 For anything involving notes (reading, searching, creating, editing notes), hand off to the **Note Manager** specialist.
+Trigger phrases: "switch to notes", "note manager", "help with notes", "open a note", "read a note", "find notes"
 
 ### Task Operations → Task Manager  
 For task management (marking tasks complete, creating tasks, listing tasks), hand off to the **Task Manager** specialist.
+Trigger phrases: "switch to tasks", "task manager", "help with tasks", "mark tasks", "complete tasks", "create a task"
 
 ### Web Operations → You handle directly
 You can directly help with:
 - Fetching web pages
 - Searching the web for information
 
+### Returning from Specialists
+When users say "switch to main", "main assistant", "general help", "go back", or "return to main", they want to return to you for general assistance.
+
 ## Context Updates
 When [INTERNAL CONTEXT UPDATE] messages arrive, note them silently - do not speak about them.
 
 ## Response Style
 Be conversational and brief. Route requests efficiently to the right specialist.
+When you hand off, briefly acknowledge: "Switching to Note Manager" or "Handing off to Task Manager".
 `;
 
 /**
@@ -174,10 +180,6 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 					},
 					turnDetection: {
 						type: this.config.turnDetection || "server_vad",
-						threshold: 0.5,
-						prefix_padding_ms: 300,
-						silence_duration_ms: 500,
-						create_response: true,
 					},
 				},
 			});
@@ -237,23 +239,52 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 	private loadedDefinitions: VoiceAgentDefinition[] = [];
 
 	/**
-	 * Load voice agent definitions from configured directories
-	 * Uses the VoiceAgentRegistry to know which definition files to look for.
+	 * Load voice agent definitions from explicit file paths or directories.
+	 * Explicit file paths (voiceAgentFiles) take precedence over directory scanning.
 	 */
 	private async loadVoiceAgentDefinitions(): Promise<void> {
-		const directories = (this.config as MainVaultAssistantConfig).voiceAgentDirectories;
-		
-		if (!directories || directories.length === 0) {
-			logger.info(`[${this.name}] No voice agent directories configured, using defaults`);
-			return;
-		}
+		const config = this.config as MainVaultAssistantConfig;
+		const explicitFiles = config.voiceAgentFiles;
+		const directories = config.voiceAgentDirectories;
 
 		try {
-			// Load all voice agent definitions from directories
-			this.loadedDefinitions = await this.customizationLoader.loadVoiceAgents(directories);
-			logger.info(`[${this.name}] Loaded ${this.loadedDefinitions.length} voice agent definitions`);
+			// Strategy 1: Load from explicit file paths (preferred)
+			if (explicitFiles) {
+				const fileMap: Record<string, string | undefined> = {
+					mainAssistant: explicitFiles.mainAssistant,
+					noteManager: explicitFiles.noteManager,
+					taskManager: explicitFiles.taskManager,
+					workiq: explicitFiles.workiq,
+				};
 
-			// Find the main vault assistant definition by file name or agent name
+				for (const [agentKey, filePath] of Object.entries(fileMap)) {
+					if (filePath) {
+						const definition = await this.customizationLoader.loadVoiceAgentFromFile(filePath);
+						if (definition) {
+							this.loadedDefinitions.push(definition);
+							logger.info(`[${this.name}] Loaded ${agentKey} definition from: ${filePath}`);
+						} else {
+							logger.debug(`[${this.name}] Could not load ${agentKey} from: ${filePath}`);
+						}
+					}
+				}
+			}
+
+			// Strategy 2: Fall back to directory scanning if no explicit files or to supplement
+			if (directories && directories.length > 0 && this.loadedDefinitions.length === 0) {
+				const dirDefinitions = await this.customizationLoader.loadVoiceAgents(directories);
+				// Only add definitions not already loaded
+				for (const def of dirDefinitions) {
+					if (!this.loadedDefinitions.some(d => d.path === def.path || d.name === def.name)) {
+						this.loadedDefinitions.push(def);
+					}
+				}
+				logger.info(`[${this.name}] Loaded ${dirDefinitions.length} definitions from directories`);
+			}
+
+			logger.info(`[${this.name}] Total voice agent definitions loaded: ${this.loadedDefinitions.length}`);
+
+			// Find the main vault assistant definition
 			this.voiceAgentDefinition = this.loadedDefinitions.find(
 				(a) => 
 					a.path?.endsWith(MAIN_ASSISTANT_DEFINITION_FILE) ||
@@ -325,7 +356,7 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 			}
 		}
 
-		// Phase 2: Wire up cross-handoffs between specialist agents
+		// Phase 2: Wire up cross-handoffs between specialist agents from definitions
 		for (const [agentName, { agent, definition }] of createdAgents) {
 			const handoffNames = definition?.handoffs || [];
 			
@@ -336,6 +367,22 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 					logger.info(`[${this.name}] Wired cross-handoff: ${agentName} → ${handoffName}`);
 				} else {
 					logger.warn(`[${this.name}] Handoff target not found: ${agentName} → ${handoffName}`);
+				}
+			}
+		}
+
+		// Phase 3: Wire up default cross-handoffs between all specialists
+		// This allows specialists to hand off to each other even without explicit definition
+		for (const [agentName, { agent }] of createdAgents) {
+			// Register Main Vault Assistant as handoff target (so specialists can return)
+			agent.registerHandoff(this);
+			logger.info(`[${this.name}] Wired return handoff: ${agentName} → ${this.name}`);
+
+			// Register all other specialists as handoff targets
+			for (const [otherName, { agent: otherAgent }] of createdAgents) {
+				if (agentName !== otherName) {
+					agent.registerHandoff(otherAgent);
+					logger.info(`[${this.name}] Wired default cross-handoff: ${agentName} → ${otherName}`);
 				}
 			}
 		}

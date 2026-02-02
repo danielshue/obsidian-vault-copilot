@@ -499,4 +499,41 @@ private getFolderFromPath(dir: string): TFolder | null {
 		const voiceAgents = await this.loadVoiceAgents(directories);
 		return voiceAgents.find(a => a.name === name);
 	}
+
+	/**
+	 * Load a voice agent definition from a specific file path
+	 */
+	async loadVoiceAgentFromFile(filePath: string): Promise<VoiceAgentDefinition | null> {
+		try {
+			const file = this.app.vault.getAbstractFileByPath(filePath);
+			if (!file || !(file instanceof TFile)) {
+				console.log(`[VC] Voice agent file not found: "${filePath}"`);
+				return null;
+			}
+
+			const content = await this.app.vault.read(file);
+			const { frontmatter, body } = parseFrontmatter(content);
+
+			if (frontmatter.name) {
+				const definition: VoiceAgentDefinition = {
+					name: String(frontmatter.name),
+					description: frontmatter.description ? String(frontmatter.description) : '',
+					handoffDescription: frontmatter.handoffDescription ? String(frontmatter.handoffDescription) : '',
+					voice: frontmatter.voice ? String(frontmatter.voice) : undefined,
+					tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : [],
+					handoffs: Array.isArray(frontmatter.handoffs) ? frontmatter.handoffs : [],
+					path: file.path,
+					instructions: body,
+				};
+				console.log(`[VC] Loaded voice agent: ${frontmatter.name} from ${file.path}`);
+				return definition;
+			}
+
+			console.log(`[VC] Voice agent file missing 'name' in frontmatter: "${filePath}"`);
+			return null;
+		} catch (error) {
+			console.error(`[VC] Failed to load voice agent from ${filePath}:`, error);
+			return null;
+		}
+	}
 }

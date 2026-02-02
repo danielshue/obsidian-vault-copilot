@@ -2,10 +2,17 @@
  * TracingService - Captures and stores traces from the OpenAI Agents SDK
  * 
  * Uses the SDK's trace processor API to intercept traces and spans
- * for local viewing and debugging.
+ * for local viewing and debugging. Traces are persisted to IndexedDB
+ * to survive plugin reloads and Obsidian restarts.
  */
 
 import { addTraceProcessor, getGlobalTraceProvider } from "@openai/agents";
+
+/** IndexedDB database name and version */
+const DB_NAME = "VaultCopilotTracing";
+const DB_VERSION = 1;
+const TRACES_STORE = "traces";
+const LOGS_STORE = "sdkLogs";
 
 /** Represents a single span within a trace */
 export interface TracingSpan {
@@ -50,9 +57,129 @@ export class TracingService {
 	private enabled: boolean = false;
 	private maxTraces: number = 50; // Keep last 50 traces
 	private processorAdded: boolean = false;
+	private db: IDBDatabase | null = null;
+	private dbInitialized: boolean = false;
 
 	constructor() {
-		// Traces are stored in memory
+		// Initialize IndexedDB
+		this.initializeDB();
+	}
+
+	/**
+	 * Initialize IndexedDB for persistence
+	 */
+	private async initializeDB(): Promise<void> {
+		try {
+			const request = indexedDB.open(DB_NAME, DB_VERSION);
+			
+			request.onerror = () => {
+				console.error("[TracingService] Failed to open IndexedDB:", request.error);
+			};
+			
+			request.onupgradeneeded = (event) => {
+				const db = (event.target as IDBOpenDBRequest).result;
+				
+				// Create traces store
+				if (!db.objectStoreNames.contains(TRACES_STORE)) {
+					const tracesStore = db.createObjectStore(TRACES_STORE, { keyPath: "traceId" });
+					tracesStore.createIndex("startedAt", "startedAt", { unique: false });
+				}
+				
+				// Create SDK logs store
+				if (!db.objectStoreNames.contains(LOGS_STORE)) {
+					const logsStore = db.createObjectStore(LOGS_STORE, { keyPath: "id", autoIncrement: true });
+					logsStore.createIndex("timestamp", "timestamp", { unique: false });
+				}
+			};
+			
+			request.onsuccess = () => {
+				this.db = request.result;
+				this.dbInitialized = true;
+				console.log("[TracingService] IndexedDB initialized");
+				
+				// Load existing traces from DB
+				this.loadTracesFromDB();
+				this.loadSdkLogsFromDB();
+			};
+		} catch (error) {
+			console.error("[TracingService] IndexedDB initialization error:", error);
+		}
+	}
+
+	/**
+	 * Load traces from IndexedDB
+	 */
+	private async loadTracesFromDB(): Promise<void> {
+		if (!this.db) return;
+		
+		try {
+			const transaction = this.db.transaction(TRACES_STORE, "readonly");
+			const store = transaction.objectStore(TRACES_STORE);
+			const request = store.getAll();
+			
+			request.onsuccess = () => {
+				const traces = request.result as TracingTrace[];
+				for (const trace of traces) {
+					this.traces.set(trace.traceId, trace);
+					// Rebuild spans map
+					for (const span of trace.spans) {
+						this.spans.set(span.spanId, span);
+					}
+				}
+				console.log(`[TracingService] Loaded ${traces.length} traces from IndexedDB`);
+			};
+			
+			request.onerror = () => {
+				console.error("[TracingService] Failed to load traces:", request.error);
+			};
+		} catch (error) {
+			console.error("[TracingService] Error loading traces:", error);
+		}
+	}
+
+	/**
+	 * Save a trace to IndexedDB
+	 */
+	private saveTraceToDB(trace: TracingTrace): void {
+		if (!this.db) return;
+		
+		try {
+			const transaction = this.db.transaction(TRACES_STORE, "readwrite");
+			const store = transaction.objectStore(TRACES_STORE);
+			store.put(trace);
+		} catch (error) {
+			console.error("[TracingService] Error saving trace:", error);
+		}
+	}
+
+	/**
+	 * Delete a trace from IndexedDB
+	 */
+	private deleteTraceFromDB(traceId: string): void {
+		if (!this.db) return;
+		
+		try {
+			const transaction = this.db.transaction(TRACES_STORE, "readwrite");
+			const store = transaction.objectStore(TRACES_STORE);
+			store.delete(traceId);
+		} catch (error) {
+			console.error("[TracingService] Error deleting trace:", error);
+		}
+	}
+
+	/**
+	 * Clear all traces from IndexedDB
+	 */
+	private clearTracesFromDB(): void {
+		if (!this.db) return;
+		
+		try {
+			const transaction = this.db.transaction(TRACES_STORE, "readwrite");
+			const store = transaction.objectStore(TRACES_STORE);
+			store.clear();
+		} catch (error) {
+			console.error("[TracingService] Error clearing traces:", error);
+		}
 	}
 
 	/**
@@ -106,6 +233,7 @@ export class TracingService {
 					};
 					
 					this.traces.set(trace.traceId, tracingTrace);
+					this.saveTraceToDB(tracingTrace);
 					this.emit({ type: "trace-started", trace: tracingTrace });
 					this.pruneOldTraces();
 				},
@@ -116,6 +244,7 @@ export class TracingService {
 					const tracingTrace = this.traces.get(trace.traceId);
 					if (tracingTrace) {
 						tracingTrace.endedAt = Date.now();
+						this.saveTraceToDB(tracingTrace);
 						this.emit({ type: "trace-ended", trace: tracingTrace });
 					}
 				},
@@ -140,6 +269,7 @@ export class TracingService {
 					const trace = this.traces.get(span.traceId);
 					if (trace) {
 						trace.spans.push(tracingSpan);
+						this.saveTraceToDB(trace);
 					}
 					
 					this.emit({ type: "span-started", span: tracingSpan });
@@ -155,6 +285,11 @@ export class TracingService {
 							tracingSpan.error = span.error instanceof Error 
 								? span.error.message 
 								: String(span.error);
+						}
+						// Save updated trace to DB
+						const trace = this.traces.get(span.traceId);
+						if (trace) {
+							this.saveTraceToDB(trace);
 						}
 						this.emit({ type: "span-ended", span: tracingSpan });
 					}
@@ -198,6 +333,7 @@ export class TracingService {
 	clearTraces(): void {
 		this.traces.clear();
 		this.spans.clear();
+		this.clearTracesFromDB();
 		console.log("[TracingService] Traces cleared");
 	}
 
@@ -217,6 +353,7 @@ export class TracingService {
 		};
 		
 		this.traces.set(traceId, trace);
+		this.saveTraceToDB(trace);
 		this.emit({ type: "trace-started", trace });
 		this.pruneOldTraces();
 		
@@ -232,6 +369,7 @@ export class TracingService {
 		const trace = this.traces.get(traceId);
 		if (trace) {
 			trace.endedAt = Date.now();
+			this.saveTraceToDB(trace);
 			this.emit({ type: "trace-ended", trace });
 		}
 	}
@@ -257,6 +395,7 @@ export class TracingService {
 		const trace = this.traces.get(traceId);
 		if (trace) {
 			trace.spans.push(span);
+			this.saveTraceToDB(trace);
 		}
 		
 		this.emit({ type: "span-started", span });
@@ -274,6 +413,11 @@ export class TracingService {
 			span.endedAt = Date.now();
 			if (error) {
 				span.error = error;
+			}
+			// Save updated trace to DB
+			const trace = this.traces.get(span.traceId);
+			if (trace) {
+				this.saveTraceToDB(trace);
 			}
 			this.emit({ type: "span-ended", span });
 		}
@@ -321,6 +465,7 @@ export class TracingService {
 				this.spans.delete(span.spanId);
 			}
 			this.traces.delete(traceId);
+			this.deleteTraceFromDB(traceId);
 		}
 	}
 
@@ -353,6 +498,82 @@ export class TracingService {
 	private maxSdkLogs: number = 500;
 
 	/**
+	 * Load SDK logs from IndexedDB
+	 */
+	private async loadSdkLogsFromDB(): Promise<void> {
+		if (!this.db) return;
+		
+		try {
+			const transaction = this.db.transaction(LOGS_STORE, "readonly");
+			const store = transaction.objectStore(LOGS_STORE);
+			const request = store.getAll();
+			
+			request.onsuccess = () => {
+				const logs = request.result as (SDKLogEntry & { id?: number })[];
+				// Remove the id property and keep only the last maxSdkLogs
+				this.sdkLogs = logs.slice(-this.maxSdkLogs).map(({ id, ...log }) => log);
+				console.log(`[TracingService] Loaded ${this.sdkLogs.length} SDK logs from IndexedDB`);
+			};
+			
+			request.onerror = () => {
+				console.error("[TracingService] Failed to load SDK logs:", request.error);
+			};
+		} catch (error) {
+			console.error("[TracingService] Error loading SDK logs:", error);
+		}
+	}
+
+	/**
+	 * Save an SDK log entry to IndexedDB
+	 */
+	private saveSdkLogToDB(entry: SDKLogEntry): void {
+		if (!this.db) return;
+		
+		try {
+			const transaction = this.db.transaction(LOGS_STORE, "readwrite");
+			const store = transaction.objectStore(LOGS_STORE);
+			store.add(entry);
+			
+			// Prune old logs from DB if needed
+			const countRequest = store.count();
+			countRequest.onsuccess = () => {
+				if (countRequest.result > this.maxSdkLogs) {
+					// Delete oldest logs
+					const index = store.index("timestamp");
+					const deleteCount = countRequest.result - this.maxSdkLogs;
+					let deleted = 0;
+					
+					index.openCursor().onsuccess = (event) => {
+						const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+						if (cursor && deleted < deleteCount) {
+							cursor.delete();
+							deleted++;
+							cursor.continue();
+						}
+					};
+				}
+			};
+		} catch (error) {
+			console.error("[TracingService] Error saving SDK log:", error);
+		}
+	}
+
+	/**
+	 * Clear SDK logs from IndexedDB
+	 */
+	private clearSdkLogsFromDB(): void {
+		if (!this.db) return;
+		
+		try {
+			const transaction = this.db.transaction(LOGS_STORE, "readwrite");
+			const store = transaction.objectStore(LOGS_STORE);
+			store.clear();
+		} catch (error) {
+			console.error("[TracingService] Error clearing SDK logs:", error);
+		}
+	}
+
+	/**
 	 * Add an SDK diagnostic log entry
 	 */
 	addSdkLog(level: 'debug' | 'info' | 'warning' | 'error', message: string, source: string = 'sdk'): void {
@@ -366,8 +587,9 @@ export class TracingService {
 		};
 		
 		this.sdkLogs.push(entry);
+		this.saveSdkLogToDB(entry);
 		
-		// Prune old logs
+		// Prune old logs in memory
 		if (this.sdkLogs.length > this.maxSdkLogs) {
 			this.sdkLogs = this.sdkLogs.slice(-this.maxSdkLogs);
 		}
@@ -385,6 +607,7 @@ export class TracingService {
 	 */
 	clearSdkLogs(): void {
 		this.sdkLogs = [];
+		this.clearSdkLogsFromDB();
 	}
 }
 

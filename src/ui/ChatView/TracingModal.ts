@@ -190,9 +190,12 @@ export class TracingModal extends Modal {
 			const emptyState = this.tracingContentEl.createDiv({ cls: "vc-tracing-empty" });
 			emptyState.createEl("p", { text: "No SDK logs captured yet." });
 			emptyState.createEl("p", { 
-				text: "SDK logs are captured when tracing is enabled during Copilot SDK operations.",
+				text: "SDK logs are captured from:",
 				cls: "vc-tracing-hint"
 			});
+			const list = emptyState.createEl("ul", { cls: "vc-tracing-hint" });
+			list.createEl("li", { text: "Realtime voice agent sessions" });
+			list.createEl("li", { text: "Copilot CLI operations" });
 			return;
 		}
 
@@ -220,6 +223,12 @@ export class TracingModal extends Modal {
 			entry.createSpan({ 
 				cls: "vc-sdk-log-time",
 				text: this.formatTime(log.timestamp)
+			});
+			
+			// Source badge
+			entry.createSpan({ 
+				cls: `vc-sdk-log-source`,
+				text: log.source === 'realtime-agent' ? 'voice' : 'cli'
 			});
 			
 			// Level badge

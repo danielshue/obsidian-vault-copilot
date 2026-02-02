@@ -339,7 +339,35 @@ export default class CopilotPlugin extends Plugin {
 	}
 
 	async loadSettings(): Promise<void> {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<CopilotPluginSettings>);
+		const savedData = await this.loadData() as Partial<CopilotPluginSettings> || {};
+		
+		// Deep merge to preserve nested object defaults (voice, openai, periodicNotes)
+		this.settings = {
+			...DEFAULT_SETTINGS,
+			...savedData,
+			// Deep merge nested objects - ensure required properties have defaults
+			voice: {
+				...DEFAULT_SETTINGS.voice,
+				...(savedData.voice || {}),
+				// Deep merge voiceAgentFiles
+				voiceAgentFiles: {
+					...DEFAULT_SETTINGS.voice?.voiceAgentFiles,
+					...(savedData.voice?.voiceAgentFiles || {}),
+				},
+				// Ensure required properties are set
+				backend: savedData.voice?.backend ?? DEFAULT_SETTINGS.voice?.backend ?? 'openai-whisper',
+				whisperServerUrl: savedData.voice?.whisperServerUrl ?? DEFAULT_SETTINGS.voice?.whisperServerUrl ?? 'http://127.0.0.1:8080',
+				language: savedData.voice?.language ?? DEFAULT_SETTINGS.voice?.language ?? 'auto',
+			},
+			openai: {
+				...DEFAULT_SETTINGS.openai,
+				...(savedData.openai || {}),
+			},
+			periodicNotes: {
+				...DEFAULT_SETTINGS.periodicNotes,
+				...(savedData.periodicNotes || {}),
+			},
+		};
 	}
 
 	async saveSettings(): Promise<void> {

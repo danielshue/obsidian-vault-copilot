@@ -2,6 +2,8 @@
  * Type definitions for the Realtime Agent Service
  */
 
+import { getTracingService } from "../copilot/TracingService";
+
 /** Default model for OpenAI Realtime API */
 export const REALTIME_MODEL = "gpt-4o-realtime-preview" as const;
 
@@ -98,12 +100,23 @@ export interface BaseVoiceAgentConfig {
 	mcpManager?: import("../copilot/McpManager").McpManager;
 	/** Periodic notes settings for weekly/monthly/quarterly/yearly notes */
 	periodicNotesSettings?: import("../settings").PeriodicNotesSettings;
+	/** Preferred timezone (IANA identifier, e.g., 'America/New_York'). If empty, uses system default. */
+	timezone?: string;
+	/** First day of the week for calendar calculations */
+	weekStartDay?: import("../settings").WeekStartDay;
 }
 
 /** Configuration for MainVaultAssistant (extends base config) */
 export interface MainVaultAssistantConfig extends BaseVoiceAgentConfig {
 	/** Directories to search for voice agent markdown files */
 	voiceAgentDirectories?: string[];
+	/** Per-agent definition file paths (takes precedence over directory scanning) */
+	voiceAgentFiles?: {
+		mainAssistant?: string;
+		noteManager?: string;
+		taskManager?: string;
+		workiq?: string;
+	};
 	/** Instructions for the agent (optional, can be loaded from markdown) */
 	instructions?: string;
 }
@@ -235,26 +248,50 @@ export function getLogLevel(): LogLevel {
 
 /**
  * Logger utility for realtime agent
+ * 
+ * Logs to console and also sends to TracingService for SDK log capture.
+ * Messages typically already include agent names (e.g., "[Main Vault Assistant] ...")
+ * so we don't add an additional prefix here.
  */
 export const logger = {
 	debug: (message: string, ...args: unknown[]): void => {
 		if (LOG_LEVELS[currentLogLevel] <= LOG_LEVELS.debug) {
-			console.log(`[RealtimeAgent] ${message}`, ...args);
+			console.log(message, ...args);
+			// Send to TracingService as SDK log
+			const fullMessage = args.length > 0 
+				? `${message} ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')}`
+				: message;
+			getTracingService().addSdkLog('debug', fullMessage, 'realtime-agent');
 		}
 	},
 	info: (message: string, ...args: unknown[]): void => {
 		if (LOG_LEVELS[currentLogLevel] <= LOG_LEVELS.info) {
-			console.log(`[RealtimeAgent] ${message}`, ...args);
+			console.log(message, ...args);
+			// Send to TracingService as SDK log
+			const fullMessage = args.length > 0 
+				? `${message} ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')}`
+				: message;
+			getTracingService().addSdkLog('info', fullMessage, 'realtime-agent');
 		}
 	},
 	warn: (message: string, ...args: unknown[]): void => {
 		if (LOG_LEVELS[currentLogLevel] <= LOG_LEVELS.warn) {
-			console.warn(`[RealtimeAgent] ${message}`, ...args);
+			console.warn(message, ...args);
+			// Send to TracingService as SDK log
+			const fullMessage = args.length > 0 
+				? `${message} ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')}`
+				: message;
+			getTracingService().addSdkLog('warning', fullMessage, 'realtime-agent');
 		}
 	},
 	error: (message: string, ...args: unknown[]): void => {
 		if (LOG_LEVELS[currentLogLevel] <= LOG_LEVELS.error) {
-			console.error(`[RealtimeAgent] ${message}`, ...args);
+			console.error(message, ...args);
+			// Send to TracingService as SDK log
+			const fullMessage = args.length > 0 
+				? `${message} ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')}`
+				: message;
+			getTracingService().addSdkLog('error', fullMessage, 'realtime-agent');
 		}
 	},
 };

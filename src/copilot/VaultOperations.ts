@@ -5,7 +5,7 @@
  * and can be used by multiple services (CopilotService, RealtimeAgentService, etc.)
  */
 
-import { App, TFile } from "obsidian";
+import { App, TFile, TFolder } from "obsidian";
 import {
 	parseTasksFromContent,
 	buildTaskLine,
@@ -205,6 +205,13 @@ export interface OpenDailyNoteResult {
 	path?: string;
 	created?: boolean;
 	error?: string;
+	/** When file not found, includes parsed date for clarity */
+	requestedDate?: string;
+	/** When file not found, lists nearby available daily notes */
+	nearbyNotes?: {
+		mostRecent?: string;
+		available: string[];
+	};
 }
 
 /**
@@ -323,6 +330,7 @@ export async function openDailyNote(
 		const config = getDailyNotesConfig(app);
 		const filename = formatDate(date, config.format);
 		const path = `${config.folder}/${filename}.md`;
+		const requestedDateStr = moment(date).format('YYYY-MM-DD');
 		
 		let file = app.vault.getAbstractFileByPath(path);
 		let created = false;
@@ -349,7 +357,14 @@ export async function openDailyNote(
 		}
 		
 		if (!file || !(file instanceof TFile)) {
-			return { success: false, error: `Daily note not found: ${path}` };
+			// File not found - scan folder for nearby notes
+			const nearbyNotes = await findNearbyDailyNotes(app, config.folder, date, config.format);
+			return { 
+				success: false, 
+				error: `Daily note not found for ${requestedDateStr}: ${path}`,
+				requestedDate: requestedDateStr,
+				nearbyNotes
+			};
 		}
 		
 		// Open the file
@@ -358,6 +373,50 @@ export async function openDailyNote(
 	} catch (error) {
 		return { success: false, error: `Failed to open daily note: ${error}` };
 	}
+}
+
+/**
+ * Find nearby daily notes when a requested date's note doesn't exist
+ */
+async function findNearbyDailyNotes(
+	app: App,
+	folder: string,
+	requestedDate: Date,
+	format: string
+): Promise<{ mostRecent?: string; available: string[] }> {
+	const folderObj = app.vault.getAbstractFileByPath(folder);
+	if (!folderObj || !(folderObj instanceof TFolder)) {
+		return { available: [] };
+	}
+	
+	const requestedMoment = moment(requestedDate);
+	const notes: { path: string; date: moment.Moment }[] = [];
+	
+	// Scan folder for markdown files and try to parse their dates
+	for (const child of folderObj.children) {
+		if (child instanceof TFile && child.extension === 'md') {
+			const basename = child.basename;
+			// Try to parse the filename as a date using the configured format
+			const parsed = moment(basename, format, true);
+			if (parsed.isValid()) {
+				notes.push({ path: child.path, date: parsed });
+			}
+		}
+	}
+	
+	// Sort by date descending (most recent first)
+	notes.sort((a, b) => b.date.valueOf() - a.date.valueOf());
+	
+	// Find the most recent note before or equal to the requested date
+	const beforeOrOn = notes.find(n => n.date.isSameOrBefore(requestedMoment, 'day'));
+	
+	// Return the 5 most recent notes as available
+	const available = notes.slice(0, 5).map(n => `${n.path} (${n.date.format('YYYY-MM-DD')})`);
+	
+	return {
+		mostRecent: beforeOrOn ? `${beforeOrOn.path} (${beforeOrOn.date.format('YYYY-MM-DD')})` : undefined,
+		available
+	};
 }
 
 // ============================================================================
