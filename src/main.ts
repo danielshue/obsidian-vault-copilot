@@ -2,6 +2,7 @@ import { Plugin, Notice, WorkspaceLeaf } from "obsidian";
 import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession } from "./settings";
 import { CopilotService, CopilotServiceConfig, ChatMessage } from "./copilot/CopilotService";
 import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/ChatView";
+import { CliManager } from "./copilot/CliManager";
 import { 
 	SkillRegistry, 
 	getSkillRegistry, 
@@ -227,6 +228,11 @@ export default class CopilotPlugin extends Plugin {
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
+		// Auto-discover available models from CLI if not already cached
+		if (!this.settings.availableModels || this.settings.availableModels.length === 0) {
+			this.discoverModels();
+		}
+
 		// Initialize tracing if enabled
 		if (this.settings.tracingEnabled) {
 			getTracingService().enable();
@@ -368,6 +374,26 @@ export default class CopilotPlugin extends Plugin {
 				...(savedData.periodicNotes || {}),
 			},
 		};
+	}
+
+	/**
+	 * Discover available models from CLI (runs in background, doesn't block startup)
+	 */
+	private async discoverModels(): Promise<void> {
+		const cliManager = new CliManager(this.settings.cliPath || undefined);
+		const status = await cliManager.getStatus();
+		
+		if (!status.installed) {
+			console.log("[CopilotPlugin] CLI not installed, skipping model discovery");
+			return;
+		}
+		
+		const result = await cliManager.fetchAvailableModels();
+		if (result.models.length > 0) {
+			this.settings.availableModels = result.models;
+			await this.saveSettings();
+			console.log(`[CopilotPlugin] Discovered ${result.models.length} models from CLI`);
+		}
 	}
 
 	async saveSettings(): Promise<void> {

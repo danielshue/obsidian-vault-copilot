@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon, Menu } from "obsidian";
 import { CopilotService, ChatMessage } from "../../copilot/CopilotService";
 import CopilotPlugin from "../../main";
-import { AVAILABLE_MODELS, CopilotSession, VoiceConversation, VoiceMessage } from "../../settings";
+import { getAvailableModels, getModelDisplayName, CopilotSession, VoiceConversation, VoiceMessage } from "../../settings";
 import { SessionPanel } from "./SessionPanel";
 import { CachedAgentInfo } from "../../copilot/AgentCache";
 import { CachedPromptInfo } from "../../copilot/PromptCache";
@@ -54,6 +54,7 @@ export class CopilotChatView extends ItemView {
 	private contextPickerEl: HTMLElement | null = null;
 	private contextPicker: ContextPicker | null = null;
 	private toolSelectorEl: HTMLButtonElement | null = null;
+	private modelSelectorEl: HTMLButtonElement | null = null;
 	private toolCatalog: ToolCatalog | null = null;
 	private promptProcessor: PromptProcessor;
 	private messageRenderer: MessageRenderer;
@@ -64,6 +65,7 @@ export class CopilotChatView extends ItemView {
 	private voiceChatService: VoiceChatService | null = null;
 	private voiceBtn: HTMLButtonElement | null = null;
 	private voiceStateUnsubscribe: (() => void) | null = null;
+	private toolbarRightEl: HTMLDivElement | null = null;
 	
 	// Realtime agent
 	private realtimeAgentService: MainVaultAssistant | null = null;
@@ -351,58 +353,33 @@ export class CopilotChatView extends ItemView {
 		});
 
 		// Model selector button
-		const modelSelector = toolbarLeft.createEl("button", { 
+		this.modelSelectorEl = toolbarLeft.createEl("button", { 
 			cls: "vc-model-selector",
 			attr: { "aria-label": "Select model" }
 		});
-		const updateModelSelectorText = () => {
-			const currentModel = AVAILABLE_MODELS.find(m => m.value === this.plugin.settings.model);
-			modelSelector.textContent = currentModel?.name || "Claude Sonnet 4.5";
-		};
-		updateModelSelectorText();
+		this.updateModelSelectorText();
 		
-		modelSelector.addEventListener("click", (e) => {
+		this.modelSelectorEl.addEventListener("click", (e) => {
 			const menu = new Menu();
+			const models = getAvailableModels(this.plugin.settings);
 			
-			// Auto section
-			const autoModel = AVAILABLE_MODELS.find(m => m.section === "auto");
-			if (autoModel) {
+			// Group models by prefix for better organization
+			const currentModel = this.plugin.settings.model;
+			
+			for (const modelId of models) {
 				menu.addItem((item) => {
-					item.setTitle(autoModel.name)
-						.setSection("auto")
+					item.setTitle(getModelDisplayName(modelId))
 						.onClick(async () => {
-							this.plugin.settings.model = autoModel.value;
+							this.plugin.settings.model = modelId;
 							await this.plugin.saveSettings();
-							this.copilotService.updateConfig({ model: autoModel.value });
-							updateModelSelectorText();
+							this.copilotService.updateConfig({ model: modelId });
+							this.updateModelSelectorText();
 						});
-					if (this.plugin.settings.model === autoModel.value) {
+					if (currentModel === modelId) {
 						item.setChecked(true);
 					}
-					const itemEl = (item as any).dom as HTMLElement;
-					const rateSpan = itemEl.createSpan({ cls: "vc-model-rate", text: autoModel.rate });
-					itemEl.appendChild(rateSpan);
 				});
 			}
-			
-			// Other models
-			AVAILABLE_MODELS.filter(m => m.section !== "auto").forEach((model) => {
-				menu.addItem((item) => {
-					item.setTitle(model.name)
-						.onClick(async () => {
-							this.plugin.settings.model = model.value;
-							await this.plugin.saveSettings();
-							this.copilotService.updateConfig({ model: model.value });
-							updateModelSelectorText();
-						});
-					if (this.plugin.settings.model === model.value) {
-						item.setChecked(true);
-					}
-					const itemEl = (item as any).dom as HTMLElement;
-					const rateSpan = itemEl.createSpan({ cls: "vc-model-rate", text: model.rate });
-					itemEl.appendChild(rateSpan);
-				});
-			});
 			
 			menu.showAtMouseEvent(e as MouseEvent);
 		});
@@ -417,38 +394,13 @@ export class CopilotChatView extends ItemView {
 		this.toolSelectorEl.addEventListener("click", () => this.openToolPicker());
 		
 		// Right side icons
-		const toolbarRight = inputToolbar.createDiv({ cls: "vc-toolbar-right" });
+		this.toolbarRightEl = inputToolbar.createDiv({ cls: "vc-toolbar-right" });
 		
-		// Realtime agent button - only shown when enabled in settings
-		if (this.plugin.settings.voice?.realtimeAgentEnabled) {
-			this.agentBtn = toolbarRight.createEl("button", { 
-				cls: "vc-toolbar-btn vc-agent-btn",
-				attr: { "aria-label": "Start voice agent" }
-			});
-			this.updateAgentButtonState('idle');
-			this.agentBtn.addEventListener("click", () => this.handleAgentToggle());
-			
-			// Initialize realtime agent service
-			this.initRealtimeAgentService();
-		}
-
-		// Voice button - wired up to VoiceChatService
-		this.voiceBtn = toolbarRight.createEl("button", { 
-			cls: "vc-toolbar-btn vc-voice-btn",
-			attr: { "aria-label": "Voice input" }
-		});
-		this.updateVoiceButtonState('idle');
-		this.voiceBtn.addEventListener("click", () => this.handleVoiceInput());
-		
-		// Subscribe to voice chat state changes
-		if (this.voiceChatService) {
-			this.voiceStateUnsubscribe = this.voiceChatService.on('stateChange', (state) => {
-				this.updateVoiceButtonState(state);
-			});
-		}
+		// Create voice/agent buttons based on current settings
+		this.createVoiceToolbarButtons();
 
 		// Send button
-		this.sendButton = toolbarRight.createEl("button", { 
+		this.sendButton = this.toolbarRightEl.createEl("button", { 
 			cls: "vc-send-btn",
 			attr: { "aria-label": "Send message" }
 		});
@@ -575,6 +527,101 @@ export class CopilotChatView extends ItemView {
 		this.autoResizeInput();
 		this.inputEl.focus();
 		console.log('insertTextAtCursor: Done, input now contains:', this.inputEl.textContent);
+	}
+
+	/**
+	 * Create voice/agent toolbar buttons based on current settings.
+	 * Should be called once during onOpen and again when settings change.
+	 */
+	private createVoiceToolbarButtons(): void {
+		if (!this.toolbarRightEl) return;
+
+		// Realtime agent button - only shown when enabled in settings
+		if (this.plugin.settings.voice?.realtimeAgentEnabled) {
+			this.agentBtn = this.toolbarRightEl.createEl("button", { 
+				cls: "vc-toolbar-btn vc-agent-btn",
+				attr: { "aria-label": "Start voice agent" }
+			});
+			this.updateAgentButtonState('idle');
+			this.agentBtn.addEventListener("click", () => this.handleAgentToggle());
+			
+			// Initialize realtime agent service
+			this.initRealtimeAgentService();
+		}
+
+		// Voice button - only shown when voice input is enabled in settings
+		if (this.plugin.settings.voice?.voiceInputEnabled) {
+			this.voiceBtn = this.toolbarRightEl.createEl("button", { 
+				cls: "vc-toolbar-btn vc-voice-btn",
+				attr: { "aria-label": "Voice input" }
+			});
+			this.updateVoiceButtonState('idle');
+			this.voiceBtn.addEventListener("click", () => this.handleVoiceInput());
+			
+			// Subscribe to voice chat state changes
+			if (this.voiceChatService) {
+				this.voiceStateUnsubscribe = this.voiceChatService.on('stateChange', (state) => {
+					this.updateVoiceButtonState(state);
+				});
+			}
+		}
+	}
+
+	/**
+	 * Refresh the voice/agent toolbar buttons when settings change.
+	 * Called from settings panel when it closes.
+	 */
+	refreshFromSettings(): void {
+		// Update model selector text
+		this.updateModelSelectorText();
+		
+		// Update copilot service with current model
+		this.copilotService.updateConfig({ model: this.plugin.settings.model });
+		
+		// Refresh voice toolbar
+		this.refreshVoiceToolbar();
+	}
+
+	/**
+	 * Update the model selector button text based on current settings.
+	 */
+	private updateModelSelectorText(): void {
+		if (!this.modelSelectorEl) return;
+		const currentModel = this.plugin.settings.model;
+		this.modelSelectorEl.textContent = getModelDisplayName(currentModel);
+	}
+
+	/**
+	 * Refresh the voice/agent toolbar buttons when settings change.
+	 */
+	private refreshVoiceToolbar(): void {
+		if (!this.toolbarRightEl || !this.sendButton) return;
+
+		// Clean up existing voice state subscription
+		if (this.voiceStateUnsubscribe) {
+			this.voiceStateUnsubscribe();
+			this.voiceStateUnsubscribe = null;
+		}
+
+		// Remove existing voice and agent buttons (keep send button)
+		if (this.agentBtn) {
+			this.agentBtn.remove();
+			this.agentBtn = null;
+		}
+		if (this.voiceBtn) {
+			this.voiceBtn.remove();
+			this.voiceBtn = null;
+		}
+
+		// Move send button to end temporarily
+		const sendButton = this.sendButton;
+		sendButton.remove();
+
+		// Recreate voice/agent buttons based on current settings
+		this.createVoiceToolbarButtons();
+
+		// Re-add send button at the end
+		this.toolbarRightEl.appendChild(sendButton);
 	}
 
 	/**

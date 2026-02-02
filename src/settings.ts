@@ -6,7 +6,7 @@ import { ChatMessage } from "./copilot/CopilotService";
 import { DiscoveredMcpServer, isStdioConfig, McpConnectionStatus, McpServerSource } from "./copilot/McpTypes";
 import { getSourceLabel, getSourceIcon } from "./copilot/McpManager";
 import { ToolCatalog } from "./copilot/ToolCatalog";
-import { ToolPickerModal } from "./ui/ChatView";
+import { ToolPickerModal, CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/ChatView";
 import { FileSuggest } from "./ui/FileSuggest";
 import { AIProviderType, getOpenAIApiKey } from "./copilot/AIProvider";
 import { OpenAIService } from "./copilot/OpenAIService";
@@ -169,6 +169,8 @@ export interface CopilotPluginSettings {
 	defaultDisabledTools?: string[];
 	/** Voice chat settings */
 	voice?: {
+		/** Enable voice input (show mic button in chat) */
+		voiceInputEnabled?: boolean;
 		/** Voice backend: 'openai-whisper', 'azure-whisper', or 'local-whisper' */
 		backend: 'openai-whisper' | 'azure-whisper' | 'local-whisper';
 		/** URL of the local whisper.cpp server */
@@ -220,6 +222,8 @@ export interface CopilotPluginSettings {
 	openai: OpenAISettings;
 	/** Periodic notes settings (daily, weekly, monthly, quarterly, yearly) */
 	periodicNotes: PeriodicNotesSettings;
+	/** Dynamically discovered available models from CLI */
+	availableModels?: string[];
 }
 
 export const DEFAULT_SETTINGS: CopilotPluginSettings = {
@@ -239,6 +243,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	instructionDirectories: ["."],  // vault root for AGENTS.md and copilot-instructions.md
 	promptDirectories: ["Reference/Prompts"],
 	voice: {
+		voiceInputEnabled: false,
 		backend: 'openai-whisper',
 		whisperServerUrl: 'http://127.0.0.1:8080',
 		language: 'auto',
@@ -269,33 +274,56 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	periodicNotes: { ...DEFAULT_PERIODIC_NOTES },
 };
 
-export const AVAILABLE_MODELS = [
-	// Auto mode
-	{ value: "auto", name: "Auto", rate: "10% discount", section: "auto" },
-	// GPT models
-	{ value: "gpt-4.1", name: "GPT-4.1", rate: "0x", section: "gpt" },
-	{ value: "gpt-4o", name: "GPT-4o", rate: "0x", section: "gpt" },
-	{ value: "gpt-5-mini", name: "GPT-5 mini", rate: "0x", section: "gpt" },
-	// Claude models
-	{ value: "claude-haiku-4.5", name: "Claude Haiku 4.5", rate: "0.33x", section: "claude" },
-	{ value: "claude-opus-4.5", name: "Claude Opus 4.5", rate: "3x", section: "claude" },
-	{ value: "claude-sonnet-4", name: "Claude Sonnet 4", rate: "1x", section: "claude" },
-	{ value: "claude-sonnet-4.5", name: "Claude Sonnet 4.5", rate: "1x", section: "claude" },
-	// Gemini models
-	{ value: "gemini-2.5-pro", name: "Gemini 2.5 Pro", rate: "1x", section: "gemini" },
-	{ value: "gemini-3-flash-preview", name: "Gemini 3 Flash (Preview)", rate: "0.33x", section: "gemini" },
-	{ value: "gemini-3-pro-preview", name: "Gemini 3 Pro (Preview)", rate: "1x", section: "gemini" },
-	// Other models
-	{ value: "goldeneye-internal", name: "Goldeneye (Internal Only)", rate: "1x", section: "other" },
-	{ value: "gpt-5", name: "GPT-5", rate: "1x", section: "other" },
-	{ value: "gpt-5-codex-preview", name: "GPT-5-Codex (Preview)", rate: "1x", section: "other" },
-	{ value: "gpt-5.1", name: "GPT-5.1", rate: "1x", section: "other" },
-	{ value: "gpt-5.1-codex", name: "GPT-5.1-Codex", rate: "1x", section: "other" },
-	{ value: "gpt-5.1-codex-max", name: "GPT-5.1-Codex-Max", rate: "1x", section: "other" },
-	{ value: "gpt-5.1-codex-mini-preview", name: "GPT-5.1-Codex-Mini (Preview)", rate: "0.33x", section: "other" },
-	{ value: "gpt-5.2", name: "GPT-5.2", rate: "1x", section: "other" },
-	{ value: "gpt-5.2-codex", name: "GPT-5.2-Codex", rate: "1x", section: "other" },
+/** Fallback models if CLI discovery fails */
+export const FALLBACK_MODELS = [
+	"gpt-4.1",
+	"gpt-5-mini",
+	"claude-sonnet-4.5",
+	"claude-sonnet-4",
+	"claude-haiku-4.5",
+	"claude-opus-4.5",
+	"gemini-3-pro-preview",
 ];
+
+/**
+ * Get display name for a model ID
+ * Converts model IDs like "gpt-5.1-codex" to "GPT-5.1-Codex"
+ */
+export function getModelDisplayName(modelId: string): string {
+	if (!modelId) return "Unknown";
+	
+	// Handle special cases
+	if (modelId === "auto") return "Auto";
+	
+	// Capitalize and format
+	return modelId
+		.split('-')
+		.map(part => {
+			// Preserve version numbers like "4.5", "5.1"
+			if (/^\d/.test(part)) return part;
+			// Capitalize first letter, keep rest lowercase except known acronyms
+			if (part.toLowerCase() === 'gpt') return 'GPT';
+			if (part.toLowerCase() === 'mini') return 'Mini';
+			if (part.toLowerCase() === 'max') return 'Max';
+			if (part.toLowerCase() === 'preview') return '(Preview)';
+			if (part.toLowerCase() === 'codex') return 'Codex';
+			if (part.toLowerCase() === 'pro') return 'Pro';
+			if (part.toLowerCase() === 'flash') return 'Flash';
+			return part.charAt(0).toUpperCase() + part.slice(1);
+		})
+		.join(' ')
+		.replace(' (Preview)', ' (Preview)');
+}
+
+/**
+ * Get available models from settings or fallback
+ */
+export function getAvailableModels(settings: CopilotPluginSettings): string[] {
+	if (settings.availableModels && settings.availableModels.length > 0) {
+		return settings.availableModels;
+	}
+	return FALLBACK_MODELS;
+}
 
 export class CopilotSettingTab extends PluginSettingTab {
 	plugin: CopilotPlugin;
@@ -537,19 +565,45 @@ export class CopilotSettingTab extends PluginSettingTab {
 		const section = this.mainSettingsContainer.createDiv({ cls: "vc-settings-section" });
 		section.createEl("h3", { text: "Chat Preferences" });
 
-		// Model selection
-		new Setting(section)
+		// Model selection with refresh button
+		let modelDropdown: any;
+		const modelSetting = new Setting(section)
 			.setName("Default Model")
 			.setDesc("Select the AI model for conversations")
 			.addDropdown((dropdown) => {
-				for (const model of AVAILABLE_MODELS) {
-					dropdown.addOption(model.value, model.name);
-				}
+				modelDropdown = dropdown;
+				this.populateModelDropdown(dropdown);
 				dropdown.setValue(this.plugin.settings.model);
 				dropdown.onChange(async (value) => {
 					this.plugin.settings.model = value;
 					await this.plugin.saveSettings();
 				});
+			})
+			.addExtraButton((button) => {
+				button
+					.setIcon("refresh-cw")
+					.setTooltip("Refresh available models from CLI")
+					.onClick(async () => {
+						button.setDisabled(true);
+						new Notice("Discovering models from CLI...");
+						
+						const result = await this.cliManager.fetchAvailableModels();
+						if (result.models.length > 0) {
+							this.plugin.settings.availableModels = result.models;
+							await this.plugin.saveSettings();
+							
+							// Update the dropdown
+							if (modelDropdown) {
+								this.populateModelDropdown(modelDropdown);
+								modelDropdown.setValue(this.plugin.settings.model);
+							}
+							new Notice(`Found ${result.models.length} models`);
+						} else {
+							new Notice(result.error || "Could not discover models");
+						}
+						
+						button.setDisabled(false);
+					});
 			});
 
 		// Streaming toggle
@@ -755,6 +809,19 @@ export class CopilotSettingTab extends PluginSettingTab {
 		}
 	}
 
+	/**
+	 * Populate the model dropdown with available models
+	 */
+	private populateModelDropdown(dropdown: any): void {
+		// Clear existing options
+		dropdown.selectEl.empty();
+		
+		const models = getAvailableModels(this.plugin.settings);
+		for (const modelId of models) {
+			dropdown.addOption(modelId, getModelDisplayName(modelId));
+		}
+	}
+
 	private renderPeriodicNotesSettings(container: HTMLElement): void {
 		const section = container.createDiv({ cls: "vc-settings-section" });
 		section.createEl("h3", { text: "Periodic Notes" });
@@ -920,6 +987,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 		// Ensure voice settings exist
 		if (!this.plugin.settings.voice) {
 			this.plugin.settings.voice = {
+				voiceInputEnabled: false,
 				backend: 'openai-whisper',
 				whisperServerUrl: 'http://127.0.0.1:8080',
 				language: 'auto',
@@ -929,15 +997,45 @@ export class CopilotSettingTab extends PluginSettingTab {
 			};
 		}
 
-		// 1. Audio device selection (Microphone) - FIRST
-		const audioDeviceSetting = new Setting(voiceSection)
+		// Container for voice input conditional settings
+		const voiceInputConditionalContainer = voiceSection.createDiv({ cls: "vc-voice-input-conditional" });
+
+		// 1. Enable Voice Input toggle - FIRST
+		new Setting(voiceSection)
+			.setName("Enable Voice Input")
+			.setDesc("Show the microphone button in the chat view for voice-to-text input")
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.voice!.voiceInputEnabled || false);
+				toggle.onChange(async (value) => {
+					this.plugin.settings.voice!.voiceInputEnabled = value;
+					await this.plugin.saveSettings();
+					this.renderVoiceInputConditionalSettings(voiceInputConditionalContainer);
+				});
+			});
+
+		voiceSection.appendChild(voiceInputConditionalContainer);
+		this.renderVoiceInputConditionalSettings(voiceInputConditionalContainer);
+	}
+
+	/**
+	 * Render voice input settings that are conditional on voice input being enabled
+	 */
+	private renderVoiceInputConditionalSettings(container: HTMLElement): void {
+		container.empty();
+
+		if (!this.plugin.settings.voice?.voiceInputEnabled) {
+			return;
+		}
+
+		// 2. Audio device selection (Microphone)
+		const audioDeviceSetting = new Setting(container)
 			.setName("Microphone")
 			.setDesc("Select the audio input device");
 		
 		this.populateAudioDevices(audioDeviceSetting);
 
-		// 2. Voice language (common to all backends) - SECOND
-		new Setting(voiceSection)
+		// 3. Voice language (common to all backends)
+		new Setting(container)
 			.setName("Speech Language")
 			.setDesc("The language that text-to-speech and speech-to-text should use. Select 'auto' to use the configured display language if possible. Note that not all display languages may be supported by speech recognition and synthesizers.")
 			.addDropdown((dropdown) => {
@@ -964,8 +1062,8 @@ export class CopilotSettingTab extends PluginSettingTab {
 				});
 			});
 
-		// 3. Auto Synthesize - read responses aloud
-		new Setting(voiceSection)
+		// 4. Auto Synthesize - read responses aloud
+		new Setting(container)
 			.setName("Auto Synthesize")
 			.setDesc("Whether a textual response should automatically be read out aloud when speech was used as input. For example in a chat session, a response is automatically synthesized when voice was used as chat request.")
 			.addDropdown((dropdown) => {
@@ -978,8 +1076,8 @@ export class CopilotSettingTab extends PluginSettingTab {
 				});
 			});
 
-		// 4. Speech Timeout
-		new Setting(voiceSection)
+		// 5. Speech Timeout
+		new Setting(container)
 			.setName("Speech Timeout")
 			.setDesc("The duration in milliseconds that voice speech recognition remains active after you stop speaking. For example in a chat session, the transcribed text is submitted automatically after the timeout is met. Set to 0 to disable this feature.")
 			.addText((text) => {
@@ -994,17 +1092,17 @@ export class CopilotSettingTab extends PluginSettingTab {
 				});
 			});
 
-		// 5. Realtime Agent Settings
-		voiceSection.createEl("h4", { text: "Realtime Voice Agent (Experimental)" });
-		voiceSection.createEl("p", { 
+		// 6. Realtime Agent Settings
+		container.createEl("h4", { text: "Realtime Voice Agent (Experimental)" });
+		container.createEl("p", { 
 			text: "Enable two-way voice conversations with an AI agent that can access your notes. This feature is experimental and may have issues.",
 			cls: "vc-status-desc"
 		});
 
 		// Container for realtime agent conditional settings
-		const realtimeConditionalContainer = voiceSection.createDiv({ cls: "vc-realtime-conditional" });
+		const realtimeConditionalContainer = container.createDiv({ cls: "vc-realtime-conditional" });
 
-		new Setting(voiceSection)
+		new Setting(container)
 			.setName("Enable Realtime Agent")
 			.setDesc("Show the agent button next to the microphone for two-way voice conversations")
 			.addToggle((toggle) => {
@@ -1016,14 +1114,14 @@ export class CopilotSettingTab extends PluginSettingTab {
 				});
 			});
 
-		voiceSection.appendChild(realtimeConditionalContainer);
+		container.appendChild(realtimeConditionalContainer);
 		this.renderRealtimeConditionalSettings(realtimeConditionalContainer);
 
 		// Container for conditional settings (created before backend dropdown so we can reference it)
-		const conditionalContainer = voiceSection.createDiv({ cls: "vc-voice-conditional" });
+		const conditionalContainer = container.createDiv({ cls: "vc-voice-conditional" });
 
-		// 5. Voice backend selection
-		new Setting(voiceSection)
+		// 7. Voice backend selection
+		new Setting(container)
 			.setName("Voice Backend")
 			.setDesc("Choose the speech-to-text service")
 			.addDropdown((dropdown) => {
@@ -1040,7 +1138,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 			});
 
 		// Move conditional container to appear after the backend dropdown
-		voiceSection.appendChild(conditionalContainer);
+		container.appendChild(conditionalContainer);
 
 		// Render conditional settings based on backend
 		this.renderVoiceConditionalSettings(conditionalContainer);
@@ -2048,6 +2146,15 @@ export class CopilotSettingTab extends PluginSettingTab {
 		
 		// Refresh prompt cache when settings panel closes (in case directories changed)
 		this.plugin.promptCache?.refreshCache();
+		
+		// Refresh chat view from settings (model, voice toolbar, etc.)
+		const chatLeaves = this.app.workspace.getLeavesOfType(COPILOT_VIEW_TYPE);
+		for (const leaf of chatLeaves) {
+			const view = leaf.view as CopilotChatView;
+			if (view?.refreshFromSettings) {
+				view.refreshFromSettings();
+			}
+		}
 	}
 }
 

@@ -29,4 +29,5 @@ test-vault/.obsidian/workspace.json
 # Test vault content (personal study materials)
 test-vault/Projects/MBA/
 test-vault/Daily Notes/
-test-vault/
+test-vault/.obsidian/plugins/obsidian-vault-copilot/manifest.json
+

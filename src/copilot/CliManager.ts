@@ -228,6 +228,46 @@ export class CliManager {
 	}
 
 	/**
+	 * Fetch available models from CLI help output
+	 * Parses the --model choices from `copilot help` output
+	 */
+	async fetchAvailableModels(): Promise<{ models: string[]; error?: string }> {
+		return new Promise((resolve) => {
+			exec(`${this.cliPath} help`, { timeout: 15000 }, (error, stdout, stderr) => {
+				if (error) {
+					console.error("[CliManager] Error fetching models:", error.message);
+					resolve({ models: [], error: error.message });
+					return;
+				}
+
+				// Parse models from the --model line
+				// Example: --model <model>  Set the AI model (choices: "claude-sonnet-4.5", "gpt-4.1", ...)
+				const output = stdout + stderr;
+				const modelMatch = output.match(/--model\s+<model>\s+.*?\(choices:\s*([^)]+)\)/i);
+				
+				if (modelMatch && modelMatch[1]) {
+					// Extract quoted model names
+					const modelString = modelMatch[1];
+					const models = modelString
+						.match(/"([^"]+)"/g)
+						?.map(m => m.replace(/"/g, ''))
+						.filter(m => m.length > 0)
+						.sort() || [];
+					
+					if (models.length > 0) {
+						console.log(`[CliManager] Discovered ${models.length} models from CLI`);
+						resolve({ models });
+						return;
+					}
+				}
+
+				console.warn("[CliManager] Could not parse models from CLI help output");
+				resolve({ models: [], error: "Could not parse models from CLI output" });
+			});
+		});
+	}
+
+	/**
 	 * Initialize Copilot for a specific vault directory
 	 * Runs: copilot --add-dir <vault_path>
 	 */
