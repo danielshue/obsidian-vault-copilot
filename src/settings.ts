@@ -235,8 +235,8 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	sessions: [],
 	activeSessionId: null,
 	skillDirectories: [],
-	agentDirectories: [],
-	instructionDirectories: [],
+	agentDirectories: ["Reference/Agents"],
+	instructionDirectories: ["."],  // vault root for AGENTS.md and copilot-instructions.md
 	promptDirectories: ["Reference/Prompts"],
 	voice: {
 		backend: 'openai-whisper',

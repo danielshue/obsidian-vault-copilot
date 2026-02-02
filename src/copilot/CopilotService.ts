@@ -678,7 +678,7 @@ Structure: \`<skill-name>/SKILL.md\``);
 			sections.push(`### Instruction Directories
 Instructions provide additional context and guidelines for your responses.
 Locations: ${instructionDirs.map(d => `\`${d}\``).join(', ')}
-File pattern: \`*.instructions.md\``);
+File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``);
 		}
 
 		if (sections.length === 0) {

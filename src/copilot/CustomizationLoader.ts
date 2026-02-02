@@ -8,7 +8,7 @@
  *           The SKILL.md can use either:
  *           1. Standard frontmatter at the top
  *           2. A ```skill code block with frontmatter inside
- * - Instructions: *.instructions.md or copilot-instructions.md with optional frontmatter (applyTo)
+ * - Instructions: *.instructions.md, copilot-instructions.md, or AGENTS.md with optional frontmatter (applyTo)
  * - Prompts: *.prompt.md with frontmatter (name, description, tools, model)
  */
 
@@ -343,11 +343,12 @@ private getFolderFromPath(dir: string): TFolder | null {
 				continue;
 			}
 
-			// Find all .instructions.md files or copilot-instructions.md
+			// Find all .instructions.md files, copilot-instructions.md, or AGENTS.md
 			for (const child of folder.children) {
 				if (child instanceof TFile && child.extension === 'md') {
 					const isInstructionFile = child.name.endsWith('.instructions.md') || 
-						child.name === 'copilot-instructions.md';
+						child.name === 'copilot-instructions.md' ||
+						child.name === 'AGENTS.md';
 					
 					if (isInstructionFile) {
 						try {
