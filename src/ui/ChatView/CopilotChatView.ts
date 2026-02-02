@@ -687,8 +687,8 @@ export class CopilotChatView extends ItemView {
 
 		// Subscribe to tool executions
 		this.realtimeAgentUnsubscribes.push(
-			this.realtimeAgentService.on('toolExecution', (toolName, args, result) => {
-				console.log(`[RealtimeAgent] Tool executed: ${toolName}`, args, result);
+			this.realtimeAgentService.on('toolExecution', (toolName, args, result, agentName) => {
+				console.log(`[${agentName}] Tool executed: ${toolName}`, args, result);
 			})
 		);
 

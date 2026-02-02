@@ -272,15 +272,29 @@ export abstract class BaseVoiceAgent {
 	 * @param depth Current nesting depth for recursion control (default: 0). Agents at depth 2+ don't include further handoffs to prevent infinite recursion.
 	 */
 	buildAgent(includeHandoffs = true, depth = 0): RealtimeAgent {
-		// Return cached agent if already built
+		// At depth 2+, return a minimal agent without caching to prevent
+		// incorrect caching during recursive handoff resolution
+		if (depth >= 2) {
+			const tools = this.getTools();
+			logger.debug(`[${this.name}] Building minimal agent at depth ${depth} (no handoffs, no cache)`);
+			return new RealtimeAgent({
+				name: this.name,
+				handoffDescription: this.getHandoffDescription(),
+				instructions: this.getInstructionsWithContext(),
+				tools,
+				handoffs: [],
+				voice: this.config.voice || "alloy",
+			});
+		}
+		
+		// Return cached agent if already built at depth 0 or 1
 		if (this.agent) {
 			return this.agent;
 		}
 
 		const tools = this.getTools();
 		// Include handoffs for main agent (depth 0) and specialist agents (depth 1)
-		// Don't include handoffs at depth 2+ to prevent infinite recursion
-		const handoffs = (includeHandoffs && depth < 2) ? this.getHandoffAgentInstances(depth) : [];
+		const handoffs = includeHandoffs ? this.getHandoffAgentInstances(depth) : [];
 
 		logger.info(`[${this.name}] Building agent with ${tools.length} tools and ${handoffs.length} handoffs`);
 
@@ -363,6 +377,13 @@ export abstract class BaseVoiceAgent {
 		// Handle history updates (transcripts)
 		this.session.on("history_updated", (history) => {
 			logger.debug(`[${this.name}] History updated with ${history.length} items`);
+			
+			// Log the types of items we're receiving
+			const itemTypes = history.map(item => {
+				const role = 'role' in item ? (item as Record<string, unknown>).role : undefined;
+				return `${item.type}${role ? ':' + role : ''}`;
+			});
+			logger.debug(`[${this.name}] History item types:`, itemTypes.join(', '));
 
 			// Convert to our format with agent attribution
 			const items: RealtimeHistoryItem[] = history.map((item) => {
@@ -421,7 +442,7 @@ export abstract class BaseVoiceAgent {
 		// Handle user input audio transcription
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(this.session as any).on("input_audio_transcription_completed", (event: unknown) => {
-			logger.debug(`[${this.name}] User audio transcription completed`);
+			logger.info(`[${this.name}] User audio transcription completed:`, event);
 
 			if (event && typeof event === "object") {
 				const eventObj = event as Record<string, unknown>;
@@ -438,6 +459,17 @@ export abstract class BaseVoiceAgent {
 					this.emit("user_transcription", userItem);
 				}
 			}
+		});
+
+		// Debug: Listen for speech detection events
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(this.session as any).on("speech_started", () => {
+			logger.info(`[${this.name}] Speech started detected`);
+		});
+		
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(this.session as any).on("speech_stopped", () => {
+			logger.info(`[${this.name}] Speech stopped detected`);
 		});
 
 		// Handle audio interruption
@@ -469,7 +501,7 @@ export abstract class BaseVoiceAgent {
 			logger.debug(`[${this.activeAgent.name}] Tool completed: ${tool.name}`);
 			const spanId = (details as Record<string, unknown>)._spanId as string;
 			this.completeTraceSpan(spanId);
-			this.emit("toolExecution", tool.name, details.toolCall, result);
+			this.emit("toolExecution", tool.name, details.toolCall, result, this.activeAgent.name);
 		});
 
 		// Handle handoffs (agent_updated event may not be fully typed in SDK yet)
@@ -537,10 +569,10 @@ export abstract class BaseVoiceAgent {
 
 		// Handle errors
 		this.session.on("error", (error) => {
-			// Log full error object for debugging
-			logger.debug(`[${this.name}] Session error (raw):`, error);
+			// Log full error object for debugging - always log at info level to diagnose issues
+			logger.info(`[${this.name}] Session error (raw):`, error);
 			try {
-				logger.debug(`[${this.name}] Session error (JSON):`, JSON.stringify(error, null, 2));
+				logger.info(`[${this.name}] Session error (JSON):`, JSON.stringify(error, null, 2));
 			} catch {
 				// Ignore JSON stringify errors
 			}

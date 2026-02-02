@@ -48,6 +48,15 @@ Trigger phrases: "switch to notes", "note manager", "help with notes", "open a n
 For task management (marking tasks complete, creating tasks, listing tasks), hand off to the **Task Manager** specialist.
 Trigger phrases: "switch to tasks", "task manager", "help with tasks", "mark tasks", "complete tasks", "create a task"
 
+### Microsoft 365 / Calendar / Email → WorkIQ
+For anything involving Microsoft 365, calendar, meetings, emails, Teams, or Office documents, hand off to the **WorkIQ** specialist.
+Trigger phrases: "check my calendar", "calendar", "meetings", "schedule", "emails", "mail", "Teams", "documents", "M365", "workiq"
+Examples:
+- "What's on my calendar tomorrow?" → WorkIQ
+- "Check my meetings for this week" → WorkIQ
+- "Read my recent emails" → WorkIQ
+- "What did John say in Teams?" → WorkIQ
+
 ### Web Operations → You handle directly
 You can directly help with:
 - Fetching web pages
@@ -61,7 +70,7 @@ When [INTERNAL CONTEXT UPDATE] messages arrive, note them silently - do not spea
 
 ## Response Style
 Be conversational and brief. Route requests efficiently to the right specialist.
-When you hand off, briefly acknowledge: "Switching to Note Manager" or "Handing off to Task Manager".
+When you hand off, briefly acknowledge: "Switching to Note Manager" or "Handing off to Task Manager" or "Handing off to WorkIQ".
 `;
 
 /**
@@ -171,7 +180,23 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 			logger.info(`[${this.name}] Registered ${this.handoffAgents.size} handoff agents`);
 
 			// Create session with configuration
-			this.session = new RealtimeSession(this.agent!, {
+			// Note: server_vad is more reliable for automatic response triggering
+			// semantic_vad may not properly trigger responses in all cases
+			const turnDetectionType = this.config.turnDetection || "server_vad";
+			const turnDetectionConfig: Record<string, unknown> = {
+				type: turnDetectionType,
+			};
+			// Add parameters based on VAD type
+			if (turnDetectionType === "server_vad") {
+				turnDetectionConfig.threshold = 0.5;
+				turnDetectionConfig.prefix_padding_ms = 300;
+				turnDetectionConfig.silence_duration_ms = 500;
+				turnDetectionConfig.create_response = true;
+			}
+			// semantic_vad uses different parameters and auto-triggers responses
+			// No additional config needed for semantic_vad
+			
+			const sessionConfig = {
 				model: REALTIME_MODEL,
 				config: {
 					toolChoice: "auto",
@@ -180,18 +205,31 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 						model: "whisper-1",
 						...(this.config.language ? { language: this.config.language } : {}),
 					},
-					turnDetection: {
-						type: this.config.turnDetection || "server_vad",
-					},
+					turnDetection: turnDetectionConfig,
 				},
-			});
+			};
+			logger.info(`[${this.name}] Creating session with config:`, JSON.stringify(sessionConfig.config, null, 2));
+			this.session = new RealtimeSession(this.agent!, sessionConfig);
 
 			// Set up event handlers
 			this.setupEventHandlers();
+			
+			// Add debug listener for ALL transport events to diagnose audio issues
+			this.session.on("transport_event", (event) => {
+				const eventType = (event as Record<string, unknown>).type as string;
+				// Log ALL events during debug
+				logger.info(`[${this.name}] Transport event:`, eventType);
+				// Log full event for audio/input/speech related
+				if (eventType?.includes("audio") || eventType?.includes("input") || eventType?.includes("speech") || eventType?.includes("session")) {
+					logger.info(`[${this.name}] Transport event detail:`, JSON.stringify(event, null, 2));
+				}
+			});
 
 			// Get ephemeral key and connect
 			const ephemeralKey = await this.getEphemeralKey();
+			logger.info(`[${this.name}] Got ephemeral key, connecting...`);
 			await this.session.connect({ apiKey: ephemeralKey });
+			logger.info(`[${this.name}] WebRTC connection established`);
 
 			this.setState("connected");
 			logger.info(`[${this.name}] Connected successfully`);
@@ -355,6 +393,13 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 			if (agent) {
 				this.registerHandoff(agent);
 				createdAgents.set(agent.name, { agent, definition });
+
+				// Forward chatOutput events from handoff agents to this (MainVaultAssistant)
+				// so the ChatView can receive them
+				agent.on("chatOutput", (content: string, sourceAgent: string) => {
+					logger.debug(`[${this.name}] Forwarding chatOutput from ${sourceAgent}`);
+					this.emit("chatOutput", content, sourceAgent);
+				});
 			}
 		}
 

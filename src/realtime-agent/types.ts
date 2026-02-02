@@ -173,7 +173,7 @@ export interface RealtimeAgentEvents {
 	transcript: (item: RealtimeHistoryItem) => void;
 	historyUpdated: (history: RealtimeHistoryItem[]) => void;
 	user_transcription: (item: RealtimeHistoryItem) => void;
-	toolExecution: (toolName: string, args: unknown, result: unknown) => void;
+	toolExecution: (toolName: string, args: unknown, result: unknown, agentName: string) => void;
 	toolApprovalRequested: (request: ToolApprovalRequest) => void;
 	/** Emitted when a handoff occurs between agents */
 	handoff: (sourceAgentName: string, targetAgentName: string) => void;
