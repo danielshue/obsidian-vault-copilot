@@ -3884,9 +3884,10 @@
 	color: white;
 }
 
-.vc-level-warn {
-	background: var(--color-orange);
-	color: white;
+.vc-level-warn,
+.vc-level-warning {
+	background: var(--color-yellow);
+	color: black;
 }
 
 .vc-level-error {
@@ -3897,6 +3898,205 @@
 .vc-sdk-log-message {
 	flex: 1;
 	word-break: break-word;
+}
+
+/* Expandable log messages */
+.vc-sdk-log-message-container {
+	flex: 1;
+	word-break: break-word;
+	min-width: 0;
+}
+
+.vc-log-expandable {
+	cursor: pointer;
+}
+
+.vc-log-expandable:hover {
+	background: var(--background-secondary);
+}
+
+.vc-log-expandable.vc-log-collapsed .vc-sdk-log-message-full {
+	display: none;
+}
+
+.vc-log-expandable:not(.vc-log-collapsed) .vc-sdk-log-message-truncated {
+	display: none;
+}
+
+.vc-sdk-log-message-truncated {
+	color: var(--text-muted);
+}
+
+.vc-sdk-log-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
+	color: var(--text-muted);
+	opacity: 0.6;
+}
+
+.vc-log-expandable:hover .vc-sdk-log-toggle {
+	opacity: 1;
+}
+
+.vc-sdk-log-toggle svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Search input in SDK logs */
+.vc-search-input {
+	flex: 1;
+	min-width: 150px;
+	max-width: 250px;
+	padding: 4px 8px;
+	font-size: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.vc-search-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.vc-search-input::placeholder {
+	color: var(--text-faint);
+}
+
+/* SDK Logs Filters */
+.vc-sdk-logs-filters {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+	flex-wrap: wrap;
+	margin-bottom: 12px;
+	padding: 8px 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-sort-btn {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+}
+
+.vc-sort-btn svg {
+	width: 14px;
+	height: 14px;
+}
+
+.vc-filter-group {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.vc-filter-label {
+	font-size: 12px;
+	color: var(--text-muted);
+	font-weight: 500;
+}
+
+.vc-filter-btn {
+	padding: 3px 8px;
+	border-radius: 4px;
+	font-size: 11px;
+	background: var(--background-modifier-hover);
+	border: 1px solid var(--background-modifier-border);
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: all 0.15s ease;
+}
+
+.vc-filter-btn:hover {
+	background: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.vc-filter-btn.vc-active {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.vc-filter-btn.vc-level-debug.vc-active {
+	background: var(--text-muted);
+	border-color: var(--text-muted);
+}
+
+.vc-filter-btn.vc-level-info.vc-active {
+	background: var(--color-blue);
+	border-color: var(--color-blue);
+}
+
+.vc-filter-btn.vc-level-warning.vc-active {
+	background: var(--color-yellow);
+	border-color: var(--color-yellow);
+	color: black;
+}
+
+.vc-filter-btn.vc-level-error.vc-active {
+	background: var(--color-red);
+	border-color: var(--color-red);
+}
+
+/* Agent filter buttons */
+.vc-filter-btn.vc-agent-filter {
+	max-width: 140px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vc-filter-btn.vc-agent-filter.vc-active {
+	background: var(--color-purple);
+	border-color: var(--color-purple);
+}
+
+/* Stale trace/span styles */
+.vc-tracing-item-icon.vc-stale {
+	color: var(--text-muted);
+	opacity: 0.6;
+}
+
+.vc-stale-label {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.vc-tracing-span-duration.vc-stale {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+/* Trace count badge on Voice Traces tab */
+.vc-tracing-tab-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-trace-count-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 3px 10px;
+	background: var(--color-green);
+	color: white;
+	border-radius: 12px;
+	font-size: 12px;
+	font-weight: 500;
 }
 
 /* ===========================================

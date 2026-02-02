@@ -101,10 +101,56 @@ export class CopilotService {
 	}
 
 	/**
-	 * Intercept console logs to capture SDK diagnostics
+	 * Intercept console and process.stderr logs to capture SDK diagnostics
 	 */
 	private interceptConsoleLogs(): void {
 		const tracingService = getTracingService();
+		
+		// Log that we're setting up interception
+		console.log('[Vault Copilot] Setting up CLI log interception...');
+		tracingService.addSdkLog('info', 'CLI log interception initialized', 'copilot-sdk');
+		
+		// Intercept process.stderr.write to capture CLI subprocess logs
+		// The SDK writes logs with prefix "[CLI subprocess]" to stderr
+		if (process?.stderr?.write) {
+			const originalStderrWrite = process.stderr.write.bind(process.stderr);
+			(process.stderr as any).write = (chunk: any, encoding?: any, callback?: any) => {
+				const message = typeof chunk === 'string' ? chunk : chunk?.toString?.() || '';
+				
+				// Debug: Log all stderr writes to see what we're getting
+				if (message.trim()) {
+					console.log('[Vault Copilot DEBUG] stderr:', message.substring(0, 200));
+				}
+				
+				// Capture all CLI subprocess logs (they have the [CLI subprocess] prefix)
+				if (message.includes('[CLI subprocess]')) {
+					// Extract the actual log content after the prefix
+					const logContent = message.replace('[CLI subprocess]', '').trim();
+					if (logContent) {
+						// Parse log level from content if possible
+						let level: 'info' | 'warning' | 'error' | 'debug' = 'info';
+						if (message.toLowerCase().includes('error')) {
+							level = 'error';
+						} else if (message.toLowerCase().includes('warn')) {
+							level = 'warning';
+						} else if (message.toLowerCase().includes('debug')) {
+							level = 'debug';
+						}
+						tracingService.addSdkLog(level, logContent, 'copilot-cli');
+					}
+				}
+				
+				// Handle the different overload signatures of write()
+				if (typeof encoding === 'function') {
+					return originalStderrWrite(chunk, encoding);
+				}
+				return originalStderrWrite(chunk, encoding, callback);
+			};
+			console.log('[Vault Copilot] stderr.write intercepted successfully');
+		} else {
+			console.warn('[Vault Copilot] process.stderr.write not available - CLI logs will not be captured');
+			tracingService.addSdkLog('warning', 'process.stderr.write not available - CLI logs cannot be captured', 'copilot-sdk');
+		}
 		
 		// Store original console methods
 		const originalLog = console.log.bind(console);
@@ -119,7 +165,7 @@ export class CopilotService {
 			).join(' ');
 			
 			// Only capture copilot-related logs
-			if (message.includes('[Copilot') || message.includes('copilot')) {
+			if (message.includes('[Copilot') || message.includes('copilot') || message.includes('[Vault Copilot]')) {
 				tracingService.addSdkLog('info', message, 'copilot-sdk');
 			}
 		};
@@ -131,7 +177,7 @@ export class CopilotService {
 				typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
 			).join(' ');
 			
-			if (message.includes('[Copilot') || message.includes('copilot')) {
+			if (message.includes('[Copilot') || message.includes('copilot') || message.includes('[Vault Copilot]')) {
 				tracingService.addSdkLog('warning', message, 'copilot-sdk');
 			}
 		};
@@ -143,7 +189,7 @@ export class CopilotService {
 				typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
 			).join(' ');
 			
-			if (message.includes('[Copilot') || message.includes('copilot')) {
+			if (message.includes('[Copilot') || message.includes('copilot') || message.includes('[Vault Copilot]')) {
 				tracingService.addSdkLog('error', message, 'copilot-sdk');
 			}
 		};

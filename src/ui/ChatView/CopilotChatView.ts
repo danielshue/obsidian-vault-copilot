@@ -724,6 +724,14 @@ export class CopilotChatView extends ItemView {
 				this.addUserTranscriptionToConversation(item);
 			})
 		);
+
+		// Subscribe to chat output events (agent wants to display content in chat)
+		this.realtimeAgentUnsubscribes.push(
+			this.realtimeAgentService.on('chatOutput', (content, sourceAgent) => {
+				console.log(`[VoiceAgent] Chat output from ${sourceAgent}:`, content?.substring(0, 100));
+				this.handleChatOutput(content, sourceAgent);
+			})
+		);
 	}
 
 	/**
@@ -1315,6 +1323,31 @@ export class CopilotChatView extends ItemView {
 		
 		// Voice agent output is audible, not written to chat
 		// The main chat view is reserved for text-based interactions
+	}
+
+	/**
+	 * Handle chat output from the realtime agent
+	 * This displays formatted content (markdown) in the chat view when the agent
+	 * wants to show structured data that's better read than spoken.
+	 * Supports Markdown, [[wikilinks]], and HTML links.
+	 */
+	private async handleChatOutput(content: string, sourceAgent: string): Promise<void> {
+		if (!content || !content.trim()) {
+			return;
+		}
+
+		// Render the message in the chat view
+		// The MessageRenderer handles markdown, wikilinks, and HTML links via MarkdownRenderer
+		await this.renderMessage({
+			role: 'assistant',
+			content: content,
+			timestamp: new Date(),
+		});
+
+		// Scroll to bottom to show the new content
+		this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+
+		console.log(`[VoiceAgent] Displayed chat output from ${sourceAgent}: ${content.substring(0, 100)}...`);
 	}
 
 	/**

@@ -1,4 +1,6 @@
 [
   "obsidian-vault-copilot",
-  "obsidian-tasks-plugin"
+  "obsidian-tasks-plugin",
+  "templater-obsidian",
+  "dataview"
 ]

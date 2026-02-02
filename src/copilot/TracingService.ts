@@ -14,6 +14,13 @@ const DB_VERSION = 1;
 const TRACES_STORE = "traces";
 const LOGS_STORE = "sdkLogs";
 
+/** Debug namespace pattern for OpenAI Agents SDK */
+const SDK_DEBUG_NAMESPACE = "openai-agents:*";
+
+/** Original console methods for restoration */
+let originalConsoleDebug: typeof console.debug | null = null;
+let originalConsoleLog: typeof console.log | null = null;
+
 /** Represents a single span within a trace */
 export interface TracingSpan {
 	spanId: string;
@@ -196,6 +203,10 @@ export class TracingService {
 			this.processorAdded = true;
 		}
 		
+		// Enable SDK debug logging by setting localStorage
+		// The debug library checks this for enabled namespaces
+		this.enableSdkDebugLogging();
+		
 		console.log("[TracingService] Tracing enabled");
 	}
 
@@ -204,7 +215,91 @@ export class TracingService {
 	 */
 	disable(): void {
 		this.enabled = false;
+		this.disableSdkDebugLogging();
 		console.log("[TracingService] Tracing disabled");
+	}
+
+	/**
+	 * Enable SDK debug logging by intercepting console output
+	 */
+	private enableSdkDebugLogging(): void {
+		// Enable the debug namespace in localStorage
+		// The debug library reads from localStorage.debug in browsers
+		try {
+			const currentDebug = localStorage.getItem("debug") || "";
+			if (!currentDebug.includes("openai-agents")) {
+				const newDebug = currentDebug 
+					? `${currentDebug},${SDK_DEBUG_NAMESPACE}` 
+					: SDK_DEBUG_NAMESPACE;
+				localStorage.setItem("debug", newDebug);
+			}
+		} catch (e) {
+			console.warn("[TracingService] Could not set localStorage.debug:", e);
+		}
+
+		// Intercept console.debug and console.log to capture SDK debug output
+		// The debug library outputs to console.debug in browsers
+		if (!originalConsoleDebug) {
+			originalConsoleDebug = console.debug.bind(console);
+			originalConsoleLog = console.log.bind(console);
+
+			const self = this;
+			
+			console.debug = function(...args: unknown[]) {
+				// Check if this looks like a debug library message (has namespace prefix)
+				const message = args.map(a => 
+					typeof a === 'object' ? JSON.stringify(a) : String(a)
+				).join(' ');
+				
+				// Capture messages that look like SDK debug output
+				if (message.includes("openai-agents") || message.includes("Calling LLM") || 
+					message.includes("Response received") || message.includes("[RealtimeSession]") ||
+					message.includes("[RealtimeAgent]")) {
+					self.addSdkLog('debug', message, 'sdk-debug');
+				}
+				
+				// Call original
+				if (originalConsoleDebug) {
+					originalConsoleDebug.apply(console, args);
+				}
+			};
+
+			// Also intercept console.log as debug library may use it depending on config
+			console.log = function(...args: unknown[]) {
+				const message = args.map(a => 
+					typeof a === 'object' ? JSON.stringify(a) : String(a)
+				).join(' ');
+				
+				// Capture SDK-related log messages
+				if (message.includes("openai-agents") || message.includes("[RealtimeSession]") ||
+					message.includes("[RealtimeAgent]")) {
+					self.addSdkLog('info', message, 'sdk-log');
+				}
+				
+				// Call original
+				if (originalConsoleLog) {
+					originalConsoleLog.apply(console, args);
+				}
+			};
+		}
+	}
+
+	/**
+	 * Disable SDK debug logging and restore console methods
+	 */
+	private disableSdkDebugLogging(): void {
+		// Restore original console methods
+		if (originalConsoleDebug) {
+			console.debug = originalConsoleDebug;
+			originalConsoleDebug = null;
+		}
+		if (originalConsoleLog) {
+			console.log = originalConsoleLog;
+			originalConsoleLog = null;
+		}
+
+		// Remove our debug namespace from localStorage (optional - leave enabled)
+		// We don't remove it so logs still appear in dev console
 	}
 
 	/**

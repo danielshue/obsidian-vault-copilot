@@ -18,6 +18,7 @@ import {
 	RealtimeHistoryItem,
 	ToolApprovalRequest,
 	ToolExecutionCallback,
+	ChatOutputCallback,
 	REALTIME_MODEL,
 	logger,
 } from "./types";
@@ -53,6 +54,9 @@ export abstract class BaseVoiceAgent {
 
 	/** Tool execution callback */
 	protected onToolExecution: ToolExecutionCallback | null = null;
+
+	/** Chat output callback for displaying content in the ChatView */
+	protected onChatOutput: ChatOutputCallback | null = null;
 
 	/** Registered handoff agents by name */
 	protected handoffAgents: Map<string, BaseVoiceAgent> = new Map();
@@ -249,12 +253,12 @@ export abstract class BaseVoiceAgent {
 
 	/**
 	 * Get SDK RealtimeAgent instances for handoffs array
-	 * @param includeNestedHandoffs Whether to include nested handoffs (default: false to prevent recursion)
+	 * @param depth Current nesting depth for recursion control
 	 */
-	protected getHandoffAgentInstances(includeNestedHandoffs = false): RealtimeAgent[] {
+	protected getHandoffAgentInstances(depth: number): RealtimeAgent[] {
 		const agents: RealtimeAgent[] = [];
 		for (const handoffAgent of this.handoffAgents.values()) {
-			const sdkAgent = handoffAgent.buildAgent(includeNestedHandoffs);
+			const sdkAgent = handoffAgent.buildAgent(true, depth + 1);
 			if (sdkAgent) {
 				agents.push(sdkAgent);
 			}
@@ -264,17 +268,19 @@ export abstract class BaseVoiceAgent {
 
 	/**
 	 * Build the RealtimeAgent instance with handoffs configured
-	 * @param includeHandoffs Whether to include handoff agents (default: true). Set to false when building as a handoff target to prevent infinite recursion.
+	 * @param includeHandoffs Whether to include handoff agents (default: true)
+	 * @param depth Current nesting depth for recursion control (default: 0). Agents at depth 2+ don't include further handoffs to prevent infinite recursion.
 	 */
-	buildAgent(includeHandoffs = true): RealtimeAgent {
-		// Return cached agent if already built with matching handoff config
+	buildAgent(includeHandoffs = true, depth = 0): RealtimeAgent {
+		// Return cached agent if already built
 		if (this.agent) {
 			return this.agent;
 		}
 
 		const tools = this.getTools();
-		// Only include handoffs for the main entry-point agent, not for nested handoff agents
-		const handoffs = includeHandoffs ? this.getHandoffAgentInstances(false) : [];
+		// Include handoffs for main agent (depth 0) and specialist agents (depth 1)
+		// Don't include handoffs at depth 2+ to prevent infinite recursion
+		const handoffs = (includeHandoffs && depth < 2) ? this.getHandoffAgentInstances(depth) : [];
 
 		logger.info(`[${this.name}] Building agent with ${tools.length} tools and ${handoffs.length} handoffs`);
 
@@ -651,6 +657,28 @@ export abstract class BaseVoiceAgent {
 	 */
 	setToolExecutionCallback(callback: ToolExecutionCallback | null): void {
 		this.onToolExecution = callback;
+	}
+
+	/**
+	 * Set chat output callback
+	 */
+	setChatOutputCallback(callback: ChatOutputCallback | null): void {
+		this.onChatOutput = callback;
+	}
+
+	/**
+	 * Get a chat output callback that emits the chatOutput event
+	 * This is used by tools to output content to the ChatView
+	 */
+	protected getChatOutputCallback(): ChatOutputCallback {
+		return (content: string, sourceAgent: string) => {
+			// Emit the event so subscribers can handle it
+			this.emit("chatOutput", content, sourceAgent);
+			// Also call the external callback if set
+			if (this.onChatOutput) {
+				this.onChatOutput(content, sourceAgent);
+			}
+		};
 	}
 
 	/**

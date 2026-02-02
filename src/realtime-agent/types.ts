@@ -58,7 +58,8 @@ export type RealtimeToolName =
 	| "create_task"
 	| "list_tasks"
 	| "fetch_web_page"
-	| "web_search";
+	| "web_search"
+	| "send_to_chat";
 
 /** Configuration for which tools are enabled */
 export interface RealtimeToolConfig {
@@ -176,6 +177,8 @@ export interface RealtimeAgentEvents {
 	toolApprovalRequested: (request: ToolApprovalRequest) => void;
 	/** Emitted when a handoff occurs between agents */
 	handoff: (sourceAgentName: string, targetAgentName: string) => void;
+	/** Emitted when the agent wants to display content in the ChatView */
+	chatOutput: (content: string, sourceAgent: string) => void;
 	error: (error: Error) => void;
 	interrupted: () => void;
 }
@@ -185,6 +188,12 @@ export type ToolExecutionCallback = (
 	toolName: string,
 	args: unknown,
 	result: unknown
+) => void;
+
+/** Callback type for chat output - displays content in the ChatView */
+export type ChatOutputCallback = (
+	content: string,
+	sourceAgent: string
 ) => void;
 
 /** Tool category definitions for tool enablement checking */
@@ -220,6 +229,9 @@ export const TASK_TOOLS: RealtimeToolName[] = [
 ];
 
 export const WEB_TOOLS: RealtimeToolName[] = ["fetch_web_page", "web_search"];
+
+/** Output tools for displaying content in the ChatView */
+export const OUTPUT_TOOLS: RealtimeToolName[] = ["send_to_chat"];
 
 /** Logger configuration */
 let currentLogLevel: LogLevel = "info";

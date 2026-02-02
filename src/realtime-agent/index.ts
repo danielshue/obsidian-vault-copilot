@@ -38,6 +38,7 @@ export {
 	type RealtimeAgentEvents,
 	type ToolExecutionCallback,
 	type ToolApprovalRequest,
+	type ChatOutputCallback,
 	type LogLevel,
 	// Constants
 	DEFAULT_TOOL_CONFIG,
@@ -45,6 +46,7 @@ export {
 	VAULT_WRITE_TOOLS,
 	WEB_TOOLS,
 	TASK_TOOLS,
+	OUTPUT_TOOLS,
 	REALTIME_MODEL,
 	// Logger utilities
 	logger,
@@ -56,6 +58,7 @@ export {
 export { createVaultTools } from "./vault-tools";
 export { createWebTools } from "./web-tools";
 export { createMcpTools } from "./mcp-tools";
+export { createOutputTools } from "./output-tools";
 export { createAllTools, isToolEnabled, getToolNames, createToolsForAgent } from "./tool-manager";
 
 // Re-export task tools and utilities

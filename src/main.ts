@@ -418,6 +418,7 @@ export default class CopilotPlugin extends Plugin {
 			cliPath: this.settings.cliPath || undefined,
 			cliUrl: this.settings.cliUrl || undefined,
 			streaming: this.settings.streaming,
+			tracingEnabled: this.settings.tracingEnabled,
 			skillRegistry: this.skillRegistry,
 			mcpManager: this.mcpManager,
 			skillDirectories: resolvePaths(this.settings.skillDirectories),

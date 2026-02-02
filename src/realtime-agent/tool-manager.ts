@@ -10,16 +10,19 @@ import {
 	RealtimeToolConfig,
 	RealtimeToolName,
 	ToolExecutionCallback,
+	ChatOutputCallback,
 	VAULT_READ_TOOLS,
 	VAULT_WRITE_TOOLS,
 	WEB_TOOLS,
 	TASK_TOOLS,
+	OUTPUT_TOOLS,
 	logger,
 } from "./types";
 import { createVaultTools } from "./vault-tools";
 import { createWebTools } from "./web-tools";
 import { createMcpTools } from "./mcp-tools";
 import { createAllTaskTools, TASK_TOOL_NAMES } from "./task-tools";
+import { createOutputTools } from "./output-tools";
 
 /**
  * Check if a specific tool is enabled based on configuration
@@ -54,6 +57,10 @@ export function isToolEnabled(
 		}
 		return config.vaultWrite;
 	}
+	// Output tools are always enabled by default (they just display in chat)
+	if (OUTPUT_TOOLS.includes(toolName)) {
+		return true;
+	}
 
 	// Default to enabled
 	return true;
@@ -84,7 +91,9 @@ export function createAllTools(
 	toolConfig: RealtimeToolConfig,
 	mcpManager: McpManager | undefined,
 	onToolExecution: ToolExecutionCallback | null,
-	periodicNotesSettings?: PeriodicNotesSettings
+	periodicNotesSettings?: PeriodicNotesSettings,
+	onChatOutput?: ChatOutputCallback | null,
+	sourceAgent?: string
 ): ReturnType<typeof tool>[] {
 	const tools: ReturnType<typeof tool>[] = [];
 	const requiresApproval = getToolsRequiringApproval(toolConfig);
@@ -106,6 +115,7 @@ export function createAllTools(
 	const vaultTools = createVaultTools(app, onToolExecution, requiresApproval, periodicNotesSettings);
 	const webTools = createWebTools(onToolExecution, requiresApproval);
 	const taskTools = createAllTaskTools(app, onToolExecution, requiresApproval);
+	const outputTools = createOutputTools(onChatOutput ?? null, sourceAgent ?? "assistant", requiresApproval);
 
 	// Build a map of tool name to tool for filtering
 	const toolMap: Array<{
@@ -125,6 +135,11 @@ export function createAllTools(
 
 	// Map task tools
 	for (const t of taskTools) {
+		toolMap.push({ name: t.name as RealtimeToolName, tool: t });
+	}
+
+	// Map output tools
+	for (const t of outputTools) {
 		toolMap.push({ name: t.name as RealtimeToolName, tool: t });
 	}
 
@@ -156,6 +171,8 @@ export function getToolNames(tools: ReturnType<typeof tool>[]): string[] {
  * @param mcpManager - Optional MCP manager for MCP tools
  * @param onToolExecution - Optional callback for tool execution events
  * @param periodicNotesSettings - Optional periodic notes settings for weekly/monthly/quarterly/yearly notes
+ * @param onChatOutput - Optional callback for outputting content to the ChatView
+ * @param sourceAgent - Name of the agent creating the tools (for attribution)
  * @returns Array of tools filtered to the allowlist
  */
 export function createToolsForAgent(
@@ -164,7 +181,9 @@ export function createToolsForAgent(
 	toolConfig: RealtimeToolConfig,
 	mcpManager: McpManager | undefined,
 	onToolExecution: ToolExecutionCallback | null,
-	periodicNotesSettings?: PeriodicNotesSettings
+	periodicNotesSettings?: PeriodicNotesSettings,
+	onChatOutput?: ChatOutputCallback | null,
+	sourceAgent?: string
 ): ReturnType<typeof tool>[] {
 	const tools: ReturnType<typeof tool>[] = [];
 	const requiresApproval = getToolsRequiringApproval(toolConfig);
@@ -174,9 +193,10 @@ export function createToolsForAgent(
 	const vaultTools = createVaultTools(app, onToolExecution, requiresApproval, periodicNotesSettings);
 	const webTools = createWebTools(onToolExecution, requiresApproval);
 	const taskTools = createAllTaskTools(app, onToolExecution, requiresApproval);
+	const outputTools = createOutputTools(onChatOutput ?? null, sourceAgent ?? "assistant", requiresApproval);
 
 	// Combine all tools
-	const allTools = [...vaultTools, ...webTools, ...taskTools];
+	const allTools = [...vaultTools, ...webTools, ...taskTools, ...outputTools];
 
 	// Filter to only allowed tools
 	for (const t of allTools) {

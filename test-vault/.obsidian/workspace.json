@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "137896570359b7c7",
+        "id": "71bd5259dd99c195",
         "type": "tabs",
         "children": [
           {
-            "id": "2caba8e192884455",
+            "id": "5ddee2a5a1e682ff",
             "type": "leaf",
             "state": {
               "type": "empty",
@@ -183,11 +183,15 @@
       "daily-notes:Open today's daily note": false,
       "templates:Insert template": false,
       "command-palette:Open command palette": false,
-      "bases:Create new base": false
+      "bases:Create new base": false,
+      "templater-obsidian:Templater": false
     }
   },
-  "active": "2caba8e192884455",
+  "active": "5ddee2a5a1e682ff",
   "lastOpenFiles": [
+    "Reference/Prompts/create-daily-note.prompt.md",
+    "Reference/Prompts/daily-review.prompt.md",
+    "Daily Notes/2026-02-02.md",
     "Daily Notes/2026-02-01.md",
     "Daily Notes/2026-01-30.md",
     "Daily Notes/2026-01-31.md",
@@ -195,7 +199,6 @@
     "Daily Notes/2026-01-28.md",
     "Daily Notes/2026-01-29.md",
     "Reference/Prompts/add-task.prompt.md",
-    "Reference/Prompts/create-daily-note.prompt.md",
     "Reference/Prompts/extract-tasks.prompt.md",
     "Reference/Prompts/meeting-update.prompt.md",
     "Reference/Prompts/summarize-note.prompt.md",
@@ -209,12 +212,10 @@
     "Reference/Skills/obsidian-tasks/skill.md",
     "Reference/Prompts/create-release.prompt.md",
     "Reference/Prompts/code-review.prompt.md",
-    "Reference/Prompts/daily-review.prompt.md",
     "Reference/Prompts",
     "Projects/Meeting - Project Alpha and Beta - 2026-01-30.md",
     "Todays Activities - 2026-01-30.md",
     "MyOtherCustomAgents/meeting-notes.agent.md",
-    "MyOtherCustomAgents/project-planner.agent.md",
     "Reference/Skills/obsidian-tasks",
     "Reference/Skills/obsidian-task",
     "MyOtherCustomAgents",
