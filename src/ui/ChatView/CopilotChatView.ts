@@ -23,7 +23,7 @@ import { SessionManager } from "./SessionManager";
 import { ToolExecutionRenderer } from "./ToolExecutionRenderer";
 import { TracingModal } from "./TracingModal";
 import { ConversationHistoryModal } from "./ConversationHistoryModal";
-import { VoiceChatService, RecordingState, RealtimeAgentService, RealtimeAgentState, RealtimeHistoryItem, ToolApprovalRequest } from "../../voice-chat";
+import { VoiceChatService, RecordingState, MainVaultAssistant, RealtimeAgentState, RealtimeHistoryItem, ToolApprovalRequest } from "../../voice-chat";
 import { getOpenAIApiKey } from "../../copilot/AIProvider";
 
 export const COPILOT_VIEW_TYPE = "copilot-chat-view";
@@ -66,7 +66,7 @@ export class CopilotChatView extends ItemView {
 	private voiceStateUnsubscribe: (() => void) | null = null;
 	
 	// Realtime agent
-	private realtimeAgentService: RealtimeAgentService | null = null;
+	private realtimeAgentService: MainVaultAssistant | null = null;
 	private agentBtn: HTMLButtonElement | null = null;
 	private realtimeAgentUnsubscribes: (() => void)[] = [];
 	private pendingToolApproval: ToolApprovalRequest | null = null;
@@ -619,28 +619,17 @@ export class CopilotChatView extends ItemView {
 			return;
 		}
 
-		// Build instructions including MCP tool availability
-		let instructions = this.selectedAgent?.description 
-			? `You are ${this.selectedAgent.name}. ${this.selectedAgent.description}. You have access to the user's Obsidian vault.`
-			: 'You are a helpful assistant with access to the user\'s Obsidian notes.';
-
-		// Add detailed tool usage guidance
-		instructions += `
-
-IMPORTANT: You have powerful tools to interact with the user's Obsidian vault:
-- Use get_active_note to see the note the user currently has open - ALWAYS check this first when the user asks about "this note" or "the current note"
-- Use search_notes to find notes by keywords when the user references topics or asks questions
-- Use read_note to read specific notes by path
-- Use list_notes to browse the vault structure
-
-Be proactive: When the user asks about their notes or content, use the tools to find and read relevant information. Don't just ask what they want - actually look it up. When they mention "this note" or "my current note", immediately use get_active_note.`;
+		// Build supplemental instructions for context
+		// MainVaultAssistant loads base instructions from markdown files;
+		// we add MCP and language info as supplements
+		let supplementalInstructions = '';
 
 		// Add MCP tools info if available
 		if (this.plugin.mcpManager?.hasConnectedServers()) {
 			const mcpTools = this.plugin.mcpManager.getAllTools();
 			const mcpToolCount = mcpTools.length;
 			if (mcpToolCount > 0) {
-				instructions += `\n\nYou also have access to ${mcpToolCount} MCP tools from connected servers:`;
+				supplementalInstructions += `\n\nYou also have access to ${mcpToolCount} MCP tools from connected servers:`;
 				// Group by server and list tool names
 				const byServer = new Map<string, string[]>();
 				for (const t of mcpTools) {
@@ -650,9 +639,9 @@ Be proactive: When the user asks about their notes or content, use the tools to 
 					byServer.get(t.serverName)!.push(t.tool.name);
 				}
 				for (const [serverName, toolNames] of byServer) {
-					instructions += `\n- ${serverName}: ${toolNames.join(', ')}`;
+					supplementalInstructions += `\n- ${serverName}: ${toolNames.join(', ')}`;
 				}
-				instructions += `\nUse these MCP tools when relevant to the user's questions.`;
+				supplementalInstructions += `\nUse these MCP tools when relevant to the user's questions.`;
 			}
 		}
 
@@ -662,17 +651,20 @@ Be proactive: When the user asks about their notes or content, use the tools to 
 		
 		// Add language instruction if not English
 		if (configuredLanguage && configuredLanguage !== 'en') {
-			instructions += `\n\nIMPORTANT: Always respond in ${languageName}. The user prefers to communicate in ${languageName}.`;
+			supplementalInstructions += `\n\nIMPORTANT: Always respond in ${languageName}. The user prefers to communicate in ${languageName}.`;
 		}
 
-		this.realtimeAgentService = new RealtimeAgentService(this.app, {
+		// MainVaultAssistant loads base instructions from *.voice-agent.md files
+		// and supplements them with the context-specific instructions above
+		this.realtimeAgentService = new MainVaultAssistant(this.app, {
 			apiKey,
 			voice: this.plugin.settings.voice?.realtimeVoice || 'alloy',
 			turnDetection: this.plugin.settings.voice?.realtimeTurnDetection || 'server_vad',
 			language: configuredLanguage,
-			instructions,
+			instructions: supplementalInstructions || undefined,
 			mcpManager: this.plugin.mcpManager,
 			toolConfig: this.plugin.settings.voice?.realtimeToolConfig,
+			voiceAgentDirectories: this.plugin.settings.voice?.voiceAgentDirectories,
 		});
 
 		// Subscribe to state changes
@@ -2101,6 +2093,20 @@ Be proactive: When the user asks about their notes or content, use the tools to 
 				this.updateUIState();
 				return;
 			}
+		}
+
+		// Check if voice agent is active - send text to voice agent instead
+		if (this.realtimeAgentService?.isConnected()) {
+			// Display user message in voice transcript area
+			await this.renderMessage({ role: "user", content: message, timestamp: new Date() });
+			
+			// Send as text input to the voice agent
+			this.realtimeAgentService.sendMessage(message);
+			
+			this.isProcessing = false;
+			this.updateUIState();
+			this.scrollToBottom();
+			return;
 		}
 
 		// Process #fetch URL references

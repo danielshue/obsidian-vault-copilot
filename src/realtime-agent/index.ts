@@ -3,9 +3,26 @@
  * 
  * This module provides real-time voice conversation capabilities using OpenAI's Realtime API
  * with support for tools, interruptions, and live transcription.
+ * 
+ * Primary exports:
+ * - MainVaultAssistant: Entry point voice agent with handoff support
+ * - BaseVoiceAgent: Abstract base class for custom voice agents
+ * - VoiceAgentRegistry: Central registry for voice agent discovery and registration
+ * - TaskManagementAgent: Specialist agent for task operations (via task-agent module)
  */
 
-export { RealtimeAgentService } from "./RealtimeAgentService";
+// Primary voice agents
+export { BaseVoiceAgent } from "./BaseVoiceAgent";
+export { MainVaultAssistant, MAIN_ASSISTANT_DEFINITION_FILE } from "./MainVaultAssistant";
+
+// Voice agent registry for third-party agent registration
+export {
+	VoiceAgentRegistry,
+	getVoiceAgentRegistry,
+	type VoiceAgentFactory,
+	type VoiceAgentRegistration,
+	type VoiceAgentRegistryEvents,
+} from "./VoiceAgentRegistry";
 
 export {
 	// Types
@@ -14,6 +31,8 @@ export {
 	type RealtimeAgentState,
 	type RealtimeToolName,
 	type RealtimeToolConfig,
+	type BaseVoiceAgentConfig,
+	type MainVaultAssistantConfig,
 	type RealtimeAgentConfig,
 	type RealtimeHistoryItem,
 	type RealtimeAgentEvents,
@@ -37,7 +56,7 @@ export {
 export { createVaultTools } from "./vault-tools";
 export { createWebTools } from "./web-tools";
 export { createMcpTools } from "./mcp-tools";
-export { createAllTools, isToolEnabled, getToolNames } from "./tool-manager";
+export { createAllTools, isToolEnabled, getToolNames, createToolsForAgent } from "./tool-manager";
 
 // Re-export task tools and utilities
 export {

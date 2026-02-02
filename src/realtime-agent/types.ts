@@ -76,7 +76,31 @@ export const DEFAULT_TOOL_CONFIG: RealtimeToolConfig = {
 	mcpTools: true,
 };
 
-/** Configuration for RealtimeAgentService */
+/** Base configuration shared by all voice agents */
+export interface BaseVoiceAgentConfig {
+	/** OpenAI API key */
+	apiKey: string;
+	/** Voice to use for responses */
+	voice?: RealtimeVoice;
+	/** Turn detection mode */
+	turnDetection?: TurnDetectionMode;
+	/** Language for speech recognition (e.g., 'en', 'es', 'fr'). Defaults to auto-detect. */
+	language?: string;
+	/** Tool configuration for conditional enabling */
+	toolConfig?: RealtimeToolConfig;
+	/** Optional MCP Manager for exposing MCP tools */
+	mcpManager?: import("../copilot/McpManager").McpManager;
+}
+
+/** Configuration for MainVaultAssistant (extends base config) */
+export interface MainVaultAssistantConfig extends BaseVoiceAgentConfig {
+	/** Directories to search for voice agent markdown files */
+	voiceAgentDirectories?: string[];
+	/** Instructions for the agent (optional, can be loaded from markdown) */
+	instructions?: string;
+}
+
+/** @deprecated Use MainVaultAssistantConfig instead */
 export interface RealtimeAgentConfig {
 	/** OpenAI API key */
 	apiKey: string;
@@ -103,6 +127,8 @@ export interface RealtimeHistoryItem {
 	name?: string;
 	arguments?: string;
 	output?: string;
+	/** Name of the agent that produced this history item */
+	agentName?: string;
 }
 
 /** Tool approval request from the agent */
@@ -119,7 +145,7 @@ export interface ToolApprovalRequest {
 	rawItem: unknown;
 }
 
-/** Event types emitted by RealtimeAgentService */
+/** Event types emitted by voice agents */
 export interface RealtimeAgentEvents {
 	stateChange: (state: RealtimeAgentState) => void;
 	transcript: (item: RealtimeHistoryItem) => void;
@@ -127,6 +153,8 @@ export interface RealtimeAgentEvents {
 	user_transcription: (item: RealtimeHistoryItem) => void;
 	toolExecution: (toolName: string, args: unknown, result: unknown) => void;
 	toolApprovalRequested: (request: ToolApprovalRequest) => void;
+	/** Emitted when a handoff occurs between agents */
+	handoff: (sourceAgentName: string, targetAgentName: string) => void;
 	error: (error: Error) => void;
 	interrupted: () => void;
 }

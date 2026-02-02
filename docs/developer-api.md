@@ -486,6 +486,165 @@ Users configure these directories in **Settings → Vault Copilot → Advanced S
 
 Paths can be relative to the vault (e.g., `.copilot/agents`) or absolute paths.
 
+## Voice Agent Registration
+
+Vault Copilot provides a **Voice Agent Registry** that allows third-party plugins to register custom voice agents. These agents participate in the voice conversation system with handoff support.
+
+### What is a Voice Agent?
+
+Voice agents are specialist assistants that handle specific types of requests during voice conversations. The main assistant (`MainVaultAssistant`) can hand off to specialist agents when the conversation topic matches their expertise.
+
+### Voice Agent Definition Files
+
+Each voice agent can have a markdown definition file (`*.voice-agent.md`) that contains:
+- Agent metadata in frontmatter (name, description, tools, handoffs)
+- Instructions in the body
+
+**File pattern:** `<agent-name>.voice-agent.md`
+
+**Example:**
+```markdown
+---
+name: Task Manager
+description: Specialist agent for task and checklist management
+handoffDescription: Hand off when the user wants to manage tasks
+voice: alloy
+tools: ["get_tasks", "mark_tasks", "create_task", "list_tasks"]
+handoffs: []
+---
+
+You are a task management specialist...
+```
+
+### Registering a Custom Voice Agent
+
+To register a custom voice agent from your plugin:
+
+```typescript
+import { Plugin } from "obsidian";
+import { BaseVoiceAgent, getVoiceAgentRegistry, VoiceAgentRegistration } from "obsidian-vault-copilot";
+
+// 1. Create your agent class extending BaseVoiceAgent
+class MyCustomAgent extends BaseVoiceAgent {
+  getInstructions(): string {
+    return "You are a custom specialist...";
+  }
+  
+  getHandoffDescription(): string {
+    return "Hand off when the user asks about custom topics";
+  }
+  
+  getTools() {
+    // Return your agent's tools
+    return [];
+  }
+}
+
+// 2. Define the registration
+const MY_AGENT_REGISTRATION: VoiceAgentRegistration = {
+  id: "my-custom-agent",
+  name: "My Custom Agent",
+  description: "Handles custom domain-specific tasks",
+  definitionFileName: "my-custom-agent.voice-agent.md",
+  factory: (app, config, definition) => new MyCustomAgent(app, config, definition),
+  pluginId: "my-plugin-id",
+  priority: 50, // Higher priority agents are loaded first
+};
+
+// 3. Register in your plugin's onload
+export default class MyPlugin extends Plugin {
+  async onload() {
+    const registry = getVoiceAgentRegistry();
+    registry.register(MY_AGENT_REGISTRATION);
+  }
+  
+  async onunload() {
+    // Clean up when plugin unloads
+    const registry = getVoiceAgentRegistry();
+    registry.unregisterByPlugin("my-plugin-id");
+  }
+}
+```
+
+### Voice Agent Registration Interface
+
+```typescript
+interface VoiceAgentRegistration {
+  /** Unique identifier for the agent type */
+  id: string;
+  
+  /** Display name for the agent */
+  name: string;
+  
+  /** Description of what this agent specializes in */
+  description: string;
+  
+  /** 
+   * File name pattern for the voice agent definition
+   * e.g., "my-agent.voice-agent.md"
+   */
+  definitionFileName: string;
+  
+  /** Factory function to create the agent instance */
+  factory: (app: App, config: BaseVoiceAgentConfig, definition?: VoiceAgentDefinition) => BaseVoiceAgent;
+  
+  /** Plugin ID that registered this agent (for cleanup) */
+  pluginId?: string;
+  
+  /** Whether this is a built-in agent */
+  isBuiltIn?: boolean;
+  
+  /** Priority for ordering (higher = loaded first) */
+  priority?: number;
+}
+```
+
+### Voice Agent Registry Methods
+
+```typescript
+const registry = getVoiceAgentRegistry();
+
+// Register an agent
+registry.register(registration);
+
+// Unregister by ID
+registry.unregister("my-agent-id");
+
+// Unregister all agents from a plugin
+const count = registry.unregisterByPlugin("my-plugin-id");
+
+// Get all registrations
+const agents = registry.getAll();
+
+// Check if registered
+if (registry.has("my-agent-id")) { /* ... */ }
+
+// Get by definition file name
+const reg = registry.getByDefinitionFileName("my-agent.voice-agent.md");
+
+// Subscribe to changes
+const unsubscribe = registry.on("registered", (registration) => {
+  console.log(`New agent: ${registration.name}`);
+});
+```
+
+### Built-in Voice Agents
+
+Vault Copilot includes these built-in voice agents:
+
+| Agent | Definition File | Description |
+|-------|-----------------|-------------|
+| Main Vault Assistant | `main-vault-assistant.voice-agent.md` | Entry point, vault operations |
+| Task Manager | `task-manager.voice-agent.md` | Task and checklist management |
+
+### Configuring Voice Agent Directories
+
+Users configure voice agent directories in **Settings → Vault Copilot → Voice Settings**:
+
+- **Voice Agent Directories**: Folders containing `*.voice-agent.md` files
+
+The plugin searches these directories for voice agent definition files that match registered agents.
+
 ## TypeScript Types
 
 For TypeScript users, here are the complete type definitions:

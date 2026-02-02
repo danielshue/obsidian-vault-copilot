@@ -18,6 +18,7 @@ import { CustomPrompt } from "./copilot/CustomizationLoader";
 import { OpenAIService } from "./copilot/OpenAIService";
 import { AIProviderType } from "./copilot/AIProvider";
 import { getTracingService } from "./copilot/TracingService";
+import { MainVaultAssistant } from "./realtime-agent/MainVaultAssistant";
 
 /**
  * Session info returned by the API
@@ -234,6 +235,9 @@ export default class CopilotPlugin extends Plugin {
 		// Initialize skill registry
 		this.skillRegistry = getSkillRegistry();
 
+		// Register built-in voice agents with the VoiceAgentRegistry
+		MainVaultAssistant.registerBuiltInAgents();
+
 		// Initialize agent cache
 		this.agentCache = new AgentCache(this.app);
 		await this.agentCache.initialize(this.settings.agentDirectories);
@@ -329,6 +333,9 @@ export default class CopilotPlugin extends Plugin {
 		await this.mcpManager?.shutdown();
 		this.agentCache?.destroy();
 		this.promptCache?.destroy();
+		
+		// Unregister built-in voice agents
+		MainVaultAssistant.unregisterBuiltInAgents();
 	}
 
 	async loadSettings(): Promise<void> {

@@ -144,3 +144,56 @@ export function createAllTools(
 export function getToolNames(tools: ReturnType<typeof tool>[]): string[] {
 	return tools.map((t) => t.name);
 }
+
+/**
+ * Create tools for a specific agent based on an allowlist of tool names
+ * 
+ * @param allowedToolNames - Array of tool names this agent is allowed to use
+ * @param app - Obsidian App instance
+ * @param toolConfig - Tool configuration for approvals, etc.
+ * @param mcpManager - Optional MCP manager for MCP tools
+ * @param onToolExecution - Optional callback for tool execution events
+ * @returns Array of tools filtered to the allowlist
+ */
+export function createToolsForAgent(
+	allowedToolNames: string[],
+	app: App,
+	toolConfig: RealtimeToolConfig,
+	mcpManager: McpManager | undefined,
+	onToolExecution: ToolExecutionCallback | null
+): ReturnType<typeof tool>[] {
+	const tools: ReturnType<typeof tool>[] = [];
+	const requiresApproval = getToolsRequiringApproval(toolConfig);
+	const allowedSet = new Set(allowedToolNames);
+
+	// Create all available tools
+	const vaultTools = createVaultTools(app, onToolExecution, requiresApproval);
+	const webTools = createWebTools(onToolExecution, requiresApproval);
+	const taskTools = createAllTaskTools(app, onToolExecution, requiresApproval);
+
+	// Combine all tools
+	const allTools = [...vaultTools, ...webTools, ...taskTools];
+
+	// Filter to only allowed tools
+	for (const t of allTools) {
+		if (allowedSet.has(t.name)) {
+			tools.push(t);
+		}
+	}
+
+	// Add MCP tools if enabled and any MCP tool names are in the allowlist
+	// (MCP tools are dynamic, so we include them if mcpTools is not explicitly disabled)
+	if (toolConfig.mcpTools !== false && mcpManager?.hasConnectedServers()) {
+		const mcpNeedsApproval = requiresApproval.size > 0;
+		const mcpTools = createMcpTools(mcpManager, onToolExecution, mcpNeedsApproval);
+		
+		// Include all MCP tools (they're dynamically named based on server)
+		if (mcpTools.length > 0) {
+			logger.info(`Added ${mcpTools.length} MCP tools to agent`);
+			tools.push(...mcpTools);
+		}
+	}
+
+	logger.info(`Created ${tools.length} tools for agent (allowed: ${allowedToolNames.length})`);
+	return tools;
+}

@@ -84,6 +84,29 @@ export interface CustomPrompt {
 }
 
 /**
+ * Voice agent definition from .voice-agent.md file
+ * Used for realtime voice agents with handoff support
+ */
+export interface VoiceAgentDefinition {
+	/** Unique identifier from frontmatter name field */
+	name: string;
+	/** Human-readable description */
+	description: string;
+	/** Description for when other agents should hand off to this one */
+	handoffDescription: string;
+	/** Voice to use (alloy, ash, ballad, coral, echo, fable, onyx, nova, sage, shimmer, verse) */
+	voice?: string;
+	/** Tools this agent can use */
+	tools: string[];
+	/** Names of other voice agents this agent can hand off to */
+	handoffs: string[];
+	/** Full path to the voice agent file */
+	path: string;
+	/** Raw instructions content (without frontmatter) */
+	instructions: string;
+}
+
+/**
  * Simple YAML key-value parser
  */
 function parseYamlKeyValues(yamlStr: string): Record<string, unknown> {
@@ -421,5 +444,59 @@ private getFolderFromPath(dir: string): TFolder | null {
 	async getPrompt(directories: string[], name: string): Promise<CustomPrompt | undefined> {
 		const prompts = await this.loadPrompts(directories);
 		return prompts.find(p => p.name === name);
+	}
+
+	/**
+	 * Load all voice agents from the configured directories
+	 * Voice agents use the .voice-agent.md extension
+	 */
+	async loadVoiceAgents(directories: string[]): Promise<VoiceAgentDefinition[]> {
+		const voiceAgents: VoiceAgentDefinition[] = [];
+
+		for (const dir of directories) {
+			const folder = this.getFolderFromPath(dir);
+			if (!folder) {
+				console.log(`[VC] Voice agent directory not found: "${dir}"`);
+				continue;
+			}
+
+			console.log(`[VC] Scanning voice agent directory: "${dir}" with ${folder.children.length} children`);
+
+			// Find all .voice-agent.md files in this directory
+			for (const child of folder.children) {
+				if (child instanceof TFile && child.extension === 'md' && child.name.endsWith('.voice-agent.md')) {
+					try {
+						const content = await this.app.vault.read(child);
+						const { frontmatter, body } = parseFrontmatter(content);
+
+						if (frontmatter.name) {
+							voiceAgents.push({
+								name: String(frontmatter.name),
+								description: frontmatter.description ? String(frontmatter.description) : '',
+								handoffDescription: frontmatter.handoffDescription ? String(frontmatter.handoffDescription) : '',
+								voice: frontmatter.voice ? String(frontmatter.voice) : undefined,
+								tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : [],
+								handoffs: Array.isArray(frontmatter.handoffs) ? frontmatter.handoffs : [],
+								path: child.path,
+								instructions: body,
+							});
+							console.log(`[VC] Loaded voice agent: ${frontmatter.name} from ${child.path}`);
+						}
+					} catch (error) {
+						console.error(`Failed to load voice agent from ${child.path}:`, error);
+					}
+				}
+			}
+		}
+
+		return voiceAgents;
+	}
+
+	/**
+	 * Get a single voice agent by name
+	 */
+	async getVoiceAgent(directories: string[], name: string): Promise<VoiceAgentDefinition | undefined> {
+		const voiceAgents = await this.loadVoiceAgents(directories);
+		return voiceAgents.find(a => a.name === name);
 	}
 }

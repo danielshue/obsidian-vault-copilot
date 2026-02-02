@@ -3,8 +3,20 @@ export { OpenAIWhisperService, type OpenAIWhisperConfig } from './OpenAIWhisperS
 export { VoiceChatService, type VoiceChatServiceConfig, type VoiceBackend } from './VoiceChatService';
 
 // Re-export from refactored realtime-agent module
+// Primary voice agents
 export {
-	RealtimeAgentService,
+	BaseVoiceAgent,
+	MainVaultAssistant,
+	MAIN_ASSISTANT_DEFINITION_FILE,
+	// Voice agent registry
+	VoiceAgentRegistry,
+	getVoiceAgentRegistry,
+	type VoiceAgentFactory,
+	type VoiceAgentRegistration,
+	type VoiceAgentRegistryEvents,
+	// Types
+	type BaseVoiceAgentConfig,
+	type MainVaultAssistantConfig,
 	type RealtimeAgentConfig,
 	type RealtimeAgentState,
 	type RealtimeAgentEvents,
@@ -17,6 +29,30 @@ export {
 	type ToolApprovalRequest,
 	DEFAULT_TOOL_CONFIG,
 } from '../realtime-agent';
+
+// Re-export task agent
+export {
+	TaskManagementAgent,
+	TASK_AGENT_ID,
+	TASK_AGENT_DEFINITION_FILE,
+	type TaskManagementAgentConfig,
+} from '../task-agent';
+
+// Re-export note agent
+export {
+	NoteManagementAgent,
+	NOTE_AGENT_ID,
+	NOTE_AGENT_DEFINITION_FILE,
+	type NoteManagementAgentConfig,
+} from '../note-agent';
+
+// Re-export workiq agent
+export {
+	WorkIQAgent,
+	WORKIQ_AGENT_ID,
+	WORKIQ_AGENT_DEFINITION_FILE,
+	type WorkIQAgentConfig,
+} from '../workiq-agent';
 
 export type {
 	RecordingState,

@@ -116,6 +116,8 @@ export interface CopilotPluginSettings {
 		realtimeLanguage?: string;
 		/** Tool configuration for realtime agent */
 		realtimeToolConfig?: RealtimeToolConfig;
+		/** Directories to search for voice agent definition files (*.voice-agent.md) */
+		voiceAgentDirectories?: string[];
 		/** Voice conversation history */
 		conversations?: VoiceConversation[];
 	};
@@ -148,6 +150,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 		realtimeTurnDetection: 'server_vad',
 		realtimeLanguage: 'en',
 		realtimeToolConfig: { ...DEFAULT_TOOL_CONFIG },
+		voiceAgentDirectories: ["Reference/Agents"],
 	},
 	openai: {
 		enabled: false,
