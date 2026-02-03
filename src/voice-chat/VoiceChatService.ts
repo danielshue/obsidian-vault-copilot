@@ -244,6 +244,7 @@ export class VoiceChatService {
 			} else if (this.activeBackend === 'azure-whisper' && this.azureWhisper) {
 				// Azure whisper: just start recording, transcription happens on stop
 				await this.azureWhisper.startRecording();
+
 			} else if (this.activeBackend === 'local-whisper' && this.localWhisper) {
 				// Local whisper: just start recording, transcription happens on stop
 				await this.localWhisper.startRecording();

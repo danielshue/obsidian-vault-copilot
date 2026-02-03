@@ -1,7 +1,8 @@
-import { App, PluginSettingTab, Setting, Notice, FileSystemAdapter, moment } from "obsidian";
+import { App, Modal, PluginSettingTab, Setting, Notice, FileSystemAdapter, moment } from "obsidian";
 import CopilotPlugin from "./main";
 import { CliManager, CliStatus } from "./copilot/CliManager";
 import { SkillInfo, SkillRegistryEvent, McpServerConfig } from "./copilot/SkillRegistry";
+import { WhisperCppManager, WHISPER_MODELS, WhisperInstallStatus, WhisperServerStatus } from "./copilot/WhisperCppManager";
 import { ChatMessage } from "./copilot/CopilotService";
 import { DiscoveredMcpServer, isStdioConfig, McpConnectionStatus, McpServerSource } from "./copilot/McpTypes";
 import { getSourceLabel, getSourceIcon } from "./copilot/McpManager";
@@ -68,6 +69,385 @@ export interface OpenAISettings {
 	maxTokens: number;
 	/** Temperature (0-2) */
 	temperature: number;
+}
+
+/** AI Provider Profile Types */
+export type AIProviderProfileType = 'openai' | 'azure-openai' | 'local';
+
+/** Base interface for all AI Provider profiles */
+export interface AIProviderProfileBase {
+	/** Unique identifier for the profile */
+	id: string;
+	/** Display name for the profile */
+	name: string;
+	/** Provider type */
+	type: AIProviderProfileType;
+}
+
+/** OpenAI provider profile configuration */
+export interface OpenAIProviderProfile extends AIProviderProfileBase {
+	type: 'openai';
+	/** OpenAI API key */
+	apiKey: string;
+	/** Custom base URL (optional, for compatible APIs) */
+	baseURL?: string;
+}
+
+/** Azure OpenAI provider profile configuration */
+export interface AzureOpenAIProviderProfile extends AIProviderProfileBase {
+	type: 'azure-openai';
+	/** Azure OpenAI API key */
+	apiKey: string;
+	/** Azure OpenAI endpoint (e.g., https://your-resource.openai.azure.com) */
+	endpoint: string;
+	/** Deployment name for the model */
+	deploymentName: string;
+	/** API version (optional, defaults to 2024-06-01) */
+	apiVersion?: string;
+}
+
+/** Local Whisper server profile configuration */
+export interface LocalProviderProfile extends AIProviderProfileBase {
+	type: 'local';
+	/** Local server URL */
+	serverUrl: string;
+}
+
+/** Union type for all AI Provider profiles */
+export type AIProviderProfile = OpenAIProviderProfile | AzureOpenAIProviderProfile | LocalProviderProfile;
+
+/** Generate a unique profile ID */
+export function generateProfileId(): string {
+	return `profile-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/** Get a profile by ID from the settings */
+export function getProfileById(settings: CopilotPluginSettings, id: string | null | undefined): AIProviderProfile | undefined {
+	if (!id || !settings.aiProviderProfiles) return undefined;
+	return settings.aiProviderProfiles.find(p => p.id === id);
+}
+
+/** Get all profiles of a specific type */
+export function getProfilesByType(settings: CopilotPluginSettings, type: AIProviderProfileType): AIProviderProfile[] {
+	if (!settings.aiProviderProfiles) return [];
+	return settings.aiProviderProfiles.filter(p => p.type === type);
+}
+
+/** Get OpenAI profiles only (for Realtime Agent which only supports OpenAI) */
+export function getOpenAIProfiles(settings: CopilotPluginSettings): OpenAIProviderProfile[] {
+	return getProfilesByType(settings, 'openai') as OpenAIProviderProfile[];
+}
+
+/** Get display name for profile type */
+export function getProfileTypeDisplayName(type: AIProviderProfileType): string {
+	switch (type) {
+		case 'openai': return 'OpenAI';
+		case 'azure-openai': return 'Azure OpenAI';
+		case 'local': return 'Local Whisper';
+		default: return type;
+	}
+}
+
+/** Map profile type to voice backend type */
+export function profileTypeToBackend(type: AIProviderProfileType): 'openai-whisper' | 'azure-whisper' | 'local-whisper' {
+	switch (type) {
+		case 'openai': return 'openai-whisper';
+		case 'azure-openai': return 'azure-whisper';
+		case 'local': return 'local-whisper';
+		default: return 'openai-whisper';
+	}
+}
+
+/** Configuration for VoiceChatService derived from a profile */
+export interface VoiceServiceConfigFromProfile {
+	backend: 'openai-whisper' | 'azure-whisper' | 'local-whisper';
+	openaiApiKey?: string;
+	openaiBaseUrl?: string;
+	azureApiKey?: string;
+	azureEndpoint?: string;
+	azureDeploymentName?: string;
+	azureApiVersion?: string;
+	whisperServerUrl?: string;
+}
+
+/**
+ * Get VoiceChatService configuration from a profile
+ * Returns null if no profile is found
+ */
+export function getVoiceServiceConfigFromProfile(
+	settings: CopilotPluginSettings,
+	profileId: string | null | undefined
+): VoiceServiceConfigFromProfile | null {
+	const profile = getProfileById(settings, profileId);
+	if (!profile) return null;
+
+	const config: VoiceServiceConfigFromProfile = {
+		backend: profileTypeToBackend(profile.type),
+	};
+
+	if (profile.type === 'openai') {
+		const openai = profile as OpenAIProviderProfile;
+		config.openaiApiKey = openai.apiKey || undefined;
+		config.openaiBaseUrl = openai.baseURL || undefined;
+	} else if (profile.type === 'azure-openai') {
+		const azure = profile as AzureOpenAIProviderProfile;
+		config.azureApiKey = azure.apiKey || undefined;
+		config.azureEndpoint = azure.endpoint;
+		config.azureDeploymentName = azure.deploymentName;
+		config.azureApiVersion = azure.apiVersion;
+	} else if (profile.type === 'local') {
+		const local = profile as LocalProviderProfile;
+		config.whisperServerUrl = local.serverUrl;
+	}
+
+	return config;
+}
+
+/**
+ * Modal for creating/editing AI Provider profiles
+ */
+export class AIProviderProfileModal extends Modal {
+	private profile: Partial<AIProviderProfile>;
+	private onSave: (profile: AIProviderProfile) => void;
+	private isEdit: boolean;
+	private conditionalContainer: HTMLElement | null = null;
+
+	constructor(app: App, profile: AIProviderProfile | null, onSave: (profile: AIProviderProfile) => void) {
+		super(app);
+		this.isEdit = profile !== null;
+		this.profile = profile ? { ...profile } : {
+			id: generateProfileId(),
+			name: '',
+			type: 'openai',
+		};
+		this.onSave = onSave;
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('vc-profile-modal');
+
+		contentEl.createEl('h2', { text: this.isEdit ? 'Edit AI Provider Profile' : 'Create AI Provider Profile' });
+
+		// Profile name
+		new Setting(contentEl)
+			.setName('Profile Name')
+			.setDesc('A descriptive name for this profile')
+			.addText((text) => {
+				text.setPlaceholder('My OpenAI Profile');
+				text.setValue(this.profile.name || '');
+				text.onChange((value) => {
+					this.profile.name = value;
+				});
+			});
+
+		// Profile type (only editable when creating)
+		const typeSetting = new Setting(contentEl)
+			.setName('Provider Type')
+			.setDesc('The type of AI provider');
+		
+		if (this.isEdit) {
+			// Show as read-only text when editing
+			typeSetting.addText((text) => {
+				text.setValue(getProfileTypeDisplayName(this.profile.type as AIProviderProfileType));
+				text.setDisabled(true);
+			});
+		} else {
+			typeSetting.addDropdown((dropdown) => {
+				dropdown.addOption('openai', 'OpenAI');
+				dropdown.addOption('azure-openai', 'Azure OpenAI');
+				dropdown.addOption('local', 'Local Whisper');
+				dropdown.setValue(this.profile.type || 'openai');
+				dropdown.onChange((value) => {
+					this.profile.type = value as AIProviderProfileType;
+					// Reset type-specific fields when changing type
+					if (value === 'openai') {
+						delete (this.profile as any).endpoint;
+						delete (this.profile as any).deploymentName;
+						delete (this.profile as any).apiVersion;
+						delete (this.profile as any).serverUrl;
+						delete (this.profile as any).modelName;
+					} else if (value === 'azure-openai') {
+						delete (this.profile as any).baseURL;
+						delete (this.profile as any).serverUrl;
+						delete (this.profile as any).modelName;
+					} else if (value === 'local') {
+						delete (this.profile as any).apiKey;
+						delete (this.profile as any).baseURL;
+						delete (this.profile as any).endpoint;
+						delete (this.profile as any).deploymentName;
+						delete (this.profile as any).apiVersion;
+					}
+					this.renderConditionalFields();
+				});
+			});
+		}
+
+		// Container for type-specific fields
+		this.conditionalContainer = contentEl.createDiv({ cls: 'vc-profile-conditional' });
+		this.renderConditionalFields();
+
+		// Buttons
+		const buttonRow = contentEl.createDiv({ cls: 'vc-profile-buttons' });
+		
+		const cancelBtn = buttonRow.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => this.close());
+		
+		const saveBtn = buttonRow.createEl('button', { text: 'Save', cls: 'mod-cta' });
+		saveBtn.addEventListener('click', () => this.saveProfile());
+	}
+
+	private renderConditionalFields(): void {
+		if (!this.conditionalContainer) return;
+		this.conditionalContainer.empty();
+
+		const type = this.profile.type as AIProviderProfileType;
+
+		if (type === 'openai') {
+			this.renderOpenAIFields();
+		} else if (type === 'azure-openai') {
+			this.renderAzureFields();
+		} else if (type === 'local') {
+			this.renderLocalFields();
+		}
+	}
+
+	private renderOpenAIFields(): void {
+		const container = this.conditionalContainer!;
+
+		// API Key
+		new Setting(container)
+			.setName('API Key')
+			.setDesc('Your OpenAI API key. Leave empty to use OPENAI_API_KEY environment variable.')
+			.addText((text) => {
+				text.setPlaceholder('sk-...');
+				text.setValue((this.profile as OpenAIProviderProfile).apiKey || '');
+				text.inputEl.type = 'password';
+				text.onChange((value) => {
+					(this.profile as OpenAIProviderProfile).apiKey = value;
+				});
+			});
+
+		// Base URL (optional)
+		new Setting(container)
+			.setName('Base URL')
+			.setDesc('Custom API endpoint (optional). Leave empty for default OpenAI API.')
+			.addText((text) => {
+				text.setPlaceholder('https://api.openai.com/v1');
+				text.setValue((this.profile as OpenAIProviderProfile).baseURL || '');
+				text.onChange((value) => {
+					(this.profile as OpenAIProviderProfile).baseURL = value || undefined;
+				});
+			});
+	}
+
+	private renderAzureFields(): void {
+		const container = this.conditionalContainer!;
+
+		// API Key
+		new Setting(container)
+			.setName('API Key')
+			.setDesc('Your Azure OpenAI API key. Leave empty to use AZURE_OPENAI_KEY environment variable.')
+			.addText((text) => {
+				text.setPlaceholder('');
+				text.setValue((this.profile as AzureOpenAIProviderProfile).apiKey || '');
+				text.inputEl.type = 'password';
+				text.onChange((value) => {
+					(this.profile as AzureOpenAIProviderProfile).apiKey = value;
+				});
+			});
+
+		// Endpoint (required)
+		new Setting(container)
+			.setName('Endpoint')
+			.setDesc('Your Azure OpenAI resource endpoint (required)')
+			.addText((text) => {
+				text.setPlaceholder('https://your-resource.openai.azure.com');
+				text.setValue((this.profile as AzureOpenAIProviderProfile).endpoint || '');
+				text.onChange((value) => {
+					(this.profile as AzureOpenAIProviderProfile).endpoint = value;
+				});
+			});
+
+		// Deployment Name (required)
+		new Setting(container)
+			.setName('Deployment Name')
+			.setDesc('The name of your model deployment (required)')
+			.addText((text) => {
+				text.setPlaceholder('whisper');
+				text.setValue((this.profile as AzureOpenAIProviderProfile).deploymentName || '');
+				text.onChange((value) => {
+					(this.profile as AzureOpenAIProviderProfile).deploymentName = value;
+				});
+			});
+
+		// API Version (optional)
+		new Setting(container)
+			.setName('API Version')
+			.setDesc('Azure OpenAI API version (optional, defaults to 2024-06-01)')
+			.addText((text) => {
+				text.setPlaceholder('2024-06-01');
+				text.setValue((this.profile as AzureOpenAIProviderProfile).apiVersion || '');
+				text.onChange((value) => {
+					(this.profile as AzureOpenAIProviderProfile).apiVersion = value || undefined;
+				});
+			});
+	}
+
+	private renderLocalFields(): void {
+		const container = this.conditionalContainer!;
+
+		// Server URL (required)
+		new Setting(container)
+			.setName('Server URL')
+			.setDesc('URL of your local whisper.cpp server')
+			.addText((text) => {
+				text.setPlaceholder('http://127.0.0.1:8080');
+				text.setValue((this.profile as LocalProviderProfile).serverUrl || 'http://127.0.0.1:8080');
+				text.onChange((value) => {
+					(this.profile as LocalProviderProfile).serverUrl = value;
+				});
+			});
+	}
+
+	private saveProfile(): void {
+		// Validate required fields
+		if (!this.profile.name?.trim()) {
+			new Notice('Profile name is required');
+			return;
+		}
+
+		const type = this.profile.type as AIProviderProfileType;
+
+		if (type === 'azure-openai') {
+			const azure = this.profile as AzureOpenAIProviderProfile;
+			if (!azure.endpoint?.trim()) {
+				new Notice('Azure endpoint is required');
+				return;
+			}
+			if (!azure.deploymentName?.trim()) {
+				new Notice('Azure deployment name is required');
+				return;
+			}
+		}
+
+		if (type === 'local') {
+			const local = this.profile as LocalProviderProfile;
+			if (!local.serverUrl?.trim()) {
+				new Notice('Server URL is required');
+				return;
+			}
+		}
+
+		this.onSave(this.profile as AIProviderProfile);
+		this.close();
+	}
+
+	onClose(): void {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
 }
 
 /** Periodic note granularity */
@@ -169,6 +549,12 @@ export interface CopilotPluginSettings {
 	defaultEnabledTools?: string[];
 	/** Default disabled tools */
 	defaultDisabledTools?: string[];
+	/** AI Provider profiles for voice services */
+	aiProviderProfiles?: AIProviderProfile[];
+	/** Selected profile ID for Voice Input */
+	voiceInputProfileId?: string | null;
+	/** Selected profile ID for Realtime Voice Agent */
+	realtimeAgentProfileId?: string | null;
 	/** Voice chat settings */
 	voice?: {
 		/** Enable voice input (show mic button in chat) */
@@ -245,6 +631,9 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	agentDirectories: ["Reference/Agents"],
 	instructionDirectories: ["."],  // vault root for AGENTS.md and copilot-instructions.md
 	promptDirectories: ["Reference/Prompts"],
+	aiProviderProfiles: [],
+	voiceInputProfileId: null,
+	realtimeAgentProfileId: null,
 	voice: {
 		voiceInputEnabled: false,
 		backend: 'openai-whisper',
@@ -724,8 +1113,175 @@ export class CopilotSettingTab extends PluginSettingTab {
 		// Periodic Notes Settings Section
 		this.renderPeriodicNotesSettings(this.mainSettingsContainer);
 
+		// AI Provider Profiles Section (before Voice settings)
+		this.renderAIProviderProfilesSection(this.mainSettingsContainer);
+
+		// Whisper.cpp Local Server Section
+		this.renderWhisperCppSection(this.mainSettingsContainer);
+
 		// Voice Chat Settings Section
 		this.renderVoiceSettings(this.mainSettingsContainer);
+	}
+
+	/**
+	 * Render AI Provider Profiles management section
+	 */
+	private renderAIProviderProfilesSection(container: HTMLElement): void {
+		const section = container.createDiv({ cls: "vc-settings-section" });
+		section.createEl("h3", { text: "AI Provider Profiles" });
+		
+		section.createEl("p", { 
+			text: "Configure AI provider profiles for voice services. Create profiles for OpenAI, Azure OpenAI, or local Whisper servers, then select them for Voice Input and Realtime Agent.",
+			cls: "vc-status-desc"
+		});
+
+		// Profile list container
+		const profileListContainer = section.createDiv({ cls: "vc-profile-list" });
+		this.renderProfileList(profileListContainer);
+
+		// Add profile button
+		new Setting(section)
+			.setName("Add Profile")
+			.setDesc("Create a new AI provider profile")
+			.addButton((button) => {
+				button
+					.setButtonText("Add Profile")
+					.onClick(() => {
+						const modal = new AIProviderProfileModal(this.app, null, async (profile) => {
+							if (!this.plugin.settings.aiProviderProfiles) {
+								this.plugin.settings.aiProviderProfiles = [];
+							}
+							this.plugin.settings.aiProviderProfiles.push(profile);
+							await this.plugin.saveSettings();
+							this.renderProfileList(profileListContainer);
+							new Notice(`Profile "${profile.name}" created`);
+						});
+						modal.open();
+					});
+			});
+	}
+
+	/**
+	 * Render the list of AI provider profiles
+	 */
+	private renderProfileList(container: HTMLElement): void {
+		container.empty();
+
+		const profiles = this.plugin.settings.aiProviderProfiles || [];
+
+		if (profiles.length === 0) {
+			const emptyState = container.createDiv({ cls: "vc-profile-empty" });
+			emptyState.createEl("p", { text: "No profiles configured yet." });
+			emptyState.createEl("p", { 
+				text: "Click \"Add Profile\" to create your first AI provider profile.",
+				cls: "vc-status-desc"
+			});
+			return;
+		}
+
+		// Create a table for profiles
+		const table = container.createEl("table", { cls: "vc-profiles-table" });
+		
+		// Header
+		const thead = table.createEl("thead");
+		const headerRow = thead.createEl("tr");
+		headerRow.createEl("th", { text: "Name" });
+		headerRow.createEl("th", { text: "Type" });
+		headerRow.createEl("th", { text: "Details" });
+		headerRow.createEl("th", { text: "Actions" });
+
+		// Body
+		const tbody = table.createEl("tbody");
+		for (const profile of profiles) {
+			const row = tbody.createEl("tr");
+			
+			// Name
+			row.createEl("td", { text: profile.name, cls: "vc-profile-name" });
+			
+			// Type badge
+			const typeCell = row.createEl("td");
+			const typeBadge = typeCell.createEl("span", {
+				text: getProfileTypeDisplayName(profile.type),
+				cls: `vc-profile-type-badge vc-profile-type-${profile.type}`
+			});
+
+			// Details
+			const detailsCell = row.createEl("td", { cls: "vc-profile-details" });
+			if (profile.type === 'openai') {
+				const openai = profile as OpenAIProviderProfile;
+				if (openai.baseURL) {
+					detailsCell.createEl("span", { text: openai.baseURL, cls: "vc-profile-detail" });
+				} else {
+					detailsCell.createEl("span", { text: "api.openai.com", cls: "vc-profile-detail" });
+				}
+			} else if (profile.type === 'azure-openai') {
+				const azure = profile as AzureOpenAIProviderProfile;
+				detailsCell.createEl("span", { text: azure.deploymentName || 'No deployment', cls: "vc-profile-detail" });
+			} else if (profile.type === 'local') {
+				const local = profile as LocalProviderProfile;
+				detailsCell.createEl("span", { text: local.serverUrl, cls: "vc-profile-detail" });
+			}
+
+			// Actions
+			const actionsCell = row.createEl("td", { cls: "vc-profile-actions" });
+			
+			// Edit button
+			const editBtn = actionsCell.createEl("button", { text: "Edit", cls: "vc-btn-sm" });
+			editBtn.addEventListener("click", () => {
+				const modal = new AIProviderProfileModal(this.app, profile, async (updatedProfile) => {
+					const index = this.plugin.settings.aiProviderProfiles!.findIndex(p => p.id === profile.id);
+					if (index !== -1) {
+						this.plugin.settings.aiProviderProfiles![index] = updatedProfile;
+						await this.plugin.saveSettings();
+						this.renderProfileList(container);
+						new Notice(`Profile "${updatedProfile.name}" updated`);
+					}
+				});
+				modal.open();
+			});
+
+			// Delete button
+			const deleteBtn = actionsCell.createEl("button", { text: "Delete", cls: "vc-btn-sm vc-btn-danger" });
+			deleteBtn.addEventListener("click", async () => {
+				// Check if profile is in use
+				const inUseBy: string[] = [];
+				if (this.plugin.settings.voiceInputProfileId === profile.id) {
+					inUseBy.push("Voice Input");
+				}
+				if (this.plugin.settings.realtimeAgentProfileId === profile.id) {
+					inUseBy.push("Realtime Agent");
+				}
+
+				let confirmMessage = `Are you sure you want to delete the profile "${profile.name}"?`;
+				if (inUseBy.length > 0) {
+					confirmMessage += `\n\nThis profile is currently used by: ${inUseBy.join(", ")}. These will be reset to "None".`;
+				}
+
+				if (confirm(confirmMessage)) {
+					// Remove profile
+					const index = this.plugin.settings.aiProviderProfiles!.findIndex(p => p.id === profile.id);
+					if (index !== -1) {
+						this.plugin.settings.aiProviderProfiles!.splice(index, 1);
+					}
+
+					// Reset references if this profile was in use
+					if (this.plugin.settings.voiceInputProfileId === profile.id) {
+						this.plugin.settings.voiceInputProfileId = null;
+					}
+					if (this.plugin.settings.realtimeAgentProfileId === profile.id) {
+						this.plugin.settings.realtimeAgentProfileId = null;
+					}
+
+					await this.plugin.saveSettings();
+					this.renderProfileList(container);
+					
+					// Re-render voice settings sections to update dropdowns
+					this.display();
+					
+					new Notice(`Profile "${profile.name}" deleted`);
+				}
+			});
+		}
 	}
 
 	private renderDateTimeSettings(container: HTMLElement): void {
@@ -1010,6 +1566,414 @@ export class CopilotSettingTab extends PluginSettingTab {
 		`;
 	}
 
+	/**
+	 * Whisper.cpp manager instance for the settings tab
+	 */
+	private whisperCppManager: WhisperCppManager | null = null;
+	private whisperCppStatusContainer: HTMLElement | null = null;
+
+	/**
+	 * Get or create WhisperCppManager instance
+	 */
+	private getWhisperCppManager(): WhisperCppManager {
+		if (!this.whisperCppManager) {
+			const adapter = this.app.vault.adapter;
+			if (adapter instanceof FileSystemAdapter) {
+				const basePath = adapter.getBasePath();
+				this.whisperCppManager = new WhisperCppManager(basePath);
+			} else {
+				throw new Error("WhisperCppManager requires FileSystemAdapter");
+			}
+		}
+		return this.whisperCppManager;
+	}
+
+	/**
+	 * Render Whisper.cpp management section
+	 */
+	private renderWhisperCppSection(container: HTMLElement): void {
+		const section = container.createDiv({ cls: "vc-settings-section vc-whisper-section" });
+		section.createEl("h3", { text: "Whisper.cpp Local Server" });
+		
+		section.createEl("p", { 
+			text: "Download and run whisper.cpp locally for offline speech-to-text. No API keys or cloud services required.",
+			cls: "vc-status-desc"
+		});
+
+		// Status container that will be updated
+		this.whisperCppStatusContainer = section.createDiv({ cls: "vc-whisper-status-container" });
+		this.refreshWhisperCppStatus();
+	}
+
+	/**
+	 * Refresh the whisper.cpp status display
+	 */
+	private async refreshWhisperCppStatus(): Promise<void> {
+		if (!this.whisperCppStatusContainer) return;
+		this.whisperCppStatusContainer.empty();
+
+		const container = this.whisperCppStatusContainer;
+		
+		try {
+			const manager = this.getWhisperCppManager();
+			const installStatus = await manager.checkInstallation();
+			const serverStatus = await manager.getServerStatus();
+			const downloadedModels = await manager.listDownloadedModels();
+
+			// Installation status
+			const statusRow = container.createDiv({ cls: "vc-whisper-status-row" });
+			const statusIcon = statusRow.createSpan({ cls: "vc-whisper-status-icon" });
+			const statusText = statusRow.createSpan({ cls: "vc-whisper-status-text" });
+
+			if (installStatus.installed) {
+				statusIcon.addClass("vc-whisper-status-ok");
+				statusIcon.setText("✓");
+				statusText.setText(`Whisper.cpp installed${installStatus.version ? ` (${installStatus.version})` : ''}`);
+			} else {
+				statusIcon.addClass("vc-whisper-status-missing");
+				statusIcon.setText("✗");
+				statusText.setText("Whisper.cpp not installed");
+			}
+
+			// Server status
+			const serverRow = container.createDiv({ cls: "vc-whisper-status-row" });
+			const serverIcon = serverRow.createSpan({ cls: "vc-whisper-status-icon" });
+			const serverText = serverRow.createSpan({ cls: "vc-whisper-status-text" });
+
+			if (serverStatus.running) {
+				serverIcon.addClass("vc-whisper-status-ok");
+				serverIcon.setText("●");
+				serverText.setText(`Server running on port ${serverStatus.port || 8080}`);
+			} else {
+				serverIcon.addClass("vc-whisper-status-stopped");
+				serverIcon.setText("○");
+				serverText.setText("Server not running");
+			}
+
+			// Download whisper.cpp section
+			if (!installStatus.installed) {
+				this.renderWhisperDownloadSection(container, manager);
+			} else {
+				// Models section
+				this.renderWhisperModelsSection(container, manager, downloadedModels);
+				
+				// Server controls
+				this.renderWhisperServerControls(container, manager, serverStatus, downloadedModels);
+
+				// Uninstall section
+				this.renderWhisperUninstallSection(container, manager);
+			}
+		} catch (error) {
+			container.createEl("p", { 
+				text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+				cls: "vc-whisper-error"
+			});
+		}
+	}
+
+	/**
+	 * Render download whisper.cpp section
+	 */
+	private renderWhisperDownloadSection(container: HTMLElement, manager: WhisperCppManager): void {
+		const downloadSection = container.createDiv({ cls: "vc-whisper-download-section" });
+		
+		// Check platform support first
+		const platformCheck = manager.isPlatformSupported();
+		if (!platformCheck.supported) {
+			downloadSection.createEl("p", { 
+				text: "⚠️ Platform Not Supported",
+				cls: "vc-whisper-warning-title"
+			});
+			downloadSection.createEl("p", { 
+				text: platformCheck.reason || "Your platform is not supported for pre-built binaries.",
+				cls: "vc-whisper-warning"
+			});
+			downloadSection.createEl("p", { 
+				text: "Alternative: Use the OpenAI Whisper API or Azure Speech services instead. Create an AI Provider Profile in the section above.",
+				cls: "vc-whisper-info"
+			});
+			return;
+		}
+
+		downloadSection.createEl("p", { 
+			text: "Download whisper.cpp server binaries from GitHub. This will download the latest release for your platform.",
+			cls: "vc-whisper-info"
+		});
+
+		const progressContainer = downloadSection.createDiv({ cls: "vc-whisper-progress-container" });
+		progressContainer.style.display = "none";
+		const progressBar = progressContainer.createDiv({ cls: "vc-whisper-progress-bar" });
+		const progressFill = progressBar.createDiv({ cls: "vc-whisper-progress-fill" });
+		const progressText = progressContainer.createDiv({ cls: "vc-whisper-progress-text" });
+
+		new Setting(downloadSection)
+			.setName("Download Whisper.cpp")
+			.setDesc("Download whisper.cpp server binaries (~25 MB)")
+			.addButton((button) => {
+				button
+					.setButtonText("Download")
+					.setCta()
+					.onClick(async () => {
+						button.setDisabled(true);
+						button.setButtonText("Downloading...");
+						progressContainer.style.display = "block";
+
+						try {
+							const result = await manager.downloadWhisperCpp((downloaded, total, percentage) => {
+								progressFill.style.width = `${percentage}%`;
+								const downloadedMB = (downloaded / 1024 / 1024).toFixed(1);
+								const totalMB = (total / 1024 / 1024).toFixed(1);
+								progressText.setText(`${downloadedMB} MB / ${totalMB} MB (${percentage.toFixed(0)}%)`);
+							});
+
+							if (result.success) {
+								new Notice("Whisper.cpp downloaded successfully!");
+								await this.refreshWhisperCppStatus();
+							} else {
+								new Notice(`Download failed: ${result.error}`);
+								button.setDisabled(false);
+								button.setButtonText("Download");
+								progressContainer.style.display = "none";
+							}
+						} catch (error) {
+							new Notice(`Download error: ${error instanceof Error ? error.message : String(error)}`);
+							button.setDisabled(false);
+							button.setButtonText("Download");
+							progressContainer.style.display = "none";
+						}
+					});
+			});
+	}
+
+	/**
+	 * Render models section
+	 */
+	private renderWhisperModelsSection(container: HTMLElement, manager: WhisperCppManager, downloadedModels: string[]): void {
+		const modelsSection = container.createDiv({ cls: "vc-whisper-models-section" });
+		modelsSection.createEl("h4", { text: "Models" });
+
+		// Downloaded models list
+		if (downloadedModels.length > 0) {
+			const downloadedList = modelsSection.createDiv({ cls: "vc-whisper-downloaded-models" });
+			downloadedList.createEl("p", { text: "Downloaded models:", cls: "vc-whisper-models-label" });
+			
+			for (const modelFile of downloadedModels) {
+				const modelRow = downloadedList.createDiv({ cls: "vc-whisper-model-row" });
+				modelRow.createSpan({ text: modelFile, cls: "vc-whisper-model-name" });
+				
+				const deleteBtn = modelRow.createEl("button", { cls: "vc-whisper-model-delete" });
+				deleteBtn.setText("Delete");
+				deleteBtn.addEventListener("click", async () => {
+					if (confirm(`Delete model ${modelFile}?`)) {
+						try {
+							await manager.deleteModel(modelFile);
+							new Notice(`Deleted ${modelFile}`);
+							await this.refreshWhisperCppStatus();
+						} catch (error) {
+							new Notice(`Failed to delete: ${error instanceof Error ? error.message : String(error)}`);
+						}
+					}
+				});
+			}
+		}
+
+		// Available models to download
+		const availableSection = modelsSection.createDiv({ cls: "vc-whisper-available-models" });
+		availableSection.createEl("p", { text: "Download a model:", cls: "vc-whisper-models-label" });
+
+		const modelSelect = availableSection.createEl("select", { cls: "vc-whisper-model-select" });
+		for (const model of WHISPER_MODELS) {
+			const isDownloaded = downloadedModels.includes(model.filename);
+			const option = modelSelect.createEl("option");
+			option.value = model.id;
+			option.text = `${model.name}${isDownloaded ? ' (downloaded)' : ''}`;
+			if (isDownloaded) {
+				option.disabled = true;
+			}
+		}
+
+		// Progress container for model download
+		const modelProgressContainer = availableSection.createDiv({ cls: "vc-whisper-progress-container" });
+		modelProgressContainer.style.display = "none";
+		const modelProgressBar = modelProgressContainer.createDiv({ cls: "vc-whisper-progress-bar" });
+		const modelProgressFill = modelProgressBar.createDiv({ cls: "vc-whisper-progress-fill" });
+		const modelProgressText = modelProgressContainer.createDiv({ cls: "vc-whisper-progress-text" });
+
+		const downloadModelBtn = availableSection.createEl("button", { cls: "vc-whisper-download-model-btn" });
+		downloadModelBtn.setText("Download Model");
+		downloadModelBtn.addEventListener("click", async () => {
+			const selectedModelId = modelSelect.value;
+			const selectedModel = WHISPER_MODELS.find(m => m.id === selectedModelId);
+			if (!selectedModel) return;
+
+			downloadModelBtn.disabled = true;
+			downloadModelBtn.setText("Downloading...");
+			modelProgressContainer.style.display = "block";
+
+			try {
+				const result = await manager.downloadModel(selectedModelId, (downloaded, total, percentage) => {
+					modelProgressFill.style.width = `${percentage}%`;
+					const downloadedMB = (downloaded / 1024 / 1024).toFixed(1);
+					const totalMB = (total / 1024 / 1024).toFixed(1);
+					modelProgressText.setText(`${downloadedMB} MB / ${totalMB} MB (${percentage.toFixed(0)}%)`);
+				});
+
+				if (result.success) {
+					new Notice(`Model ${selectedModel.name} downloaded successfully!`);
+					await this.refreshWhisperCppStatus();
+				} else {
+					new Notice(`Download failed: ${result.error}`);
+					downloadModelBtn.disabled = false;
+					downloadModelBtn.setText("Download Model");
+					modelProgressContainer.style.display = "none";
+				}
+			} catch (error) {
+				new Notice(`Download error: ${error instanceof Error ? error.message : String(error)}`);
+				downloadModelBtn.disabled = false;
+				downloadModelBtn.setText("Download Model");
+				modelProgressContainer.style.display = "none";
+			}
+		});
+	}
+
+	/**
+	 * Render server controls section
+	 */
+	private renderWhisperServerControls(container: HTMLElement, manager: WhisperCppManager, serverStatus: WhisperServerStatus, downloadedModels: string[]): void {
+		const serverSection = container.createDiv({ cls: "vc-whisper-server-section" });
+		serverSection.createEl("h4", { text: "Server Controls" });
+
+		if (downloadedModels.length === 0) {
+			serverSection.createEl("p", { 
+				text: "Download a model first to start the server.",
+				cls: "vc-whisper-info"
+			});
+			return;
+		}
+
+		// Model selection for server
+		const modelSelectSetting = new Setting(serverSection)
+			.setName("Model")
+			.setDesc("Select which model to use for the server");
+
+		let selectedServerModel = downloadedModels[0] || '';
+		modelSelectSetting.addDropdown((dropdown) => {
+			for (const modelFile of downloadedModels) {
+				const modelInfo = WHISPER_MODELS.find(m => m.filename === modelFile);
+				const displayName = modelInfo ? modelInfo.name : modelFile;
+				dropdown.addOption(modelFile, displayName);
+			}
+			if (selectedServerModel) {
+				dropdown.setValue(selectedServerModel);
+			}
+			dropdown.onChange((value) => {
+				selectedServerModel = value;
+			});
+		});
+
+		// Server action buttons
+		const buttonContainer = serverSection.createDiv({ cls: "vc-whisper-button-container" });
+
+		if (serverStatus.running) {
+			const stopBtn = buttonContainer.createEl("button", { cls: "mod-warning" });
+			stopBtn.setText("Stop Server");
+			stopBtn.addEventListener("click", async () => {
+				try {
+					const result = manager.stopServer();
+					if (result.success) {
+						new Notice("Whisper.cpp server stopped");
+						await this.refreshWhisperCppStatus();
+					} else {
+						new Notice(`Failed to stop server: ${result.error}`);
+					}
+				} catch (error) {
+					new Notice(`Error: ${error instanceof Error ? error.message : String(error)}`);
+				}
+			});
+		} else {
+			const startBtn = buttonContainer.createEl("button", { cls: "mod-cta" });
+			startBtn.setText("Start Server");
+			startBtn.addEventListener("click", async () => {
+				try {
+					if (!selectedServerModel) {
+						new Notice("Please select a model first");
+						return;
+					}
+					// Extract model ID from filename (e.g., "ggml-tiny.bin" -> "tiny")
+					const modelId = selectedServerModel.replace('ggml-', '').replace('.bin', '');
+					
+					startBtn.disabled = true;
+					startBtn.setText("Starting...");
+
+					const result = await manager.startServer(modelId);
+					if (result.success) {
+						new Notice("Whisper.cpp server started!");
+						// Update voice settings to use local-whisper
+						if (this.plugin.settings.voice) {
+							this.plugin.settings.voice.backend = 'local-whisper';
+							this.plugin.settings.voice.whisperServerUrl = 'http://127.0.0.1:8080';
+							await this.plugin.saveSettings();
+						}
+						await this.refreshWhisperCppStatus();
+					} else {
+						new Notice(`Failed to start server: ${result.error}`);
+						startBtn.disabled = false;
+						startBtn.setText("Start Server");
+					}
+				} catch (error) {
+					new Notice(`Error: ${error instanceof Error ? error.message : String(error)}`);
+					startBtn.disabled = false;
+					startBtn.setText("Start Server");
+				}
+			});
+		}
+
+		// Show endpoint info when running
+		if (serverStatus.running) {
+			const endpointInfo = serverSection.createDiv({ cls: "vc-whisper-endpoint-info" });
+			endpointInfo.createEl("code", { text: `Endpoint: http://127.0.0.1:${serverStatus.port || 8080}/inference` });
+		}
+	}
+
+	/**
+	 * Render uninstall section
+	 */
+	private renderWhisperUninstallSection(container: HTMLElement, manager: WhisperCppManager): void {
+		const uninstallSection = container.createDiv({ cls: "vc-whisper-uninstall-section" });
+		uninstallSection.createEl("h4", { text: "Uninstall" });
+
+		new Setting(uninstallSection)
+			.setName("Remove Whisper.cpp")
+			.setDesc("Remove all whisper.cpp binaries and downloaded models")
+			.addButton((button) => {
+				button
+					.setButtonText("Uninstall")
+					.setWarning()
+					.onClick(async () => {
+						if (confirm("Are you sure you want to uninstall whisper.cpp? This will remove all binaries and downloaded models.")) {
+							button.setDisabled(true);
+							button.setButtonText("Uninstalling...");
+
+							try {
+								const result = await manager.uninstall();
+								if (result.success) {
+									new Notice("Whisper.cpp uninstalled successfully");
+									await this.refreshWhisperCppStatus();
+								} else {
+									new Notice(`Uninstall failed: ${result.error}`);
+									button.setDisabled(false);
+									button.setButtonText("Uninstall");
+								}
+							} catch (error) {
+								new Notice(`Error: ${error instanceof Error ? error.message : String(error)}`);
+								button.setDisabled(false);
+								button.setButtonText("Uninstall");
+							}
+						}
+					});
+			});
+	}
+
 	private renderVoiceSettings(container: HTMLElement): void {
 		// Ensure voice settings exist
 		if (!this.plugin.settings.voice) {
@@ -1097,6 +2061,49 @@ export class CopilotSettingTab extends PluginSettingTab {
 			return;
 		}
 
+		// 1. AI Provider Profile selection
+		const profiles = this.plugin.settings.aiProviderProfiles || [];
+		const selectedProfileId = this.plugin.settings.voiceInputProfileId;
+		const selectedProfile = getProfileById(this.plugin.settings, selectedProfileId);
+
+		new Setting(container)
+			.setName("AI Provider Profile")
+			.setDesc("Select the AI provider profile to use for speech-to-text")
+			.addDropdown((dropdown) => {
+				dropdown.addOption('', 'None');
+				for (const profile of profiles) {
+					dropdown.addOption(profile.id, `${profile.name} (${getProfileTypeDisplayName(profile.type)})`);
+				}
+				dropdown.setValue(selectedProfileId || '');
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.voiceInputProfileId = value || null;
+					// Update the legacy backend field based on profile type
+					const profile = getProfileById(this.plugin.settings, value);
+					if (profile) {
+						this.plugin.settings.voice!.backend = profileTypeToBackend(profile.type);
+					}
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// Show warning if no profile selected
+		if (!selectedProfile) {
+			const warningEl = container.createDiv({ cls: "vc-profile-warning" });
+			warningEl.innerHTML = `
+				<span class="vc-status-warning">⚠</span>
+				<span>No AI provider profile selected. <a href="#" class="vc-profile-link">Add a profile</a> in the AI Provider Profiles section above.</span>
+			`;
+			const link = warningEl.querySelector('.vc-profile-link');
+			if (link) {
+				link.addEventListener('click', (e) => {
+					e.preventDefault();
+					// Scroll to profiles section
+					const profilesSection = container.closest('.vc-main-settings')?.querySelector('.vc-profile-list');
+					profilesSection?.scrollIntoView({ behavior: 'smooth' });
+				});
+			}
+		}
+
 		// 2. Audio device selection (Microphone)
 		const audioDeviceSetting = new Setting(container)
 			.setName("Microphone")
@@ -1161,32 +2168,6 @@ export class CopilotSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
-
-		// Container for conditional settings (created before backend dropdown so we can reference it)
-		const conditionalContainer = container.createDiv({ cls: "vc-voice-conditional" });
-
-		// 7. Voice backend selection
-		new Setting(container)
-			.setName("Voice Backend")
-			.setDesc("Choose the speech-to-text service")
-			.addDropdown((dropdown) => {
-				dropdown.addOption('openai-whisper', 'OpenAI Whisper API (recommended)');
-				dropdown.addOption('azure-whisper', 'Azure OpenAI Whisper');
-				dropdown.addOption('local-whisper', 'Local Whisper Server');
-				dropdown.setValue(this.plugin.settings.voice!.backend);
-				dropdown.onChange(async (value) => {
-					this.plugin.settings.voice!.backend = value as 'openai-whisper' | 'azure-whisper' | 'local-whisper';
-					await this.plugin.saveSettings();
-					// Re-render conditional settings
-					this.renderVoiceConditionalSettings(conditionalContainer);
-				});
-			});
-
-		// Move conditional container to appear after the backend dropdown
-		container.appendChild(conditionalContainer);
-
-		// Render conditional settings based on backend
-		this.renderVoiceConditionalSettings(conditionalContainer);
 	}
 
 	private async populateAudioDevices(setting: Setting): Promise<void> {
@@ -1220,278 +2201,6 @@ export class CopilotSettingTab extends PluginSettingTab {
 		});
 	}
 
-	private renderVoiceConditionalSettings(container: HTMLElement): void {
-		container.empty();
-		const backend = this.plugin.settings.voice?.backend || 'openai-whisper';
-
-		if (backend === 'openai-whisper') {
-			// OpenAI Whisper settings
-			const openaiSection = container.createDiv({ cls: "vc-voice-openai-settings" });
-			openaiSection.createEl("h4", { text: "OpenAI Whisper Settings" });
-			
-			// API Key status indicator
-			const apiKeyFromEnv = getOpenAIApiKey();
-			const hasEnvKey = !!apiKeyFromEnv && !this.plugin.settings.openai.apiKey;
-			
-			if (hasEnvKey) {
-				const envNotice = openaiSection.createDiv({ cls: "vc-openai-env-notice" });
-				envNotice.innerHTML = `
-					<span class="vc-status-ok">✓</span>
-					<span>Using API key from <code>OPENAI_API_KEY</code> environment variable</span>
-				`;
-			}
-
-			// API Key input
-			new Setting(openaiSection)
-				.setName("API Key")
-				.setDesc(hasEnvKey 
-					? "Override the environment variable with a custom key (optional)" 
-					: "Enter your OpenAI API key, or set OPENAI_API_KEY environment variable")
-				.addText((text) => {
-					text.setPlaceholder(hasEnvKey ? "(using env variable)" : "sk-...");
-					text.setValue(this.plugin.settings.openai.apiKey);
-					text.inputEl.type = "password";
-					text.onChange(async (value) => {
-						this.plugin.settings.openai.apiKey = value;
-						await this.plugin.saveSettings();
-					});
-				})
-				.addButton((button) => {
-					button.setButtonText("Test");
-					button.onClick(async () => {
-						button.setDisabled(true);
-						button.setButtonText("...");
-						try {
-							const service = new OpenAIService(this.app, {
-								provider: "openai",
-								model: this.plugin.settings.openai.model,
-								streaming: this.plugin.settings.streaming,
-								apiKey: this.plugin.settings.openai.apiKey || undefined,
-								baseURL: this.plugin.settings.openai.baseURL || undefined,
-							});
-							const result = await service.testConnection();
-							if (result.success) {
-								new Notice("✓ OpenAI connection successful!");
-							} else {
-								new Notice(`✗ Connection failed: ${result.error}`);
-							}
-							await service.destroy();
-						} catch (error) {
-							new Notice(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
-						}
-						button.setButtonText("Test");
-						button.setDisabled(false);
-					});
-				});
-
-			// Base URL (optional)
-			new Setting(openaiSection)
-				.setName("Base URL")
-				.setDesc("Custom API endpoint (optional, for Azure or compatible APIs)")
-				.addText((text) => {
-					text.setPlaceholder("https://api.openai.com/v1");
-					text.setValue(this.plugin.settings.openai.baseURL);
-					text.onChange(async (value) => {
-						this.plugin.settings.openai.baseURL = value;
-						await this.plugin.saveSettings();
-					});
-				});
-
-			// Help text
-			const helpEl = openaiSection.createDiv({ cls: "vc-openai-help" });
-			helpEl.innerHTML = `
-				<details>
-					<summary>Getting an OpenAI API Key</summary>
-					<ol>
-						<li>Visit <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API Keys</a></li>
-						<li>Create a new secret key</li>
-						<li>Copy and paste here, or set <code>OPENAI_API_KEY</code> environment variable</li>
-					</ol>
-				</details>
-			`;
-
-		} else if (backend === 'azure-whisper') {
-			// Azure OpenAI Whisper settings
-			const azureSection = container.createDiv({ cls: "vc-voice-azure-settings" });
-			azureSection.createEl("h4", { text: "Azure OpenAI Whisper Settings" });
-			
-			// Import the Azure API key helper
-			const { getAzureOpenAIApiKey } = require('./voice-chat/AzureWhisperService');
-			
-			// API Key status indicator
-			const apiKeyFromEnv = getAzureOpenAIApiKey();
-			const hasEnvKey = !!apiKeyFromEnv;
-			
-			if (hasEnvKey) {
-				const envNotice = azureSection.createDiv({ cls: "vc-azure-env-notice" });
-				envNotice.innerHTML = `
-					<span class="vc-status-ok">✓</span>
-					<span>Using API key from <code>AZURE_OPENAI_KEY</code> environment variable</span>
-				`;
-			} else {
-				const envNotice = azureSection.createDiv({ cls: "vc-azure-env-notice vc-env-notice-warning" });
-				envNotice.innerHTML = `
-					<span class="vc-status-warning">⚠</span>
-					<span>Set <code>AZURE_OPENAI_KEY</code> environment variable with your Azure OpenAI API key</span>
-				`;
-			}
-
-			// Azure Endpoint
-			new Setting(azureSection)
-				.setName("Endpoint")
-				.setDesc("Your Azure OpenAI resource endpoint (e.g., https://your-resource.openai.azure.com)")
-				.addText((text) => {
-					text.setPlaceholder("https://your-resource.openai.azure.com");
-					text.setValue(this.plugin.settings.voice?.azure?.endpoint || "");
-					text.onChange(async (value) => {
-						if (!this.plugin.settings.voice) return;
-						if (!this.plugin.settings.voice.azure) {
-							this.plugin.settings.voice.azure = { endpoint: "", deploymentName: "" };
-						}
-						this.plugin.settings.voice.azure.endpoint = value;
-						await this.plugin.saveSettings();
-					});
-				});
-
-			// Deployment Name
-			new Setting(azureSection)
-				.setName("Deployment Name")
-				.setDesc("The name of your Whisper model deployment in Azure")
-				.addText((text) => {
-					text.setPlaceholder("whisper");
-					text.setValue(this.plugin.settings.voice?.azure?.deploymentName || "");
-					text.onChange(async (value) => {
-						if (!this.plugin.settings.voice) return;
-						if (!this.plugin.settings.voice.azure) {
-							this.plugin.settings.voice.azure = { endpoint: "", deploymentName: "" };
-						}
-						this.plugin.settings.voice.azure.deploymentName = value;
-						await this.plugin.saveSettings();
-					});
-				});
-
-			// API Version (optional)
-			new Setting(azureSection)
-				.setName("API Version")
-				.setDesc("Azure OpenAI API version (optional, defaults to 2024-06-01)")
-				.addText((text) => {
-					text.setPlaceholder("2024-06-01");
-					text.setValue(this.plugin.settings.voice?.azure?.apiVersion || "");
-					text.onChange(async (value) => {
-						if (!this.plugin.settings.voice) return;
-						if (!this.plugin.settings.voice.azure) {
-							this.plugin.settings.voice.azure = { endpoint: "", deploymentName: "" };
-						}
-						this.plugin.settings.voice.azure.apiVersion = value || undefined;
-						await this.plugin.saveSettings();
-					});
-				});
-
-			// Test button
-			new Setting(azureSection)
-				.setName("Test Connection")
-				.setDesc("Verify your Azure OpenAI configuration")
-				.addButton((button) => {
-					button.setButtonText("Test");
-					button.onClick(async () => {
-						button.setDisabled(true);
-						button.setButtonText("...");
-						try {
-							const { AzureWhisperService, getAzureOpenAIApiKey } = await import('./voice-chat/AzureWhisperService');
-							const service = new AzureWhisperService({
-								apiKey: getAzureOpenAIApiKey(),
-								endpoint: this.plugin.settings.voice?.azure?.endpoint,
-								deploymentName: this.plugin.settings.voice?.azure?.deploymentName,
-								apiVersion: this.plugin.settings.voice?.azure?.apiVersion,
-							});
-							const result = await service.testConnection();
-							if (result.success) {
-								new Notice("✓ Azure OpenAI connection successful!");
-							} else {
-								new Notice(`✗ Connection failed: ${result.error}`);
-							}
-						} catch (error) {
-							new Notice(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
-						}
-						button.setButtonText("Test");
-						button.setDisabled(false);
-					});
-				});
-
-			// Help text
-			const helpEl = azureSection.createDiv({ cls: "vc-azure-help" });
-			helpEl.innerHTML = `
-				<details>
-					<summary>Setting up Azure OpenAI Whisper</summary>
-					<ol>
-						<li>Go to the <a href="https://portal.azure.com/#blade/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/OpenAI" target="_blank">Azure OpenAI Service</a> in Azure Portal</li>
-						<li>Create or select an Azure OpenAI resource</li>
-						<li>Deploy a Whisper model (whisper-1 or whisper-large-v3)</li>
-						<li>Copy your endpoint URL and deployment name</li>
-						<li>Set your API key as <code>AZURE_OPENAI_KEY</code> environment variable</li>
-					</ol>
-					<p><a href="https://learn.microsoft.com/azure/ai-services/openai/whisper-quickstart" target="_blank">Azure OpenAI Whisper Documentation</a></p>
-				</details>
-			`;
-
-		} else if (backend === 'local-whisper') {
-			// Local Whisper settings
-			const localSection = container.createDiv({ cls: "vc-voice-local-settings" });
-			localSection.createEl("h4", { text: "Local Whisper Server Settings" });
-
-			// Whisper server URL
-			new Setting(localSection)
-				.setName("Server URL")
-				.setDesc("URL of your local whisper.cpp server")
-				.addText((text) => {
-					text.setPlaceholder('http://127.0.0.1:8080');
-					text.setValue(this.plugin.settings.voice!.whisperServerUrl);
-					text.onChange(async (value) => {
-						this.plugin.settings.voice!.whisperServerUrl = value || 'http://127.0.0.1:8080';
-						await this.plugin.saveSettings();
-					});
-				})
-				.addButton((button) => {
-					button.setButtonText("Test");
-					button.onClick(async () => {
-						button.setDisabled(true);
-						button.setButtonText("...");
-						try {
-							const url = this.plugin.settings.voice?.whisperServerUrl || 'http://127.0.0.1:8080';
-							const response = await fetch(url, { method: 'GET' });
-							if (response.ok || response.status === 404) {
-								new Notice("✓ Whisper server is reachable!");
-							} else {
-								new Notice(`✗ Server returned status ${response.status}`);
-							}
-						} catch (error) {
-							new Notice(`✗ Could not connect to server: ${error instanceof Error ? error.message : String(error)}`);
-						}
-						button.setButtonText("Test");
-						button.setDisabled(false);
-					});
-				});
-
-			// Setup instructions
-			const setupDetails = localSection.createEl("details", { cls: "vc-voice-setup" });
-			setupDetails.createEl("summary", { text: "How to set up local whisper server" });
-			
-			const setupContent = setupDetails.createDiv({ cls: "vc-voice-setup-content" });
-			setupContent.innerHTML = `
-				<p>Uses <a href="https://github.com/ggerganov/whisper.cpp" target="_blank">whisper.cpp</a> for offline speech recognition.</p>
-				<h5>Quick Start:</h5>
-				<ol>
-					<li>Download whisper.cpp from <a href="https://github.com/ggerganov/whisper.cpp/releases" target="_blank">releases</a></li>
-					<li>Download a model (e.g., <code>ggml-base.en.bin</code>) from <a href="https://huggingface.co/ggerganov/whisper.cpp/tree/main" target="_blank">Hugging Face</a></li>
-					<li>Run: <code>whisper-server -m ggml-base.en.bin --convert</code></li>
-				</ol>
-				<h5>Alternative: Docker</h5>
-				<pre><code>docker run -p 8080:8080 ghcr.io/ggerganov/whisper.cpp:main-cuda \\
-  -m models/ggml-base.en.bin --convert</code></pre>
-			`;
-		}
-	}
-
 	private renderRealtimeConditionalSettings(container: HTMLElement): void {
 		container.empty();
 		
@@ -1500,6 +2209,50 @@ export class CopilotSettingTab extends PluginSettingTab {
 		}
 
 		const realtimeSection = container.createDiv({ cls: "vc-realtime-settings" });
+
+		// 1. AI Provider Profile selection (OpenAI profiles only)
+		const openaiProfiles = getOpenAIProfiles(this.plugin.settings);
+		const selectedProfileId = this.plugin.settings.realtimeAgentProfileId;
+		const selectedProfile = getProfileById(this.plugin.settings, selectedProfileId);
+
+		new Setting(realtimeSection)
+			.setName("AI Provider Profile")
+			.setDesc("Select the OpenAI profile to use for the Realtime Agent (Azure not supported)")
+			.addDropdown((dropdown) => {
+				dropdown.addOption('', 'None');
+				for (const profile of openaiProfiles) {
+					dropdown.addOption(profile.id, `${profile.name}`);
+				}
+				dropdown.setValue(selectedProfileId || '');
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.realtimeAgentProfileId = value || null;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// Show warning if no profile selected
+		if (!selectedProfile) {
+			const warningEl = realtimeSection.createDiv({ cls: "vc-profile-warning" });
+			if (openaiProfiles.length === 0) {
+				warningEl.innerHTML = `
+					<span class="vc-status-warning">⚠</span>
+					<span>No OpenAI profiles available. <a href="#" class="vc-profile-link">Add an OpenAI profile</a> in the AI Provider Profiles section above.</span>
+				`;
+			} else {
+				warningEl.innerHTML = `
+					<span class="vc-status-warning">⚠</span>
+					<span>No profile selected. Select an OpenAI profile to enable the Realtime Agent.</span>
+				`;
+			}
+			const link = warningEl.querySelector('.vc-profile-link');
+			if (link) {
+				link.addEventListener('click', (e) => {
+					e.preventDefault();
+					const profilesSection = container.closest('.vc-main-settings')?.querySelector('.vc-profile-list');
+					profilesSection?.scrollIntoView({ behavior: 'smooth' });
+				});
+			}
+		}
 
 		// Voice selection
 		new Setting(realtimeSection)

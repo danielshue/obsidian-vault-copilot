@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon, Menu } from "obsidian";
 import { CopilotService, ChatMessage } from "../../copilot/CopilotService";
 import CopilotPlugin from "../../main";
-import { getAvailableModels, getModelDisplayName, CopilotSession, VoiceConversation, VoiceMessage } from "../../settings";
+import { getAvailableModels, getModelDisplayName, CopilotSession, VoiceConversation, VoiceMessage, getVoiceServiceConfigFromProfile, getProfileById, OpenAIProviderProfile } from "../../settings";
 import { SessionPanel } from "./SessionPanel";
 import { CachedAgentInfo } from "../../copilot/AgentCache";
 import { CachedPromptInfo } from "../../copilot/PromptCache";
@@ -143,13 +143,25 @@ export class CopilotChatView extends ItemView {
 			language: 'en-US',
 			audioDeviceId: undefined,
 		};
+		
+		// Get configuration from selected profile
+		const profileConfig = getVoiceServiceConfigFromProfile(
+			this.plugin.settings,
+			this.plugin.settings.voiceInputProfileId
+		);
+		
+		// Fallback to inline settings if no profile selected (backwards compatibility)
 		const openaiSettings = this.plugin.settings.openai;
 		this.voiceChatService = new VoiceChatService({
-			backend: voiceSettings.backend,
-			whisperServerUrl: voiceSettings.whisperServerUrl,
+			backend: profileConfig?.backend || voiceSettings.backend,
+			whisperServerUrl: profileConfig?.whisperServerUrl || voiceSettings.whisperServerUrl,
 			language: voiceSettings.language,
-			openaiApiKey: openaiSettings?.apiKey || undefined,
-			openaiBaseUrl: openaiSettings?.baseURL || undefined,
+			openaiApiKey: profileConfig?.openaiApiKey || openaiSettings?.apiKey || undefined,
+			openaiBaseUrl: profileConfig?.openaiBaseUrl || openaiSettings?.baseURL || undefined,
+			azureApiKey: profileConfig?.azureApiKey || undefined,
+			azureEndpoint: profileConfig?.azureEndpoint || voiceSettings.azure?.endpoint || undefined,
+			azureDeploymentName: profileConfig?.azureDeploymentName || voiceSettings.azure?.deploymentName || undefined,
+			azureApiVersion: profileConfig?.azureApiVersion || voiceSettings.azure?.apiVersion || undefined,
 			audioDeviceId: voiceSettings.audioDeviceId,
 		});
 	}
@@ -713,9 +725,22 @@ export class CopilotChatView extends ItemView {
 	 * Initialize the realtime agent service with event handlers
 	 */
 	private initRealtimeAgentService(): void {
-		const apiKey = getOpenAIApiKey(this.plugin.settings.openai?.apiKey);
+		// Get API key from selected Realtime Agent profile
+		const selectedProfileId = this.plugin.settings.realtimeAgentProfileId;
+		const selectedProfile = getProfileById(this.plugin.settings, selectedProfileId);
+		
+		let apiKey: string | undefined;
+		if (selectedProfile && selectedProfile.type === 'openai') {
+			// Use API key from selected profile
+			const openaiProfile = selectedProfile as OpenAIProviderProfile;
+			apiKey = openaiProfile.apiKey || getOpenAIApiKey();
+		} else {
+			// Fallback to legacy settings if no profile selected
+			apiKey = getOpenAIApiKey(this.plugin.settings.openai?.apiKey);
+		}
+		
 		if (!apiKey) {
-			console.warn('OpenAI API key not configured for realtime agent');
+			console.warn('OpenAI API key not configured for realtime agent. Select an OpenAI profile in settings.');
 			return;
 		}
 

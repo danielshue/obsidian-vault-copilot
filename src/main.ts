@@ -1,5 +1,5 @@
 import { Plugin, Notice, WorkspaceLeaf } from "obsidian";
-import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession } from "./settings";
+import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId } from "./settings";
 import { CopilotService, CopilotServiceConfig, ChatMessage } from "./copilot/CopilotService";
 import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/ChatView";
 import { CliManager } from "./copilot/CliManager";
@@ -376,7 +376,83 @@ export default class CopilotPlugin extends Plugin {
 				...DEFAULT_SETTINGS.periodicNotes,
 				...(savedData.periodicNotes || {}),
 			},
+			// Ensure AI provider profiles array exists
+			aiProviderProfiles: savedData.aiProviderProfiles ?? [],
+			voiceInputProfileId: savedData.voiceInputProfileId ?? null,
+			realtimeAgentProfileId: savedData.realtimeAgentProfileId ?? null,
 		};
+
+		// Migration: Create a profile from existing voice settings if no profiles exist
+		await this.migrateVoiceSettingsToProfiles();
+	}
+
+	/**
+	 * Migrate existing voice settings to AI Provider profiles
+	 * This runs once when upgrading from the old inline settings format
+	 */
+	private async migrateVoiceSettingsToProfiles(): Promise<void> {
+		// Skip if profiles already exist
+		if (this.settings.aiProviderProfiles && this.settings.aiProviderProfiles.length > 0) {
+			return;
+		}
+
+		// Skip if voice input is not enabled or no backend configured
+		if (!this.settings.voice?.voiceInputEnabled) {
+			return;
+		}
+
+		const backend = this.settings.voice.backend;
+		let profile: AIProviderProfile | null = null;
+
+		if (backend === 'openai-whisper') {
+			// Check if there's an API key configured (either inline or from env)
+			const { getOpenAIApiKey } = await import('./copilot/AIProvider');
+			const apiKey = this.settings.openai?.apiKey || getOpenAIApiKey() || '';
+			
+			if (apiKey) {
+				profile = {
+					id: generateProfileId(),
+					name: 'OpenAI (Migrated)',
+					type: 'openai',
+					apiKey: this.settings.openai?.apiKey || '', // Only store inline key, not env
+					baseURL: this.settings.openai?.baseURL || undefined,
+				};
+			}
+		} else if (backend === 'azure-whisper') {
+			// Check if Azure settings are configured
+			const azure = this.settings.voice.azure;
+			if (azure?.endpoint && azure?.deploymentName) {
+				const { getAzureOpenAIApiKey } = await import('./voice-chat/AzureWhisperService');
+				profile = {
+					id: generateProfileId(),
+					name: 'Azure OpenAI (Migrated)',
+					type: 'azure-openai',
+					apiKey: '', // Azure key must be in env variable
+					endpoint: azure.endpoint,
+					deploymentName: azure.deploymentName,
+					apiVersion: azure.apiVersion,
+				};
+			}
+		} else if (backend === 'local-whisper') {
+			// Local whisper server - create profile from server URL
+			const serverUrl = this.settings.voice.whisperServerUrl;
+			if (serverUrl) {
+				profile = {
+					id: generateProfileId(),
+					name: 'Local Whisper (Migrated)',
+					type: 'local',
+					serverUrl: serverUrl,
+				};
+			}
+		}
+
+		// Save the migrated profile
+		if (profile) {
+			this.settings.aiProviderProfiles = [profile];
+			this.settings.voiceInputProfileId = profile.id;
+			console.log(`[CopilotPlugin] Migrated voice settings to profile: ${profile.name}`);
+			await this.saveSettings();
+		}
 	}
 
 	/**
