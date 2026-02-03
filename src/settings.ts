@@ -379,30 +379,6 @@ export class AIProviderProfileModal extends Modal {
 					(this.profile as OpenAIProviderProfile).baseURL = value || undefined;
 				});
 			});
-
-		// Chat Model (optional)
-		new Setting(container)
-			.setName('Chat Model')
-			.setDesc('Model to use for chat (optional, e.g., gpt-4o, gpt-4-turbo)')
-			.addText((text) => {
-				text.setPlaceholder('gpt-4o');
-				text.setValue((this.profile as OpenAIProviderProfile).chatModel || '');
-				text.onChange((value) => {
-					(this.profile as OpenAIProviderProfile).chatModel = value || undefined;
-				});
-			});
-
-		// Whisper Model (optional)
-		new Setting(container)
-			.setName('Whisper Model')
-			.setDesc('Model to use for voice transcription (optional, defaults to whisper-1)')
-			.addText((text) => {
-				text.setPlaceholder('whisper-1');
-				text.setValue((this.profile as OpenAIProviderProfile).whisperModel || '');
-				text.onChange((value) => {
-					(this.profile as OpenAIProviderProfile).whisperModel = value || undefined;
-				});
-			});
 	}
 
 	private renderAzureFields(): void {
@@ -433,27 +409,16 @@ export class AIProviderProfileModal extends Modal {
 				});
 			});
 
-		// Chat Deployment Name (optional)
+		// Deployment Name (for chat and voice - single field)
 		new Setting(container)
-			.setName('Chat Deployment Name')
-			.setDesc('The name of your chat model deployment (optional, e.g., gpt-4o)')
+			.setName('Deployment Name')
+			.setDesc('The name of your model deployment (required, e.g., gpt-4o)')
 			.addText((text) => {
 				text.setPlaceholder('gpt-4o');
+				// Use chatDeploymentName as the primary field
 				text.setValue((this.profile as AzureOpenAIProviderProfile).chatDeploymentName || '');
 				text.onChange((value) => {
 					(this.profile as AzureOpenAIProviderProfile).chatDeploymentName = value || undefined;
-				});
-			});
-
-		// Whisper Deployment Name (optional)
-		new Setting(container)
-			.setName('Whisper Deployment Name')
-			.setDesc('The name of your whisper model deployment (optional, for voice services)')
-			.addText((text) => {
-				text.setPlaceholder('whisper');
-				text.setValue((this.profile as AzureOpenAIProviderProfile).whisperDeploymentName || '');
-				text.onChange((value) => {
-					(this.profile as AzureOpenAIProviderProfile).whisperDeploymentName = value || undefined;
 				});
 			});
 
@@ -1039,34 +1004,36 @@ export class CopilotSettingTab extends PluginSettingTab {
 		// Ensure built-in profiles exist
 		ensureBuiltInProfiles(this.plugin.settings);
 
-		// AI Provider Type Selection
+		// AI Provider Selection - GitHub Copilot CLI or AI Profiles
+		const profiles = this.plugin.settings.aiProviderProfiles || [];
+		// Chat profiles: Copilot built-in, OpenAI, and Azure OpenAI (not Local)
+		const chatProfiles = profiles.filter(p => p.type === 'copilot' || p.type === 'openai' || p.type === 'azure-openai');
+		
 		new Setting(section)
 			.setName("Chat Provider")
-			.setDesc("Select which AI provider to use for chat conversations.")
+			.setDesc("Select AI provider for chat: GitHub Copilot CLI or an AI Profile (OpenAI/Azure OpenAI)")
 			.addDropdown((dropdown) => {
-				// Add all provider types
-				dropdown.addOption("copilot", "GitHub Copilot CLI");
-				dropdown.addOption("openai", "OpenAI");
-				dropdown.addOption("azure-openai", "Azure OpenAI");
+				// Add all chat-capable profiles
+				for (const profile of chatProfiles) {
+					dropdown.addOption(profile.id, profile.name);
+				}
 				
-				// Set current value based on aiProvider setting
-				dropdown.setValue(this.plugin.settings.aiProvider);
+				// Set current value based on chatProviderProfileId
+				const currentProfileId = this.plugin.settings.chatProviderProfileId || 'builtin-copilot';
+				dropdown.setValue(currentProfileId);
 				
 				dropdown.onChange(async (value) => {
-					const providerType = value as AIProviderType;
-					this.plugin.settings.aiProvider = providerType;
+					this.plugin.settings.chatProviderProfileId = value;
 					
-					// Set chatProviderProfileId based on type
-					if (providerType === 'copilot') {
-						this.plugin.settings.chatProviderProfileId = 'builtin-copilot';
-					} else {
-						// For OpenAI and Azure OpenAI, use the first profile of that type if available
-						const profiles = getProfilesByType(this.plugin.settings, providerType as AIProviderProfileType);
-						if (profiles.length > 0) {
-							this.plugin.settings.chatProviderProfileId = profiles[0]!.id;
-						} else {
-							this.plugin.settings.chatProviderProfileId = null;
-							new Notice(`No ${getProfileTypeDisplayName(providerType as AIProviderProfileType)} profile configured. Please add one in AI Provider Profiles section.`);
+					// Update aiProvider based on selected profile
+					const profile = getProfileById(this.plugin.settings, value);
+					if (profile) {
+						if (profile.type === 'copilot') {
+							this.plugin.settings.aiProvider = 'copilot';
+						} else if (profile.type === 'openai') {
+							this.plugin.settings.aiProvider = 'openai';
+						} else if (profile.type === 'azure-openai') {
+							this.plugin.settings.aiProvider = 'azure-openai';
 						}
 					}
 					
@@ -1075,66 +1042,89 @@ export class CopilotSettingTab extends PluginSettingTab {
 					// Reconnect to the new provider
 					await this.plugin.disconnectCopilot();
 					await this.plugin.connectCopilot();
+					
+					// Refresh settings to update model dropdown visibility
+					this.display();
 				});
 			});
 
-		// Model selection with refresh button
-		let modelDropdown: any;
-		const modelSetting = new Setting(section)
-			.setName("Default Model")
-			.setDesc("Select the AI model for conversations (GitHub Copilot only)")
-			.addDropdown((dropdown) => {
-				modelDropdown = dropdown;
-				this.populateModelDropdown(dropdown);
-				dropdown.setValue(this.plugin.settings.model);
-				dropdown.onChange(async (value) => {
-					this.plugin.settings.model = value;
-					await this.plugin.saveSettings();
-				});
-			})
-			.addExtraButton((button) => {
-				button
-					.setIcon("refresh-cw")
-					.setTooltip("Refresh available models from CLI")
-					.onClick(async () => {
-						button.setDisabled(true);
-						new Notice("Discovering models from CLI...");
-						
-						const result = await this.cliManager.fetchAvailableModels();
-						if (result.models.length > 0) {
-							this.plugin.settings.availableModels = result.models;
-							
-							// Validate current model is still available
-							const firstModel = result.models[0];
-							if (firstModel && !result.models.includes(this.plugin.settings.model)) {
-								this.plugin.settings.model = firstModel;
-							}
-							
-							await this.plugin.saveSettings();
-							
-							// Update the dropdown
-							if (modelDropdown) {
-								this.populateModelDropdown(modelDropdown);
-								modelDropdown.setValue(this.plugin.settings.model);
-							}
-							
-							// Immediately update any open chat views
-							const chatLeaves = this.app.workspace.getLeavesOfType(COPILOT_VIEW_TYPE);
-							for (const leaf of chatLeaves) {
-								const view = leaf.view as CopilotChatView;
-								if (view?.refreshFromSettings) {
-									view.refreshFromSettings();
-								}
-							}
-							
-							new Notice(`Found ${result.models.length} models`);
-						} else {
-							new Notice(result.error || "Could not discover models");
-						}
-						
-						button.setDisabled(false);
+		// Model selection - only show for GitHub Copilot CLI
+		if (this.plugin.settings.aiProvider === 'copilot') {
+			let modelDropdown: any;
+			const modelSetting = new Setting(section)
+				.setName("Default Model")
+				.setDesc("Select the AI model for conversations")
+				.addDropdown((dropdown) => {
+					modelDropdown = dropdown;
+					this.populateModelDropdown(dropdown);
+					dropdown.setValue(this.plugin.settings.model);
+					dropdown.onChange(async (value) => {
+						this.plugin.settings.model = value;
+						await this.plugin.saveSettings();
 					});
-			});
+				})
+				.addExtraButton((button) => {
+					button
+						.setIcon("refresh-cw")
+						.setTooltip("Refresh available models from CLI")
+						.onClick(async () => {
+							button.setDisabled(true);
+							new Notice("Discovering models from CLI...");
+							
+							const result = await this.cliManager.fetchAvailableModels();
+							if (result.models.length > 0) {
+								this.plugin.settings.availableModels = result.models;
+								
+								// Validate current model is still available
+								const firstModel = result.models[0];
+								if (firstModel && !result.models.includes(this.plugin.settings.model)) {
+									this.plugin.settings.model = firstModel;
+								}
+								
+								await this.plugin.saveSettings();
+								
+								// Update the dropdown
+								if (modelDropdown) {
+									this.populateModelDropdown(modelDropdown);
+									modelDropdown.setValue(this.plugin.settings.model);
+								}
+								
+								// Immediately update any open chat views
+								const chatLeaves = this.app.workspace.getLeavesOfType(COPILOT_VIEW_TYPE);
+								for (const leaf of chatLeaves) {
+									const view = leaf.view as CopilotChatView;
+									if (view?.refreshFromSettings) {
+										view.refreshFromSettings();
+									}
+								}
+								
+								new Notice(`Found ${result.models.length} models`);
+							} else {
+								new Notice(result.error || "Could not discover models");
+							}
+							
+							button.setDisabled(false);
+						});
+				});
+		} else {
+			// For OpenAI and Azure OpenAI, show profile model info
+			const profile = getProfileById(this.plugin.settings, this.plugin.settings.chatProviderProfileId);
+			if (profile) {
+				let modelInfo = '';
+				if (profile.type === 'openai') {
+					const openai = profile as OpenAIProviderProfile;
+					modelInfo = openai.chatModel || 'Default OpenAI models (gpt-4o, gpt-4-turbo, etc.)';
+				} else if (profile.type === 'azure-openai') {
+					const azure = profile as AzureOpenAIProviderProfile;
+					modelInfo = azure.chatDeploymentName || 'No chat deployment configured';
+				}
+				
+				new Setting(section)
+					.setName("Model")
+					.setDesc(`Using model from selected AI Profile: ${modelInfo}`)
+					.setDisabled(true);
+			}
+		}
 
 		// Streaming toggle
 		new Setting(section)
@@ -1252,7 +1242,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 		section.createEl("h3", { text: "AI Provider Profiles" });
 		
 		section.createEl("p", { 
-			text: "Configure AI provider profiles for voice services. Create profiles for OpenAI, Azure OpenAI, or local Whisper servers, then select them for Voice Input and Realtime Agent.",
+			text: "Configure AI provider profiles for Chat and Voice services. GitHub Copilot CLI is built-in. Create additional profiles for OpenAI, Azure OpenAI, or local Whisper servers.",
 			cls: "vc-status-desc"
 		});
 
@@ -2192,15 +2182,17 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 		// 1. AI Provider Profile selection
 		const profiles = this.plugin.settings.aiProviderProfiles || [];
+		// Filter out copilot profile - voice can only use OpenAI, Azure OpenAI, or Local
+		const voiceProfiles = profiles.filter(p => p.type !== 'copilot');
 		const selectedProfileId = this.plugin.settings.voiceInputProfileId;
 		const selectedProfile = getProfileById(this.plugin.settings, selectedProfileId);
 
 		new Setting(container)
 			.setName("AI Provider Profile")
-			.setDesc("Select the AI provider profile to use for speech-to-text")
+			.setDesc("Select the AI provider profile to use for speech-to-text (OpenAI, Azure OpenAI, or Local Whisper)")
 			.addDropdown((dropdown) => {
 				dropdown.addOption('', 'None');
-				for (const profile of profiles) {
+				for (const profile of voiceProfiles) {
 					dropdown.addOption(profile.id, `${profile.name} (${getProfileTypeDisplayName(profile.type)})`);
 				}
 				dropdown.setValue(selectedProfileId || '');
