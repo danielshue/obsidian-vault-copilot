@@ -649,11 +649,24 @@ export class CopilotChatView extends ItemView {
 
 	/**
 	 * Update the model selector button text based on current settings.
+	 * Hide the selector for Azure OpenAI profiles (which have hardcoded models).
 	 */
 	private updateModelSelectorText(): void {
 		if (!this.modelSelectorEl) return;
-		const currentModel = this.plugin.settings.model;
-		this.modelSelectorEl.textContent = getModelDisplayName(currentModel);
+		
+		// Check if current provider is Azure OpenAI
+		const profileId = this.plugin.settings.chatProviderProfileId;
+		const profile = getProfileById(this.plugin.settings, profileId);
+		
+		// Hide model selector for Azure OpenAI (hardcoded models)
+		// Show for GitHub Copilot CLI and OpenAI
+		if (profile && profile.type === 'azure-openai') {
+			this.modelSelectorEl.style.display = 'none';
+		} else {
+			this.modelSelectorEl.style.display = '';
+			const currentModel = this.plugin.settings.model;
+			this.modelSelectorEl.textContent = getModelDisplayName(currentModel);
+		}
 	}
 
 	/**
