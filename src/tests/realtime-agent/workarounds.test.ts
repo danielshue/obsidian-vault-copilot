@@ -176,7 +176,7 @@ describe("workarounds.ts", () => {
 			expect(content).toContain("- [x] Task (with) [brackets]");
 		});
 
-		it("should show notice when tasks are marked complete", async () => {
+		it("should call onToolExecution callback when tasks are completed", async () => {
 			const file = new TFile("test.md");
 			(app.vault as Vault)._setFile("test.md", "- [ ] Task one\n- [ ] Task two");
 
@@ -187,7 +187,11 @@ describe("workarounds.ts", () => {
 				mockCallback
 			);
 
-			expect(Notice._getLastMessage()).toBe("Marked 2 tasks complete");
+			expect(mockCallback).toHaveBeenCalledWith(
+				"mark_tasks_complete",
+				{ tasks: ["Task one", "Task two"] },
+				{ success: true, count: 2 }
+			);
 		});
 	});
 
