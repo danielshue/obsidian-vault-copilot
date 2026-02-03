@@ -1,5 +1,5 @@
 import { Plugin, Notice, WorkspaceLeaf } from "obsidian";
-import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId } from "./settings";
+import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById } from "./settings";
 import { CopilotService, CopilotServiceConfig, ChatMessage } from "./copilot/CopilotService";
 import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/ChatView";
 import { CliManager } from "./copilot/CliManager";
@@ -17,7 +17,8 @@ import { AgentCache, CachedAgentInfo } from "./copilot/AgentCache";
 import { PromptCache, CachedPromptInfo } from "./copilot/PromptCache";
 import { CustomPrompt } from "./copilot/CustomizationLoader";
 import { OpenAIService } from "./copilot/OpenAIService";
-import { AIProviderType } from "./copilot/AIProvider";
+import { AzureOpenAIService } from "./copilot/AzureOpenAIService";
+import { AIProviderType, AIProvider } from "./copilot/AIProvider";
 import { getTracingService } from "./copilot/TracingService";
 import { MainVaultAssistant } from "./realtime-agent/MainVaultAssistant";
 
@@ -202,6 +203,7 @@ export default class CopilotPlugin extends Plugin {
 	settings: CopilotPluginSettings;
 	copilotService: CopilotService | null = null;
 	openaiService: OpenAIService | null = null;
+	azureOpenaiService: AzureOpenAIService | null = null;
 	skillRegistry: SkillRegistry;
 	agentCache: AgentCache;
 	promptCache: PromptCache;
@@ -211,9 +213,22 @@ export default class CopilotPlugin extends Plugin {
 	/**
 	 * Get the currently active AI service based on settings
 	 */
-	getActiveService(): CopilotService | OpenAIService | null {
+	getActiveService(): AIProvider | CopilotService | null {
+		// If a chat provider profile is selected, use it
+		if (this.settings.chatProviderProfileId) {
+			const profile = getProfileById(this.settings, this.settings.chatProviderProfileId);
+			if (profile?.type === "openai") {
+				return this.openaiService;
+			} else if (profile?.type === "azure-openai") {
+				return this.azureOpenaiService;
+			}
+		}
+		
+		// Fall back to legacy settings
 		if (this.settings.aiProvider === "openai") {
 			return this.openaiService;
+		} else if (this.settings.aiProvider === "azure-openai") {
+			return this.azureOpenaiService;
 		}
 		return this.copilotService;
 	}
@@ -222,8 +237,21 @@ export default class CopilotPlugin extends Plugin {
 	 * Check if any service is connected
 	 */
 	isAnyServiceConnected(): boolean {
+		// If a chat provider profile is selected, check it
+		if (this.settings.chatProviderProfileId) {
+			const profile = getProfileById(this.settings, this.settings.chatProviderProfileId);
+			if (profile?.type === "openai") {
+				return this.openaiService?.isReady() ?? false;
+			} else if (profile?.type === "azure-openai") {
+				return this.azureOpenaiService?.isReady() ?? false;
+			}
+		}
+		
+		// Fall back to legacy settings
 		if (this.settings.aiProvider === "openai") {
 			return this.openaiService?.isReady() ?? false;
+		} else if (this.settings.aiProvider === "azure-openai") {
+			return this.azureOpenaiService?.isReady() ?? false;
 		}
 		return this.copilotService?.isConnected() ?? false;
 	}
@@ -429,7 +457,7 @@ export default class CopilotPlugin extends Plugin {
 					type: 'azure-openai',
 					apiKey: '', // Azure key must be in env variable
 					endpoint: azure.endpoint,
-					deploymentName: azure.deploymentName,
+					whisperDeploymentName: azure.deploymentName,
 					apiVersion: azure.apiVersion,
 				};
 			}
@@ -562,10 +590,23 @@ export default class CopilotPlugin extends Plugin {
 	}
 
 	async connectCopilot(): Promise<void> {
+		// Check if a chat provider profile is selected
+		if (this.settings.chatProviderProfileId) {
+			const profile = getProfileById(this.settings, this.settings.chatProviderProfileId);
+			if (profile) {
+				if (profile.type === "openai") {
+					return this.connectOpenAI(profile as OpenAIProviderProfile);
+				} else if (profile.type === "azure-openai") {
+					return this.connectAzureOpenAI(profile as AzureOpenAIProviderProfile);
+				}
+			}
+		}
+		
+		// Fall back to legacy settings
 		const provider = this.settings.aiProvider;
 		
 		if (provider === "openai") {
-			// Connect to OpenAI
+			// Connect to OpenAI using legacy settings
 			if (!this.openaiService) {
 				this.openaiService = new OpenAIService(this.app, {
 					provider: "openai",
@@ -585,6 +626,9 @@ export default class CopilotPlugin extends Plugin {
 			} catch (error) {
 				new Notice(`Failed to connect to OpenAI: ${error}`);
 			}
+		} else if (provider === "azure-openai") {
+			// Connect to Azure OpenAI using legacy settings (if we add them)
+			new Notice("Azure OpenAI requires a provider profile. Please configure a profile in settings.");
 		} else {
 			// Connect to GitHub Copilot
 			if (!this.copilotService) {
@@ -600,8 +644,64 @@ export default class CopilotPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Connect to OpenAI using a provider profile
+	 */
+	private async connectOpenAI(profile: OpenAIProviderProfile): Promise<void> {
+		if (!this.openaiService) {
+			const chatModel = profile.chatModel || this.settings.openai.model || "gpt-4o";
+			this.openaiService = new OpenAIService(this.app, {
+				provider: "openai",
+				model: chatModel,
+				streaming: this.settings.streaming,
+				apiKey: profile.apiKey || undefined,
+				baseURL: profile.baseURL || undefined,
+				maxTokens: this.settings.openai.maxTokens,
+				temperature: this.settings.openai.temperature,
+			});
+		}
+
+		try {
+			await this.openaiService.initialize();
+			this.updateStatusBar();
+		} catch (error) {
+			new Notice(`Failed to connect to OpenAI: ${error}`);
+		}
+	}
+
+	/**
+	 * Connect to Azure OpenAI using a provider profile
+	 */
+	private async connectAzureOpenAI(profile: AzureOpenAIProviderProfile): Promise<void> {
+		if (!this.azureOpenaiService) {
+			if (!profile.chatDeploymentName) {
+				new Notice("Azure OpenAI profile requires a chat deployment name");
+				return;
+			}
+			
+			this.azureOpenaiService = new AzureOpenAIService(this.app, {
+				provider: "azure-openai",
+				model: profile.chatDeploymentName, // Display name
+				deploymentName: profile.chatDeploymentName,
+				streaming: this.settings.streaming,
+				apiKey: profile.apiKey,
+				endpoint: profile.endpoint,
+				apiVersion: profile.apiVersion,
+				maxTokens: this.settings.openai.maxTokens,
+				temperature: this.settings.openai.temperature,
+			});
+		}
+
+		try {
+			await this.azureOpenaiService.initialize();
+			this.updateStatusBar();
+		} catch (error) {
+			new Notice(`Failed to connect to Azure OpenAI: ${error}`);
+		}
+	}
+
 	async disconnectCopilot(): Promise<void> {
-		// Disconnect both services
+		// Disconnect all services
 		if (this.copilotService) {
 			try {
 				await this.copilotService.stop();
@@ -615,6 +715,14 @@ export default class CopilotPlugin extends Plugin {
 				await this.openaiService.destroy();
 			} catch (error) {
 				console.error("Error disconnecting OpenAI:", error);
+			}
+		}
+		
+		if (this.azureOpenaiService) {
+			try {
+				await this.azureOpenaiService.destroy();
+			} catch (error) {
+				console.error("Error disconnecting Azure OpenAI:", error);
 			}
 		}
 		
@@ -641,7 +749,28 @@ export default class CopilotPlugin extends Plugin {
 		}
 
 		const isConnected = this.isAnyServiceConnected();
-		const providerName = this.settings.aiProvider === "openai" ? "OpenAI" : "Copilot";
+		
+		// Determine provider name
+		let providerName = "Copilot";
+		let providerType: "copilot" | "openai" | "azure-openai" = "copilot";
+		
+		if (this.settings.chatProviderProfileId) {
+			const profile = getProfileById(this.settings, this.settings.chatProviderProfileId);
+			if (profile?.type === "openai") {
+				providerName = "OpenAI";
+				providerType = "openai";
+			} else if (profile?.type === "azure-openai") {
+				providerName = "Azure OpenAI";
+				providerType = "azure-openai";
+			}
+		} else if (this.settings.aiProvider === "openai") {
+			providerName = "OpenAI";
+			providerType = "openai";
+		} else if (this.settings.aiProvider === "azure-openai") {
+			providerName = "Azure OpenAI";
+			providerType = "azure-openai";
+		}
+		
 		this.statusBarEl.empty();
 		
 		const statusEl = this.statusBarEl.createSpan({ cls: "vc-status" });
@@ -649,8 +778,8 @@ export default class CopilotPlugin extends Plugin {
 		
 		// Provider logo SVG
 		const logoEl = statusEl.createSpan({ cls: "vc-status-logo" });
-		if (this.settings.aiProvider === "openai") {
-			// OpenAI logo
+		if (providerType === "openai" || providerType === "azure-openai") {
+			// OpenAI logo (used for both OpenAI and Azure OpenAI)
 			logoEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.896zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z"/></svg>`;
 		} else {
 			// GitHub Copilot logo

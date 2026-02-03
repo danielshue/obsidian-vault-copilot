@@ -1262,7 +1262,8 @@ export class CopilotSettingTab extends PluginSettingTab {
 				}
 			} else if (profile.type === 'azure-openai') {
 				const azure = profile as AzureOpenAIProviderProfile;
-				detailsCell.createEl("span", { text: azure.deploymentName || 'No deployment', cls: "vc-profile-detail" });
+				const deployment = azure.chatDeploymentName || azure.whisperDeploymentName || 'No deployment';
+				detailsCell.createEl("span", { text: deployment, cls: "vc-profile-detail" });
 			} else if (profile.type === 'local') {
 				const local = profile as LocalProviderProfile;
 				detailsCell.createEl("span", { text: local.serverUrl, cls: "vc-profile-detail" });
