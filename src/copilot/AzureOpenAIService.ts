@@ -442,11 +442,11 @@ export class AzureOpenAIService extends AIProvider {
 	/**
 	 * List available models from Azure OpenAI
 	 * Note: Azure doesn't provide a models API, so we return common model names
+	 * Based on: https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models
 	 */
 	async listModels(): Promise<string[]> {
 		// Azure OpenAI doesn't have a dynamic models list API
 		// Return common models that users might have deployed
-		// Based on: https://ai.azure.us/explore/models?selectedCollection=OpenAI
 		return [
 			"gpt-4o",
 			"gpt-4o-mini",
