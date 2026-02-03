@@ -412,6 +412,11 @@ export default class CopilotPlugin extends Plugin {
 
 		// Migration: Create a profile from existing voice settings if no profiles exist
 		await this.migrateVoiceSettingsToProfiles();
+		
+		// Ensure built-in profiles (like GitHub Copilot CLI) exist
+		const { ensureBuiltInProfiles } = await import('./settings');
+		ensureBuiltInProfiles(this.settings);
+		await this.saveSettings();
 	}
 
 	/**

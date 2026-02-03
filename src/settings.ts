@@ -72,7 +72,7 @@ export interface OpenAISettings {
 }
 
 /** AI Provider Profile Types */
-export type AIProviderProfileType = 'openai' | 'azure-openai' | 'local';
+export type AIProviderProfileType = 'copilot' | 'openai' | 'azure-openai' | 'local';
 
 /** Base interface for all AI Provider profiles */
 export interface AIProviderProfileBase {
@@ -82,6 +82,15 @@ export interface AIProviderProfileBase {
 	name: string;
 	/** Provider type */
 	type: AIProviderProfileType;
+	/** Whether this profile is built-in and cannot be edited or removed */
+	readonly?: boolean;
+}
+
+/** GitHub Copilot CLI provider profile */
+export interface CopilotProviderProfile extends AIProviderProfileBase {
+	type: 'copilot';
+	/** This is the built-in GitHub Copilot CLI profile */
+	readonly: true;
 }
 
 /** OpenAI provider profile configuration */
@@ -120,11 +129,34 @@ export interface LocalProviderProfile extends AIProviderProfileBase {
 }
 
 /** Union type for all AI Provider profiles */
-export type AIProviderProfile = OpenAIProviderProfile | AzureOpenAIProviderProfile | LocalProviderProfile;
+export type AIProviderProfile = CopilotProviderProfile | OpenAIProviderProfile | AzureOpenAIProviderProfile | LocalProviderProfile;
 
 /** Generate a unique profile ID */
 export function generateProfileId(): string {
 	return `profile-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/** Get the built-in GitHub Copilot CLI profile */
+export function getBuiltInCopilotProfile(): CopilotProviderProfile {
+	return {
+		id: 'builtin-copilot',
+		name: 'GitHub Copilot CLI',
+		type: 'copilot',
+		readonly: true,
+	};
+}
+
+/** Ensure the built-in GitHub Copilot CLI profile exists in settings */
+export function ensureBuiltInProfiles(settings: CopilotPluginSettings): void {
+	if (!settings.aiProviderProfiles) {
+		settings.aiProviderProfiles = [];
+	}
+	
+	// Check if built-in Copilot profile exists
+	const hasCopilotProfile = settings.aiProviderProfiles.some(p => p.id === 'builtin-copilot');
+	if (!hasCopilotProfile) {
+		settings.aiProviderProfiles.unshift(getBuiltInCopilotProfile());
+	}
 }
 
 /** Get a profile by ID from the settings */
@@ -147,6 +179,7 @@ export function getOpenAIProfiles(settings: CopilotPluginSettings): OpenAIProvid
 /** Get display name for profile type */
 export function getProfileTypeDisplayName(type: AIProviderProfileType): string {
 	switch (type) {
+		case 'copilot': return 'GitHub Copilot CLI';
 		case 'openai': return 'OpenAI';
 		case 'azure-openai': return 'Azure OpenAI';
 		case 'local': return 'Local Whisper';
@@ -1003,67 +1036,46 @@ export class CopilotSettingTab extends PluginSettingTab {
 		const section = this.mainSettingsContainer.createDiv({ cls: "vc-settings-section" });
 		section.createEl("h3", { text: "Chat Preferences" });
 
-		// AI Provider Selection (GitHub Copilot, OpenAI, or Azure OpenAI via Profiles)
-		const profiles = this.plugin.settings.aiProviderProfiles || [];
-		const chatProfiles = profiles.filter(p => p.type === 'openai' || p.type === 'azure-openai');
-		
+		// Ensure built-in profiles exist
+		ensureBuiltInProfiles(this.plugin.settings);
+
+		// AI Provider Type Selection
 		new Setting(section)
 			.setName("Chat Provider")
-			.setDesc("Select AI provider for chat. Use 'GitHub Copilot' or select an OpenAI/Azure OpenAI profile.")
+			.setDesc("Select which AI provider to use for chat conversations.")
 			.addDropdown((dropdown) => {
-				// Add GitHub Copilot option
-				dropdown.addOption("copilot", "GitHub Copilot");
+				// Add all provider types
+				dropdown.addOption("copilot", "GitHub Copilot CLI");
+				dropdown.addOption("openai", "OpenAI");
+				dropdown.addOption("azure-openai", "Azure OpenAI");
 				
-				// Add OpenAI and Azure OpenAI profiles
-				for (const profile of chatProfiles) {
-					const label = `${profile.name} (${getProfileTypeDisplayName(profile.type)})`;
-					dropdown.addOption(`profile:${profile.id}`, label);
-				}
-				
-				// Set current value
-				if (this.plugin.settings.chatProviderProfileId) {
-					dropdown.setValue(`profile:${this.plugin.settings.chatProviderProfileId}`);
-				} else {
-					dropdown.setValue("copilot");
-				}
+				// Set current value based on aiProvider setting
+				dropdown.setValue(this.plugin.settings.aiProvider);
 				
 				dropdown.onChange(async (value) => {
-					if (value === "copilot") {
-						this.plugin.settings.chatProviderProfileId = null;
-						this.plugin.settings.aiProvider = "copilot";
-					} else if (value.startsWith("profile:")) {
-						const profileId = value.substring(8);
-						this.plugin.settings.chatProviderProfileId = profileId;
-						const profile = getProfileById(this.plugin.settings, profileId);
-						if (profile?.type === "openai") {
-							this.plugin.settings.aiProvider = "openai";
-						} else if (profile?.type === "azure-openai") {
-							this.plugin.settings.aiProvider = "azure-openai";
+					const providerType = value as AIProviderType;
+					this.plugin.settings.aiProvider = providerType;
+					
+					// Set chatProviderProfileId based on type
+					if (providerType === 'copilot') {
+						this.plugin.settings.chatProviderProfileId = 'builtin-copilot';
+					} else {
+						// For OpenAI and Azure OpenAI, use the first profile of that type if available
+						const profiles = getProfilesByType(this.plugin.settings, providerType as AIProviderProfileType);
+						if (profiles.length > 0) {
+							this.plugin.settings.chatProviderProfileId = profiles[0]!.id;
+						} else {
+							this.plugin.settings.chatProviderProfileId = null;
+							new Notice(`No ${getProfileTypeDisplayName(providerType as AIProviderProfileType)} profile configured. Please add one in AI Provider Profiles section.`);
 						}
 					}
+					
 					await this.plugin.saveSettings();
 					
 					// Reconnect to the new provider
 					await this.plugin.disconnectCopilot();
 					await this.plugin.connectCopilot();
 				});
-			})
-			.addExtraButton((button) => {
-				button
-					.setIcon("plus")
-					.setTooltip("Add new provider profile")
-					.onClick(() => {
-						const modal = new AIProviderProfileModal(this.app, null, async (profile) => {
-							if (!this.plugin.settings.aiProviderProfiles) {
-								this.plugin.settings.aiProviderProfiles = [];
-							}
-							this.plugin.settings.aiProviderProfiles.push(profile);
-							await this.plugin.saveSettings();
-							// Refresh settings display
-							this.display();
-						});
-						modal.open();
-					});
 			});
 
 		// Model selection with refresh button
@@ -1316,7 +1328,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 			// Details
 			const detailsCell = row.createEl("td", { cls: "vc-profile-details" });
-			if (profile.type === 'openai') {
+			if (profile.type === 'copilot') {
+				detailsCell.createEl("span", { text: "Built-in GitHub Copilot CLI integration", cls: "vc-profile-detail" });
+			} else if (profile.type === 'openai') {
 				const openai = profile as OpenAIProviderProfile;
 				if (openai.baseURL) {
 					detailsCell.createEl("span", { text: openai.baseURL, cls: "vc-profile-detail" });
@@ -1335,62 +1349,67 @@ export class CopilotSettingTab extends PluginSettingTab {
 			// Actions
 			const actionsCell = row.createEl("td", { cls: "vc-profile-actions" });
 			
-			// Edit button
-			const editBtn = actionsCell.createEl("button", { text: "Edit", cls: "vc-btn-sm" });
-			editBtn.addEventListener("click", () => {
-				const modal = new AIProviderProfileModal(this.app, profile, async (updatedProfile) => {
-					const index = this.plugin.settings.aiProviderProfiles!.findIndex(p => p.id === profile.id);
-					if (index !== -1) {
-						this.plugin.settings.aiProviderProfiles![index] = updatedProfile;
-						await this.plugin.saveSettings();
-						this.renderProfileList(container);
-						new Notice(`Profile "${updatedProfile.name}" updated`);
-					}
+			// Check if this is a readonly profile
+			if (profile.readonly) {
+				actionsCell.createEl("span", { text: "Built-in", cls: "vc-readonly-badge" });
+			} else {
+				// Edit button
+				const editBtn = actionsCell.createEl("button", { text: "Edit", cls: "vc-btn-sm" });
+				editBtn.addEventListener("click", () => {
+					const modal = new AIProviderProfileModal(this.app, profile, async (updatedProfile) => {
+						const index = this.plugin.settings.aiProviderProfiles!.findIndex(p => p.id === profile.id);
+						if (index !== -1) {
+							this.plugin.settings.aiProviderProfiles![index] = updatedProfile;
+							await this.plugin.saveSettings();
+							this.renderProfileList(container);
+							new Notice(`Profile "${updatedProfile.name}" updated`);
+						}
+					});
+					modal.open();
 				});
-				modal.open();
-			});
 
-			// Delete button
-			const deleteBtn = actionsCell.createEl("button", { text: "Delete", cls: "vc-btn-sm vc-btn-danger" });
-			deleteBtn.addEventListener("click", async () => {
-				// Check if profile is in use
-				const inUseBy: string[] = [];
-				if (this.plugin.settings.voiceInputProfileId === profile.id) {
-					inUseBy.push("Voice Input");
-				}
-				if (this.plugin.settings.realtimeAgentProfileId === profile.id) {
-					inUseBy.push("Realtime Agent");
-				}
-
-				let confirmMessage = `Are you sure you want to delete the profile "${profile.name}"?`;
-				if (inUseBy.length > 0) {
-					confirmMessage += `\n\nThis profile is currently used by: ${inUseBy.join(", ")}. These will be reset to "None".`;
-				}
-
-				if (confirm(confirmMessage)) {
-					// Remove profile
-					const index = this.plugin.settings.aiProviderProfiles!.findIndex(p => p.id === profile.id);
-					if (index !== -1) {
-						this.plugin.settings.aiProviderProfiles!.splice(index, 1);
-					}
-
-					// Reset references if this profile was in use
+				// Delete button
+				const deleteBtn = actionsCell.createEl("button", { text: "Delete", cls: "vc-btn-sm vc-btn-danger" });
+				deleteBtn.addEventListener("click", async () => {
+					// Check if profile is in use
+					const inUseBy: string[] = [];
 					if (this.plugin.settings.voiceInputProfileId === profile.id) {
-						this.plugin.settings.voiceInputProfileId = null;
+						inUseBy.push("Voice Input");
 					}
 					if (this.plugin.settings.realtimeAgentProfileId === profile.id) {
-						this.plugin.settings.realtimeAgentProfileId = null;
+						inUseBy.push("Realtime Agent");
 					}
 
-					await this.plugin.saveSettings();
-					this.renderProfileList(container);
-					
-					// Re-render voice settings sections to update dropdowns
-					this.display();
-					
-					new Notice(`Profile "${profile.name}" deleted`);
-				}
-			});
+					let confirmMessage = `Are you sure you want to delete the profile "${profile.name}"?`;
+					if (inUseBy.length > 0) {
+						confirmMessage += `\n\nThis profile is currently used by: ${inUseBy.join(", ")}. These will be reset to "None".`;
+					}
+
+					if (confirm(confirmMessage)) {
+						// Remove profile
+						const index = this.plugin.settings.aiProviderProfiles!.findIndex(p => p.id === profile.id);
+						if (index !== -1) {
+							this.plugin.settings.aiProviderProfiles!.splice(index, 1);
+						}
+
+						// Reset references if this profile was in use
+						if (this.plugin.settings.voiceInputProfileId === profile.id) {
+							this.plugin.settings.voiceInputProfileId = null;
+						}
+						if (this.plugin.settings.realtimeAgentProfileId === profile.id) {
+							this.plugin.settings.realtimeAgentProfileId = null;
+						}
+
+						await this.plugin.saveSettings();
+						this.renderProfileList(container);
+						
+						// Re-render voice settings sections to update dropdowns
+						this.display();
+						
+						new Notice(`Profile "${profile.name}" deleted`);
+					}
+				});
+			}
 		}
 	}
 
