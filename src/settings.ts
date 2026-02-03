@@ -595,6 +595,8 @@ export interface CopilotPluginSettings {
 	voiceInputProfileId?: string | null;
 	/** Selected profile ID for Realtime Voice Agent */
 	realtimeAgentProfileId?: string | null;
+	/** Selected model for Realtime Agent */
+	realtimeAgentModel?: string;
 	/** Voice chat settings */
 	voice?: {
 		/** Enable voice input (show mic button in chat) */
@@ -607,6 +609,8 @@ export interface CopilotPluginSettings {
 		language: string;
 		/** Selected audio input device ID */
 		audioDeviceId?: string;
+		/** Selected audio model for voice input */
+		audioModel?: string;
 		/** Auto synthesize: read responses aloud when voice was used as input */
 		autoSynthesize?: 'off' | 'on';
 		/** Speech timeout in milliseconds (0 to disable) */
@@ -792,6 +796,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 		// CLI Status Section - renders immediately with loading state (moved to bottom)
 		this.renderCliStatusSection(containerEl);
 
+		// Vault Setup Section
+		this.renderVaultSetupSection(containerEl);
+
 		// Help Section
 		this.renderHelpSection(containerEl);
 
@@ -954,45 +961,6 @@ export class CopilotSettingTab extends PluginSettingTab {
 	private renderMainSettingsIfReady(status: CliStatus): void {
 		if (!this.mainSettingsContainer) return;
 		this.mainSettingsContainer.empty();
-
-		// Vault Initialization Section - only if CLI is installed and vault not already initialized
-		if (status.installed) {
-			// Check if vault is already initialized (has .github/copilot-instructions.md)
-			const vaultInitialized = this.app.vault.getAbstractFileByPath(".github/copilot-instructions.md") !== null;
-			
-			if (!vaultInitialized) {
-				const initSection = this.mainSettingsContainer.createDiv({ cls: "vc-settings-section" });
-				initSection.createEl("h3", { text: "Vault Setup" });
-				
-				const initDesc = initSection.createEl("p", { 
-					text: "Initialize GitHub Copilot for this vault to enable context-aware assistance.",
-					cls: "vc-status-desc"
-				});
-				
-				const initBtnRow = initSection.createDiv({ cls: "vc-btn-row" });
-				const initBtn = initBtnRow.createEl("button", { text: "Initialize Vault", cls: "vc-btn-primary" });
-				initBtn.addEventListener("click", async () => {
-					const vaultPath = this.getVaultPath();
-					if (!vaultPath) {
-						new Notice("Could not determine vault path");
-						return;
-					}
-					initBtn.disabled = true;
-					initBtn.textContent = "Initializing...";
-					const result = await this.cliManager.initializeVault(vaultPath);
-					initBtn.disabled = false;
-					initBtn.textContent = "Initialize Vault";
-					// Re-render to hide section if initialization succeeded
-					this.renderMainSettingsIfReady(status);
-				});
-				
-				const cmdPreview = initSection.createDiv({ cls: "vc-cmd-group" });
-				cmdPreview.createEl("label", { text: "Command that will be run:" });
-				const vaultPath = this.getVaultPath() || "<vault_path>";
-				const normalizedPath = vaultPath.replace(/\\/g, "/");
-				cmdPreview.createEl("code", { text: `copilot --add-dir "${normalizedPath}"`, cls: "vc-code-block" });
-			}
-		}
 
 		// Chat Preferences Section
 		const section = this.mainSettingsContainer.createDiv({ cls: "vc-settings-section" });
@@ -2347,14 +2315,100 @@ export class CopilotSettingTab extends PluginSettingTab {
 			}
 		}
 
-		// 2. Audio device selection (Microphone)
+		// 2. Audio Model selection (only if profile selected)
+		if (selectedProfile) {
+			const modelSetting = new Setting(container)
+				.setName("Audio Model")
+				.setDesc("Select the audio model for speech-to-text transcription");
+
+			let modelDropdown: any = null;
+			
+			modelSetting.addDropdown((dropdown) => {
+				modelDropdown = dropdown;
+				const currentModel = this.plugin.settings.voice!.audioModel;
+				
+				dropdown.addOption('', 'Default');
+				if (currentModel) {
+					dropdown.addOption(currentModel, currentModel);
+				}
+				dropdown.setValue(currentModel || '');
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.voice!.audioModel = value || undefined;
+					await this.plugin.saveSettings();
+				});
+			});
+
+			modelSetting.addButton((button) => {
+				button
+					.setButtonText("↻")
+					.setTooltip("Refresh models")
+					.onClick(async () => {
+						button.setDisabled(true);
+						new Notice("Loading audio models...");
+						
+						try {
+							let models: string[] = [];
+							
+							if (selectedProfile.type === 'openai') {
+								const OpenAIServiceModule = await import('./copilot/OpenAIService');
+								const service = new OpenAIServiceModule.OpenAIService(this.app, {
+									provider: 'openai',
+									model: 'gpt-4o',
+									streaming: false,
+									apiKey: (selectedProfile as any).apiKey,
+									baseURL: (selectedProfile as any).baseURL,
+								});
+								
+								await service.initialize();
+								models = await service.listAudioModels();
+							} else if (selectedProfile.type === 'azure-openai') {
+								const AzureOpenAIServiceModule = await import('./copilot/AzureOpenAIService');
+								const service = new AzureOpenAIServiceModule.AzureOpenAIService(this.app, {
+									provider: 'azure-openai',
+									model: 'gpt-4o',
+									streaming: false,
+									apiKey: (selectedProfile as any).apiKey,
+									endpoint: (selectedProfile as any).endpoint,
+									deploymentName: (selectedProfile as any).deploymentName,
+									apiVersion: (selectedProfile as any).apiVersion,
+								});
+								
+								await service.initialize();
+								models = await service.listAudioModels();
+							}
+							
+							if (models.length > 0) {
+								if (modelDropdown) {
+									modelDropdown.selectEl.empty();
+									modelDropdown.addOption('', 'Default');
+									for (const model of models) {
+										modelDropdown.addOption(model, model);
+									}
+									const currentModel = this.plugin.settings.voice!.audioModel;
+									modelDropdown.setValue(currentModel || '');
+								}
+								new Notice(`Loaded ${models.length} audio models`);
+							} else {
+								new Notice("No audio models found");
+							}
+						} catch (error) {
+							console.error("Failed to load audio models:", error);
+							new Notice(`Failed to load models: ${error.message}`);
+						} finally {
+							button.setDisabled(false);
+						}
+					});
+			});
+		}
+
+		// 3. Audio device selection (Microphone)
 		const audioDeviceSetting = new Setting(container)
 			.setName("Microphone")
 			.setDesc("Select the audio input device");
 		
 		this.populateAudioDevices(audioDeviceSetting);
 
-		// 3. Voice language (common to all backends)
+		// 4. Voice language (common to all backends)
 		new Setting(container)
 			.setName("Speech Language")
 			.setDesc("The language that text-to-speech and speech-to-text should use. Select 'auto' to use the configured display language if possible. Note that not all display languages may be supported by speech recognition and synthesizers.")
@@ -2382,7 +2436,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 				});
 			});
 
-		// 4. Auto Synthesize - read responses aloud
+		// 5. Auto Synthesize - read responses aloud
 		new Setting(container)
 			.setName("Auto Synthesize")
 			.setDesc("Whether a textual response should automatically be read out aloud when speech was used as input. For example in a chat session, a response is automatically synthesized when voice was used as chat request.")
@@ -2396,7 +2450,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 				});
 			});
 
-		// 5. Speech Timeout
+		// 6. Speech Timeout
 		new Setting(container)
 			.setName("Speech Timeout")
 			.setDesc("The duration in milliseconds that voice speech recognition remains active after you stop speaking. For example in a chat session, the transcribed text is submitted automatically after the timeout is met. Set to 0 to disable this feature.")
@@ -2497,7 +2551,80 @@ export class CopilotSettingTab extends PluginSettingTab {
 			}
 		}
 
-		// Voice selection
+		// 2. Realtime Model selection (only if profile selected)
+		if (selectedProfile) {
+			const modelSetting = new Setting(realtimeSection)
+				.setName("Realtime Model")
+				.setDesc("Select the realtime model for voice conversations");
+
+			let modelDropdown: any = null;
+			
+			modelSetting.addDropdown((dropdown) => {
+				modelDropdown = dropdown;
+				const currentModel = this.plugin.settings.realtimeAgentModel;
+				
+				dropdown.addOption('', 'Default');
+				if (currentModel) {
+					dropdown.addOption(currentModel, currentModel);
+				}
+				dropdown.setValue(currentModel || '');
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.realtimeAgentModel = value || undefined;
+					await this.plugin.saveSettings();
+				});
+			});
+
+			modelSetting.addButton((button) => {
+				button
+					.setButtonText("↻")
+					.setTooltip("Refresh models")
+					.onClick(async () => {
+						button.setDisabled(true);
+						new Notice("Loading realtime models...");
+						
+						try {
+							let models: string[] = [];
+							
+							// Only OpenAI is supported for realtime models
+							if (selectedProfile.type === 'openai') {
+								const OpenAIServiceModule = await import('./copilot/OpenAIService');
+								const service = new OpenAIServiceModule.OpenAIService(this.app, {
+									provider: 'openai',
+									model: 'gpt-4o',
+									streaming: false,
+									apiKey: (selectedProfile as any).apiKey,
+									baseURL: (selectedProfile as any).baseURL,
+								});
+								
+								await service.initialize();
+								models = await service.listRealtimeModels();
+							}
+							
+							if (models.length > 0) {
+								if (modelDropdown) {
+									modelDropdown.selectEl.empty();
+									modelDropdown.addOption('', 'Default');
+									for (const model of models) {
+										modelDropdown.addOption(model, model);
+									}
+									const currentModel = this.plugin.settings.realtimeAgentModel;
+									modelDropdown.setValue(currentModel || '');
+								}
+								new Notice(`Loaded ${models.length} realtime models`);
+							} else {
+								new Notice("No realtime models found");
+							}
+						} catch (error) {
+							console.error("Failed to load realtime models:", error);
+							new Notice(`Failed to load models: ${error.message}`);
+						} finally {
+							button.setDisabled(false);
+						}
+					});
+			});
+		}
+
+		// 3. Voice selection
 		new Setting(realtimeSection)
 			.setName("Voice")
 			.setDesc("Select the voice for the realtime agent")
@@ -3122,6 +3249,51 @@ export class CopilotSettingTab extends PluginSettingTab {
 				}
 			}
 		});
+	}
+
+	private renderVaultSetupSection(containerEl: HTMLElement): void {
+		// Only render if CLI is installed and vault not already initialized
+		if (!this.cachedStatus?.installed) {
+			return;
+		}
+
+		// Check if vault is already initialized (has .github/copilot-instructions.md)
+		const vaultInitialized = this.app.vault.getAbstractFileByPath(".github/copilot-instructions.md") !== null;
+		
+		if (vaultInitialized) {
+			return;
+		}
+
+		const section = containerEl.createDiv({ cls: "vc-settings-section" });
+		section.createEl("h3", { text: "Vault Setup" });
+		
+		const desc = section.createEl("p", { 
+			text: "Initialize GitHub Copilot for this vault to enable context-aware assistance.",
+			cls: "vc-status-desc"
+		});
+		
+		const btnRow = section.createDiv({ cls: "vc-btn-row" });
+		const btn = btnRow.createEl("button", { text: "Initialize Vault", cls: "vc-btn-primary" });
+		btn.addEventListener("click", async () => {
+			const vaultPath = this.getVaultPath();
+			if (!vaultPath) {
+				new Notice("Could not determine vault path");
+				return;
+			}
+			btn.disabled = true;
+			btn.textContent = "Initializing...";
+			const result = await this.cliManager.initializeVault(vaultPath);
+			btn.disabled = false;
+			btn.textContent = "Initialize Vault";
+			// Re-render settings to hide section if initialization succeeded
+			this.display();
+		});
+		
+		const cmdPreview = section.createDiv({ cls: "vc-cmd-group" });
+		cmdPreview.createEl("label", { text: "Command that will be run:" });
+		const vaultPath = this.getVaultPath() || "<vault_path>";
+		const normalizedPath = vaultPath.replace(/\\/g, "/");
+		cmdPreview.createEl("code", { text: `copilot --add-dir "${normalizedPath}"`, cls: "vc-code-block" });
 	}
 
 	private renderHelpSection(containerEl: HTMLElement): void {
