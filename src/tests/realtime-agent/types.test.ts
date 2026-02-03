@@ -57,8 +57,8 @@ describe("types.ts", () => {
 				expect(VAULT_READ_TOOLS).toContain("list_notes");
 			});
 
-			it("should have exactly 4 tools", () => {
-				expect(VAULT_READ_TOOLS).toHaveLength(4);
+			it("should have exactly 11 tools", () => {
+				expect(VAULT_READ_TOOLS).toHaveLength(11);
 			});
 
 			it("should not contain write tools", () => {
@@ -105,10 +105,10 @@ describe("types.ts", () => {
 			expect(uniqueTools.size).toBe(allTools.length);
 		});
 
-		it("should cover all 15 tool names (including task tools)", () => {
+		it("should cover all 20 tool names (including task tools)", () => {
 			const allTools = [...VAULT_READ_TOOLS, ...VAULT_WRITE_TOOLS, ...WEB_TOOLS];
-			// 4 read + 7 write + 2 web = 13 (task tools overlap with write)
-			expect(allTools).toHaveLength(13);
+			// 11 read + 7 write + 2 web = 20
+			expect(allTools).toHaveLength(20);
 		});
 	});
 
