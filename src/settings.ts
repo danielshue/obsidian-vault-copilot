@@ -1034,7 +1034,6 @@ export class CopilotSettingTab extends PluginSettingTab {
 						.setTooltip("Refresh available models from CLI")
 						.onClick(async () => {
 							button.setDisabled(true);
-							new Notice("Discovering models from CLI...");
 							
 							const result = await this.cliManager.fetchAvailableModels();
 							if (result.models.length > 0) {
@@ -1064,10 +1063,6 @@ export class CopilotSettingTab extends PluginSettingTab {
 										view.refreshFromSettings();
 									}
 								}
-								
-								new Notice(`Found ${result.models.length} models`);
-							} else {
-								new Notice(result.error || "Could not discover models");
 							}
 							
 							button.setDisabled(false);
