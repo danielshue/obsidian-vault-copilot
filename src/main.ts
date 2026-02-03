@@ -617,6 +617,7 @@ export default class CopilotPlugin extends Plugin {
 					organization: this.settings.openai.organization || undefined,
 					maxTokens: this.settings.openai.maxTokens,
 					temperature: this.settings.openai.temperature,
+					mcpManager: this.mcpManager, // Add MCP support
 				});
 			}
 
@@ -658,6 +659,7 @@ export default class CopilotPlugin extends Plugin {
 				baseURL: profile.baseURL || undefined,
 				maxTokens: this.settings.openai.maxTokens,
 				temperature: this.settings.openai.temperature,
+				mcpManager: this.mcpManager, // Add MCP support
 			});
 		}
 
@@ -689,6 +691,7 @@ export default class CopilotPlugin extends Plugin {
 				apiVersion: profile.apiVersion,
 				maxTokens: this.settings.openai.maxTokens,
 				temperature: this.settings.openai.temperature,
+				mcpManager: this.mcpManager, // Add MCP support
 			});
 		}
 

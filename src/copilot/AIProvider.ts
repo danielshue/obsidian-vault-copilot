@@ -5,6 +5,7 @@
 
 import { App } from "obsidian";
 import { ChatMessage } from "./CopilotService";
+import { McpManager } from "./McpManager";
 
 export type AIProviderType = "copilot" | "openai" | "azure-openai";
 
@@ -17,6 +18,8 @@ export interface AIProviderConfig {
 	streaming: boolean;
 	/** System prompt/message */
 	systemMessage?: string;
+	/** MCP Manager for MCP server tools (optional) */
+	mcpManager?: McpManager;
 }
 
 export interface OpenAIProviderConfig extends AIProviderConfig {
@@ -165,6 +168,49 @@ export abstract class AIProvider {
 	 */
 	getModel(): string {
 		return this.config.model;
+	}
+
+	/**
+	 * Get MCP manager if configured
+	 */
+	getMcpManager(): McpManager | undefined {
+		return this.config.mcpManager;
+	}
+
+	/**
+	 * Convert MCP tools to ToolDefinition format for use with the provider
+	 */
+	protected convertMcpToolsToToolDefinitions(): ToolDefinition[] {
+		if (!this.config.mcpManager) {
+			return [];
+		}
+
+		const mcpTools = this.config.mcpManager.getAllTools();
+		const toolDefinitions: ToolDefinition[] = [];
+
+		for (const mcpToolWrapper of mcpTools) {
+			const mcpTool = mcpToolWrapper.tool;
+			toolDefinitions.push({
+				name: mcpTool.name,
+				description: mcpTool.description || "",
+				parameters: mcpTool.inputSchema || { type: "object", properties: {} },
+				handler: async (args: Record<string, unknown>) => {
+					try {
+						const result = await this.config.mcpManager!.callTool(
+							mcpToolWrapper.serverId,
+							mcpTool.name,
+							args
+						);
+						return result;
+					} catch (error) {
+						console.error(`[AIProvider] MCP tool execution error (${mcpTool.name}):`, error);
+						return { error: error instanceof Error ? error.message : String(error) };
+					}
+				},
+			});
+		}
+
+		return toolDefinitions;
 	}
 
 	protected addToHistory(role: "user" | "assistant", content: string): void {

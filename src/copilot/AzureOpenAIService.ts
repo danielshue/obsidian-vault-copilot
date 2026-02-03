@@ -8,11 +8,12 @@ import { App } from "obsidian";
 import { ChatMessage } from "./CopilotService";
 import {
 	AIProvider,
+	AIProviderConfig,
 	StreamingCallbacks,
 	ToolDefinition,
 } from "./AIProvider";
 
-export interface AzureOpenAIProviderConfig {
+export interface AzureOpenAIProviderConfig extends AIProviderConfig {
 	provider: "azure-openai";
 	/** Azure OpenAI API key */
 	apiKey: string;
@@ -22,12 +23,6 @@ export interface AzureOpenAIProviderConfig {
 	deploymentName: string;
 	/** API version (optional, defaults to 2024-08-01-preview) */
 	apiVersion?: string;
-	/** Model to use (for display only, actual model is in deployment) */
-	model: string;
-	/** Enable streaming responses */
-	streaming: boolean;
-	/** System prompt/message */
-	systemMessage?: string;
 	/** Max tokens for completion */
 	maxTokens?: number;
 	/** Temperature (0-2) */
@@ -357,9 +352,13 @@ export class AzureOpenAIService extends AIProvider {
 
 	/**
 	 * Build tools array for API call
+	 * Includes both manually set tools and MCP tools
 	 */
 	private buildTools(): AzureOpenAITool[] {
-		return this.tools.map((tool) => ({
+		// Combine manually set tools with MCP tools
+		const allTools = [...this.tools, ...this.convertMcpToolsToToolDefinitions()];
+		
+		return allTools.map((tool) => ({
 			type: "function" as const,
 			function: {
 				name: tool.name,

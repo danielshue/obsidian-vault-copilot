@@ -315,9 +315,13 @@ export class OpenAIService extends AIProvider {
 
 	/**
 	 * Build tools array for API call
+	 * Includes both manually set tools and MCP tools
 	 */
 	private buildTools(): OpenAITool[] {
-		return this.tools.map((tool) => ({
+		// Combine manually set tools with MCP tools
+		const allTools = [...this.tools, ...this.convertMcpToolsToToolDefinitions()];
+		
+		return allTools.map((tool) => ({
 			type: "function" as const,
 			function: {
 				name: tool.name,
