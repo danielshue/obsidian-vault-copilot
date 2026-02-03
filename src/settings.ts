@@ -1355,6 +1355,8 @@ export class CopilotSettingTab extends PluginSettingTab {
 							this.plugin.settings.aiProviderProfiles.push(profile);
 							await this.plugin.saveSettings();
 							this.renderProfileList(profileListContainer);
+							// Refresh all settings to update dropdowns
+							this.display();
 							new Notice(`Profile "${profile.name}" created`);
 						});
 						modal.open();
@@ -1442,6 +1444,8 @@ export class CopilotSettingTab extends PluginSettingTab {
 							this.plugin.settings.aiProviderProfiles![index] = updatedProfile;
 							await this.plugin.saveSettings();
 							this.renderProfileList(container);
+							// Refresh all settings to update dropdowns
+							this.display();
 							new Notice(`Profile "${updatedProfile.name}" updated`);
 						}
 					});
@@ -1458,6 +1462,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 					}
 					if (this.plugin.settings.realtimeAgentProfileId === profile.id) {
 						inUseBy.push("Realtime Agent");
+					}
+					if (this.plugin.settings.chatProviderProfileId === profile.id) {
+						inUseBy.push("Chat Preferences");
 					}
 
 					let confirmMessage = `Are you sure you want to delete the profile "${profile.name}"?`;
@@ -1478,6 +1485,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 						}
 						if (this.plugin.settings.realtimeAgentProfileId === profile.id) {
 							this.plugin.settings.realtimeAgentProfileId = null;
+						}
+						if (this.plugin.settings.chatProviderProfileId === profile.id) {
+							this.plugin.settings.chatProviderProfileId = null;
 						}
 
 						await this.plugin.saveSettings();
@@ -3345,6 +3355,26 @@ export class CopilotSettingTab extends PluginSettingTab {
 	}
 
 	hide(): void {
+		// Validate settings before closing
+		let settingsChanged = false;
+
+		// Auto-disable Voice Input if enabled but no provider selected
+		if (this.plugin.settings.voice?.voiceInputEnabled && !this.plugin.settings.voiceInputProfileId) {
+			this.plugin.settings.voice.voiceInputEnabled = false;
+			settingsChanged = true;
+		}
+
+		// Auto-disable Realtime Agent if enabled but no provider selected
+		if (this.plugin.settings.voice?.realtimeAgentEnabled && !this.plugin.settings.realtimeAgentProfileId) {
+			this.plugin.settings.voice.realtimeAgentEnabled = false;
+			settingsChanged = true;
+		}
+
+		// Save settings if any changes were made
+		if (settingsChanged) {
+			this.plugin.saveSettings();
+		}
+
 		// Clean up skill registry subscription
 		if (this.skillRegistryUnsubscribe) {
 			this.skillRegistryUnsubscribe();
