@@ -1122,12 +1122,11 @@ export class CopilotSettingTab extends PluginSettingTab {
 							currentModel = (profile as AzureOpenAIProviderProfile).model || (profile as AzureOpenAIProviderProfile).deploymentName;
 						}
 						
-						// Populate with default models initially
+						// Populate with default chat models initially (no realtime/audio)
 						if (profile.type === 'openai') {
 							const defaultModels = [
 								'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo',
-								'o1', 'o1-mini', 'o1-preview', 'o3-mini',
-								'gpt-realtime', 'gpt-realtime-mini', 'gpt-audio', 'gpt-audio-mini'
+								'o1', 'o1-mini', 'o1-preview', 'o3-mini'
 							];
 							for (const model of defaultModels) {
 								dropdown.addOption(model, model);
@@ -1136,8 +1135,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 							const defaultModels = [
 								'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-4-32k',
 								'gpt-35-turbo', 'gpt-35-turbo-16k',
-								'o1', 'o1-mini', 'o1-preview', 'o3-mini',
-								'gpt-realtime', 'gpt-realtime-mini', 'gpt-audio', 'gpt-audio-mini'
+								'o1', 'o1-mini', 'o1-preview', 'o3-mini'
 							];
 							for (const model of defaultModels) {
 								dropdown.addOption(model, model);

@@ -398,7 +398,7 @@ export class OpenAIService extends AIProvider {
 	}
 
 	/**
-	 * List available models
+	 * List available models for chat (excludes realtime and audio models)
 	 */
 	async listModels(): Promise<string[]> {
 		if (!this.client) {
@@ -409,17 +409,57 @@ export class OpenAIService extends AIProvider {
 			const response = await this.client!.models.list();
 			return response.data
 				.filter((m) => 
-					m.id.startsWith("gpt-") || 
-					m.id.startsWith("o1") || 
-					m.id.startsWith("o3") ||
-					m.id.includes("realtime") ||
-					m.id.includes("audio")
+					(m.id.startsWith("gpt-") || m.id.startsWith("o1") || m.id.startsWith("o3")) &&
+					!m.id.includes("realtime") &&
+					!m.id.includes("audio")
 				)
 				.map((m) => m.id)
 				.sort();
 		} catch (error) {
 			console.error("[OpenAIService] Error listing models:", error);
 			return [];
+		}
+	}
+
+	/**
+	 * List available realtime models for voice agent
+	 */
+	async listRealtimeModels(): Promise<string[]> {
+		if (!this.client) {
+			await this.initialize();
+		}
+
+		try {
+			const response = await this.client!.models.list();
+			return response.data
+				.filter((m) => m.id.includes("realtime"))
+				.map((m) => m.id)
+				.sort();
+		} catch (error) {
+			console.error("[OpenAIService] Error listing realtime models:", error);
+			// Return default realtime models
+			return ["gpt-realtime", "gpt-realtime-mini"];
+		}
+	}
+
+	/**
+	 * List available audio models for voice input
+	 */
+	async listAudioModels(): Promise<string[]> {
+		if (!this.client) {
+			await this.initialize();
+		}
+
+		try {
+			const response = await this.client!.models.list();
+			return response.data
+				.filter((m) => m.id.includes("audio") && !m.id.includes("realtime"))
+				.map((m) => m.id)
+				.sort();
+		} catch (error) {
+			console.error("[OpenAIService] Error listing audio models:", error);
+			// Return default audio models
+			return ["gpt-audio", "gpt-audio-mini"];
 		}
 	}
 }

@@ -440,13 +440,13 @@ export class AzureOpenAIService extends AIProvider {
 	}
 
 	/**
-	 * List available models from Azure OpenAI
+	 * List available models from Azure OpenAI for chat (excludes realtime and audio models)
 	 * Note: Azure doesn't provide a models API, so we return common model names
 	 * Based on: https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models
 	 */
 	async listModels(): Promise<string[]> {
 		// Azure OpenAI doesn't have a dynamic models list API
-		// Return common models that users might have deployed
+		// Return common chat models (excluding realtime and audio models)
 		return [
 			"gpt-4o",
 			"gpt-4o-mini",
@@ -459,8 +459,24 @@ export class AzureOpenAIService extends AIProvider {
 			"o1-mini",
 			"o1-preview",
 			"o3-mini",
+		].sort();
+	}
+
+	/**
+	 * List available realtime models for voice agent
+	 */
+	async listRealtimeModels(): Promise<string[]> {
+		return [
 			"gpt-realtime",
 			"gpt-realtime-mini",
+		].sort();
+	}
+
+	/**
+	 * List available audio models for voice input
+	 */
+	async listAudioModels(): Promise<string[]> {
+		return [
 			"gpt-audio",
 			"gpt-audio-mini",
 		].sort();
