@@ -100,10 +100,8 @@ export interface OpenAIProviderProfile extends AIProviderProfileBase {
 	apiKey: string;
 	/** Custom base URL (optional, for compatible APIs) */
 	baseURL?: string;
-	/** Model for chat (optional, e.g., gpt-4o, gpt-4-turbo) */
-	chatModel?: string;
-	/** Model for whisper/voice (optional) */
-	whisperModel?: string;
+	/** Selected model for this profile */
+	model?: string;
 }
 
 /** Azure OpenAI provider profile configuration */
@@ -113,12 +111,12 @@ export interface AzureOpenAIProviderProfile extends AIProviderProfileBase {
 	apiKey: string;
 	/** Azure OpenAI endpoint (e.g., https://your-resource.openai.azure.com) */
 	endpoint: string;
-	/** Deployment name for chat model (e.g., gpt-4o) */
-	chatDeploymentName?: string;
-	/** Deployment name for whisper model (optional, for voice services) */
-	whisperDeploymentName?: string;
+	/** Deployment name for the model */
+	deploymentName: string;
 	/** API version (optional, defaults to 2024-06-01) */
 	apiVersion?: string;
+	/** Selected model for this profile */
+	model?: string;
 }
 
 /** Local Whisper server profile configuration */
@@ -232,9 +230,7 @@ export function getVoiceServiceConfigFromProfile(
 		const azure = profile as AzureOpenAIProviderProfile;
 		config.azureApiKey = azure.apiKey || undefined;
 		config.azureEndpoint = azure.endpoint;
-		// Use chatDeploymentName for voice services (single deployment)
-		// Fall back to whisperDeploymentName for backward compatibility with existing profiles
-		config.azureDeploymentName = azure.chatDeploymentName || azure.whisperDeploymentName;
+		config.azureDeploymentName = azure.deploymentName;
 		config.azureApiVersion = azure.apiVersion;
 	} else if (profile.type === 'local') {
 		const local = profile as LocalProviderProfile;
@@ -411,16 +407,15 @@ export class AIProviderProfileModal extends Modal {
 				});
 			});
 
-		// Deployment Name (for chat and voice - single field)
+		// Deployment Name (required)
 		new Setting(container)
 			.setName('Deployment Name')
-			.setDesc('The name of your model deployment (required, e.g., gpt-4o)')
+			.setDesc('The name of your model deployment (required)')
 			.addText((text) => {
 				text.setPlaceholder('gpt-4o');
-				// Use chatDeploymentName as the primary field
-				text.setValue((this.profile as AzureOpenAIProviderProfile).chatDeploymentName || '');
+				text.setValue((this.profile as AzureOpenAIProviderProfile).deploymentName || '');
 				text.onChange((value) => {
-					(this.profile as AzureOpenAIProviderProfile).chatDeploymentName = value || undefined;
+					(this.profile as AzureOpenAIProviderProfile).deploymentName = value;
 				});
 			});
 
@@ -469,7 +464,7 @@ export class AIProviderProfileModal extends Modal {
 				return;
 			}
 			// Deployment name is required
-			if (!azure.chatDeploymentName?.trim()) {
+			if (!azure.deploymentName?.trim()) {
 				new Notice('Deployment name is required');
 				return;
 			}
@@ -1109,21 +1104,147 @@ export class CopilotSettingTab extends PluginSettingTab {
 						});
 				});
 		} else {
-			// For OpenAI and Azure OpenAI, show profile model info
+			// For OpenAI and Azure OpenAI, show model selection with discovery
 			const profile = getProfileById(this.plugin.settings, this.plugin.settings.chatProviderProfileId);
-			if (profile) {
-				let modelInfo = '';
-				if (profile.type === 'openai') {
-					modelInfo = 'OpenAI models available via API';
-				} else if (profile.type === 'azure-openai') {
-					const azure = profile as AzureOpenAIProviderProfile;
-					modelInfo = azure.chatDeploymentName || 'No deployment configured';
-				}
-				
-				new Setting(section)
+			if (profile && (profile.type === 'openai' || profile.type === 'azure-openai')) {
+				let modelDropdown: any;
+				const modelSetting = new Setting(section)
 					.setName("Model")
-					.setDesc(`Using: ${modelInfo}`)
-					.setDisabled(true);
+					.setDesc(`Select model for ${profile.name}`)
+					.addDropdown((dropdown) => {
+						modelDropdown = dropdown;
+						
+						// Get current model from profile
+						let currentModel = '';
+						if (profile.type === 'openai') {
+							currentModel = (profile as OpenAIProviderProfile).model || 'gpt-4o';
+						} else if (profile.type === 'azure-openai') {
+							currentModel = (profile as AzureOpenAIProviderProfile).model || (profile as AzureOpenAIProviderProfile).deploymentName;
+						}
+						
+						// Populate with default models initially
+						if (profile.type === 'openai') {
+							const defaultModels = [
+								'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo',
+								'o1', 'o1-mini', 'o1-preview', 'o3-mini',
+								'gpt-realtime', 'gpt-realtime-mini', 'gpt-audio', 'gpt-audio-mini'
+							];
+							for (const model of defaultModels) {
+								dropdown.addOption(model, model);
+							}
+						} else if (profile.type === 'azure-openai') {
+							const defaultModels = [
+								'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-4-32k',
+								'gpt-35-turbo', 'gpt-35-turbo-16k',
+								'o1', 'o1-mini', 'o1-preview', 'o3-mini',
+								'gpt-realtime', 'gpt-realtime-mini', 'gpt-audio', 'gpt-audio-mini'
+							];
+							for (const model of defaultModels) {
+								dropdown.addOption(model, model);
+							}
+						}
+						
+						dropdown.setValue(currentModel);
+						dropdown.onChange(async (value) => {
+							// Update the profile's model
+							if (profile.type === 'openai') {
+								(profile as OpenAIProviderProfile).model = value;
+							} else if (profile.type === 'azure-openai') {
+								(profile as AzureOpenAIProviderProfile).model = value;
+							}
+							
+							// Update the profile in settings
+							const profileIndex = this.plugin.settings.aiProviderProfiles!.findIndex(p => p.id === profile.id);
+							if (profileIndex !== -1) {
+								this.plugin.settings.aiProviderProfiles![profileIndex] = profile;
+								await this.plugin.saveSettings();
+							}
+						});
+					})
+					.addExtraButton((button) => {
+						button
+							.setIcon("refresh-cw")
+							.setTooltip("Refresh available models from API")
+							.onClick(async () => {
+								button.setDisabled(true);
+								new Notice("Discovering models...");
+								
+								try {
+									let models: string[] = [];
+									
+									if (profile.type === 'openai') {
+										// Fetch models from OpenAI API
+										const service = this.plugin.openaiService || new (await import('./copilot/OpenAIService')).OpenAIService(this.app, {
+											provider: 'openai',
+											model: 'gpt-4o',
+											streaming: false,
+											apiKey: (profile as OpenAIProviderProfile).apiKey,
+											baseURL: (profile as OpenAIProviderProfile).baseURL,
+										});
+										
+										await service.initialize();
+										models = await service.listModels();
+									} else if (profile.type === 'azure-openai') {
+										// For Azure, we provide the static list
+										const service = new (await import('./copilot/AzureOpenAIService')).AzureOpenAIService(this.app, {
+											provider: 'azure-openai',
+											model: 'gpt-4o',
+											streaming: false,
+											apiKey: (profile as AzureOpenAIProviderProfile).apiKey,
+											endpoint: (profile as AzureOpenAIProviderProfile).endpoint,
+											deploymentName: (profile as AzureOpenAIProviderProfile).deploymentName,
+											apiVersion: (profile as AzureOpenAIProviderProfile).apiVersion,
+										});
+										
+										await service.initialize();
+										models = await service.listModels();
+									}
+									
+									if (models.length > 0) {
+										// Repopulate dropdown
+										if (modelDropdown) {
+											modelDropdown.selectEl.empty();
+											for (const model of models) {
+												modelDropdown.addOption(model, model);
+											}
+											
+											// Keep current selection if still available
+											let currentModel = '';
+											if (profile.type === 'openai') {
+												currentModel = (profile as OpenAIProviderProfile).model || '';
+											} else if (profile.type === 'azure-openai') {
+												currentModel = (profile as AzureOpenAIProviderProfile).model || '';
+											}
+											
+											if (currentModel && models.includes(currentModel)) {
+												modelDropdown.setValue(currentModel);
+											} else if (models.length > 0) {
+												modelDropdown.setValue(models[0]);
+												// Update profile with first model
+												if (profile.type === 'openai') {
+													(profile as OpenAIProviderProfile).model = models[0];
+												} else if (profile.type === 'azure-openai') {
+													(profile as AzureOpenAIProviderProfile).model = models[0];
+												}
+												const profileIndex = this.plugin.settings.aiProviderProfiles!.findIndex(p => p.id === profile.id);
+												if (profileIndex !== -1) {
+													this.plugin.settings.aiProviderProfiles![profileIndex] = profile;
+													await this.plugin.saveSettings();
+												}
+											}
+										}
+										
+										new Notice(`Found ${models.length} models`);
+									} else {
+										new Notice("No models found");
+									}
+								} catch (error) {
+									new Notice(`Error discovering models: ${error}`);
+								}
+								
+								button.setDisabled(false);
+							});
+					});
 			}
 		}
 
@@ -1330,7 +1451,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 				}
 			} else if (profile.type === 'azure-openai') {
 				const azure = profile as AzureOpenAIProviderProfile;
-				const deployment = azure.chatDeploymentName || azure.whisperDeploymentName || 'No deployment';
+				const deployment = azure.deploymentName || 'No deployment';
 				detailsCell.createEl("span", { text: deployment, cls: "vc-profile-detail" });
 			} else if (profile.type === 'local') {
 				const local = profile as LocalProviderProfile;

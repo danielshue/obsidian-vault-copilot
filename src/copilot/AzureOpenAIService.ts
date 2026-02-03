@@ -438,4 +438,31 @@ export class AzureOpenAIService extends AIProvider {
 			return { success: false, error: message };
 		}
 	}
+
+	/**
+	 * List available models from Azure OpenAI
+	 * Note: Azure doesn't provide a models API, so we return common model names
+	 */
+	async listModels(): Promise<string[]> {
+		// Azure OpenAI doesn't have a dynamic models list API
+		// Return common models that users might have deployed
+		// Based on: https://ai.azure.us/explore/models?selectedCollection=OpenAI
+		return [
+			"gpt-4o",
+			"gpt-4o-mini",
+			"gpt-4-turbo",
+			"gpt-4",
+			"gpt-4-32k",
+			"gpt-35-turbo",
+			"gpt-35-turbo-16k",
+			"o1",
+			"o1-mini",
+			"o1-preview",
+			"o3-mini",
+			"gpt-realtime",
+			"gpt-realtime-mini",
+			"gpt-audio",
+			"gpt-audio-mini",
+		].sort();
+	}
 }

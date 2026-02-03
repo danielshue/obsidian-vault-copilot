@@ -408,7 +408,13 @@ export class OpenAIService extends AIProvider {
 		try {
 			const response = await this.client!.models.list();
 			return response.data
-				.filter((m) => m.id.startsWith("gpt-") || m.id.startsWith("o1") || m.id.startsWith("o3"))
+				.filter((m) => 
+					m.id.startsWith("gpt-") || 
+					m.id.startsWith("o1") || 
+					m.id.startsWith("o3") ||
+					m.id.includes("realtime") ||
+					m.id.includes("audio")
+				)
 				.map((m) => m.id)
 				.sort();
 		} catch (error) {

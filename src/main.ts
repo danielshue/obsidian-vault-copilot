@@ -462,7 +462,7 @@ export default class CopilotPlugin extends Plugin {
 					type: 'azure-openai',
 					apiKey: '', // Azure key must be in env variable
 					endpoint: azure.endpoint,
-					whisperDeploymentName: azure.deploymentName,
+					deploymentName: azure.deploymentName,
 					apiVersion: azure.apiVersion,
 				};
 			}
@@ -655,10 +655,11 @@ export default class CopilotPlugin extends Plugin {
 	 */
 	private async connectOpenAI(profile: OpenAIProviderProfile): Promise<void> {
 		if (!this.openaiService) {
-			const chatModel = profile.chatModel || this.settings.openai.model || "gpt-4o";
+			// Use profile model if set, otherwise use default
+			const model = profile.model || this.settings.openai.model || "gpt-4o";
 			this.openaiService = new OpenAIService(this.app, {
 				provider: "openai",
-				model: chatModel,
+				model: model,
 				streaming: this.settings.streaming,
 				apiKey: profile.apiKey || undefined,
 				baseURL: profile.baseURL || undefined,
@@ -681,15 +682,18 @@ export default class CopilotPlugin extends Plugin {
 	 */
 	private async connectAzureOpenAI(profile: AzureOpenAIProviderProfile): Promise<void> {
 		if (!this.azureOpenaiService) {
-			if (!profile.chatDeploymentName) {
-				new Notice("Azure OpenAI profile requires a chat deployment name");
+			if (!profile.deploymentName) {
+				new Notice("Azure OpenAI profile requires a deployment name");
 				return;
 			}
 			
+			// Use profile model if set, otherwise use deployment name
+			const model = profile.model || profile.deploymentName;
+			
 			this.azureOpenaiService = new AzureOpenAIService(this.app, {
 				provider: "azure-openai",
-				model: profile.chatDeploymentName, // Display name
-				deploymentName: profile.chatDeploymentName,
+				model: model,
+				deploymentName: profile.deploymentName,
 				streaming: this.settings.streaming,
 				apiKey: profile.apiKey,
 				endpoint: profile.endpoint,
