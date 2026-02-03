@@ -233,6 +233,7 @@ export function getVoiceServiceConfigFromProfile(
 		config.azureApiKey = azure.apiKey || undefined;
 		config.azureEndpoint = azure.endpoint;
 		// Use chatDeploymentName for voice services (single deployment)
+		// Fall back to whisperDeploymentName for backward compatibility with existing profiles
 		config.azureDeploymentName = azure.chatDeploymentName || azure.whisperDeploymentName;
 		config.azureApiVersion = azure.apiVersion;
 	} else if (profile.type === 'local') {
@@ -1113,7 +1114,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 			if (profile) {
 				let modelInfo = '';
 				if (profile.type === 'openai') {
-					modelInfo = 'OpenAI models (gpt-4o, gpt-4-turbo, etc.)';
+					modelInfo = 'OpenAI models available via API';
 				} else if (profile.type === 'azure-openai') {
 					const azure = profile as AzureOpenAIProviderProfile;
 					modelInfo = azure.chatDeploymentName || 'No deployment configured';
