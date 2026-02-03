@@ -3133,29 +3133,27 @@ export class CopilotSettingTab extends PluginSettingTab {
 			cls: "vc-version-info"
 		});
 		helpContent.createEl("p", {
-			text: "Vault Copilot brings AI assistance into Obsidian by connecting to your GitHub Copilot account. It uses the GitHub Copilot CLI SDK along with Agent Skills, MCP tools, and plugin-defined skills to enable powerful operations inside your vault. The assistant can read and search notes, create and update content, help organize information, and support workflows that span multiple plugins."
+			text: "Vault Copilot brings AI assistance to Obsidian by connecting to your GitHub Copilot, Azure OpenAI, or OpenAI account. It supports Agent Skills, MCP Tools, and plugin-defined tools to enable powerful operations inside your vault. The assistant can read, search notes, create and update content, help organize information, and support workflows that span multiple plugins."
 		});
 		helpContent.createEl("p", {
 			text: "Vault Copilot is designed to be extensible. You can add your own skills, enable MCP integrations, or install plugins that register additional capabilities. The assistant automatically discovers these tools and uses them when they are relevant."
 		});
 		helpContent.createEl("p", {
-			text: "Vault Copilot is a community project. It is not affiliated with, sponsored by, or endorsed by Microsoft or GitHub."
+			text: "Vault Copilot is a community project. It is not affiliated with, sponsored by, or endorsed by Microsoft, GitHub, or OpenAI."
 		});
 
 		const reqDiv = helpContent.createDiv({ cls: "vc-requirements" });
 		reqDiv.createEl("h4", { text: "Requirements" });
 		const reqList = reqDiv.createEl("ul");
-		reqList.createEl("li", { text: "GitHub Copilot CLI installed" });
-		reqList.createEl("li", { text: "Active GitHub Copilot subscription" });
-		reqList.createEl("li", { text: "Authentication completed through the Copilot CLI" });
+		reqList.createEl("li", { text: "GitHub Copilot CLI installed & Active Copilot Subscription, Azure OpenAI, or OpenAI" });
 		reqList.createEl("li", { text: "Obsidian vault with read and write access" });
 
 		const linksDiv = helpContent.createDiv({ cls: "vc-help-links" });
 		
 		const links = [
 			{ text: "GitHub Copilot Documentation", url: "https://docs.github.com/en/copilot" },
-			{ text: "GitHub Copilot CLI Installation Guide", url: "https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli" },
-			{ text: "GitHub Copilot Plans & Pricing", url: "https://github.com/features/copilot/plans" },
+			{ text: "GitHub Copilot CLI", url: "https://docs.github.com/en/copilot/how-tos/copilot-cli" },
+			{ text: "GitHub Copilot Pricing", url: "https://github.com/features/copilot/plans" },
 		];
 		
 		for (const link of links) {
