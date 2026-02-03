@@ -1070,11 +1070,13 @@ export class CopilotSettingTab extends PluginSettingTab {
 							
 							const result = await this.cliManager.fetchAvailableModels();
 							if (result.models.length > 0) {
-								this.plugin.settings.availableModels = result.models;
+								// Filter out Codex models since we don't work with code in the vault
+								const filteredModels = result.models.filter(m => !m.toLowerCase().includes('codex'));
+								this.plugin.settings.availableModels = filteredModels;
 								
 								// Validate current model is still available
-								const firstModel = result.models[0];
-								if (firstModel && !result.models.includes(this.plugin.settings.model)) {
+								const firstModel = filteredModels[0];
+								if (firstModel && !filteredModels.includes(this.plugin.settings.model)) {
 									this.plugin.settings.model = firstModel;
 								}
 								
