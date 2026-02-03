@@ -448,6 +448,8 @@ export class AzureOpenAIService extends AIProvider {
 		// Azure OpenAI doesn't have a dynamic models list API
 		// Return common chat models (excluding realtime and audio models)
 		return [
+			"gpt-5",
+			"gpt-5-mini",
 			"gpt-4o",
 			"gpt-4o-mini",
 			"gpt-4-turbo",
