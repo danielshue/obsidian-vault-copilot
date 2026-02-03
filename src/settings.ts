@@ -3371,6 +3371,8 @@ export class CopilotSettingTab extends PluginSettingTab {
 		}
 
 		// Save settings if any changes were made
+		// Note: Not awaiting since hide() must be synchronous, but this is safe
+		// as settings will persist before any subsequent user actions
 		if (settingsChanged) {
 			this.plugin.saveSettings();
 		}
