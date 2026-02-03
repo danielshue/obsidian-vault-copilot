@@ -2299,6 +2299,8 @@ export class CopilotSettingTab extends PluginSettingTab {
 						this.plugin.settings.voice!.backend = profileTypeToBackend(profile.type);
 					}
 					await this.plugin.saveSettings();
+					// Re-render to show model dropdown and update UI
+					this.renderVoiceInputConditionalSettings(container);
 				});
 			});
 
@@ -2532,6 +2534,8 @@ export class CopilotSettingTab extends PluginSettingTab {
 				dropdown.onChange(async (value) => {
 					this.plugin.settings.realtimeAgentProfileId = value || null;
 					await this.plugin.saveSettings();
+					// Re-render to show model dropdown and update UI
+					this.renderRealtimeConditionalSettings(container);
 				});
 			});
 
