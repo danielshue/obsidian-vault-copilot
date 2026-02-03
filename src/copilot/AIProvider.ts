@@ -6,7 +6,7 @@
 import { App } from "obsidian";
 import { ChatMessage } from "./CopilotService";
 
-export type AIProviderType = "copilot" | "openai";
+export type AIProviderType = "copilot" | "openai" | "azure-openai";
 
 export interface AIProviderConfig {
 	/** Provider type */
@@ -39,6 +39,22 @@ export interface CopilotProviderConfig extends AIProviderConfig {
 	cliPath?: string;
 	/** URL for Copilot CLI */
 	cliUrl?: string;
+}
+
+export interface AzureOpenAIProviderConfig extends AIProviderConfig {
+	provider: "azure-openai";
+	/** Azure OpenAI API key */
+	apiKey: string;
+	/** Azure OpenAI endpoint (e.g., https://your-resource.openai.azure.com) */
+	endpoint: string;
+	/** Deployment name for the model */
+	deploymentName: string;
+	/** API version (optional, defaults to 2024-08-01-preview) */
+	apiVersion?: string;
+	/** Max tokens for completion */
+	maxTokens?: number;
+	/** Temperature (0-2) */
+	temperature?: number;
 }
 
 export interface StreamingCallbacks {

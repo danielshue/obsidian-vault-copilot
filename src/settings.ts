@@ -91,6 +91,10 @@ export interface OpenAIProviderProfile extends AIProviderProfileBase {
 	apiKey: string;
 	/** Custom base URL (optional, for compatible APIs) */
 	baseURL?: string;
+	/** Model for chat (optional, e.g., gpt-4o, gpt-4-turbo) */
+	chatModel?: string;
+	/** Model for whisper/voice (optional) */
+	whisperModel?: string;
 }
 
 /** Azure OpenAI provider profile configuration */
@@ -100,8 +104,10 @@ export interface AzureOpenAIProviderProfile extends AIProviderProfileBase {
 	apiKey: string;
 	/** Azure OpenAI endpoint (e.g., https://your-resource.openai.azure.com) */
 	endpoint: string;
-	/** Deployment name for the model */
-	deploymentName: string;
+	/** Deployment name for chat model (e.g., gpt-4o) */
+	chatDeploymentName?: string;
+	/** Deployment name for whisper model (optional, for voice services) */
+	whisperDeploymentName?: string;
 	/** API version (optional, defaults to 2024-06-01) */
 	apiVersion?: string;
 }
@@ -193,7 +199,7 @@ export function getVoiceServiceConfigFromProfile(
 		const azure = profile as AzureOpenAIProviderProfile;
 		config.azureApiKey = azure.apiKey || undefined;
 		config.azureEndpoint = azure.endpoint;
-		config.azureDeploymentName = azure.deploymentName;
+		config.azureDeploymentName = azure.whisperDeploymentName; // Use whisper deployment for voice
 		config.azureApiVersion = azure.apiVersion;
 	} else if (profile.type === 'local') {
 		const local = profile as LocalProviderProfile;
@@ -340,6 +346,30 @@ export class AIProviderProfileModal extends Modal {
 					(this.profile as OpenAIProviderProfile).baseURL = value || undefined;
 				});
 			});
+
+		// Chat Model (optional)
+		new Setting(container)
+			.setName('Chat Model')
+			.setDesc('Model to use for chat (optional, e.g., gpt-4o, gpt-4-turbo)')
+			.addText((text) => {
+				text.setPlaceholder('gpt-4o');
+				text.setValue((this.profile as OpenAIProviderProfile).chatModel || '');
+				text.onChange((value) => {
+					(this.profile as OpenAIProviderProfile).chatModel = value || undefined;
+				});
+			});
+
+		// Whisper Model (optional)
+		new Setting(container)
+			.setName('Whisper Model')
+			.setDesc('Model to use for voice transcription (optional, defaults to whisper-1)')
+			.addText((text) => {
+				text.setPlaceholder('whisper-1');
+				text.setValue((this.profile as OpenAIProviderProfile).whisperModel || '');
+				text.onChange((value) => {
+					(this.profile as OpenAIProviderProfile).whisperModel = value || undefined;
+				});
+			});
 	}
 
 	private renderAzureFields(): void {
@@ -370,15 +400,27 @@ export class AIProviderProfileModal extends Modal {
 				});
 			});
 
-		// Deployment Name (required)
+		// Chat Deployment Name (optional)
 		new Setting(container)
-			.setName('Deployment Name')
-			.setDesc('The name of your model deployment (required)')
+			.setName('Chat Deployment Name')
+			.setDesc('The name of your chat model deployment (optional, e.g., gpt-4o)')
+			.addText((text) => {
+				text.setPlaceholder('gpt-4o');
+				text.setValue((this.profile as AzureOpenAIProviderProfile).chatDeploymentName || '');
+				text.onChange((value) => {
+					(this.profile as AzureOpenAIProviderProfile).chatDeploymentName = value || undefined;
+				});
+			});
+
+		// Whisper Deployment Name (optional)
+		new Setting(container)
+			.setName('Whisper Deployment Name')
+			.setDesc('The name of your whisper model deployment (optional, for voice services)')
 			.addText((text) => {
 				text.setPlaceholder('whisper');
-				text.setValue((this.profile as AzureOpenAIProviderProfile).deploymentName || '');
+				text.setValue((this.profile as AzureOpenAIProviderProfile).whisperDeploymentName || '');
 				text.onChange((value) => {
-					(this.profile as AzureOpenAIProviderProfile).deploymentName = value;
+					(this.profile as AzureOpenAIProviderProfile).whisperDeploymentName = value || undefined;
 				});
 			});
 
@@ -426,8 +468,9 @@ export class AIProviderProfileModal extends Modal {
 				new Notice('Azure endpoint is required');
 				return;
 			}
-			if (!azure.deploymentName?.trim()) {
-				new Notice('Azure deployment name is required');
+			// At least one deployment name is required
+			if (!azure.chatDeploymentName?.trim() && !azure.whisperDeploymentName?.trim()) {
+				new Notice('At least one deployment name (Chat or Whisper) is required');
 				return;
 			}
 		}
@@ -549,8 +592,10 @@ export interface CopilotPluginSettings {
 	defaultEnabledTools?: string[];
 	/** Default disabled tools */
 	defaultDisabledTools?: string[];
-	/** AI Provider profiles for voice services */
+	/** AI Provider profiles for voice and chat services */
 	aiProviderProfiles?: AIProviderProfile[];
+	/** Selected profile ID for Chat (OpenAI/Azure OpenAI) */
+	chatProviderProfileId?: string | null;
 	/** Selected profile ID for Voice Input */
 	voiceInputProfileId?: string | null;
 	/** Selected profile ID for Realtime Voice Agent */
@@ -632,6 +677,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	instructionDirectories: ["."],  // vault root for AGENTS.md and copilot-instructions.md
 	promptDirectories: ["Reference/Prompts"],
 	aiProviderProfiles: [],
+	chatProviderProfileId: null,
 	voiceInputProfileId: null,
 	realtimeAgentProfileId: null,
 	voice: {
