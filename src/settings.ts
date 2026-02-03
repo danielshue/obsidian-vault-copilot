@@ -2338,7 +2338,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 				const currentModel = this.plugin.settings.voice!.audioModel;
 				
 				dropdown.addOption('', 'Default');
-				if (currentModel) {
+				// Pre-populate with standard audio models
+				dropdown.addOption('whisper-1', 'whisper-1');
+				if (currentModel && currentModel !== 'whisper-1') {
 					dropdown.addOption(currentModel, currentModel);
 				}
 				dropdown.setValue(currentModel || '');
@@ -2574,7 +2576,10 @@ export class CopilotSettingTab extends PluginSettingTab {
 				const currentModel = this.plugin.settings.realtimeAgentModel;
 				
 				dropdown.addOption('', 'Default');
-				if (currentModel) {
+				// Pre-populate with standard realtime models
+				dropdown.addOption('gpt-4o-realtime-preview', 'gpt-4o-realtime-preview');
+				dropdown.addOption('gpt-4o-mini-realtime-preview', 'gpt-4o-mini-realtime-preview');
+				if (currentModel && currentModel !== 'gpt-4o-realtime-preview' && currentModel !== 'gpt-4o-mini-realtime-preview') {
 					dropdown.addOption(currentModel, currentModel);
 				}
 				dropdown.setValue(currentModel || '');
