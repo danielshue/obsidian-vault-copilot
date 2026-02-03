@@ -4,12 +4,12 @@ description: Start a tutoring session with practice questions or real-world exam
 argument-hint: folder path (e.g., Projects/MBA/Corporate Finance)
 tools:
   - list_notes_recursively
-  - read_note
+  - batch_read_notes
   - create_note
   - web_fetch
 timeout: 300
 ---
-Use the [[tutor.agent]] to help me learn.
+Use the [[../Agents/Tutor.agent]] to help me learn.
 
 **Learning Folder:** ${userInput}
 
@@ -19,20 +19,27 @@ Use the [[tutor.agent]] to help me learn.
 
 ## Step 1: Discover Learning Content
 
-**IMPORTANT:** Call `list_notes_recursively` with folder="${userInput}" to get ALL notes in the learning folder and subfolders. Then `read` each file to extract frontmatter metadata. Look for these fields:
+**IMPORTANT:** 
+1. Call `list_notes_recursively` with folder="${userInput}" to get ALL note paths in the learning folder and subfolders
+2. Call `batch_read_notes` with the paths, setting `aiSummarize=true` and use this `summaryPrompt`:
+   ```
+   Extract frontmatter fields if present: Program, Course, Class, Lesson. 
+   Summarize the main topic and key concepts covered in this note.
+   ```
 
+Look for these frontmatter fields in the summaries:
 - **Program** - The overall program or curriculum (e.g., "MBA", "Data Science Bootcamp")
 - **Course** - The specific course name (e.g., "Corporate Finance", "Machine Learning Fundamentals")
 - **Class** - The class or module within the course (e.g., "Week 3: Time Value of Money")
 - **Lesson** - The specific lesson or topic (e.g., "Net Present Value Calculations")
 
-Build a mental map of the curriculum structure from the files found. Use this hierarchy to:
+Build a mental map of the curriculum structure from the AI summaries. Use this hierarchy to:
 - Understand what content has been covered
 - Identify prerequisites and dependencies
 - Target questions at the appropriate level
 - Reference specific notes during the session
 
-If no frontmatter is found, infer the subject from the folder name (e.g., `Learning/Machine-Learning` → "Machine Learning").
+If no frontmatter is found, infer the subject from the folder name and note summaries (e.g., `Learning/Machine-Learning` → "Machine Learning").
 
 ---
 

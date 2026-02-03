@@ -87,7 +87,7 @@ const BUILTIN_TOOLS: ToolInfo[] = [
 	{
 		id: "batch_read_notes",
 		displayName: "Batch Read Notes",
-		description: "Read multiple notes at once",
+		description: "Read multiple notes at once. Supports AI summarization for large batches.",
 		source: "builtin",
 		enabledByDefault: true,
 	},

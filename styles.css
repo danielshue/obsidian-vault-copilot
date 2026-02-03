@@ -893,6 +893,34 @@
 	color: var(--text-normal);
 }
 
+/* Brain Icon Button */
+.vc-brain-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	background: transparent;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-muted);
+	cursor: pointer;
+	outline: none;
+	transition: color 0.15s;
+	border-radius: 4px;
+}
+
+.vc-brain-icon-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.vc-brain-icon-btn svg {
+	width: 16px;
+	height: 16px;
+}
+
 /* Agent Selector */
 .vc-agent-selector {
 	padding: 2px 4px 2px 4px;

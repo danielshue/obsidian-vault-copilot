@@ -880,7 +880,7 @@ await vc.createNote(path, content): Promise<{ success, path?, error? }>
 await vc.updateNote(path, content): Promise<{ success, error? }>
 await vc.deleteNote(path): Promise<{ success, error? }>
 await vc.appendToNote(path, content): Promise<{ success, error? }>
-await vc.batchReadNotes(paths): Promise<{ results: Array<{ path, success, content?, error? }> }>
+await vc.batchReadNotes(paths, aiSummarize?, summaryPrompt?): Promise<{ results: Array<{ path, success, content?, summary?, error? }> }>
 await vc.renameNote(oldPath, newPath): Promise<{ success, newPath?, error? }>
 
 // Utility operations
@@ -896,7 +896,7 @@ await vc.getDailyNote(date?): Promise<{ success, path?, content?, exists, error?
 - **Always use [[wikilinks]] when referencing files in the vault** so users can click to navigate (e.g., [[Daily Notes/2026-01-29]] or [[Projects/My Project.md]])
 - Be concise but helpful
 - If you're unsure about something, ask for clarification
-- For bulk operations, prefer batch_read_notes over multiple read_note calls
+- When reading 10+ files, use batch_read_notes with aiSummarize=true to get AI-generated summaries instead of full content
 
 ## Context
 You are running inside Obsidian and have access to the user's vault through the provided tools.
@@ -1078,7 +1078,7 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 			}),
 
 			defineTool("batch_read_notes", {
-				description: "Read multiple notes at once. More efficient than calling read_note multiple times.",
+				description: "Read multiple notes at once. Use aiSummarize=true for many files (10+) to get AI-generated summaries instead of full content, avoiding output size limits.",
 				parameters: {
 					type: "object",
 					properties: {
@@ -1086,12 +1086,20 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 							type: "array", 
 							items: { type: "string" },
 							description: "Array of note paths to read" 
+						},
+						aiSummarize: {
+							type: "boolean",
+							description: "If true, use AI to generate intelligent summaries of each file. Recommended for 10+ files or when you need semantic understanding of content."
+						},
+						summaryPrompt: {
+							type: "string",
+							description: "Optional custom prompt for AI summarization. Example: 'Extract frontmatter fields: Program, Course, Class, Lesson'"
 						}
 					},
 					required: ["paths"]
 				},
-				handler: async (args: { paths: string[] }) => {
-					return await this.batchReadNotes(args.paths);
+				handler: async (args: { paths: string[]; aiSummarize?: boolean; summaryPrompt?: string }) => {
+					return await this.batchReadNotes(args.paths, args.aiSummarize, args.summaryPrompt);
 				},
 			}),
 
@@ -1386,7 +1394,7 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 		}
 	}
 
-	async batchReadNotes(paths: string[]): Promise<{ results: Array<{ path: string; success: boolean; content?: string; error?: string }> }> {
+	async batchReadNotes(paths: string[], aiSummarize?: boolean, summaryPrompt?: string): Promise<{ results: Array<{ path: string; success: boolean; content?: string; summary?: string; error?: string }> }> {
 		const results = await Promise.all(
 			paths.map(async (path) => {
 				try {
@@ -1396,6 +1404,11 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 						return { path, success: false, error: `Note not found: ${path}` };
 					}
 					const content = await this.app.vault.read(file);
+					
+					if (aiSummarize) {
+						const summary = await this.generateAISummary(content, file.basename, summaryPrompt);
+						return { path, success: true, summary };
+					}
 					return { path, success: true, content };
 				} catch (error) {
 					return { path, success: false, error: `Failed to read note: ${error}` };
@@ -1403,6 +1416,45 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 			})
 		);
 		return { results };
+	}
+
+	/**
+	 * Generate an AI summary of note content using the Copilot CLI.
+	 * Creates a temporary session for the summarization request.
+	 */
+	private async generateAISummary(content: string, title: string, customPrompt?: string): Promise<string> {
+		try {
+			if (!this.client) {
+				throw new Error("Copilot client not initialized");
+			}
+
+			// Create a temporary session for this summarization task
+		const tempSession = await this.client.createSession({
+			model: this.config.model,
+			streaming: false,
+			tools: [], // No tools needed for summarization
+			systemMessage: {
+				content: "You are a helpful assistant that generates concise summaries of notes."
+			}
+		});
+
+		const defaultPrompt = `Summarize the following note concisely. Extract key information including any frontmatter fields, main topics, and important details.\n\nTitle: ${title}\n\nContent:\n${content}`;
+		
+		const prompt = customPrompt 
+			? `${customPrompt}\n\nTitle: ${title}\n\nContent:\n${content}`
+			: defaultPrompt;
+
+		// Make the request with a shorter timeout for summaries
+		const response = await tempSession.sendAndWait({ prompt }, 30000); // 30 second timeout
+		const summary = response?.data?.content || "Failed to generate summary";
+
+		// Clean up the temporary session
+		await tempSession.destroy();
+			return summary;
+		} catch (error) {
+			console.error(`[CopilotService] Failed to generate AI summary for ${title}:`, error);
+			return `Error generating summary: ${error instanceof Error ? error.message : String(error)}`;
+		}
 	}
 
 	async updateNote(path: string, content: string): Promise<{ success: boolean; error?: string }> {

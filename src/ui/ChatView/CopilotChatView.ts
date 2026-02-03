@@ -280,6 +280,13 @@ export class CopilotChatView extends ItemView {
 		// Left side icons
 		const toolbarLeft = inputToolbar.createDiv({ cls: "vc-toolbar-left" });
 
+		// Brain icon button (left of agent selector)
+		const brainIconBtn = toolbarLeft.createEl("button", {
+			cls: "vc-brain-icon-btn",
+			attr: { "aria-label": "AI Assistant" }
+		});
+		brainIconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>`;
+
 		// Agent selector button
 		this.agentSelectorEl = toolbarLeft.createEl("button", { 
 			cls: "vc-agent-selector",
@@ -416,7 +423,7 @@ export class CopilotChatView extends ItemView {
 		// Send button
 		this.sendButton = this.toolbarRightEl.createEl("button", { 
 			cls: "vc-send-btn",
-			attr: { "aria-label": "Send message" }
+			attr: { "aria-label": "Send message (Enter or Ctrl-Alt-Enter)" }
 		});
 		this.sendButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>`;
 
@@ -446,7 +453,7 @@ export class CopilotChatView extends ItemView {
 				}
 			}
 			
-			if (e.key === "Enter" && !e.shiftKey) {
+			if (e.key === "Enter" && (!e.shiftKey || (e.ctrlKey && e.altKey))) {
 				// Check if prompt was just selected - if so, don't auto-submit
 				if (this.promptPicker?.checkAndClearJustSelected()) {
 					return;
@@ -2108,7 +2115,7 @@ export class CopilotChatView extends ItemView {
 			listNotes: (folder?: string) => Promise<Record<string, unknown>>;
 			listNotesRecursively: (folder?: string, limit?: number) => Promise<Record<string, unknown>>;
 			appendToNote: (path: string, content: string) => Promise<Record<string, unknown>>;
-			batchReadNotes: (paths: string[]) => Promise<Record<string, unknown>>;
+			batchReadNotes: (paths: string[], aiSummarize?: boolean, summaryPrompt?: string) => Promise<Record<string, unknown>>;
 			updateNote: (path: string, content: string) => Promise<Record<string, unknown>>;
 			deleteNote: (path: string) => Promise<Record<string, unknown>>;
 			getRecentChanges: (limit: number) => Promise<Record<string, unknown>>;
@@ -2132,7 +2139,11 @@ export class CopilotChatView extends ItemView {
 			case "append_to_note":
 				return await service.appendToNote(args.path as string, args.content as string);
 			case "batch_read_notes":
-				return await service.batchReadNotes(args.paths as string[]);
+				return await service.batchReadNotes(
+					args.paths as string[], 
+					args.aiSummarize as boolean | undefined,
+					args.summaryPrompt as string | undefined
+				);
 			case "update_note":
 				return await service.updateNote(args.path as string, args.content as string);
 			case "delete_note":
@@ -2777,31 +2788,56 @@ export class CopilotChatView extends ItemView {
 			
 			// Process ${userInput} - simple replacement with user's additional input
 			content = content.replace(/\$\{userInput\}/g, userArgs || '[No input provided]');
+		
+		// Check if userInput is a folder path and expand to file references
+		if (userArgs) {
+			// Normalize the path (remove leading/trailing slashes)
+			const normalizedPath = userArgs.replace(/^\/+|\/+$/g, '');
+			const folder = this.app.vault.getAbstractFileByPath(normalizedPath);
 			
-			// Process ${input:name:...} variables - replace with collected values or defaults
-			content = this.processInputVariablesWithValues(content, inputValues);
-			
-			// Process Markdown file links and wikilinks - resolve and include referenced content (with tracking)
-			const { content: contentWithLinks, resolvedFiles } = await this.promptProcessor.resolveMarkdownFileLinksWithTracking(content, fullPrompt.path);
-			content = contentWithLinks;
-			
-			// Add resolved files from prompt to references
-			for (const file of resolvedFiles) {
-				usedReferences.push({
-					type: "context",
-					name: file.name,
-					path: file.path
+			if (folder && 'children' in folder) {
+				// It's a folder - recursively get all markdown files
+				const files = this.app.vault.getMarkdownFiles().filter(f => {
+					// Match both exact folder and subfolders
+					return f.path === normalizedPath || 
+					       f.path.startsWith(normalizedPath + '/');
 				});
+				
+				for (const file of files) {
+					usedReferences.push({
+						type: "context",
+						name: file.basename,
+						path: file.path
+					});
+				}
+				console.log(`[VC] Expanded folder "${normalizedPath}" to ${files.length} file references`);
 			}
-			
-			// Process #tool:name references in the body
-			content = this.promptProcessor.processToolReferences(content, fullPrompt.tools);
+		}
+		
+		// Process ${input:name:...} variables - replace with collected values or defaults
+		content = this.processInputVariablesWithValues(content, inputValues);
+		
+		// Process Markdown file links and wikilinks - resolve and include referenced content (with tracking)
+		const { content: contentWithLinks, resolvedFiles } = await this.promptProcessor.resolveMarkdownFileLinksWithTracking(content, fullPrompt.path);
+		content = contentWithLinks;
+		
+		// Add resolved files from prompt to references
+		for (const file of resolvedFiles) {
+			usedReferences.push({
+				type: "context",
+				name: file.name,
+				path: file.path
+			});
+		}
+		
+		// Process #tool:name references in the body
+		content = this.promptProcessor.processToolReferences(content, fullPrompt.tools);
 
-			// Process user arguments if provided (including file references)
-			const fetchedUrls: string[] = [];
-			const loadedInlineNotes: string[] = [];
-			
-			if (userArgs) {
+		// Process user arguments if provided (including file references)
+		const fetchedUrls: string[] = [];
+		const loadedInlineNotes: string[] = [];
+		
+		if (userArgs) {
 				// Process #fetch URL references in user args
 				const { processedMessage: processedUserArgs, fetchedUrls: urls, fetchedContext } = await this.promptProcessor.processFetchReferences(userArgs);
 				fetchedUrls.push(...urls);

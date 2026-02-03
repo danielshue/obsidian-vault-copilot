@@ -180,7 +180,7 @@ export interface VaultCopilotAPI {
 	appendToNote(path: string, content: string): Promise<{ success: boolean; error?: string }>;
 	
 	/** Read multiple notes at once */
-	batchReadNotes(paths: string[]): Promise<{ results: Array<{ path: string; success: boolean; content?: string; error?: string }> }>;
+	batchReadNotes(paths: string[], aiSummarize?: boolean, summaryPrompt?: string): Promise<{ results: Array<{ path: string; success: boolean; content?: string; summary?: string; error?: string }> }>;
 	
 	/** Update/replace entire note content */
 	updateNote(path: string, content: string): Promise<{ success: boolean; error?: string }>;
