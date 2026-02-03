@@ -77,6 +77,16 @@ When you hand off, briefly acknowledge: "Switching to Note Manager" or "Handing 
  * MainVaultAssistant - The primary entry point for voice interactions
  */
 export class MainVaultAssistant extends BaseVoiceAgent {
+	private static activeSessionOwner: MainVaultAssistant | null = null;
+
+	private static async releaseActiveSession(requester: MainVaultAssistant): Promise<void> {
+		const activeOwner = MainVaultAssistant.activeSessionOwner;
+		if (activeOwner && activeOwner !== requester && activeOwner.isConnected()) {
+			logger.info(`[${requester.name}] Releasing active voice session from ${activeOwner.name}`);
+			await activeOwner.disconnect();
+		}
+	}
+
 	private toolConfig: RealtimeToolConfig;
 	private customizationLoader: CustomizationLoader;
 	private voiceAgentDefinition: VoiceAgentDefinition | null = null;
@@ -156,6 +166,8 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 		}
 
 		try {
+			await MainVaultAssistant.releaseActiveSession(this);
+
 			this.setState("connecting");
 
 			// Start trace for this voice session
@@ -232,6 +244,7 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 			logger.info(`[${this.name}] WebRTC connection established`);
 
 			this.setState("connected");
+			MainVaultAssistant.activeSessionOwner = this;
 			logger.info(`[${this.name}] Connected successfully`);
 		} catch (error) {
 			this.setState("error");
@@ -264,6 +277,9 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 			this.voiceAgentDefinition = null;
 
 			this.setState("idle");
+			if (MainVaultAssistant.activeSessionOwner === this) {
+				MainVaultAssistant.activeSessionOwner = null;
+			}
 			logger.info(`[${this.name}] Disconnected`);
 		} catch (error) {
 			logger.error(`[${this.name}] Error disconnecting:`, error);

@@ -601,8 +601,15 @@ export class CopilotChatView extends ItemView {
 			this.updateAgentButtonState('idle');
 			this.agentBtn.addEventListener("click", () => this.handleAgentToggle());
 			
-			// Initialize realtime agent service
-			this.initRealtimeAgentService();
+			// Initialize realtime agent service (if not already created)
+			if (!this.realtimeAgentService) {
+				this.initRealtimeAgentService();
+			}
+			
+			// Sync button state with current service state
+			if (this.realtimeAgentService) {
+				this.updateAgentButtonState(this.realtimeAgentService.getState());
+			}
 		}
 
 		// Voice button - only shown when voice input is enabled in settings
@@ -738,6 +745,10 @@ export class CopilotChatView extends ItemView {
 	 * Initialize the realtime agent service with event handlers
 	 */
 	private initRealtimeAgentService(): void {
+		if (this.realtimeAgentService) {
+			return;
+		}
+
 		// Get API key from selected Realtime Agent profile
 		const selectedProfileId = this.plugin.settings.realtimeAgentProfileId;
 		const selectedProfile = getProfileById(this.plugin.settings, selectedProfileId);

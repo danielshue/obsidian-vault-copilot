@@ -656,6 +656,10 @@ export interface CopilotPluginSettings {
 	periodicNotes: PeriodicNotesSettings;
 	/** Dynamically discovered available models from CLI */
 	availableModels?: string[];
+	/** Whether the CLI status check has run at least once */
+	cliStatusChecked?: boolean;
+	/** Last known CLI status from a successful check */
+	cliLastKnownStatus?: CliStatus | null;
 }
 
 export const DEFAULT_SETTINGS: CopilotPluginSettings = {
@@ -709,6 +713,8 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 		temperature: 0.7,
 	},
 	periodicNotes: { ...DEFAULT_PERIODIC_NOTES },
+	cliStatusChecked: false,
+	cliLastKnownStatus: null,
 };
 
 /** Fallback models if CLI discovery fails */
@@ -769,6 +775,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 	private mainSettingsContainer: HTMLElement | null = null;
 	private skillsContainer: HTMLElement | null = null;
 	private cachedStatus: CliStatus | null = null;
+	private mainSettingsStatusKey: string | null = null;
 	private skillRegistryUnsubscribe: (() => void) | null = null;
 	private toolCatalog: ToolCatalog;
 
@@ -786,6 +793,8 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 		// Main settings container - will be populated after status check
 		this.mainSettingsContainer = containerEl.createDiv({ cls: "vc-main-settings" });
+		this.mainSettingsStatusKey = null;
+		this.renderMainSettingsIfReady(this.cachedStatus || { installed: false });
 
 		// Registered Skills Section
 		this.renderRegisteredSkillsSection(containerEl);
@@ -803,14 +812,42 @@ export class CopilotSettingTab extends PluginSettingTab {
 		this.renderHelpSection(containerEl);
 
 		// Trigger async status check (non-blocking)
-		this.checkStatusAsync();
+		const hasUserConfig = this.hasUserConfiguration();
+		if (!this.plugin.settings.cliStatusChecked && hasUserConfig) {
+			this.plugin.settings.cliStatusChecked = true;
+			void this.plugin.saveSettings();
+		}
+
+		if (!this.plugin.settings.cliStatusChecked && !hasUserConfig) {
+			this.checkStatusAsync()
+				.finally(async () => {
+					this.plugin.settings.cliStatusChecked = true;
+					await this.plugin.saveSettings();
+				});
+		} else if (this.cachedStatus || this.plugin.settings.cliLastKnownStatus) {
+			this.cachedStatus = this.cachedStatus || this.plugin.settings.cliLastKnownStatus || null;
+			if (this.cachedStatus) {
+				this.renderStatusDisplay(this.cachedStatus);
+			}
+		} else {
+			this.renderStatusDeferred();
+		}
+	}
+
+	private hasUserConfiguration(): boolean {
+		const settings = this.plugin.settings;
+		const hasProfiles = (settings.aiProviderProfiles?.length ?? 0) > 0;
+		const hasSelectedProfiles = !!settings.chatProviderProfileId || !!settings.voiceInputProfileId || !!settings.realtimeAgentProfileId;
+		const hasOpenAiKey = !!settings.openai?.apiKey;
+		const hasVoiceEnabled = !!settings.voice?.voiceInputEnabled || !!settings.voice?.realtimeAgentEnabled;
+		return hasProfiles || hasSelectedProfiles || hasOpenAiKey || hasVoiceEnabled;
 	}
 
 	private renderCliStatusSection(containerEl: HTMLElement): void {
 		const section = containerEl.createDiv({ cls: "vc-settings-section" });
 		
 		const sectionHeader = section.createDiv({ cls: "vc-section-header" });
-		sectionHeader.createEl("h3", { text: "Connection Status" });
+		sectionHeader.createEl("h3", { text: "GitHub Copilot Connection Status" });
 		
 		const refreshBtn = sectionHeader.createEl("button", { 
 			cls: "vc-refresh-btn",
@@ -842,10 +879,22 @@ export class CopilotSettingTab extends PluginSettingTab {
 		`;
 	}
 
+	private renderStatusDeferred(): void {
+		if (!this.statusContainer) return;
+		this.statusContainer.empty();
+
+		const infoEl = this.statusContainer.createDiv({ cls: "vc-status-loading" });
+		infoEl.innerHTML = `
+			<span>Connection status check is paused. Use refresh to check.</span>
+		`;
+	}
+
 	private async checkStatusAsync(): Promise<void> {
 		try {
 			const status = await this.cliManager.getStatus(true);
 			this.cachedStatus = status;
+			this.plugin.settings.cliLastKnownStatus = status;
+			await this.plugin.saveSettings();
 			this.renderStatusDisplay(status);
 			this.renderMainSettingsIfReady(status);
 		} catch (error) {
@@ -960,6 +1009,12 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 	private renderMainSettingsIfReady(status: CliStatus): void {
 		if (!this.mainSettingsContainer) return;
+
+		const statusKey = `${status.installed}-${status.version || ''}-${status.error || ''}`;
+		if (this.mainSettingsStatusKey === statusKey && this.mainSettingsContainer.children.length > 0) {
+			return;
+		}
+		this.mainSettingsStatusKey = statusKey;
 		this.mainSettingsContainer.empty();
 
 		// Chat Preferences Section
