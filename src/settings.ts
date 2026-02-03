@@ -232,7 +232,8 @@ export function getVoiceServiceConfigFromProfile(
 		const azure = profile as AzureOpenAIProviderProfile;
 		config.azureApiKey = azure.apiKey || undefined;
 		config.azureEndpoint = azure.endpoint;
-		config.azureDeploymentName = azure.whisperDeploymentName; // Use whisper deployment for voice
+		// Use chatDeploymentName for voice services (single deployment)
+		config.azureDeploymentName = azure.chatDeploymentName || azure.whisperDeploymentName;
 		config.azureApiVersion = azure.apiVersion;
 	} else if (profile.type === 'local') {
 		const local = profile as LocalProviderProfile;
@@ -466,9 +467,9 @@ export class AIProviderProfileModal extends Modal {
 				new Notice('Azure endpoint is required');
 				return;
 			}
-			// At least one deployment name is required
-			if (!azure.chatDeploymentName?.trim() && !azure.whisperDeploymentName?.trim()) {
-				new Notice('At least one deployment name (Chat or Whisper) is required');
+			// Deployment name is required
+			if (!azure.chatDeploymentName?.trim()) {
+				new Notice('Deployment name is required');
 				return;
 			}
 		}
@@ -1112,16 +1113,15 @@ export class CopilotSettingTab extends PluginSettingTab {
 			if (profile) {
 				let modelInfo = '';
 				if (profile.type === 'openai') {
-					const openai = profile as OpenAIProviderProfile;
-					modelInfo = openai.chatModel || 'Default OpenAI models (gpt-4o, gpt-4-turbo, etc.)';
+					modelInfo = 'OpenAI models (gpt-4o, gpt-4-turbo, etc.)';
 				} else if (profile.type === 'azure-openai') {
 					const azure = profile as AzureOpenAIProviderProfile;
-					modelInfo = azure.chatDeploymentName || 'No chat deployment configured';
+					modelInfo = azure.chatDeploymentName || 'No deployment configured';
 				}
 				
 				new Setting(section)
 					.setName("Model")
-					.setDesc(`Using model from selected AI Profile: ${modelInfo}`)
+					.setDesc(`Using: ${modelInfo}`)
 					.setDisabled(true);
 			}
 		}
