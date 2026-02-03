@@ -3145,7 +3145,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 		const reqDiv = helpContent.createDiv({ cls: "vc-requirements" });
 		reqDiv.createEl("h4", { text: "Requirements" });
 		const reqList = reqDiv.createEl("ul");
-		reqList.createEl("li", { text: "GitHub Copilot CLI installed & Active Copilot Subscription, Azure OpenAI, or OpenAI" });
+		reqList.createEl("li", { text: "One of: GitHub Copilot CLI (with active subscription), Azure OpenAI, or OpenAI" });
 		reqList.createEl("li", { text: "Obsidian vault with read and write access" });
 
 		const linksDiv = helpContent.createDiv({ cls: "vc-help-links" });
