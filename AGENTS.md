@@ -86,6 +86,86 @@ npm run build
   ```
 - Reload Obsidian and enable the plugin in **Settings → Community plugins**.
 
+## AI Providers
+
+Vault Copilot supports multiple AI providers for chat functionality:
+
+### GitHub Copilot (Primary)
+- **Provider Type**: `copilot`
+- **Requirements**: GitHub Copilot subscription and CLI installed
+- **Features**: 
+  - Full GitHub Copilot CLI SDK integration
+  - Agent Skills support
+  - MCP (Model Context Protocol) via StdioMcpClient
+  - Multiple models (GPT-4.1, GPT-5-mini, Claude, Gemini, etc.)
+  - Context-aware vault operations
+- **Model Selection**: Available in Settings → Chat Preferences
+- **Configuration**: Settings → Connection Status
+
+### OpenAI
+- **Provider Type**: `openai`
+- **Requirements**: OpenAI API key
+- **Features**:
+  - Direct OpenAI API access
+  - Chat completions with streaming
+  - Tool/function calling support
+  - MCP tool integration (via McpManager)
+  - Custom model selection
+- **Models**: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-4, gpt-3.5-turbo, o1, o1-mini, o1-preview, o3-mini
+- **Configuration**: Create an AI Provider Profile in Settings → AI Provider Profiles
+  - Profile Name: Descriptive name
+  - Provider Type: OpenAI
+  - API Key: Your OpenAI API key (or set OPENAI_API_KEY env var)
+  - Base URL (optional): Custom API endpoint
+  - Chat Model (optional): Specific model for chat (e.g., gpt-4o)
+  - Whisper Model (optional): Model for voice transcription
+
+### Azure OpenAI
+- **Provider Type**: `azure-openai`
+- **Requirements**: Azure OpenAI resource and API key
+- **Features**:
+  - Azure OpenAI API access
+  - Chat completions with streaming
+  - Tool/function calling support
+  - MCP tool integration (via McpManager)
+  - Deployment-based model selection
+- **Configuration**: Create an AI Provider Profile in Settings → AI Provider Profiles
+  - Profile Name: Descriptive name
+  - Provider Type: Azure OpenAI
+  - API Key: Your Azure OpenAI API key (or set AZURE_OPENAI_KEY env var)
+  - Endpoint: Your Azure OpenAI endpoint (e.g., https://your-resource.openai.azure.com)
+  - Chat Deployment Name (optional): Deployment for chat model (e.g., gpt-4o)
+  - Whisper Deployment Name (optional): Deployment for voice transcription
+  - API Version (optional): Defaults to 2024-06-01
+
+### Provider Selection
+- **Location**: Settings → Chat Preferences → Chat Provider dropdown
+- **Options**:
+  - GitHub Copilot (default)
+  - Any configured OpenAI or Azure OpenAI profile
+- **Switching Providers**: Auto-reconnects when changed
+
+### Model Context Protocol (MCP)
+- **GitHub Copilot CLI MCP**: Exclusive to GitHub Copilot provider via StdioMcpClient
+  - Supports stdio-based MCP servers
+  - Configured per vault in `.github/copilot-mcp-servers.json`
+- **General MCP Tools**: Available to all providers (GitHub Copilot, OpenAI, Azure OpenAI)
+  - Managed by McpManager
+  - Exposed as function/tool calls to the AI model
+  - Same tools available across all providers for consistency
+
+### Provider Architecture
+- **Base Abstraction**: `AIProvider` abstract class (src/copilot/AIProvider.ts)
+  - Common interface for all providers
+  - Methods: initialize(), sendMessage(), sendMessageStreaming(), abort(), isReady(), destroy()
+  - Tools management: setTools(), convertMcpToolsToToolDefinitions()
+  - History management: getMessageHistory(), clearHistory()
+- **Implementation Classes**:
+  - `CopilotService`: GitHub Copilot CLI SDK integration (src/copilot/CopilotService.ts)
+  - `OpenAIService`: OpenAI API integration (src/copilot/OpenAIService.ts)
+  - `AzureOpenAIService`: Azure OpenAI API integration (src/copilot/AzureOpenAIService.ts)
+- **Provider Initialization**: main.ts handles provider selection and initialization based on user configuration
+
 ## Commands & settings
 
 - Any user-facing commands should be added via `this.addCommand(...)`.
