@@ -780,9 +780,6 @@ export class CopilotSettingTab extends PluginSettingTab {
 		containerEl.empty();
 		containerEl.addClass("vc-settings");
 
-		// CLI Status Section - renders immediately with loading state
-		this.renderCliStatusSection(containerEl);
-
 		// Main settings container - will be populated after status check
 		this.mainSettingsContainer = containerEl.createDiv({ cls: "vc-main-settings" });
 
@@ -791,6 +788,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 		// Advanced Settings (always visible)
 		this.renderAdvancedSettings(containerEl);
+
+		// CLI Status Section - renders immediately with loading state (moved to bottom)
+		this.renderCliStatusSection(containerEl);
 
 		// Help Section
 		this.renderHelpSection(containerEl);
