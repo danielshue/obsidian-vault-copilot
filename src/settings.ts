@@ -2405,7 +2405,8 @@ export class CopilotSettingTab extends PluginSettingTab {
 							}
 						} catch (error) {
 							console.error("Failed to load audio models:", error);
-							new Notice(`Failed to load models: ${error.message}`);
+							const message = error instanceof Error ? error.message : String(error);
+							new Notice(`Failed to load models: ${message}`);
 						} finally {
 							button.setDisabled(false);
 						}
@@ -2631,7 +2632,8 @@ export class CopilotSettingTab extends PluginSettingTab {
 							}
 						} catch (error) {
 							console.error("Failed to load realtime models:", error);
-							new Notice(`Failed to load models: ${error.message}`);
+							const message = error instanceof Error ? error.message : String(error);
+							new Notice(`Failed to load models: ${message}`);
 						} finally {
 							button.setDisabled(false);
 						}
