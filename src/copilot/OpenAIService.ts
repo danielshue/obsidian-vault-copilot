@@ -399,6 +399,7 @@ export class OpenAIService extends AIProvider {
 
 	/**
 	 * List available models for chat (excludes realtime and audio models)
+	 * Filters to only include models that support chat completions with function calling
 	 */
 	async listModels(): Promise<string[]> {
 		if (!this.client) {
@@ -408,11 +409,26 @@ export class OpenAIService extends AIProvider {
 		try {
 			const response = await this.client!.models.list();
 			return response.data
-				.filter((m) => 
-					(m.id.startsWith("gpt-") || m.id.startsWith("o1") || m.id.startsWith("o3")) &&
-					!m.id.includes("realtime") &&
-					!m.id.includes("audio")
-				)
+				.filter((m) => {
+					const id = m.id.toLowerCase();
+					// Exclude codex models
+					if (id.includes("codex")) {
+						return false;
+					}
+					// Exclude realtime and audio models (for voice services)
+					if (id.includes("realtime") || id.includes("audio")) {
+						return false;
+					}
+					// Only include GPT models and reasoning models (o1, o3) that support chat
+					// These models support chat completions with function calling (tools)
+					return (
+						id.startsWith("gpt-4") ||
+						id.startsWith("gpt-3.5") ||
+						id.startsWith("gpt-5") ||
+						id.startsWith("o1") ||
+						id.startsWith("o3")
+					);
+				})
 				.map((m) => m.id)
 				.sort();
 		} catch (error) {
