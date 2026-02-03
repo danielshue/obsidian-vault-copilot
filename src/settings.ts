@@ -1003,11 +1003,74 @@ export class CopilotSettingTab extends PluginSettingTab {
 		const section = this.mainSettingsContainer.createDiv({ cls: "vc-settings-section" });
 		section.createEl("h3", { text: "Chat Preferences" });
 
+		// AI Provider Selection (GitHub Copilot, OpenAI, or Azure OpenAI via Profiles)
+		const profiles = this.plugin.settings.aiProviderProfiles || [];
+		const chatProfiles = profiles.filter(p => p.type === 'openai' || p.type === 'azure-openai');
+		
+		new Setting(section)
+			.setName("Chat Provider")
+			.setDesc("Select AI provider for chat. Use 'GitHub Copilot' or select an OpenAI/Azure OpenAI profile.")
+			.addDropdown((dropdown) => {
+				// Add GitHub Copilot option
+				dropdown.addOption("copilot", "GitHub Copilot");
+				
+				// Add OpenAI and Azure OpenAI profiles
+				for (const profile of chatProfiles) {
+					const label = `${profile.name} (${getProfileTypeDisplayName(profile.type)})`;
+					dropdown.addOption(`profile:${profile.id}`, label);
+				}
+				
+				// Set current value
+				if (this.plugin.settings.chatProviderProfileId) {
+					dropdown.setValue(`profile:${this.plugin.settings.chatProviderProfileId}`);
+				} else {
+					dropdown.setValue("copilot");
+				}
+				
+				dropdown.onChange(async (value) => {
+					if (value === "copilot") {
+						this.plugin.settings.chatProviderProfileId = null;
+						this.plugin.settings.aiProvider = "copilot";
+					} else if (value.startsWith("profile:")) {
+						const profileId = value.substring(8);
+						this.plugin.settings.chatProviderProfileId = profileId;
+						const profile = getProfileById(this.plugin.settings, profileId);
+						if (profile?.type === "openai") {
+							this.plugin.settings.aiProvider = "openai";
+						} else if (profile?.type === "azure-openai") {
+							this.plugin.settings.aiProvider = "azure-openai";
+						}
+					}
+					await this.plugin.saveSettings();
+					
+					// Reconnect to the new provider
+					await this.plugin.disconnectCopilot();
+					await this.plugin.connectCopilot();
+				});
+			})
+			.addExtraButton((button) => {
+				button
+					.setIcon("plus")
+					.setTooltip("Add new provider profile")
+					.onClick(() => {
+						const modal = new AIProviderProfileModal(this.app, null, async (profile) => {
+							if (!this.plugin.settings.aiProviderProfiles) {
+								this.plugin.settings.aiProviderProfiles = [];
+							}
+							this.plugin.settings.aiProviderProfiles.push(profile);
+							await this.plugin.saveSettings();
+							// Refresh settings display
+							this.display();
+						});
+						modal.open();
+					});
+			});
+
 		// Model selection with refresh button
 		let modelDropdown: any;
 		const modelSetting = new Setting(section)
 			.setName("Default Model")
-			.setDesc("Select the AI model for conversations")
+			.setDesc("Select the AI model for conversations (GitHub Copilot only)")
 			.addDropdown((dropdown) => {
 				modelDropdown = dropdown;
 				this.populateModelDropdown(dropdown);
