@@ -6,5 +6,5 @@
 	"description": "Vault Copilot brings AI assistance into Obsidian by connecting to your GitHub Copilot account, enabling chat, note operations, extensible skills, MCP tools, and advanced workflows powered by the Copilot CLI SDK.",
 	"author": "Dan Shue",
 	"authorUrl": "https://github.com/danshue",
-	"isDesktopOnly": false
+	"isDesktopOnly": true
 }

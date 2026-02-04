@@ -242,16 +242,21 @@ export const OPENAI_MODELS = [
 ];
 
 /**
- * Get API key from config
- * Note: No longer checks environment variables for mobile compatibility
- * API key must be provided through config/settings
+ * Get API key from config or environment (desktop only)
+ * On desktop: checks config, then environment variables
+ * On mobile: only checks config (no process.env available)
  */
 export function getOpenAIApiKey(configKey?: string): string | undefined {
-	// Return config key if provided
+	// First check config
 	if (configKey) {
 		return configKey;
 	}
 	
-	// No environment variable fallback for mobile compatibility
+	// On desktop, fallback to environment variables
+	// This check ensures we don't break on mobile where process is unavailable
+	if (typeof process !== "undefined" && process.env) {
+		return process.env.OPENAI_API_KEY;
+	}
+	
 	return undefined;
 }

@@ -49,9 +49,11 @@ export class OpenAIService extends AIProvider {
 
 		const apiKey = getOpenAIApiKey(this.config.apiKey);
 		if (!apiKey) {
-			throw new Error(
-				"OpenAI API key not configured. Please set it in Settings → Vault Copilot → AI Provider Profiles."
-			);
+			const isDesktop = typeof process !== "undefined" && process.env;
+			const message = isDesktop
+				? "OpenAI API key not configured. Set it in Settings → Vault Copilot → AI Provider Profiles or via OPENAI_API_KEY environment variable."
+				: "OpenAI API key not configured. Please set it in Settings → Vault Copilot → AI Provider Profiles.";
+			throw new Error(message);
 		}
 
 		const clientConfig: ConstructorParameters<typeof OpenAI>[0] = {

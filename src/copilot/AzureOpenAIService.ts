@@ -42,17 +42,22 @@ type AzureOpenAIMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type AzureOpenAIToolCall = OpenAI.Chat.Completions.ChatCompletionMessageToolCall;
 
 /**
- * Get API key from config
- * Note: No longer checks environment variables for mobile compatibility
- * API key must be provided through config/settings
+ * Get API key from config or environment (desktop only)
+ * On desktop: checks config, then environment variables
+ * On mobile: only checks config (no process.env available)
  */
 export function getAzureOpenAIApiKey(configKey?: string): string | undefined {
-	// Return config key if provided
+	// First check config
 	if (configKey) {
 		return configKey;
 	}
 	
-	// No environment variable fallback for mobile compatibility
+	// On desktop, fallback to environment variables
+	// This check ensures we don't break on mobile where process is unavailable
+	if (typeof process !== "undefined" && process.env) {
+		return process.env.AZURE_OPENAI_KEY || process.env.AZURE_OPENAI_API_KEY;
+	}
+	
 	return undefined;
 }
 
@@ -79,9 +84,11 @@ export class AzureOpenAIService extends AIProvider {
 
 		const apiKey = getAzureOpenAIApiKey(this.config.apiKey);
 		if (!apiKey) {
-			throw new Error(
-				"Azure OpenAI API key not configured. Please set it in settings."
-			);
+			const isDesktop = typeof process !== "undefined" && process.env;
+			const message = isDesktop
+				? "Azure OpenAI API key not configured. Set it in Settings → Vault Copilot → AI Provider Profiles or via AZURE_OPENAI_KEY environment variable."
+				: "Azure OpenAI API key not configured. Please set it in Settings → Vault Copilot → AI Provider Profiles.";
+			throw new Error(message);
 		}
 
 		if (!this.config.endpoint) {
