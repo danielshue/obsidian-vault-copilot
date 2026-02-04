@@ -3378,13 +3378,13 @@ export class CopilotSettingTab extends PluginSettingTab {
 			cls: "vc-version-info"
 		});
 		helpContent.createEl("p", {
-			text: "Vault Copilot brings AI assistance to Obsidian by connecting to your GitHub Copilot, Azure OpenAI, or OpenAI account. It supports Agent Skills, MCP Tools, and plugin-defined tools to enable powerful operations inside your vault. The assistant can read, search notes, create and update content, help organize information, and support workflows that span multiple plugins."
+			text: "Vault Copilot brings AI assistance to Obsidian by connecting to your GitHub Copilot, Azure OpenAI, or OpenAI account to your vault. It supports Agent Skills, MCP Tools, and plugin-defined tools to enable powerful operations inside your vault. The assistant can read, search notes, create and update content, help organize information, and support workflows that span multiple plugins."
 		});
 		helpContent.createEl("p", {
 			text: "Vault Copilot is designed to be extensible. You can add your own skills, enable MCP integrations, or install plugins that register additional capabilities. The assistant automatically discovers these tools and uses them when they are relevant."
 		});
 		helpContent.createEl("p", {
-			text: "Vault Copilot is a community project. It is not affiliated with, sponsored by, or endorsed by Microsoft, GitHub, or OpenAI."
+			text: "Vault Copilot is written by Dan Shue and welcomes community contributions. It is not affiliated with, sponsored by, or endorsed by Microsoft, GitHub, or OpenAI."
 		});
 
 		const reqDiv = helpContent.createDiv({ cls: "vc-requirements" });
