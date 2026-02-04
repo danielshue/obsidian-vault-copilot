@@ -2,7 +2,7 @@ import { Plugin, Notice } from "obsidian";
 import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById } from "./settings";
 import { GitHubCopilotCliService, GitHubCopilotCliConfig, ChatMessage } from "./copilot/GitHubCopilotCliService";
 import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/ChatView";
-import { CliManager } from "./copilot/CliManager";
+import { GitHubCopilotCliManager } from "./copilot/GitHubCopilotCliManager";
 import { 
 	SkillRegistry, 
 	getSkillRegistry, 
@@ -591,15 +591,15 @@ export default class CopilotPlugin extends Plugin {
 	 * Discover available models from CLI (runs in background, doesn't block startup)
 	 */
 	private async discoverModels(): Promise<void> {
-		const cliManager = new CliManager(this.settings.cliPath || undefined);
-		const status = await cliManager.getStatus();
+		const githubCopilotCliManager = new GitHubCopilotCliManager(this.settings.cliPath || undefined);
+		const status = await githubCopilotCliManager.getStatus();
 		
 		if (!status.installed) {
 			console.log("[CopilotPlugin] CLI not installed, skipping model discovery");
 			return;
 		}
 		
-		const result = await cliManager.fetchAvailableModels();
+		const result = await githubCopilotCliManager.fetchAvailableModels();
 		if (result.models.length > 0) {
 			this.settings.availableModels = result.models;
 			await this.saveSettings();

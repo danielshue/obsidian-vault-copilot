@@ -1,6 +1,6 @@
 import { App, Modal, PluginSettingTab, Setting, Notice, FileSystemAdapter } from "obsidian";
 import CopilotPlugin from "./main";
-import { CliManager, CliStatus } from "./copilot/CliManager";
+import { GitHubCopilotCliManager, CliStatus } from "./copilot/GitHubCopilotCliManager";
 import { SkillInfo, SkillRegistryEvent, McpServerConfig } from "./copilot/SkillRegistry";
 import { WhisperCppManager, WHISPER_MODELS, WhisperInstallStatus, WhisperServerStatus } from "./copilot/WhisperCppManager";
 import { ChatMessage } from "./copilot/GitHubCopilotCliService";
@@ -771,7 +771,7 @@ export function getAvailableModels(settings: CopilotPluginSettings): string[] {
 
 export class CopilotSettingTab extends PluginSettingTab {
 	plugin: CopilotPlugin;
-	private cliManager: CliManager;
+	private githubCopilotCliManager: GitHubCopilotCliManager;
 	private statusContainer: HTMLElement | null = null;
 	private mainSettingsContainer: HTMLElement | null = null;
 	private skillsContainer: HTMLElement | null = null;
@@ -783,7 +783,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 	constructor(app: App, plugin: CopilotPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
-		this.cliManager = new CliManager(plugin.settings.cliPath);
+		this.githubCopilotCliManager = new GitHubCopilotCliManager(plugin.settings.cliPath);
 		this.toolCatalog = new ToolCatalog(plugin.skillRegistry, plugin.mcpManager);
 	}
 
@@ -857,7 +857,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 		refreshBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>`;
 		refreshBtn.addEventListener("click", () => {
 			refreshBtn.addClass("vc-spinning");
-			this.cliManager.invalidateCache();
+			this.githubCopilotCliManager.invalidateCache();
 			this.checkStatusAsync().finally(() => {
 				refreshBtn.removeClass("vc-spinning");
 			});
@@ -892,7 +892,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 	private async checkStatusAsync(): Promise<void> {
 		try {
-			const status = await this.cliManager.getStatus(true);
+			const status = await this.githubCopilotCliManager.getStatus(true);
 			this.cachedStatus = status;
 			this.plugin.settings.cliLastKnownStatus = status;
 			await this.plugin.saveSettings();
@@ -951,7 +951,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 	private renderInstallActions(container: HTMLElement): void {
 		const actionsEl = container.createDiv({ cls: "vc-status-actions" });
 		
-		const installInfo = this.cliManager.getInstallCommand();
+		const installInfo = this.githubCopilotCliManager.getInstallCommand();
 		
 		// Command display
 		const cmdGroup = actionsEl.createDiv({ cls: "vc-cmd-group" });
@@ -973,9 +973,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 		installBtn.addEventListener("click", async () => {
 			installBtn.disabled = true;
 			installBtn.textContent = "Installing...";
-			const success = await this.cliManager.installCli();
+			const success = await this.githubCopilotCliManager.installCli();
 			if (success) {
-				this.cliManager.invalidateCache();
+				this.githubCopilotCliManager.invalidateCache();
 				await this.checkStatusAsync();
 			}
 			installBtn.disabled = false;
@@ -1110,7 +1110,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 						.onClick(async () => {
 							button.setDisabled(true);
 							
-							const result = await this.cliManager.fetchAvailableModels();
+							const result = await this.githubCopilotCliManager.fetchAvailableModels();
 							if (result.models.length > 0) {
 								// Filter out Codex models since we don't work with code in the vault
 								const filteredModels = result.models.filter(m => !m.toLowerCase().includes('codex'));
@@ -3383,7 +3383,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 			}
 			btn.disabled = true;
 			btn.textContent = "Initializing...";
-			const result = await this.cliManager.initializeVault(vaultPath);
+			const result = await this.githubCopilotCliManager.initializeVault(vaultPath);
 			btn.disabled = false;
 			btn.textContent = "Initialize Vault";
 			// Re-render settings to hide section if initialization succeeded

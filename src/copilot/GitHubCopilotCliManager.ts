@@ -10,7 +10,7 @@ export interface CliStatus {
 /**
  * Manages GitHub Copilot CLI detection, installation, and authentication
  */
-export class CliManager {
+export class GitHubCopilotCliManager {
 	private cliPath: string;
 	private cachedStatus: CliStatus | null = null;
 	private statusCheckInProgress = false;
@@ -235,7 +235,7 @@ export class CliManager {
 		return new Promise((resolve) => {
 			exec(`${this.cliPath} help`, { timeout: 15000 }, (error, stdout, stderr) => {
 				if (error) {
-					console.error("[CliManager] Error fetching models:", error.message);
+					console.error("[GitHubCopilotCliManager] Error fetching models:", error.message);
 					resolve({ models: [], error: error.message });
 					return;
 				}
@@ -255,13 +255,13 @@ export class CliManager {
 						.sort() || [];
 					
 					if (models.length > 0) {
-						console.log(`[CliManager] Discovered ${models.length} models from CLI`);
+						console.log(`[GitHubCopilotCliManager] Discovered ${models.length} models from CLI`);
 						resolve({ models });
 						return;
 					}
 				}
 
-				console.warn("[CliManager] Could not parse models from CLI help output");
+				console.warn("[GitHubCopilotCliManager] Could not parse models from CLI help output");
 				resolve({ models: [], error: "Could not parse models from CLI output" });
 			});
 		});
