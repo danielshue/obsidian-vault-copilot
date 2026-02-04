@@ -5,7 +5,7 @@
 
 import OpenAI from "openai";
 import { App } from "obsidian";
-import { ChatMessage } from "./CopilotService";
+import { ChatMessage } from "./GitHubCopilotCliService";
 import {
 	AIProvider,
 	OpenAIProviderConfig,

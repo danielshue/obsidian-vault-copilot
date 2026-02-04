@@ -8,7 +8,7 @@ import { normalizeVaultPath, ensureMarkdownExtension } from "./pathUtils";
 import * as VaultOps from "./VaultOperations";
 import { getTracingService } from "./TracingService";
 
-export interface CopilotServiceConfig {
+export interface GitHubCopilotCliConfig {
 	model: string;
 	cliPath?: string;
 	cliUrl?: string;
@@ -50,18 +50,18 @@ export interface ChatMessage {
  * Service class that wraps the GitHub Copilot SDK for use in Obsidian.
  * Handles client lifecycle, session management, and provides Obsidian-specific tools.
  */
-export class CopilotService {
+export class GitHubCopilotCliService {
 	private client: CopilotClient | null = null;
 	private session: CopilotSession | null = null;
 	private app: App;
-	private config: CopilotServiceConfig;
+	private config: GitHubCopilotCliConfig;
 	private messageHistory: ChatMessage[] = [];
 	private eventHandlers: ((event: SessionEvent) => void)[] = [];
 	private customizationLoader: CustomizationLoader;
 	private loadedInstructions: CustomInstruction[] = [];
 	private mcpEventUnsubscribe: (() => void) | null = null;
 
-	constructor(app: App, config: CopilotServiceConfig) {
+	constructor(app: App, config: GitHubCopilotCliConfig) {
 		this.app = app;
 		this.config = config;
 		this.customizationLoader = new CustomizationLoader(app);
@@ -71,7 +71,7 @@ export class CopilotService {
 			const listener = (event: McpManagerEvent) => {
 				if (event.type === "server-tools-updated" || event.type === "server-status-changed") {
 					// Tools changed - recreate session to pick up new tools
-					console.log("[CopilotService] MCP tools changed, session will use updated tools on next message");
+					console.log("[GitHubCopilotCliService] MCP tools changed, session will use updated tools on next message");
 				}
 			};
 			config.mcpManager.on(listener);
@@ -786,7 +786,7 @@ export class CopilotService {
 	/**
 	 * Update configuration
 	 */
-	updateConfig(config: Partial<CopilotServiceConfig>): void {
+	updateConfig(config: Partial<GitHubCopilotCliConfig>): void {
 		this.config = { ...this.config, ...config };
 	}
 
@@ -1452,7 +1452,7 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 		await tempSession.destroy();
 			return summary;
 		} catch (error) {
-			console.error(`[CopilotService] Failed to generate AI summary for ${title}:`, error);
+			console.error(`[GitHubCopilotCliService] Failed to generate AI summary for ${title}:`, error);
 			return `Error generating summary: ${error instanceof Error ? error.message : String(error)}`;
 		}
 	}

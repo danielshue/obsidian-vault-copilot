@@ -4,7 +4,7 @@
  */
 
 import { App } from "obsidian";
-import { ChatMessage } from "./CopilotService";
+import { ChatMessage } from "./GitHubCopilotCliService";
 import { McpManager } from "./McpManager";
 
 export type AIProviderType = "copilot" | "openai" | "azure-openai";

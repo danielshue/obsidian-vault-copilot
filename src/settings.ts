@@ -3,7 +3,7 @@ import CopilotPlugin from "./main";
 import { CliManager, CliStatus } from "./copilot/CliManager";
 import { SkillInfo, SkillRegistryEvent, McpServerConfig } from "./copilot/SkillRegistry";
 import { WhisperCppManager, WHISPER_MODELS, WhisperInstallStatus, WhisperServerStatus } from "./copilot/WhisperCppManager";
-import { ChatMessage } from "./copilot/CopilotService";
+import { ChatMessage } from "./copilot/GitHubCopilotCliService";
 import { DiscoveredMcpServer, isStdioConfig, McpConnectionStatus, McpServerSource } from "./copilot/McpTypes";
 import { getSourceLabel, getSourceIcon } from "./copilot/McpManager";
 import { ToolCatalog } from "./copilot/ToolCatalog";

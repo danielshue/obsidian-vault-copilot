@@ -1,5 +1,5 @@
 import { CopilotSession, CopilotPluginSettings } from "../../settings";
-import { CopilotService, ChatMessage } from "../../copilot/CopilotService";
+import { GitHubCopilotCliService, ChatMessage } from "../../copilot/GitHubCopilotCliService";
 
 /**
  * Callback interface for SessionManager to notify the view of changes
@@ -20,18 +20,18 @@ export interface SessionManagerCallbacks {
  */
 export class SessionManager {
 	private settings: CopilotPluginSettings;
-	private copilotService: CopilotService;
+	private githubCopilotCliService: GitHubCopilotCliService;
 	private saveSettings: () => Promise<void>;
 	private callbacks: SessionManagerCallbacks;
 
 	constructor(
 		settings: CopilotPluginSettings,
-		copilotService: CopilotService,
+		githubCopilotCliService: GitHubCopilotCliService,
 		saveSettings: () => Promise<void>,
 		callbacks: SessionManagerCallbacks
 	) {
 		this.settings = settings;
-		this.copilotService = copilotService;
+		this.githubCopilotCliService = githubCopilotCliService;
 		this.saveSettings = saveSettings;
 		this.callbacks = callbacks;
 	}
@@ -74,7 +74,7 @@ export class SessionManager {
 		const sessionId = `session-${now}`;
 		
 		// Create the SDK session with the ID for persistence
-		const actualSessionId = await this.copilotService.createSession(sessionId);
+		const actualSessionId = await this.githubCopilotCliService.createSession(sessionId);
 		
 		// Use the actual session ID from the SDK (it may differ)
 		const newSession: CopilotSession = {
@@ -111,13 +111,13 @@ export class SessionManager {
 		await this.saveSettings();
 
 		// Load the session into the service
-		await this.copilotService.loadSession(session.id, session.messages || []);
+		await this.githubCopilotCliService.loadSession(session.id, session.messages || []);
 
 		// Notify view to update UI
 		this.callbacks.onClearUI();
 		await this.callbacks.onLoadMessages();
 
-		if (this.copilotService.getMessageHistory().length === 0) {
+		if (this.githubCopilotCliService.getMessageHistory().length === 0) {
 			this.callbacks.onShowWelcome();
 		}
 
@@ -134,7 +134,7 @@ export class SessionManager {
 		if (activeSessionId) {
 			const session = this.settings.sessions.find(s => s.id === activeSessionId);
 			if (session) {
-				session.messages = this.copilotService.getMessageHistory();
+				session.messages = this.githubCopilotCliService.getMessageHistory();
 				session.lastUsedAt = Date.now();
 				await this.saveSettings();
 			}
@@ -160,8 +160,8 @@ export class SessionManager {
 		const defaultName = `Chat ${new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 		const sessionId = `session-${now}`;
 		
-		// Get the actual session ID from CopilotService (creates session if needed)
-		const actualSessionId = this.copilotService.getSessionId() || sessionId;
+		// Get the actual session ID from GitHubCopilotCliService (creates session if needed)
+		const actualSessionId = this.githubCopilotCliService.getSessionId() || sessionId;
 		
 		const newSession: CopilotSession = {
 			id: actualSessionId,
@@ -201,7 +201,7 @@ export class SessionManager {
 		}
 		
 		// Check if this is the first user message by counting user messages
-		const messageHistory = this.copilotService.getMessageHistory();
+		const messageHistory = this.githubCopilotCliService.getMessageHistory();
 		const userMessageCount = messageHistory.filter((m: ChatMessage) => m.role === "user").length;
 		console.log("[VC] User message count:", userMessageCount, "Total messages:", messageHistory.length);
 		

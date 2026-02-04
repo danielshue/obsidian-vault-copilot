@@ -42,8 +42,8 @@ export async function createAIProvider(
 				);
 			}
 			// Dynamic import to avoid loading Node.js modules on mobile
-			const { CopilotService } = await import("./CopilotService");
-			return new CopilotService(app, config as CopilotProviderConfig) as unknown as AIProvider;
+			const { GitHubCopilotCliService } = await import("./GitHubCopilotCliService");
+			return new GitHubCopilotCliService(app, config as CopilotProviderConfig) as unknown as AIProvider;
 
 		default:
 			throw new Error(`Unknown provider type: ${config.provider}`);

@@ -1,5 +1,5 @@
 import { App, MarkdownRenderer, Notice, Component } from "obsidian";
-import { ChatMessage } from "../../copilot/CopilotService";
+import { ChatMessage } from "../../copilot/GitHubCopilotCliService";
 
 /**
  * Represents a reference used in a chat message

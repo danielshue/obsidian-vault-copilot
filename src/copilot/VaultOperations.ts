@@ -2,7 +2,7 @@
  * VaultOperations - Shared vault operation functions
  *
  * These functions provide the core implementation for vault operations
- * and can be used by multiple services (CopilotService, RealtimeAgentService, etc.)
+ * and can be used by multiple services (GitHubCopilotCliService, RealtimeAgentService, etc.)
  */
 
 import { App, TFile, TFolder } from "obsidian";

@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon, Menu } from "obsidian";
-import { CopilotService, ChatMessage } from "../../copilot/CopilotService";
+import { GitHubCopilotCliService, ChatMessage } from "../../copilot/GitHubCopilotCliService";
 import CopilotPlugin from "../../main";
 import { getAvailableModels, getModelDisplayName, CopilotSession, VoiceConversation, VoiceMessage, getVoiceServiceConfigFromProfile, getProfileById, OpenAIProviderProfile } from "../../settings";
 import { SessionPanel } from "./SessionPanel";
@@ -32,7 +32,7 @@ export const COPILOT_VIEW_TYPE = "copilot-chat-view";
 
 export class CopilotChatView extends ItemView {
 	public plugin: CopilotPlugin;
-	private copilotService: CopilotService;
+	private githubCopilotCliService: GitHubCopilotCliService;
 	private messagesContainer: HTMLElement;
 	private inputArea: HTMLElement | null = null;
 	private inputEl: HTMLDivElement;  // contenteditable div for inline chips
@@ -86,10 +86,10 @@ export class CopilotChatView extends ItemView {
 	private historyIndex = -1;  // -1 means not navigating history
 	private savedCurrentInput = '';  // Save current input when navigating
 
-	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, copilotService: CopilotService | null) {
+	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, githubCopilotCliService: GitHubCopilotCliService | null) {
 		super(leaf);
 		this.plugin = plugin;
-		this.copilotService = copilotService as CopilotService; // Type assertion for backward compatibility
+		this.githubCopilotCliService = githubCopilotCliService as GitHubCopilotCliService; // Type assertion for backward compatibility
 		this.toolCatalog = new ToolCatalog(plugin.skillRegistry, plugin.mcpManager);
 		this.promptProcessor = new PromptProcessor(plugin.app);
 		this.messageRenderer = new MessageRenderer(plugin.app, this);
@@ -99,7 +99,7 @@ export class CopilotChatView extends ItemView {
 		const activeService = this.getActiveAIService();
 		this.sessionManager = new SessionManager(
 			plugin.settings,
-			activeService as CopilotService, // SessionManager expects CopilotService but works with any AIProvider
+			activeService as GitHubCopilotCliService, // SessionManager expects CopilotService but works with any AIProvider
 			() => plugin.saveSettings(),
 			{
 				onSessionCreated: () => {
@@ -176,18 +176,18 @@ export class CopilotChatView extends ItemView {
 	 * Get the active AI service (Copilot, OpenAI, or Azure)
 	 * Ensures the appropriate service is initialized based on settings
 	 */
-	private getActiveAIService(): CopilotService | AIProvider {
+	private getActiveAIService(): GitHubCopilotCliService | AIProvider {
 		// Initialize services on demand if not already initialized
 		const activeService = this.plugin.getActiveService();
 		
 		if (activeService) {
-			return activeService as CopilotService;
+			return activeService as GitHubCopilotCliService;
 		}
 		
 		// Fallback: if no service is active, ensure we have at least a copilot service reference
 		// This maintains backward compatibility
-		if (this.copilotService) {
-			return this.copilotService;
+		if (this.githubCopilotCliService) {
+			return this.githubCopilotCliService;
 		}
 		
 		// This should not happen in normal operation, but provides a safe fallback
@@ -434,7 +434,7 @@ export class CopilotChatView extends ItemView {
 						.onClick(async () => {
 							this.plugin.settings.model = modelId;
 							await this.plugin.saveSettings();
-							this.copilotService.updateConfig({ model: modelId });
+							this.githubCopilotCliService.updateConfig({ model: modelId });
 							this.updateModelSelectorText();
 						});
 					if (currentModel === modelId) {
@@ -540,7 +540,7 @@ export class CopilotChatView extends ItemView {
 		await this.loadMessages();
 
 		// Add welcome message if no history
-		if (this.copilotService.getMessageHistory().length === 0) {
+		if (this.githubCopilotCliService.getMessageHistory().length === 0) {
 			this.addWelcomeMessage();
 		}
 
@@ -677,7 +677,7 @@ export class CopilotChatView extends ItemView {
 		this.updateModelSelectorText();
 		
 		// Update copilot service with current model
-		this.copilotService.updateConfig({ model: this.plugin.settings.model });
+		this.githubCopilotCliService.updateConfig({ model: this.plugin.settings.model });
 		
 		// Refresh voice toolbar
 		this.refreshVoiceToolbar();
@@ -1651,18 +1651,18 @@ export class CopilotChatView extends ItemView {
 
 	private async startService(): Promise<void> {
 		try {
-			if (!this.copilotService.isConnected()) {
-				await this.copilotService.start();
+			if (!this.githubCopilotCliService.isConnected()) {
+				await this.githubCopilotCliService.start();
 				
 				// Resume existing session if available, otherwise create new one
 				const activeSessionId = this.plugin.settings.activeSessionId;
 				if (activeSessionId) {
 					// Try to resume the session from SDK persistence
-					await this.copilotService.loadSession(activeSessionId);
+					await this.githubCopilotCliService.loadSession(activeSessionId);
 					console.log('[Vault Copilot] Resumed session:', activeSessionId);
 				} else {
 					// Create new session to load instructions, agents, and tools
-					await this.copilotService.createSession();
+					await this.githubCopilotCliService.createSession();
 				}
 				
 				this.plugin.updateStatusBar();
@@ -1839,7 +1839,7 @@ export class CopilotChatView extends ItemView {
 					await this.plugin.saveSettings();
 					
 					// Recreate the Copilot session with updated tools (maintains session ID for persistence)
-					await this.copilotService.createSession(currentSession.id);
+					await this.githubCopilotCliService.createSession(currentSession.id);
 				}
 				
 				// Update UI
@@ -1982,7 +1982,7 @@ export class CopilotChatView extends ItemView {
 		const diagnostics: string[] = [];
 		
 		// Service status
-		diagnostics.push(`**Service Status:** ${this.copilotService.isConnected() ? "Connected" : "Disconnected"}`);
+		diagnostics.push(`**Service Status:** ${this.githubCopilotCliService.isConnected() ? "Connected" : "Disconnected"}`);
 		diagnostics.push(`**Model:** ${this.plugin.settings.model}`);
 		diagnostics.push(`**Streaming:** ${this.plugin.settings.streaming ? "Enabled" : "Disabled"}`);
 		
@@ -2223,7 +2223,7 @@ export class CopilotChatView extends ItemView {
 	}
 
 	private async loadMessages(): Promise<void> {
-		const history = this.copilotService.getMessageHistory();
+		const history = this.githubCopilotCliService.getMessageHistory();
 		for (const message of history) {
 			await this.renderMessage(message);
 		}
@@ -2241,7 +2241,7 @@ export class CopilotChatView extends ItemView {
 	 * Execute a tool directly (used by slash commands)
 	 */
 	async executeTool(toolName: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
-		const service = this.copilotService as unknown as {
+		const service = this.githubCopilotCliService as unknown as {
 			readNote: (path: string) => Promise<Record<string, unknown>>;
 			searchNotes: (query: string, limit: number) => Promise<Record<string, unknown>>;
 			createNote: (path: string, content: string) => Promise<Record<string, unknown>>;
@@ -2297,7 +2297,7 @@ export class CopilotChatView extends ItemView {
 	 * Clear chat history and UI
 	 */
 	async clearChat(): Promise<void> {
-		await this.copilotService.clearHistory();
+		await this.githubCopilotCliService.clearHistory();
 		this.messagesContainer.empty();
 		this.addWelcomeMessage();
 	}
@@ -2564,7 +2564,7 @@ export class CopilotChatView extends ItemView {
 		}
 		
 		// Add loaded instructions as references
-		const loadedInstructions = this.copilotService.getLoadedInstructions();
+		const loadedInstructions = this.githubCopilotCliService.getLoadedInstructions();
 		for (const instruction of loadedInstructions) {
 			usedReferences.push({
 				type: "instruction",
@@ -2641,7 +2641,7 @@ export class CopilotChatView extends ItemView {
 
 			let isFirstDelta = true;
 			if (this.plugin.settings.streaming) {
-				await this.copilotService.sendMessageStreaming(
+				await this.githubCopilotCliService.sendMessageStreaming(
 					fullMessage,
 					(delta) => {
 						// Hide thinking indicator on first content delta
@@ -2671,7 +2671,7 @@ export class CopilotChatView extends ItemView {
 				// Hide thinking indicator before non-streaming response
 				this.hideThinkingIndicator();
 				
-				const response = await this.copilotService.sendMessage(fullMessage);
+				const response = await this.githubCopilotCliService.sendMessage(fullMessage);
 				if (this.currentStreamingMessageEl) {
 					await this.renderMarkdownContent(this.currentStreamingMessageEl, response);
 					this.addCopyButton(this.currentStreamingMessageEl);
@@ -2807,7 +2807,7 @@ export class CopilotChatView extends ItemView {
 
 	private async cancelRequest(): Promise<void> {
 		try {
-			await this.copilotService.abort();
+			await this.githubCopilotCliService.abort();
 			if (this.currentStreamingMessageEl) {
 				const contentEl = this.currentStreamingMessageEl.querySelector(".vc-message-content");
 				if (contentEl && contentEl.textContent) {
@@ -3061,7 +3061,7 @@ export class CopilotChatView extends ItemView {
 			// Override model if specified in prompt
 			const originalModel = this.plugin.settings.model;
 			if (fullPrompt.model) {
-				this.copilotService.updateConfig({ model: fullPrompt.model });
+				this.githubCopilotCliService.updateConfig({ model: fullPrompt.model });
 				console.log(`[VC] Prompt using model: ${fullPrompt.model}`);
 			}
 
@@ -3072,7 +3072,7 @@ export class CopilotChatView extends ItemView {
 			this.logToolContext(fullPrompt.tools);
 
 			if (this.plugin.settings.streaming) {
-				await this.copilotService.sendMessageStreaming(
+				await this.githubCopilotCliService.sendMessageStreaming(
 					content,
 					(delta) => {
 						if (this.currentStreamingMessageEl) {
@@ -3093,7 +3093,7 @@ export class CopilotChatView extends ItemView {
 					timeoutMs
 				);
 			} else {
-				const response = await this.copilotService.sendMessage(content, timeoutMs);
+				const response = await this.githubCopilotCliService.sendMessage(content, timeoutMs);
 				if (this.currentStreamingMessageEl) {
 					await this.renderMarkdownContent(this.currentStreamingMessageEl, response);
 					this.addCopyButton(this.currentStreamingMessageEl);
@@ -3103,7 +3103,7 @@ export class CopilotChatView extends ItemView {
 
 			// Restore original model if we changed it
 			if (fullPrompt.model) {
-				this.copilotService.updateConfig({ model: originalModel });
+				this.githubCopilotCliService.updateConfig({ model: originalModel });
 			}
 		} catch (error) {
 			new Notice(`Prompt execution error: ${error}`);
@@ -3185,7 +3185,7 @@ export class CopilotChatView extends ItemView {
 			// Override model if specified in prompt
 			const originalModel = this.plugin.settings.model;
 			if (fullPrompt.model) {
-				this.copilotService.updateConfig({ model: fullPrompt.model });
+				this.githubCopilotCliService.updateConfig({ model: fullPrompt.model });
 				console.log(`[VC] Prompt using model: ${fullPrompt.model}`);
 			}
 
@@ -3193,7 +3193,7 @@ export class CopilotChatView extends ItemView {
 			this.logToolContext(fullPrompt.tools);
 
 			if (this.plugin.settings.streaming) {
-				await this.copilotService.sendMessageStreaming(
+				await this.githubCopilotCliService.sendMessageStreaming(
 					content,
 					(delta) => {
 						if (this.currentStreamingMessageEl) {
@@ -3213,7 +3213,7 @@ export class CopilotChatView extends ItemView {
 					}
 				);
 			} else {
-				const response = await this.copilotService.sendMessage(content);
+				const response = await this.githubCopilotCliService.sendMessage(content);
 				if (this.currentStreamingMessageEl) {
 					await this.renderMarkdownContent(this.currentStreamingMessageEl, response);
 					this.addCopyButton(this.currentStreamingMessageEl);
@@ -3223,7 +3223,7 @@ export class CopilotChatView extends ItemView {
 
 			// Restore original model if we changed it
 			if (fullPrompt.model) {
-				this.copilotService.updateConfig({ model: originalModel });
+				this.githubCopilotCliService.updateConfig({ model: originalModel });
 			}
 		} catch (error) {
 			new Notice(`Prompt execution error: ${error}`);
