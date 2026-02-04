@@ -245,6 +245,8 @@ export const OPENAI_MODELS = [
  * Get API key from config or environment (desktop only)
  * On desktop: checks config, then environment variables
  * On mobile: only checks config (no process.env available)
+ * 
+ * @deprecated Use getOpenAIApiKey from secretStorage instead for SecretStorage support
  */
 export function getOpenAIApiKey(configKey?: string): string | undefined {
 	// First check config
@@ -260,3 +262,13 @@ export function getOpenAIApiKey(configKey?: string): string | undefined {
 	
 	return undefined;
 }
+
+/**
+ * Re-export SecretStorage helper functions for convenience
+ * These should be used instead of the legacy functions above
+ */
+export { 
+	SecretStorage,
+	getOpenAIApiKey as getOpenAIApiKeyFromStorage,
+	getAzureOpenAIApiKey as getAzureOpenAIApiKeyFromStorage
+} from "../utils/secretStorage";

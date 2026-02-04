@@ -731,11 +731,13 @@ export class TracingModal extends Modal {
 }
 
 /**
- * Open tracing in a popout window
+ * Open tracing in a popout window (desktop) or modal (mobile)
  */
 export function openTracingPopout(app: App): void {
-	// For now, use a modal. Obsidian's popout window API is complex
-	// and requires creating a proper view. Modal provides similar functionality.
+	// On desktop, we could use app.workspace.getLeaf('window') to create a pop-out
+	// However, this requires creating a proper ItemView which is complex.
+	// For now, use modal which provides similar functionality across platforms.
+	// TODO: Implement proper ItemView for desktop pop-out windows
 	const modal = new TracingModal(app);
 	modal.open();
 }

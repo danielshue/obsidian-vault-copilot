@@ -535,6 +535,50 @@ export class McpManager {
 			console.error("[McpManager] Failed to save vault config:", error);
 		}
 	}
+
+	/**
+	 * Add a manual HTTP MCP server
+	 */
+	async addManualServer(config: McpServerConfig): Promise<void> {
+		// Add to vault config
+		this.vaultConfig.servers.push(config);
+		await this.saveVaultConfig();
+
+		// Add to discovered servers
+		const status: McpServerStatus = {
+			id: config.id,
+			status: "disconnected",
+		};
+
+		this.servers.set(config.id, {
+			config,
+			status,
+		});
+
+		// Enable auto-start by default for manually added servers
+		await this.setServerAutoStart(config.id, true);
+
+		console.log(`[McpManager] Added manual server: ${config.name}`);
+	}
+
+	/**
+	 * Remove a manual server
+	 */
+	async removeManualServer(id: string): Promise<void> {
+		// Stop the server if running
+		if (this.clients.has(id)) {
+			await this.stopServer(id);
+		}
+
+		// Remove from vault config
+		this.vaultConfig.servers = this.vaultConfig.servers.filter(s => s.id !== id);
+		await this.saveVaultConfig();
+
+		// Remove from discovered servers
+		this.servers.delete(id);
+
+		console.log(`[McpManager] Removed manual server: ${id}`);
+	}
 }
 
 // Re-export helpers for use in settings UI

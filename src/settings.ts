@@ -489,6 +489,193 @@ export class AIProviderProfileModal extends Modal {
 	}
 }
 
+/**
+ * Modal for manually adding HTTP MCP servers
+ */
+export class AddHttpMcpServerModal extends Modal {
+	private plugin: CopilotPlugin;
+	private onSuccess: () => void;
+	private name: string = '';
+	private url: string = '';
+	private apiKey: string = '';
+	private validationError: HTMLElement | null = null;
+
+	constructor(app: App, plugin: CopilotPlugin, onSuccess: () => void) {
+		super(app);
+		this.plugin = plugin;
+		this.onSuccess = onSuccess;
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('vc-add-http-mcp-modal');
+
+		contentEl.createEl('h2', { text: 'Add HTTP MCP Server' });
+
+		// Platform-specific help text
+		const helpText = contentEl.createDiv({ cls: 'vc-http-mcp-help' });
+		if (isMobile) {
+			helpText.createEl('p', { 
+				text: '⚠️ Mobile: HTTPS is strictly required for security. HTTP URLs will be rejected.',
+				cls: 'vc-http-mcp-warning'
+			});
+		} else {
+			helpText.createEl('p', { 
+				text: 'ℹ️ Desktop: HTTPS is recommended. HTTP is only allowed for localhost/127.0.0.1.',
+				cls: 'vc-http-mcp-info'
+			});
+		}
+
+		// Server name
+		new Setting(contentEl)
+			.setName('Server Name')
+			.setDesc('A descriptive name for this MCP server')
+			.addText((text) => {
+				text.setPlaceholder('My MCP Server');
+				text.onChange((value) => {
+					this.name = value;
+				});
+			});
+
+		// Server URL
+		new Setting(contentEl)
+			.setName('Server URL')
+			.setDesc('The HTTPS URL of the MCP server (e.g., https://api.example.com/mcp)')
+			.addText((text) => {
+				text.setPlaceholder('https://api.example.com/mcp');
+				text.onChange((value) => {
+					this.url = value;
+					this.clearValidationError();
+				});
+			});
+
+		// API Key (optional)
+		new Setting(contentEl)
+			.setName('API Key (Optional)')
+			.setDesc('Authentication token if required by the server')
+			.addText((text) => {
+				text.setPlaceholder('Bearer token or API key');
+				text.inputEl.type = 'password';
+				text.onChange((value) => {
+					this.apiKey = value;
+				});
+			});
+
+		// Validation error area
+		this.validationError = contentEl.createDiv({ cls: 'vc-validation-error' });
+		this.validationError.style.display = 'none';
+
+		// Buttons
+		const buttonRow = contentEl.createDiv({ cls: 'vc-modal-buttons' });
+		
+		const cancelBtn = buttonRow.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => this.close());
+		
+		const addBtn = buttonRow.createEl('button', { text: 'Add Server', cls: 'mod-cta' });
+		addBtn.addEventListener('click', () => this.addServer());
+	}
+
+	private clearValidationError(): void {
+		if (this.validationError) {
+			this.validationError.style.display = 'none';
+			this.validationError.empty();
+		}
+	}
+
+	private showValidationError(message: string): void {
+		if (this.validationError) {
+			this.validationError.style.display = 'block';
+			this.validationError.empty();
+			this.validationError.createEl('span', { 
+				text: `⚠️ ${message}`,
+				cls: 'vc-error-text'
+			});
+		}
+	}
+
+	private validateUrl(url: string): { valid: boolean; error?: string } {
+		// Check if URL is empty
+		if (!url || !url.trim()) {
+			return { valid: false, error: 'Server URL is required' };
+		}
+
+		// Try to parse the URL
+		let parsedUrl: URL;
+		try {
+			parsedUrl = new URL(url.trim());
+		} catch (e) {
+			return { valid: false, error: 'Invalid URL format' };
+		}
+
+		// Check protocol
+		const isHttps = parsedUrl.protocol === 'https:';
+		const isHttp = parsedUrl.protocol === 'http:';
+
+		if (!isHttps && !isHttp) {
+			return { valid: false, error: 'URL must use HTTP or HTTPS protocol' };
+		}
+
+		// Mobile: HTTPS strictly required
+		if (isMobile && !isHttps) {
+			return { valid: false, error: 'Mobile platforms require HTTPS. HTTP is not allowed.' };
+		}
+
+		// Desktop: HTTP only allowed for localhost/127.0.0.1
+		if (!isMobile && !isHttps) {
+			const hostname = parsedUrl.hostname.toLowerCase();
+			const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+			if (!isLocalhost) {
+				return { valid: false, error: 'HTTP is only allowed for localhost/127.0.0.1. Use HTTPS for remote servers.' };
+			}
+		}
+
+		return { valid: true };
+	}
+
+	private async addServer(): Promise<void> {
+		// Validate name
+		if (!this.name || !this.name.trim()) {
+			this.showValidationError('Server name is required');
+			return;
+		}
+
+		// Validate URL
+		const validation = this.validateUrl(this.url);
+		if (!validation.valid) {
+			this.showValidationError(validation.error!);
+			return;
+		}
+
+		try {
+			// Create HTTP MCP server config
+			const config = {
+				id: `manual-http-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+				name: this.name.trim(),
+				enabled: true,
+				source: 'manual' as McpServerSource,
+				transport: 'http' as const,
+				url: this.url.trim(),
+				apiKey: this.apiKey.trim() || undefined,
+			};
+
+			// Add to McpManager
+			await this.plugin.mcpManager.addManualServer(config);
+
+			new Notice(`Added MCP server: ${config.name}`);
+			this.onSuccess();
+			this.close();
+		} catch (error) {
+			this.showValidationError(`Failed to add server: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	onClose(): void {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+}
+
 /** Periodic note granularity */
 export type PeriodicNoteGranularity = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
@@ -3041,6 +3228,18 @@ export class CopilotSettingTab extends PluginSettingTab {
 				new Notice("MCP servers refreshed");
 			});
 		}
+		
+		// Add HTTP MCP Server button
+		const addHttpBtn = headerRow.createEl("button", { 
+			text: "+ Add HTTP MCP Server",
+			cls: "vc-mcp-add-http-btn"
+		});
+		addHttpBtn.addEventListener("click", () => {
+			const modal = new AddHttpMcpServerModal(this.app, this.plugin, () => {
+				this.updateSkillsDisplay();
+			});
+			modal.open();
+		});
 		
 		const servers = this.plugin.mcpManager.getServers();
 		
