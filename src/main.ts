@@ -18,7 +18,7 @@ import { PromptCache, CachedPromptInfo } from "./copilot/PromptCache";
 import { CustomPrompt } from "./copilot/CustomizationLoader";
 import { OpenAIService } from "./copilot/OpenAIService";
 import { AzureOpenAIService } from "./copilot/AzureOpenAIService";
-import { AIProviderType, AIProvider } from "./copilot/AIProvider";
+import { AIProviderType, AIProvider, getOpenAIApiKey } from "./copilot/AIProvider";
 import { getTracingService } from "./copilot/TracingService";
 import { MainVaultAssistant } from "./realtime-agent/MainVaultAssistant";
 import { isMobile, supportsLocalProcesses } from "./utils/platform";
@@ -213,25 +213,105 @@ export default class CopilotPlugin extends Plugin {
 
 	/**
 	 * Get the currently active AI service based on settings
+	 * Initializes the service on demand if not already initialized
 	 */
 	getActiveService(): AIProvider | CopilotService | null {
 		// If a chat provider profile is selected, use it
 		if (this.settings.chatProviderProfileId) {
 			const profile = getProfileById(this.settings, this.settings.chatProviderProfileId);
 			if (profile?.type === "openai") {
+				// Initialize OpenAI service on demand
+				if (!this.openaiService && (profile as OpenAIProviderProfile).apiKey) {
+					this.initializeOpenAIService(profile as OpenAIProviderProfile);
+				}
 				return this.openaiService;
 			} else if (profile?.type === "azure-openai") {
+				// Initialize Azure service on demand
+				if (!this.azureOpenaiService && (profile as AzureOpenAIProviderProfile).apiKey) {
+					this.initializeAzureService(profile as AzureOpenAIProviderProfile);
+				}
 				return this.azureOpenaiService;
 			}
 		}
 		
 		// Fall back to legacy settings
 		if (this.settings.aiProvider === "openai") {
+			// Initialize OpenAI service on demand if not already initialized
+			if (!this.openaiService) {
+				this.initializeOpenAIServiceFromSettings();
+			}
 			return this.openaiService;
 		} else if (this.settings.aiProvider === "azure-openai") {
+			// Initialize Azure service on demand if not already initialized
+			if (!this.azureOpenaiService) {
+				this.initializeAzureServiceFromSettings();
+			}
 			return this.azureOpenaiService;
 		}
 		return this.copilotService;
+	}
+	
+	/**
+	 * Initialize OpenAI service from profile
+	 */
+	private initializeOpenAIService(profile: OpenAIProviderProfile): void {
+		try {
+			this.openaiService = new OpenAIService(this.app, {
+				provider: "openai",
+				model: profile.model || "gpt-4o",
+				streaming: true,
+				apiKey: profile.apiKey,
+				baseURL: profile.baseURL,
+				mcpManager: this.mcpManager,
+			});
+		} catch (error) {
+			console.error("[VaultCopilot] Failed to initialize OpenAI service:", error);
+		}
+	}
+	
+	/**
+	 * Initialize Azure service from profile
+	 */
+	private initializeAzureService(profile: AzureOpenAIProviderProfile): void {
+		try {
+			this.azureOpenaiService = new AzureOpenAIService(this.app, {
+				provider: "azure-openai",
+				model: profile.model || "gpt-4o",
+				streaming: true,
+				apiKey: profile.apiKey,
+				endpoint: profile.endpoint,
+				deploymentName: profile.deploymentName,
+				apiVersion: profile.apiVersion,
+				mcpManager: this.mcpManager,
+			});
+		} catch (error) {
+			console.error("[VaultCopilot] Failed to initialize Azure service:", error);
+		}
+	}
+	
+	/**
+	 * Initialize OpenAI service from legacy settings
+	 */
+	private initializeOpenAIServiceFromSettings(): void {
+		// This is for backward compatibility with legacy settings
+		// In practice, users should use profiles
+		const apiKey = getOpenAIApiKey();
+		if (apiKey) {
+			this.initializeOpenAIService({
+				id: "legacy-openai",
+				name: "OpenAI (Legacy)",
+				type: "openai",
+				apiKey: apiKey,
+			});
+		}
+	}
+	
+	/**
+	 * Initialize Azure service from legacy settings  
+	 */
+	private initializeAzureServiceFromSettings(): void {
+		// This is for backward compatibility - users should use profiles
+		console.warn("[VaultCopilot] Azure service initialization from legacy settings not fully implemented");
 	}
 
 	/**
@@ -303,11 +383,16 @@ export default class CopilotPlugin extends Plugin {
 		if (supportsLocalProcesses()) {
 			this.copilotService = new CopilotService(this.app, this.getServiceConfig());
 		}
+		
+		// Initialize OpenAI/Azure services for mobile or desktop alternative providers
+		// These are initialized lazily when needed, but we ensure they're available
+		// The active service is determined by settings and getActiveService()
 
-		// Register the chat view
+		// Register the chat view with nullable copilotService
+		// The view will use plugin.getActiveService() to get the appropriate provider
 		this.registerView(
 			COPILOT_VIEW_TYPE,
-			(leaf) => new CopilotChatView(leaf, this, this.copilotService!)
+			(leaf) => new CopilotChatView(leaf, this, this.copilotService)
 		);
 
 		// Add ribbon icon to open chat

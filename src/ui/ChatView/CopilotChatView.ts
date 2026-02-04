@@ -25,7 +25,7 @@ import { ToolExecutionRenderer } from "./ToolExecutionRenderer";
 import { TracingModal } from "./TracingModal";
 import { ConversationHistoryModal } from "./ConversationHistoryModal";
 import { VoiceChatService, RecordingState, MainVaultAssistant, RealtimeAgentState, RealtimeHistoryItem, ToolApprovalRequest } from "../../voice-chat";
-import { getOpenAIApiKey } from "../../copilot/AIProvider";
+import { AIProvider, getOpenAIApiKey } from "../../copilot/AIProvider";
 import { getTracingService } from "../../copilot/TracingService";
 
 export const COPILOT_VIEW_TYPE = "copilot-chat-view";
@@ -86,18 +86,20 @@ export class CopilotChatView extends ItemView {
 	private historyIndex = -1;  // -1 means not navigating history
 	private savedCurrentInput = '';  // Save current input when navigating
 
-	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, copilotService: CopilotService) {
+	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, copilotService: CopilotService | null) {
 		super(leaf);
 		this.plugin = plugin;
-		this.copilotService = copilotService;
+		this.copilotService = copilotService as CopilotService; // Type assertion for backward compatibility
 		this.toolCatalog = new ToolCatalog(plugin.skillRegistry, plugin.mcpManager);
 		this.promptProcessor = new PromptProcessor(plugin.app);
 		this.messageRenderer = new MessageRenderer(plugin.app, this);
 		
 		// Initialize SessionManager with callbacks
+		// Use getActiveService() to get the appropriate provider (Copilot, OpenAI, or Azure)
+		const activeService = this.getActiveAIService();
 		this.sessionManager = new SessionManager(
 			plugin.settings,
-			copilotService,
+			activeService as CopilotService, // SessionManager expects CopilotService but works with any AIProvider
 			() => plugin.saveSettings(),
 			{
 				onSessionCreated: () => {
@@ -168,6 +170,28 @@ export class CopilotChatView extends ItemView {
 			azureApiVersion: profileConfig?.azureApiVersion || voiceSettings.azure?.apiVersion || undefined,
 			audioDeviceId: voiceSettings.audioDeviceId,
 		});
+	}
+
+	/**
+	 * Get the active AI service (Copilot, OpenAI, or Azure)
+	 * Ensures the appropriate service is initialized based on settings
+	 */
+	private getActiveAIService(): CopilotService | AIProvider {
+		// Initialize services on demand if not already initialized
+		const activeService = this.plugin.getActiveService();
+		
+		if (activeService) {
+			return activeService as CopilotService;
+		}
+		
+		// Fallback: if no service is active, ensure we have at least a copilot service reference
+		// This maintains backward compatibility
+		if (this.copilotService) {
+			return this.copilotService;
+		}
+		
+		// This should not happen in normal operation, but provides a safe fallback
+		throw new Error("No AI service is configured. Please configure an API key in settings.");
 	}
 
 	getViewType(): string {
