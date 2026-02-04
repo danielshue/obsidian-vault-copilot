@@ -648,9 +648,17 @@ export class AddHttpMcpServerModal extends Modal {
 		}
 
 		try {
-			// Create HTTP MCP server config
+			// Create HTTP MCP server config with robust ID generation
+			// Use crypto.randomUUID() if available, fallback to timestamp + random
+			let id: string;
+			if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+				id = `manual-http-${crypto.randomUUID()}`;
+			} else {
+				id = `manual-http-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+			}
+
 			const config = {
-				id: `manual-http-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+				id,
 				name: this.name.trim(),
 				enabled: true,
 				source: 'manual' as McpServerSource,

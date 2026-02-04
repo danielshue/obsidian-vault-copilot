@@ -6,7 +6,6 @@
  */
 
 import { Plugin } from "obsidian";
-import { isDesktop } from "./platform";
 
 /**
  * Storage key prefix for secrets in plugin data
@@ -56,8 +55,8 @@ export class SecretStorage {
 			return this.secrets[storageKey];
 		}
 
-		// On desktop, fallback to environment variables
-		if (isDesktop && typeof process !== "undefined" && process.env) {
+		// Fallback to environment variables if available (desktop only)
+		if (typeof process !== "undefined" && process.env) {
 			const envKey = key.toUpperCase();
 			return process.env[envKey] || null;
 		}
@@ -145,8 +144,8 @@ export async function getOpenAIApiKey(
 		}
 	}
 
-	// On desktop, fallback to environment variables
-	if (isDesktop && typeof process !== "undefined" && process.env) {
+	// Fallback to environment variables if available (desktop only)
+	if (typeof process !== "undefined" && process.env) {
 		return process.env.OPENAI_API_KEY;
 	}
 
@@ -177,8 +176,8 @@ export async function getAzureOpenAIApiKey(
 		}
 	}
 
-	// On desktop, fallback to environment variables
-	if (isDesktop && typeof process !== "undefined" && process.env) {
+	// Fallback to environment variables if available (desktop only)
+	if (typeof process !== "undefined" && process.env) {
 		return process.env.AZURE_OPENAI_API_KEY;
 	}
 

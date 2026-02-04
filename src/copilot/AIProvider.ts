@@ -265,10 +265,10 @@ export function getOpenAIApiKey(configKey?: string): string | undefined {
 
 /**
  * Re-export SecretStorage helper functions for convenience
- * These should be used instead of the legacy functions above
+ * These provide enhanced security with encrypted storage support
  */
 export { 
 	SecretStorage,
-	getOpenAIApiKey as getOpenAIApiKeyFromStorage,
-	getAzureOpenAIApiKey as getAzureOpenAIApiKeyFromStorage
+	getOpenAIApiKey as getOpenAIApiKeySecure,
+	getAzureOpenAIApiKey as getAzureOpenAIApiKeySecure
 } from "../utils/secretStorage";
