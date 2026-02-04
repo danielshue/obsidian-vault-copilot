@@ -20,6 +20,21 @@ export interface McpClient {
 }
 
 /**
+ * Extended interface for stdio-based MCP clients with additional methods
+ */
+export interface StdioMcpClientInterface extends McpClient {
+	on(listener: (event: any) => void): void;
+	getPid(): number | undefined;
+}
+
+/**
+ * Type guard to check if a client is a stdio-based client
+ */
+export function isStdioMcpClient(client: McpClient): client is StdioMcpClientInterface {
+	return "on" in client && typeof (client as any).on === "function";
+}
+
+/**
  * Create an MCP client instance based on server config
  * Throws if transport type is not supported on current platform
  */

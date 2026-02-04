@@ -1032,7 +1032,11 @@ export class CopilotSettingTab extends PluginSettingTab {
 		// On desktop: Copilot built-in, OpenAI, and Azure OpenAI
 		const chatProfiles = profiles.filter(p => {
 			if (p.type === 'local') return false; // Never show local for chat
-			return isProviderAvailable(p.type as any);
+			// Type guard: only check availability for supported provider types
+			if (p.type === 'copilot' || p.type === 'openai' || p.type === 'azure-openai') {
+				return isProviderAvailable(p.type);
+			}
+			return false;
 		});
 		
 		// Show warning on mobile if Copilot is selected

@@ -21,7 +21,7 @@ import {
 	getSourceLabel,
 	getSourceIcon,
 } from "./McpConfigDiscovery";
-import { createMcpClient, McpClient } from "./McpClientFactory";
+import { createMcpClient, McpClient, isStdioMcpClient } from "./McpClientFactory";
 import type { App, Platform } from "obsidian";
 import { supportsLocalProcesses } from "../utils/platform";
 import * as fs from "fs";
@@ -238,28 +238,25 @@ export class McpManager {
 		// Create client using factory (handles platform-specific logic)
 		const client = await createMcpClient(server.config);
 		
-		// For StdioMcpClient, set up event handlers
-		if (isStdioConfig(server.config)) {
-			const stdioClient = client as any;
-			if (stdioClient.on) {
-				stdioClient.on((event: any) => {
-					switch (event.type) {
-						case "connected":
-							this.updateServerStatus(id, "connected");
-							break;
-						case "disconnected":
-							this.updateServerStatus(id, "disconnected", event.error);
-							break;
-						case "error":
-							this.updateServerStatus(id, "error", event.error);
-							break;
-						case "tools":
-							server.status.tools = event.tools;
-							this.emit({ type: "server-tools-updated", serverId: id, tools: event.tools });
-							break;
-					}
-				});
-			}
+		// For StdioMcpClient, set up event handlers using type guard
+		if (isStdioMcpClient(client)) {
+			client.on((event: any) => {
+				switch (event.type) {
+					case "connected":
+						this.updateServerStatus(id, "connected");
+						break;
+					case "disconnected":
+						this.updateServerStatus(id, "disconnected", event.error);
+						break;
+					case "error":
+						this.updateServerStatus(id, "error", event.error);
+						break;
+					case "tools":
+						server.status.tools = event.tools;
+						this.emit({ type: "server-tools-updated", serverId: id, tools: event.tools });
+						break;
+				}
+			});
 		}
 
 		this.clients.set(id, client);
@@ -466,10 +463,9 @@ export class McpManager {
 				server.status.connectedAt = Date.now();
 				const client = this.clients.get(id);
 				if (client) {
-					// getPid() only exists on StdioMcpClient, not on all clients
-					const stdioClient = client as any;
-					if (stdioClient.getPid) {
-						server.status.pid = stdioClient.getPid();
+					// getPid() only exists on StdioMcpClient, use type guard
+					if (isStdioMcpClient(client)) {
+						server.status.pid = client.getPid();
 					}
 					server.status.tools = client.getTools();
 				}
