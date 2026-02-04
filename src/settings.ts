@@ -557,6 +557,7 @@ export class AddHttpMcpServerModal extends Modal {
 			.addText((text) => {
 				text.setPlaceholder('Bearer token or API key');
 				text.inputEl.type = 'password';
+				text.inputEl.autocomplete = 'off';
 				text.onChange((value) => {
 					this.apiKey = value;
 				});
@@ -621,12 +622,22 @@ export class AddHttpMcpServerModal extends Modal {
 			return { valid: false, error: 'Mobile platforms require HTTPS. HTTP is not allowed.' };
 		}
 
-		// Desktop: HTTP only allowed for localhost/127.0.0.1
+		// Desktop: HTTP only allowed for localhost
 		if (!isMobile && !isHttps) {
 			const hostname = parsedUrl.hostname.toLowerCase();
-			const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+			// Check for various localhost representations
+			const isLocalhost = 
+				hostname === 'localhost' || 
+				hostname === '127.0.0.1' || 
+				hostname === '::1' ||
+				hostname === '::ffff:127.0.0.1' ||
+				// Local network ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
+				hostname.startsWith('10.') ||
+				/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname) ||
+				hostname.startsWith('192.168.');
+			
 			if (!isLocalhost) {
-				return { valid: false, error: 'HTTP is only allowed for localhost/127.0.0.1. Use HTTPS for remote servers.' };
+				return { valid: false, error: 'HTTP is only allowed for localhost and local network addresses. Use HTTPS for remote servers.' };
 			}
 		}
 
@@ -649,11 +660,18 @@ export class AddHttpMcpServerModal extends Modal {
 
 		try {
 			// Create HTTP MCP server config with robust ID generation
-			// Use crypto.randomUUID() if available, fallback to timestamp + random
 			let id: string;
 			if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+				// Best: Use crypto.randomUUID() (available in modern browsers and Node 19+)
 				id = `manual-http-${crypto.randomUUID()}`;
+			} else if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+				// Good: Use crypto.getRandomValues() for cryptographically secure random
+				const array = new Uint32Array(4);
+				crypto.getRandomValues(array);
+				id = `manual-http-${Array.from(array).map(n => n.toString(36)).join('-')}`;
 			} else {
+				// Fallback: timestamp + Math.random (less secure but works everywhere)
+				console.warn('[AddHttpMcpServerModal] crypto API not available, using Math.random() for ID generation');
 				id = `manual-http-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 			}
 

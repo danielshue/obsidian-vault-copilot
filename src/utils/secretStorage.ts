@@ -35,8 +35,15 @@ export class SecretStorage {
 	 */
 	async initialize(): Promise<void> {
 		const data = await this.plugin.loadData();
-		if (data && data.secrets) {
-			this.secrets = data.secrets;
+		if (data && data.secrets && typeof data.secrets === "object") {
+			// Validate that all values are strings
+			const validSecrets: SecretStorageData = {};
+			for (const [key, value] of Object.entries(data.secrets)) {
+				if (typeof key === "string" && typeof value === "string") {
+					validSecrets[key] = value;
+				}
+			}
+			this.secrets = validSecrets;
 		}
 	}
 
