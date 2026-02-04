@@ -34,6 +34,7 @@ export class CopilotChatView extends ItemView {
 	public plugin: CopilotPlugin;
 	private copilotService: CopilotService;
 	private messagesContainer: HTMLElement;
+	private inputArea: HTMLElement | null = null;
 	private inputEl: HTMLDivElement;  // contenteditable div for inline chips
 	private sendButton: HTMLButtonElement;
 	private isProcessing = false;
@@ -76,6 +77,9 @@ export class CopilotChatView extends ItemView {
 	private pendingToolApproval: ToolApprovalRequest | null = null;
 	private toolApprovalEl: HTMLElement | null = null;
 	private currentVoiceConversationId: string | null = null;
+	
+	// Thinking indicator
+	private thinkingIndicatorEl: HTMLElement | null = null;
 	
 	// Input history for up/down arrow navigation
 	private inputHistory: string[] = [];
@@ -243,7 +247,8 @@ export class CopilotChatView extends ItemView {
 		this.messagesContainer = this.mainViewEl.createDiv({ cls: "vc-messages" });
 
 		// Input area
-		const inputArea = this.mainViewEl.createDiv({ cls: "vc-input-area" });
+		this.inputArea = this.mainViewEl.createDiv({ cls: "vc-input-area" });
+		const inputArea = this.inputArea;
 
 		// Main input wrapper (the box)
 		const inputWrapper = inputArea.createDiv({ cls: "vc-input-wrapper" });
@@ -1539,28 +1544,66 @@ export class CopilotChatView extends ItemView {
 				this.agentBtn.addClass('vc-agent-connecting');
 				this.agentBtn.innerHTML = agentIcon;
 				this.agentBtn.setAttribute('aria-label', 'Connecting...');
+				this.showThinkingIndicator();
 				break;
 			case 'connected':
 			case 'listening':
 				this.agentBtn.addClass('vc-agent-connected');
 				this.agentBtn.innerHTML = activeIcon;
 				this.agentBtn.setAttribute('aria-label', 'Voice agent active - click to stop');
+				this.hideThinkingIndicator();
 				break;
 			case 'speaking':
 				this.agentBtn.addClass('vc-agent-speaking');
 				this.agentBtn.innerHTML = activeIcon;
 				this.agentBtn.setAttribute('aria-label', 'Agent speaking - click to interrupt');
+				this.hideThinkingIndicator();
 				break;
 			case 'error':
 				this.agentBtn.addClass('vc-agent-error');
 				this.agentBtn.innerHTML = agentIcon;
 				this.agentBtn.setAttribute('aria-label', 'Voice agent error - click to retry');
+				this.hideThinkingIndicator();
 				break;
 			case 'idle':
-			default:
+		default:
 				this.agentBtn.innerHTML = agentIcon;
 				this.agentBtn.setAttribute('aria-label', 'Start voice agent');
+				this.hideThinkingIndicator();
 				break;
+		}
+	}
+
+	/**
+	 * Show "Thinking..." indicator while waiting for response
+	 */
+	private showThinkingIndicator(): void {
+		if (this.thinkingIndicatorEl || !this.inputArea) {
+			return; // Already showing or no input area
+		}
+		
+		// Create indicator as first child of input area (before input wrapper)
+		this.thinkingIndicatorEl = this.inputArea.createDiv({ cls: "vc-thinking" });
+		
+		const textEl = this.thinkingIndicatorEl.createDiv({ cls: "vc-thinking-text" });
+		textEl.setText("Thinking...");
+		
+		const progressEl = this.thinkingIndicatorEl.createDiv({ cls: "vc-thinking-progress" });
+		progressEl.createDiv({ cls: "vc-thinking-progress-bar" });
+		
+		// Move to be first child (before input wrapper)
+		if (this.inputArea.firstChild) {
+			this.inputArea.insertBefore(this.thinkingIndicatorEl, this.inputArea.firstChild);
+		}
+	}
+
+	/**
+	 * Hide "Thinking..." indicator
+	 */
+	private hideThinkingIndicator(): void {
+		if (this.thinkingIndicatorEl) {
+			this.thinkingIndicatorEl.remove();
+			this.thinkingIndicatorEl = null;
 		}
 	}
 
@@ -2340,6 +2383,7 @@ export class CopilotChatView extends ItemView {
 
 		this.isProcessing = true;
 		this.updateUIState();
+		this.showThinkingIndicator();
 
 		// Clear input
 		this.inputEl.innerHTML = "";
@@ -2539,7 +2583,7 @@ export class CopilotChatView extends ItemView {
 		this.renderAttachments();
 
 		try {
-			// Create streaming message element
+			// Create streaming message element (thinking indicator will be hidden when first content arrives)
 			this.currentStreamingMessageEl = this.createMessageElement("assistant", "");
 			
 			// Scroll the new user message to the top AFTER creating streaming element
@@ -2553,10 +2597,17 @@ export class CopilotChatView extends ItemView {
 			// Log tool context for debugging
 			this.logToolContext();
 
+			let isFirstDelta = true;
 			if (this.plugin.settings.streaming) {
 				await this.copilotService.sendMessageStreaming(
 					fullMessage,
 					(delta) => {
+						// Hide thinking indicator on first content delta
+						if (isFirstDelta) {
+							this.hideThinkingIndicator();
+							isFirstDelta = false;
+						}
+						
 						if (this.currentStreamingMessageEl) {
 							const contentEl = this.currentStreamingMessageEl.querySelector(".vc-message-content");
 							if (contentEl) {
@@ -2575,6 +2626,9 @@ export class CopilotChatView extends ItemView {
 					}
 				);
 			} else {
+				// Hide thinking indicator before non-streaming response
+				this.hideThinkingIndicator();
+				
 				const response = await this.copilotService.sendMessage(fullMessage);
 				if (this.currentStreamingMessageEl) {
 					await this.renderMarkdownContent(this.currentStreamingMessageEl, response);
@@ -2590,6 +2644,9 @@ export class CopilotChatView extends ItemView {
 			}
 			this.addErrorMessage(String(error));
 		} finally {
+			// Hide thinking indicator if still showing (for error cases)
+			this.hideThinkingIndicator();
+			
 			// Auto-rename session based on first message
 			await this.autoRenameSessionFromFirstMessage(message);
 			
