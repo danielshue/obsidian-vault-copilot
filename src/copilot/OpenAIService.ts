@@ -50,7 +50,7 @@ export class OpenAIService extends AIProvider {
 		const apiKey = getOpenAIApiKey(this.config.apiKey);
 		if (!apiKey) {
 			throw new Error(
-				"OpenAI API key not found. Set OPENAI_API_KEY environment variable or configure in settings."
+				"OpenAI API key not configured. Please set it in settings."
 			);
 		}
 

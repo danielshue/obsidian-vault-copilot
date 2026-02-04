@@ -1,4 +1,4 @@
-import { Plugin, Notice, WorkspaceLeaf } from "obsidian";
+import { Plugin, Notice, WorkspaceLeaf, Platform } from "obsidian";
 import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById } from "./settings";
 import { CopilotService, CopilotServiceConfig, ChatMessage } from "./copilot/CopilotService";
 import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/ChatView";
@@ -21,6 +21,8 @@ import { AzureOpenAIService } from "./copilot/AzureOpenAIService";
 import { AIProviderType, AIProvider } from "./copilot/AIProvider";
 import { getTracingService } from "./copilot/TracingService";
 import { MainVaultAssistant } from "./realtime-agent/MainVaultAssistant";
+import { createAIProvider } from "./copilot/AIProviderFactory";
+import { isMobile, isProviderAvailable, supportsLocalProcesses } from "./utils/platform";
 
 /**
  * Session info returned by the API
@@ -259,8 +261,19 @@ export default class CopilotPlugin extends Plugin {
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
-		// Auto-discover available models from CLI if not already cached
-		if (!this.settings.availableModels || this.settings.availableModels.length === 0) {
+		// Validate provider compatibility on load (mobile check)
+		if (isMobile && this.settings.aiProvider === "copilot") {
+			// Auto-switch to OpenAI on mobile if Copilot was selected
+			this.settings.aiProvider = "openai";
+			await this.saveSettings();
+			new Notice(
+				"GitHub Copilot CLI is unavailable on mobile. " +
+				"Switched to OpenAI. Please configure your API key in settings."
+			);
+		}
+
+		// Auto-discover available models from CLI if not already cached (desktop only)
+		if (supportsLocalProcesses() && (!this.settings.availableModels || this.settings.availableModels.length === 0)) {
 			this.discoverModels();
 		}
 
@@ -283,12 +296,14 @@ export default class CopilotPlugin extends Plugin {
 		this.promptCache = new PromptCache(this.app);
 		await this.promptCache.initialize(this.settings.promptDirectories);
 
-		// Initialize MCP manager for stdio MCP server support
+		// Initialize MCP manager (platform-aware internally)
 		this.mcpManager = new McpManager(this.app);
 		await this.mcpManager.initialize();
 
-		// Initialize Copilot service
-		this.copilotService = new CopilotService(this.app, this.getServiceConfig());
+		// Initialize Copilot service (desktop only)
+		if (supportsLocalProcesses()) {
+			this.copilotService = new CopilotService(this.app, this.getServiceConfig());
+		}
 
 		// Register the chat view
 		this.registerView(

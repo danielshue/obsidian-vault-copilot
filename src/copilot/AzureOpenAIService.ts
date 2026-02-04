@@ -42,19 +42,17 @@ type AzureOpenAIMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type AzureOpenAIToolCall = OpenAI.Chat.Completions.ChatCompletionMessageToolCall;
 
 /**
- * Get API key from environment or config
+ * Get API key from config
+ * Note: No longer checks environment variables for mobile compatibility
+ * API key must be provided through config/settings
  */
 export function getAzureOpenAIApiKey(configKey?: string): string | undefined {
-	// First check config
+	// Return config key if provided
 	if (configKey) {
 		return configKey;
 	}
 	
-	// Then check environment variables (works in Node.js context)
-	if (typeof process !== "undefined" && process.env) {
-		return process.env.AZURE_OPENAI_KEY || process.env.AZURE_OPENAI_API_KEY;
-	}
-	
+	// No environment variable fallback for mobile compatibility
 	return undefined;
 }
 
@@ -82,7 +80,7 @@ export class AzureOpenAIService extends AIProvider {
 		const apiKey = getAzureOpenAIApiKey(this.config.apiKey);
 		if (!apiKey) {
 			throw new Error(
-				"Azure OpenAI API key not found. Set AZURE_OPENAI_KEY environment variable or configure in settings."
+				"Azure OpenAI API key not configured. Please set it in settings."
 			);
 		}
 
