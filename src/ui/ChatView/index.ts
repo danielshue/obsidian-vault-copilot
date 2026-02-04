@@ -41,10 +41,10 @@ export { ToolExecutionRenderer } from "./ToolExecutionRenderer";
 export type { ToolExecutionCallback } from "./ToolExecutionRenderer";
 
 // Tracing
-export { TracingModal, openTracingPopout } from "./TracingModal";
+export { TracingModal, TracingView, TRACING_VIEW_TYPE, openTracingPopout } from "./TracingModal";
 
 // Conversation History
-export { ConversationHistoryModal } from "./ConversationHistoryModal";
+export { ConversationHistoryModal, ConversationHistoryView, VOICE_HISTORY_VIEW_TYPE, openVoiceHistoryPopout } from "./ConversationHistoryModal";
 
 // Utilities
 export { SLASH_COMMANDS } from "./SlashCommands";

@@ -10,7 +10,6 @@ import {
 	TranscriptionResult,
 	TranscriptionSegment,
 } from './types';
-import { getOpenAIApiKey } from '../copilot/AIProvider';
 
 export interface OpenAIWhisperConfig {
 	/** OpenAI API key (optional if OPENAI_API_KEY env var is set) */
@@ -61,7 +60,7 @@ export class OpenAIWhisperService {
 	 */
 	async isSupported(): Promise<boolean> {
 		// Check if API key is available
-		const apiKey = getOpenAIApiKey(this.config.apiKey);
+		const apiKey = this.getApiKey();
 		if (!apiKey) {
 			console.log('OpenAIWhisperService: No API key available');
 			return false;
@@ -87,7 +86,7 @@ export class OpenAIWhisperService {
 	 */
 	async testConnection(): Promise<boolean> {
 		try {
-			const apiKey = getOpenAIApiKey(this.config.apiKey);
+			const apiKey = this.getApiKey();
 			if (!apiKey) {
 				return false;
 			}
@@ -111,7 +110,7 @@ export class OpenAIWhisperService {
 	 * Initialize the service
 	 */
 	async initialize(): Promise<void> {
-		const apiKey = getOpenAIApiKey(this.config.apiKey);
+		const apiKey = this.getApiKey();
 		if (!apiKey) {
 			throw new Error('OpenAI API key not configured. Set OPENAI_API_KEY environment variable or configure in settings.');
 		}
@@ -381,7 +380,7 @@ export class OpenAIWhisperService {
 		
 		// Reinitialize client if API key or baseURL changed
 		if ((config.apiKey || config.baseURL) && this.client) {
-			const apiKey = getOpenAIApiKey(this.config.apiKey);
+			const apiKey = this.getApiKey();
 			if (apiKey) {
 				this.client = new OpenAI({
 					apiKey,
@@ -397,6 +396,16 @@ export class OpenAIWhisperService {
 	 */
 	getLanguage(): string {
 		return this.config.language || 'en';
+	}
+
+	private getApiKey(): string | undefined {
+		if (this.config.apiKey) {
+			return this.config.apiKey;
+		}
+		if (typeof process !== 'undefined' && process.env?.OPENAI_API_KEY) {
+			return process.env.OPENAI_API_KEY;
+		}
+		return undefined;
 	}
 
 	/**

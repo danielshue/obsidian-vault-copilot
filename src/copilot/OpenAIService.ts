@@ -11,7 +11,6 @@ import {
 	OpenAIProviderConfig,
 	StreamingCallbacks,
 	ToolDefinition,
-	getOpenAIApiKey,
 } from "./AIProvider";
 
 interface OpenAITool {
@@ -47,7 +46,7 @@ export class OpenAIService extends AIProvider {
 			return;
 		}
 
-		const apiKey = getOpenAIApiKey(this.config.apiKey);
+		const apiKey = this.resolveApiKey();
 		if (!apiKey) {
 			const isDesktop = typeof process !== "undefined" && process.env;
 			const message = isDesktop
@@ -288,6 +287,16 @@ export class OpenAIService extends AIProvider {
 		this.client = null;
 		this.isInitialized = false;
 		this.messageHistory = [];
+	}
+
+	private resolveApiKey(): string | undefined {
+		if (this.config.apiKey) {
+			return this.config.apiKey;
+		}
+		if (typeof process !== "undefined" && process.env?.OPENAI_API_KEY) {
+			return process.env.OPENAI_API_KEY;
+		}
+		return undefined;
 	}
 
 	/**

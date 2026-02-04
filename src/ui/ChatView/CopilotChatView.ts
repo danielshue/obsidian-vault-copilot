@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon, Menu } from "obsidian";
 import { GitHubCopilotCliService, ChatMessage } from "../../copilot/GitHubCopilotCliService";
 import CopilotPlugin from "../../main";
-import { getAvailableModels, getModelDisplayName, CopilotSession, VoiceConversation, VoiceMessage, getVoiceServiceConfigFromProfile, getProfileById, OpenAIProviderProfile } from "../../settings";
+import { getAvailableModels, getModelDisplayName, CopilotSession, VoiceConversation, VoiceMessage, getVoiceServiceConfigFromProfile, getProfileById, OpenAIProviderProfile, AzureOpenAIProviderProfile, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "../../settings";
 import { SessionPanel } from "./SessionPanel";
 import { CachedAgentInfo } from "../../copilot/AgentCache";
 import { CachedPromptInfo } from "../../copilot/PromptCache";
@@ -22,10 +22,11 @@ import { PromptProcessor } from "./PromptProcessor";
 import { MessageRenderer, UsedReference } from "./MessageRenderer";
 import { SessionManager } from "./SessionManager";
 import { ToolExecutionRenderer } from "./ToolExecutionRenderer";
-import { TracingModal } from "./TracingModal";
-import { ConversationHistoryModal } from "./ConversationHistoryModal";
+import { openTracingPopout } from "./TracingModal";
+import { openVoiceHistoryPopout } from "./ConversationHistoryModal";
 import { VoiceChatService, RecordingState, MainVaultAssistant, RealtimeAgentState, RealtimeHistoryItem, ToolApprovalRequest } from "../../voice-chat";
-import { AIProvider, getOpenAIApiKey } from "../../copilot/AIProvider";
+import { AIProvider } from "../../copilot/AIProvider";
+import { getSecretValue } from "../../utils/secrets";
 import { getTracingService } from "../../copilot/TracingService";
 
 export const COPILOT_VIEW_TYPE = "copilot-chat-view";
@@ -151,20 +152,42 @@ export class CopilotChatView extends ItemView {
 		};
 		
 		// Get configuration from selected profile
+		const voiceProfileId = this.plugin.settings.voiceInputProfileId;
+		const voiceProfile = getProfileById(this.plugin.settings, voiceProfileId);
 		const profileConfig = getVoiceServiceConfigFromProfile(
 			this.plugin.settings,
-			this.plugin.settings.voiceInputProfileId
+			voiceProfileId
 		);
-		
-		// Fallback to inline settings if no profile selected (backwards compatibility)
+
+		// Resolve API keys from SecretStorage (with legacy/env fallbacks)
 		const openaiSettings = this.plugin.settings.openai;
+		let profileOpenAiKey: string | undefined;
+		if (voiceProfile?.type === 'openai') {
+			profileOpenAiKey = getOpenAIProfileApiKey(this.app, voiceProfile as OpenAIProviderProfile);
+		} else if (profileConfig?.openaiApiKeySecretId) {
+			profileOpenAiKey = getSecretValue(this.app, profileConfig.openaiApiKeySecretId);
+		}
+		const legacyOpenAiKey = getLegacyOpenAIKey(this.app, this.plugin.settings);
+		const resolvedOpenAiKey = profileOpenAiKey || legacyOpenAiKey;
+
+		let resolvedAzureKey: string | undefined;
+		if (voiceProfile?.type === 'azure-openai') {
+			resolvedAzureKey = getAzureProfileApiKey(this.app, voiceProfile as AzureOpenAIProviderProfile);
+		} else if (profileConfig?.azureApiKeySecretId) {
+			resolvedAzureKey = getSecretValue(this.app, profileConfig.azureApiKeySecretId);
+		}
+		if (!resolvedAzureKey && typeof process !== "undefined" && process.env) {
+			resolvedAzureKey = process.env.AZURE_OPENAI_KEY || process.env.AZURE_OPENAI_API_KEY;
+		}
+
+		// Fallback to inline settings if no profile selected (backwards compatibility)
 		this.voiceChatService = new VoiceChatService({
 			backend: profileConfig?.backend || voiceSettings.backend,
 			whisperServerUrl: profileConfig?.whisperServerUrl || voiceSettings.whisperServerUrl,
 			language: voiceSettings.language,
-			openaiApiKey: profileConfig?.openaiApiKey || openaiSettings?.apiKey || undefined,
+			openaiApiKey: resolvedOpenAiKey,
 			openaiBaseUrl: profileConfig?.openaiBaseUrl || openaiSettings?.baseURL || undefined,
-			azureApiKey: profileConfig?.azureApiKey || undefined,
+			azureApiKey: resolvedAzureKey,
 			azureEndpoint: profileConfig?.azureEndpoint || voiceSettings.azure?.endpoint || undefined,
 			azureDeploymentName: profileConfig?.azureDeploymentName || voiceSettings.azure?.deploymentName || undefined,
 			azureApiVersion: profileConfig?.azureApiVersion || voiceSettings.azure?.apiVersion || undefined,
@@ -786,10 +809,10 @@ export class CopilotChatView extends ItemView {
 		if (selectedProfile && selectedProfile.type === 'openai') {
 			// Use API key from selected profile
 			const openaiProfile = selectedProfile as OpenAIProviderProfile;
-			apiKey = openaiProfile.apiKey || getOpenAIApiKey();
+			apiKey = getOpenAIProfileApiKey(this.app, openaiProfile);
 		} else {
 			// Fallback to legacy settings if no profile selected
-			apiKey = getOpenAIApiKey(this.plugin.settings.openai?.apiKey);
+			apiKey = getLegacyOpenAIKey(this.app, this.plugin.settings);
 		}
 		
 		if (!apiKey) {
@@ -1450,7 +1473,7 @@ export class CopilotChatView extends ItemView {
 		openVoiceHistoryPopout(
 			this.app,
 			conversations,
-			(id) => this.deleteVoiceConversation(id),
+			(id: string) => this.deleteVoiceConversation(id),
 			() => this.deleteAllVoiceConversations()
 		);
 	}
@@ -1944,8 +1967,7 @@ export class CopilotChatView extends ItemView {
 				item.setTitle("View Tracing")
 					.setIcon("list-tree")
 					.onClick(() => {
-						const modal = new TracingModal(this.app);
-						modal.open();
+						openTracingPopout(this.app);
 					});
 			});
 		}

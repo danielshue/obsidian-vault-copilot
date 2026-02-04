@@ -5,7 +5,7 @@
  * tree-like format for debugging and inspection.
  */
 
-import { App, Menu, Modal, Platform, setIcon } from "obsidian";
+import { App, ItemView, Menu, Modal, Platform, WorkspaceLeaf, setIcon } from "obsidian";
 import { TracingService, TracingTrace, TracingSpan, TracingEvent, SDKLogEntry, getTracingService } from "../../copilot/TracingService";
 
 type TabType = 'traces' | 'sdk-logs';
@@ -67,10 +67,7 @@ function getEffectiveSource(log: { source: string; message: string }): 'voice' |
 	return 'cli';
 }
 
-/**
- * Modal for viewing traces
- */
-export class TracingModal extends Modal {
+class TracingPanel {
 	private tracingService: TracingService;
 	private tracingContentEl: HTMLElement | null = null;
 	private unsubscribe: (() => void) | null = null;
@@ -87,15 +84,12 @@ export class TracingModal extends Modal {
 		searchText: ''
 	};
 
-	constructor(app: App) {
-		super(app);
+	constructor(private readonly containerEl: HTMLElement) {
 		this.tracingService = getTracingService();
 	}
 
-	onOpen(): void {
-		const { contentEl, modalEl } = this;
-		
-		modalEl.addClass("vc-tracing-modal");
+	mount(): void {
+		const contentEl = this.containerEl;
 		contentEl.empty();
 
 		// Header
@@ -721,12 +715,65 @@ export class TracingModal extends Modal {
 		});
 	}
 
-	onClose(): void {
+	destroy(): void {
 		if (this.unsubscribe) {
 			this.unsubscribe();
 			this.unsubscribe = null;
 		}
 		this.tracingContentEl = null;
+		this.containerEl.empty();
+	}
+}
+
+/**
+ * Modal for viewing traces
+ */
+export class TracingModal extends Modal {
+	private panel: TracingPanel | null = null;
+
+	onOpen(): void {
+		const { contentEl, modalEl } = this;
+		modalEl.addClass("vc-tracing-modal");
+		this.panel = new TracingPanel(contentEl);
+		this.panel.mount();
+	}
+
+	onClose(): void {
+		this.panel?.destroy();
+		this.panel = null;
+	}
+}
+
+export const TRACING_VIEW_TYPE = "vc-tracing-view";
+
+export class TracingView extends ItemView {
+	private panel: TracingPanel | null = null;
+
+	constructor(leaf: WorkspaceLeaf) {
+		super(leaf);
+	}
+
+	getViewType(): string {
+		return TRACING_VIEW_TYPE;
+	}
+
+	getDisplayText(): string {
+		return "Tracing & Diagnostics";
+	}
+
+	getIcon(): string {
+		return "list-tree";
+	}
+
+	async onOpen(): Promise<void> {
+		this.containerEl.addClass("vc-tracing-modal");
+		this.panel = new TracingPanel(this.contentEl);
+		this.panel.mount();
+	}
+
+	async onClose(): Promise<void> {
+		this.panel?.destroy();
+		this.panel = null;
 	}
 }
 
@@ -738,11 +785,8 @@ export function openTracingPopout(app: App): void {
 	// On mobile, fall back to modal
 	if (Platform.isDesktopApp) {
 		try {
-			const leaf = app.workspace.getLeaf('window');
-			const modal = new TracingModal(app);
-			modal.open();
-			// Note: Full ItemView implementation would be more complex
-			// This provides basic pop-out functionality
+			const leaf = app.workspace.getLeaf("window");
+			leaf.setViewState({ type: TRACING_VIEW_TYPE, active: true });
 		} catch (error) {
 			console.error('[TracingModal] Failed to open pop-out window:', error);
 			// Fallback to modal

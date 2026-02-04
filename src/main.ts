@@ -1,7 +1,7 @@
 import { Plugin, Notice } from "obsidian";
-import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById } from "./settings";
+import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "./settings";
 import { GitHubCopilotCliService, GitHubCopilotCliConfig, ChatMessage } from "./copilot/GitHubCopilotCliService";
-import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/ChatView";
+import { CopilotChatView, COPILOT_VIEW_TYPE, ConversationHistoryView, TracingView, TRACING_VIEW_TYPE, VOICE_HISTORY_VIEW_TYPE } from "./ui/ChatView";
 import { GitHubCopilotCliManager } from "./copilot/GitHubCopilotCliManager";
 import { 
 	SkillRegistry, 
@@ -18,7 +18,7 @@ import { PromptCache, CachedPromptInfo } from "./copilot/PromptCache";
 import { CustomPrompt } from "./copilot/CustomizationLoader";
 import { OpenAIService } from "./copilot/OpenAIService";
 import { AzureOpenAIService } from "./copilot/AzureOpenAIService";
-import { AIProviderType, AIProvider, getOpenAIApiKey } from "./copilot/AIProvider";
+import { AIProviderType, AIProvider } from "./copilot/AIProvider";
 import { getTracingService } from "./copilot/TracingService";
 import { MainVaultAssistant } from "./realtime-agent/MainVaultAssistant";
 import { isMobile, supportsLocalProcesses } from "./utils/platform";
@@ -221,13 +221,13 @@ export default class CopilotPlugin extends Plugin {
 			const profile = getProfileById(this.settings, this.settings.chatProviderProfileId);
 			if (profile?.type === "openai") {
 				// Initialize OpenAI service on demand
-				if (!this.openaiService && (profile as OpenAIProviderProfile).apiKey) {
+				if (!this.openaiService && getOpenAIProfileApiKey(this.app, profile as OpenAIProviderProfile)) {
 					this.initializeOpenAIService(profile as OpenAIProviderProfile);
 				}
 				return this.openaiService;
 			} else if (profile?.type === "azure-openai") {
 				// Initialize Azure service on demand
-				if (!this.azureOpenaiService && (profile as AzureOpenAIProviderProfile).apiKey) {
+				if (!this.azureOpenaiService && getAzureProfileApiKey(this.app, profile as AzureOpenAIProviderProfile)) {
 					this.initializeAzureService(profile as AzureOpenAIProviderProfile);
 				}
 				return this.azureOpenaiService;
@@ -256,11 +256,12 @@ export default class CopilotPlugin extends Plugin {
 	 */
 	private initializeOpenAIService(profile: OpenAIProviderProfile): void {
 		try {
+			const apiKey = getOpenAIProfileApiKey(this.app, profile);
 			this.openaiService = new OpenAIService(this.app, {
 				provider: "openai",
 				model: profile.model || "gpt-4o",
 				streaming: true,
-				apiKey: profile.apiKey,
+				apiKey,
 				baseURL: profile.baseURL,
 				mcpManager: this.mcpManager,
 			});
@@ -274,11 +275,12 @@ export default class CopilotPlugin extends Plugin {
 	 */
 	private initializeAzureService(profile: AzureOpenAIProviderProfile): void {
 		try {
+			const apiKey = getAzureProfileApiKey(this.app, profile);
 			this.azureOpenaiService = new AzureOpenAIService(this.app, {
 				provider: "azure-openai",
 				model: profile.model || "gpt-4o",
 				streaming: true,
-				apiKey: profile.apiKey,
+				apiKey: apiKey || "",
 				endpoint: profile.endpoint,
 				deploymentName: profile.deploymentName,
 				apiVersion: profile.apiVersion,
@@ -295,13 +297,15 @@ export default class CopilotPlugin extends Plugin {
 	private initializeOpenAIServiceFromSettings(): void {
 		// This is for backward compatibility with legacy settings
 		// In practice, users should use profiles
-		const apiKey = getOpenAIApiKey();
+		const apiKey = getLegacyOpenAIKey(this.app, this.settings);
 		if (apiKey) {
 			this.initializeOpenAIService({
 				id: "legacy-openai",
 				name: "OpenAI (Legacy)",
 				type: "openai",
-				apiKey: apiKey,
+				apiKeySecretId: this.settings.openai?.apiKeySecretId,
+				baseURL: this.settings.openai?.baseURL || undefined,
+				model: this.settings.openai?.model,
 			});
 		}
 	}
@@ -393,6 +397,16 @@ export default class CopilotPlugin extends Plugin {
 		this.registerView(
 			COPILOT_VIEW_TYPE,
 			(leaf) => new CopilotChatView(leaf, this, this.githubCopilotCliService)
+		);
+
+		this.registerView(
+			TRACING_VIEW_TYPE,
+			(leaf) => new TracingView(leaf)
+		);
+
+		this.registerView(
+			VOICE_HISTORY_VIEW_TYPE,
+			(leaf) => new ConversationHistoryView(leaf, this)
 		);
 
 		// Add ribbon icon to open chat
@@ -537,16 +551,13 @@ export default class CopilotPlugin extends Plugin {
 		let profile: AIProviderProfile | null = null;
 
 		if (backend === 'openai-whisper') {
-			// Check if there's an API key configured (either inline or from env)
-			const { getOpenAIApiKey } = await import('./copilot/AIProvider');
-			const apiKey = this.settings.openai?.apiKey || getOpenAIApiKey() || '';
-			
-			if (apiKey) {
+			const secretId = this.settings.openai?.apiKeySecretId;
+			if (secretId) {
 				profile = {
 					id: generateProfileId(),
 					name: 'OpenAI (Migrated)',
 					type: 'openai',
-					apiKey: this.settings.openai?.apiKey || '', // Only store inline key, not env
+					apiKeySecretId: secretId,
 					baseURL: this.settings.openai?.baseURL || undefined,
 				};
 			}
@@ -554,12 +565,10 @@ export default class CopilotPlugin extends Plugin {
 			// Check if Azure settings are configured
 			const azure = this.settings.voice.azure;
 			if (azure?.endpoint && azure?.deploymentName) {
-				const { getAzureOpenAIApiKey } = await import('./voice-chat/AzureWhisperService');
 				profile = {
 					id: generateProfileId(),
 					name: 'Azure OpenAI (Migrated)',
 					type: 'azure-openai',
-					apiKey: '', // Azure key must be in env variable
 					endpoint: azure.endpoint,
 					deploymentName: azure.deploymentName,
 					apiVersion: azure.apiVersion,
@@ -712,11 +721,12 @@ export default class CopilotPlugin extends Plugin {
 		if (provider === "openai") {
 			// Connect to OpenAI using legacy settings
 			if (!this.openaiService) {
+				const apiKey = getLegacyOpenAIKey(this.app, this.settings);
 				this.openaiService = new OpenAIService(this.app, {
 					provider: "openai",
 					model: this.settings.openai.model,
 					streaming: this.settings.streaming,
-					apiKey: this.settings.openai.apiKey || undefined,
+					apiKey,
 					baseURL: this.settings.openai.baseURL || undefined,
 					organization: this.settings.openai.organization || undefined,
 					maxTokens: this.settings.openai.maxTokens,
@@ -756,11 +766,12 @@ export default class CopilotPlugin extends Plugin {
 		if (!this.openaiService) {
 			// Use profile model if set, otherwise use default
 			const model = profile.model || this.settings.openai.model || "gpt-4o";
+			const apiKey = getOpenAIProfileApiKey(this.app, profile);
 			this.openaiService = new OpenAIService(this.app, {
 				provider: "openai",
 				model: model,
 				streaming: this.settings.streaming,
-				apiKey: profile.apiKey || undefined,
+				apiKey,
 				baseURL: profile.baseURL || undefined,
 				maxTokens: this.settings.openai.maxTokens,
 				temperature: this.settings.openai.temperature,
@@ -788,13 +799,14 @@ export default class CopilotPlugin extends Plugin {
 			
 			// Use profile model if set, otherwise use deployment name
 			const model = profile.model || profile.deploymentName;
+			const apiKey = getAzureProfileApiKey(this.app, profile);
 			
 			this.azureOpenaiService = new AzureOpenAIService(this.app, {
 				provider: "azure-openai",
 				model: model,
 				deploymentName: profile.deploymentName,
 				streaming: this.settings.streaming,
-				apiKey: profile.apiKey,
+				apiKey: apiKey || "",
 				endpoint: profile.endpoint,
 				apiVersion: profile.apiVersion,
 				maxTokens: this.settings.openai.maxTokens,

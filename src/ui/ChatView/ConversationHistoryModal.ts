@@ -1,10 +1,11 @@
-import { Modal, App, Notice, Platform, setIcon } from "obsidian";
+import { App, ItemView, Modal, Notice, Platform, WorkspaceLeaf, setIcon } from "obsidian";
 import { VoiceConversation, VoiceMessage } from "../../settings";
+import type CopilotPlugin from "../../main";
 
 type SortField = 'date' | 'name' | 'messages';
 type SortOrder = 'asc' | 'desc';
 
-export class ConversationHistoryModal extends Modal {
+class ConversationHistoryPanel {
 	private conversations: VoiceConversation[];
 	private onDelete: (id: string) => void;
 	private onDeleteAll: () => void;
@@ -14,21 +15,21 @@ export class ConversationHistoryModal extends Modal {
 	private tableContainer: HTMLElement | null = null;
 
 	constructor(
-		app: App,
+		private readonly app: App,
+		private readonly containerEl: HTMLElement,
 		conversations: VoiceConversation[],
 		onDelete: (id: string) => void,
 		onDeleteAll: () => void
 	) {
-		super(app);
 		this.conversations = conversations;
 		this.onDelete = onDelete;
 		this.onDeleteAll = onDeleteAll;
 	}
 
-	onOpen() {
-		const { contentEl, modalEl } = this;
-		modalEl.addClass("vc-conversation-history-modal");
+	mount(): void {
+		const contentEl = this.containerEl;
 		contentEl.empty();
+		contentEl.addClass("vc-conversation-history-modal");
 
 		// Header
 		const headerEl = contentEl.createDiv({ cls: "vc-conv-history-header" });
@@ -429,9 +430,87 @@ export class ConversationHistoryModal extends Modal {
 		return lines.join("\n");
 	}
 
+	destroy(): void {
+		this.containerEl.empty();
+	}
+}
+
+export class ConversationHistoryModal extends Modal {
+	private panel: ConversationHistoryPanel | null = null;
+
+	constructor(
+		app: App,
+		private readonly conversations: VoiceConversation[],
+		private readonly onDelete: (id: string) => void,
+		private readonly onDeleteAll: () => void
+	) {
+		super(app);
+	}
+
+	onOpen() {
+		this.modalEl.addClass("vc-conversation-history-modal");
+		this.panel = new ConversationHistoryPanel(this.app, this.contentEl, this.conversations, this.onDelete, this.onDeleteAll);
+		this.panel.mount();
+	}
+
 	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
+		this.panel?.destroy();
+		this.panel = null;
+	}
+}
+
+export const VOICE_HISTORY_VIEW_TYPE = "vc-voice-history-view";
+
+export class ConversationHistoryView extends ItemView {
+	private panel: ConversationHistoryPanel | null = null;
+
+	constructor(leaf: WorkspaceLeaf, private readonly plugin: CopilotPlugin) {
+		super(leaf);
+	}
+
+	getViewType(): string {
+		return VOICE_HISTORY_VIEW_TYPE;
+	}
+
+	getDisplayText(): string {
+		return "Voice Conversation History";
+	}
+
+	getIcon(): string {
+		return "history";
+	}
+
+	async onOpen(): Promise<void> {
+		const conversations = this.plugin.settings.voice?.conversations || [];
+		this.panel = new ConversationHistoryPanel(
+			this.app,
+			this.contentEl,
+			conversations,
+			(id: string) => this.deleteVoiceConversation(id),
+			() => this.deleteAllVoiceConversations()
+		);
+		this.panel.mount();
+	}
+
+	async onClose(): Promise<void> {
+		this.panel?.destroy();
+		this.panel = null;
+	}
+
+	private deleteVoiceConversation(id: string): void {
+		if (!this.plugin.settings.voice?.conversations) return;
+		const idx = this.plugin.settings.voice.conversations.findIndex(c => c.id === id);
+		if (idx > -1) {
+			this.plugin.settings.voice.conversations.splice(idx, 1);
+			this.plugin.saveSettings();
+		}
+	}
+
+	private deleteAllVoiceConversations(): void {
+		if (this.plugin.settings.voice) {
+			this.plugin.settings.voice.conversations = [];
+			this.plugin.saveSettings();
+		}
 	}
 }
 
@@ -448,11 +527,8 @@ export function openVoiceHistoryPopout(
 	// On mobile, fall back to modal
 	if (Platform.isDesktopApp) {
 		try {
-			const leaf = app.workspace.getLeaf('window');
-			const modal = new ConversationHistoryModal(app, conversations, onDelete, onDeleteAll);
-			modal.open();
-			// Note: Full ItemView implementation would be more complex
-			// This provides basic pop-out functionality
+			const leaf = app.workspace.getLeaf("window");
+			leaf.setViewState({ type: VOICE_HISTORY_VIEW_TYPE, active: true });
 		} catch (error) {
 			console.error('[ConversationHistoryModal] Failed to open pop-out window:', error);
 			// Fallback to modal

@@ -1,4 +1,4 @@
-import { App, Modal, PluginSettingTab, Setting, Notice, FileSystemAdapter } from "obsidian";
+import { App, DropdownComponent, Modal, PluginSettingTab, Setting, Notice, FileSystemAdapter } from "obsidian";
 import CopilotPlugin from "./main";
 import { GitHubCopilotCliManager, CliStatus } from "./copilot/GitHubCopilotCliManager";
 import { SkillInfo, SkillRegistryEvent, McpServerConfig } from "./copilot/SkillRegistry";
@@ -14,6 +14,7 @@ import { OpenAIService } from "./copilot/OpenAIService";
 import { RealtimeVoice, TurnDetectionMode, RealtimeToolConfig, DEFAULT_TOOL_CONFIG } from "./voice-chat";
 import { periodicNoteIcons, wrapIcon } from "./ui/assets/periodicNotesIcons";
 import { isMobile, isProviderAvailable } from "./utils/platform";
+import { getSecretValue } from "./utils/secrets";
 
 // Robot mascot logo (base64 encoded PNG, 48x48)
 const COPILOT_LOGO_DATA_URL = "data:image/png;base64,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";
@@ -58,8 +59,8 @@ export interface VoiceMessage {
 export interface OpenAISettings {
 	/** Whether OpenAI is enabled */
 	enabled: boolean;
-	/** OpenAI API key (optional if OPENAI_API_KEY env var is set) */
-	apiKey: string;
+	/** Secret ID referencing the OpenAI API key stored in SecretStorage */
+	apiKeySecretId?: string | null;
 	/** OpenAI model to use */
 	model: string;
 	/** Base URL for OpenAI API (optional, for Azure or custom endpoints) */
@@ -97,8 +98,8 @@ export interface CopilotProviderProfile extends AIProviderProfileBase {
 /** OpenAI provider profile configuration */
 export interface OpenAIProviderProfile extends AIProviderProfileBase {
 	type: 'openai';
-	/** OpenAI API key */
-	apiKey: string;
+	/** Secret ID referencing an OpenAI API key */
+	apiKeySecretId?: string | null;
 	/** Custom base URL (optional, for compatible APIs) */
 	baseURL?: string;
 	/** Selected model for this profile */
@@ -108,8 +109,8 @@ export interface OpenAIProviderProfile extends AIProviderProfileBase {
 /** Azure OpenAI provider profile configuration */
 export interface AzureOpenAIProviderProfile extends AIProviderProfileBase {
 	type: 'azure-openai';
-	/** Azure OpenAI API key */
-	apiKey: string;
+	/** Secret ID referencing an Azure OpenAI API key */
+	apiKeySecretId?: string | null;
 	/** Azure OpenAI endpoint (e.g., https://your-resource.openai.azure.com) */
 	endpoint: string;
 	/** Deployment name for the model */
@@ -199,9 +200,9 @@ export function profileTypeToBackend(type: AIProviderProfileType): 'openai-whisp
 /** Configuration for VoiceChatService derived from a profile */
 export interface VoiceServiceConfigFromProfile {
 	backend: 'openai-whisper' | 'azure-whisper' | 'local-whisper';
-	openaiApiKey?: string;
+	openaiApiKeySecretId?: string;
 	openaiBaseUrl?: string;
-	azureApiKey?: string;
+	azureApiKeySecretId?: string;
 	azureEndpoint?: string;
 	azureDeploymentName?: string;
 	azureApiVersion?: string;
@@ -225,11 +226,11 @@ export function getVoiceServiceConfigFromProfile(
 
 	if (profile.type === 'openai') {
 		const openai = profile as OpenAIProviderProfile;
-		config.openaiApiKey = openai.apiKey || undefined;
+		config.openaiApiKeySecretId = openai.apiKeySecretId || undefined;
 		config.openaiBaseUrl = openai.baseURL || undefined;
 	} else if (profile.type === 'azure-openai') {
 		const azure = profile as AzureOpenAIProviderProfile;
-		config.azureApiKey = azure.apiKey || undefined;
+		config.azureApiKeySecretId = azure.apiKeySecretId || undefined;
 		config.azureEndpoint = azure.endpoint;
 		config.azureDeploymentName = azure.deploymentName;
 		config.azureApiVersion = azure.apiVersion;
@@ -239,6 +240,101 @@ export function getVoiceServiceConfigFromProfile(
 	}
 
 	return config;
+}
+
+/** Resolve the OpenAI API key for a provider profile (secret + env fallback). */
+export function getOpenAIProfileApiKey(app: App, profile?: OpenAIProviderProfile | null): string | undefined {
+	return getSecretValue(app, profile?.apiKeySecretId) || getOpenAIApiKey();
+}
+
+/** Resolve the Azure OpenAI API key for a provider profile (secret + env fallback). */
+export function getAzureProfileApiKey(app: App, profile?: AzureOpenAIProviderProfile | null): string | undefined {
+	const secret = getSecretValue(app, profile?.apiKeySecretId);
+	if (secret) {
+		return secret;
+	}
+	if (typeof process !== 'undefined' && process.env) {
+		return process.env.AZURE_OPENAI_KEY || process.env.AZURE_OPENAI_API_KEY;
+	}
+	return undefined;
+}
+
+/** Resolve the legacy OpenAI API key stored under plugin settings + env fallback. */
+export function getLegacyOpenAIKey(app: App, settings: CopilotPluginSettings): string | undefined {
+	return getSecretValue(app, settings.openai?.apiKeySecretId) || getOpenAIApiKey();
+}
+
+interface SecretCreationOptions {
+	title: string;
+	description?: string;
+	defaultId: string;
+	placeholder?: string;
+	onSubmit: (secretId: string, secretValue: string) => void;
+}
+
+class SecretCreationModal extends Modal {
+	private secretId: string;
+	private secretValue = "";
+
+	constructor(app: App, private readonly options: SecretCreationOptions) {
+		super(app);
+		this.secretId = options.defaultId;
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass("vc-secret-modal");
+		contentEl.createEl("h2", { text: this.options.title });
+		if (this.options.description) {
+			contentEl.createEl("p", { text: this.options.description, cls: "vc-status-desc" });
+		}
+
+		new Setting(contentEl)
+			.setName("Secret name")
+			.setDesc("This label appears in Obsidian's Keychain")
+			.addText((text) => {
+				text.setPlaceholder("openai-production");
+				text.setValue(this.secretId);
+				text.onChange((value) => {
+					this.secretId = value.trim();
+				});
+			});
+
+		new Setting(contentEl)
+			.setName("Secret value")
+			.setDesc("Paste the API key")
+			.addText((text) => {
+				text.setPlaceholder(this.options.placeholder ?? "sk-...");
+				text.inputEl.type = "password";
+				text.inputEl.autocomplete = "off";
+				text.inputEl.spellcheck = false;
+				text.onChange((value) => {
+					this.secretValue = value.trim();
+				});
+			});
+
+		const buttonBar = contentEl.createDiv({ cls: "modal-button-container" });
+		const cancelBtn = buttonBar.createEl("button", { text: "Cancel" });
+		cancelBtn.addEventListener("click", () => this.close());
+		const saveBtn = buttonBar.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.addEventListener("click", () => this.handleSubmit());
+	}
+
+	private handleSubmit(): void {
+		const trimmedId = this.secretId.trim();
+		if (!trimmedId) {
+			new Notice("Provide a secret name.");
+			return;
+		}
+		if (!this.secretValue) {
+			new Notice("Provide a secret value.");
+			return;
+		}
+		this.options.onSubmit(trimmedId, this.secretValue);
+		this.secretValue = "";
+		this.close();
+	}
 }
 
 /**
@@ -311,7 +407,7 @@ export class AIProviderProfileModal extends Modal {
 						delete (this.profile as any).serverUrl;
 						delete (this.profile as any).modelName;
 					} else if (value === 'local') {
-						delete (this.profile as any).apiKey;
+						delete (this.profile as any).apiKeySecretId;
 						delete (this.profile as any).baseURL;
 						delete (this.profile as any).endpoint;
 						delete (this.profile as any).deploymentName;
@@ -351,21 +447,97 @@ export class AIProviderProfileModal extends Modal {
 		}
 	}
 
+	private generateSecretId(prefix: string, existing?: string[]): string {
+		const taken = new Set(existing ?? this.app.secretStorage?.listSecrets?.() ?? []);
+		let candidate = '';
+		do {
+			candidate = `${prefix}-${Math.random().toString(36).substring(2, 8)}`;
+		} while (taken.has(candidate));
+		return candidate;
+	}
+
+	private populateSecretDropdown(dropdown: DropdownComponent, selectedId?: string | null): void {
+		dropdown.selectEl.empty();
+		const storage = this.app.secretStorage;
+		if (!storage?.listSecrets) {
+			dropdown.addOption('', 'Keychain not available');
+			dropdown.setDisabled(true);
+			return;
+		}
+
+		let secrets: string[] = [];
+		try {
+			secrets = storage.listSecrets?.() ?? [];
+		} catch (error) {
+			console.error('[AIProviderProfileModal] Failed to list secrets:', error);
+			dropdown.addOption('', 'Unable to load secrets');
+			dropdown.setDisabled(true);
+			return;
+		}
+
+		dropdown.setDisabled(false);
+		dropdown.addOption('', secrets.length ? 'Select a secret' : 'No secrets saved');
+		secrets.forEach((id) => dropdown.addOption(id, id));
+		if (selectedId && secrets.includes(selectedId)) {
+			dropdown.setValue(selectedId);
+		} else {
+			dropdown.setValue('');
+		}
+	}
+
+	private openSecretCreationModal(options: { providerName: string; prefix: string; placeholder?: string; onSuccess: (secretId: string) => void; }): void {
+		if (!this.app.secretStorage) {
+			new Notice('SecretStorage is not available in this version of Obsidian.');
+			return;
+		}
+		const existing = this.app.secretStorage.listSecrets?.() ?? [];
+		const modal = new SecretCreationModal(this.app, {
+			title: `Save ${options.providerName} API key`,
+			description: 'Secrets are stored securely in Obsidian\'s Keychain and shared across plugins.',
+			defaultId: this.generateSecretId(options.prefix, existing),
+			placeholder: options.placeholder,
+			onSubmit: (secretId, secretValue) => {
+				this.app.secretStorage!.setSecret(secretId, secretValue);
+				options.onSuccess(secretId);
+				new Notice(`${options.providerName} API key saved to Keychain.`);
+			},
+		});
+		modal.open();
+	}
+
 	private renderOpenAIFields(): void {
 		const container = this.conditionalContainer!;
 
-		// API Key
-		new Setting(container)
-			.setName('API Key')
-			.setDesc('Your OpenAI API key. Leave empty to use OPENAI_API_KEY environment variable. API keys are stored securely in Obsidian\'s encrypted keychain.')
-			.addText((text) => {
-				text.setPlaceholder('sk-...');
-				text.setValue((this.profile as OpenAIProviderProfile).apiKey || '');
-				text.inputEl.type = 'password';
-				text.onChange((value) => {
-					(this.profile as OpenAIProviderProfile).apiKey = value;
+		const apiKeySetting = new Setting(container)
+			.setName('API key')
+			.setDesc('Select an OpenAI API key stored in Obsidian\'s Keychain. Use the (+) button to save a new key.');
+
+		let apiKeyDropdown: DropdownComponent | null = null;
+		apiKeySetting.addDropdown((dropdown) => {
+			apiKeyDropdown = dropdown;
+			this.populateSecretDropdown(dropdown, (this.profile as OpenAIProviderProfile).apiKeySecretId || null);
+			dropdown.onChange((value) => {
+				(this.profile as OpenAIProviderProfile).apiKeySecretId = value || undefined;
+			});
+		});
+
+		apiKeySetting.addExtraButton((button) => {
+			button.setIcon('plus');
+			button.setTooltip('Create new secret');
+			button.onClick(() => {
+				this.openSecretCreationModal({
+					providerName: 'OpenAI',
+					prefix: 'openai',
+					placeholder: 'sk-...',
+					onSuccess: (secretId) => {
+						if (apiKeyDropdown) {
+							this.populateSecretDropdown(apiKeyDropdown, secretId);
+						}
+						(this.profile as OpenAIProviderProfile).apiKeySecretId = secretId;
+					},
 				});
 			});
+		});
 
 		// Base URL (optional)
 		new Setting(container)
@@ -383,18 +555,36 @@ export class AIProviderProfileModal extends Modal {
 	private renderAzureFields(): void {
 		const container = this.conditionalContainer!;
 
-		// API Key
-		new Setting(container)
-			.setName('API Key')
-			.setDesc('Your Azure OpenAI API key. Leave empty to use AZURE_OPENAI_KEY environment variable. API keys are stored securely in Obsidian\'s encrypted keychain.')
-			.addText((text) => {
-				text.setPlaceholder('');
-				text.setValue((this.profile as AzureOpenAIProviderProfile).apiKey || '');
-				text.inputEl.type = 'password';
-				text.onChange((value) => {
-					(this.profile as AzureOpenAIProviderProfile).apiKey = value;
+		const apiKeySetting = new Setting(container)
+			.setName('API key')
+			.setDesc('Select an Azure OpenAI API key stored in Obsidian\'s Keychain. Use (+) to add a new key.');
+
+		let azureKeyDropdown: DropdownComponent | null = null;
+		apiKeySetting.addDropdown((dropdown) => {
+			azureKeyDropdown = dropdown;
+			this.populateSecretDropdown(dropdown, (this.profile as AzureOpenAIProviderProfile).apiKeySecretId || null);
+			dropdown.onChange((value) => {
+				(this.profile as AzureOpenAIProviderProfile).apiKeySecretId = value || undefined;
+			});
+		});
+
+		apiKeySetting.addExtraButton((button) => {
+			button.setIcon('plus');
+			button.setTooltip('Create new secret');
+			button.onClick(() => {
+				this.openSecretCreationModal({
+					providerName: 'Azure OpenAI',
+					prefix: 'azure-openai',
+					placeholder: 'azure-key-...',
+					onSuccess: (secretId) => {
+						if (azureKeyDropdown) {
+							this.populateSecretDropdown(azureKeyDropdown, secretId);
+						}
+						(this.profile as AzureOpenAIProviderProfile).apiKeySecretId = secretId;
+					},
 				});
 			});
+		});
 
 		// Endpoint (required)
 		new Setting(container)
@@ -919,7 +1109,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	},
 	openai: {
 		enabled: false,
-		apiKey: "",
+		apiKeySecretId: undefined,
 		model: "gpt-4o",
 		baseURL: "",
 		organization: "",
@@ -1052,7 +1242,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 		const settings = this.plugin.settings;
 		const hasProfiles = (settings.aiProviderProfiles?.length ?? 0) > 0;
 		const hasSelectedProfiles = !!settings.chatProviderProfileId || !!settings.voiceInputProfileId || !!settings.realtimeAgentProfileId;
-		const hasOpenAiKey = !!settings.openai?.apiKey;
+		const hasOpenAiKey = !!settings.openai?.apiKeySecretId;
 		const hasVoiceEnabled = !!settings.voice?.voiceInputEnabled || !!settings.voice?.realtimeAgentEnabled;
 		return hasProfiles || hasSelectedProfiles || hasOpenAiKey || hasVoiceEnabled;
 	}
@@ -1425,11 +1615,12 @@ export class CopilotSettingTab extends PluginSettingTab {
 									
 									if (profile.type === 'openai') {
 										// Fetch models from OpenAI API
+										const apiKey = getOpenAIProfileApiKey(this.app, profile as OpenAIProviderProfile);
 										const service = this.plugin.openaiService || new (await import('./copilot/OpenAIService')).OpenAIService(this.app, {
 											provider: 'openai',
 											model: 'gpt-4o',
 											streaming: false,
-											apiKey: (profile as OpenAIProviderProfile).apiKey,
+											apiKey,
 											baseURL: (profile as OpenAIProviderProfile).baseURL,
 										});
 										
@@ -1437,11 +1628,12 @@ export class CopilotSettingTab extends PluginSettingTab {
 										models = await service.listModels();
 									} else if (profile.type === 'azure-openai') {
 										// For Azure, we provide the static list
+										const apiKey = getAzureProfileApiKey(this.app, profile as AzureOpenAIProviderProfile);
 										const service = new (await import('./copilot/AzureOpenAIService')).AzureOpenAIService(this.app, {
 											provider: 'azure-openai',
 											model: 'gpt-4o',
 											streaming: false,
-											apiKey: (profile as AzureOpenAIProviderProfile).apiKey,
+											apiKey: apiKey || '',
 											endpoint: (profile as AzureOpenAIProviderProfile).endpoint,
 											deploymentName: (profile as AzureOpenAIProviderProfile).deploymentName,
 											apiVersion: (profile as AzureOpenAIProviderProfile).apiVersion,
@@ -2648,11 +2840,12 @@ export class CopilotSettingTab extends PluginSettingTab {
 							
 							if (selectedProfile.type === 'openai') {
 								const OpenAIServiceModule = await import('./copilot/OpenAIService');
+								const apiKey = getOpenAIProfileApiKey(this.app, selectedProfile as OpenAIProviderProfile);
 								const service = new OpenAIServiceModule.OpenAIService(this.app, {
 									provider: 'openai',
 									model: 'gpt-4o',
 									streaming: false,
-									apiKey: (selectedProfile as any).apiKey,
+									apiKey,
 									baseURL: (selectedProfile as any).baseURL,
 								});
 								
@@ -2660,11 +2853,12 @@ export class CopilotSettingTab extends PluginSettingTab {
 								models = await service.listAudioModels();
 							} else if (selectedProfile.type === 'azure-openai') {
 								const AzureOpenAIServiceModule = await import('./copilot/AzureOpenAIService');
+								const apiKey = getAzureProfileApiKey(this.app, selectedProfile as AzureOpenAIProviderProfile);
 								const service = new AzureOpenAIServiceModule.AzureOpenAIService(this.app, {
 									provider: 'azure-openai',
 									model: 'gpt-4o',
 									streaming: false,
-									apiKey: (selectedProfile as any).apiKey,
+									apiKey: apiKey || '',
 									endpoint: (selectedProfile as any).endpoint,
 									deploymentName: (selectedProfile as any).deploymentName,
 									apiVersion: (selectedProfile as any).apiVersion,
@@ -2891,11 +3085,12 @@ export class CopilotSettingTab extends PluginSettingTab {
 							// Only OpenAI is supported for realtime models
 							if (selectedProfile.type === 'openai') {
 								const OpenAIServiceModule = await import('./copilot/OpenAIService');
+								const apiKey = getOpenAIProfileApiKey(this.app, selectedProfile as OpenAIProviderProfile);
 								const service = new OpenAIServiceModule.OpenAIService(this.app, {
 									provider: 'openai',
 									model: 'gpt-4o',
 									streaming: false,
-									apiKey: (selectedProfile as any).apiKey,
+									apiKey,
 									baseURL: (selectedProfile as any).baseURL,
 								});
 								
