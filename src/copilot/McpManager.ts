@@ -21,7 +21,7 @@ import {
 	getSourceLabel,
 	getSourceIcon,
 } from "./McpConfigDiscovery";
-import { createMcpClient, McpClient, isStdioMcpClient } from "./McpClientFactory";
+import { createMcpClient, McpClient, isStdioMcpClient, StdioMcpClientEvent } from "./McpClientFactory";
 import type { App, Platform } from "obsidian";
 import { supportsLocalProcesses } from "../utils/platform";
 import * as fs from "fs";
@@ -240,7 +240,7 @@ export class McpManager {
 		
 		// For StdioMcpClient, set up event handlers using type guard
 		if (isStdioMcpClient(client)) {
-			client.on((event: any) => {
+			client.on((event: StdioMcpClientEvent) => {
 				switch (event.type) {
 					case "connected":
 						this.updateServerStatus(id, "connected");

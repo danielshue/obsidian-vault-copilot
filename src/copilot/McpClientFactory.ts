@@ -8,6 +8,15 @@ import { McpServerConfig, McpConnectionStatus, McpTool, isStdioConfig, isHttpCon
 import { HttpMcpClient } from "./HttpMcpClient";
 
 /**
+ * Event listener type for stdio MCP clients
+ */
+export type StdioMcpClientEvent = 
+	| { type: "connected" }
+	| { type: "disconnected"; error?: string }
+	| { type: "error"; error: string }
+	| { type: "tools"; tools: McpTool[] };
+
+/**
  * Common interface for all MCP clients
  */
 export interface McpClient {
@@ -23,7 +32,7 @@ export interface McpClient {
  * Extended interface for stdio-based MCP clients with additional methods
  */
 export interface StdioMcpClientInterface extends McpClient {
-	on(listener: (event: any) => void): void;
+	on(listener: (event: StdioMcpClientEvent) => void): void;
 	getPid(): number | undefined;
 }
 
@@ -31,7 +40,7 @@ export interface StdioMcpClientInterface extends McpClient {
  * Type guard to check if a client is a stdio-based client
  */
 export function isStdioMcpClient(client: McpClient): client is StdioMcpClientInterface {
-	return "on" in client && typeof (client as any).on === "function";
+	return "on" in client && typeof (client as unknown as StdioMcpClientInterface).on === "function";
 }
 
 /**
