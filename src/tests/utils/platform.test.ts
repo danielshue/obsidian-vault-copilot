@@ -2,8 +2,7 @@
  * Tests for platform utilities
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { Platform } from "obsidian";
+import { describe, it, expect } from "vitest";
 import {
 	isMobile,
 	isDesktop,

@@ -1,4 +1,4 @@
-import { Plugin, Notice, WorkspaceLeaf, Platform } from "obsidian";
+import { Plugin, Notice } from "obsidian";
 import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById } from "./settings";
 import { CopilotService, CopilotServiceConfig, ChatMessage } from "./copilot/CopilotService";
 import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/ChatView";
@@ -21,8 +21,7 @@ import { AzureOpenAIService } from "./copilot/AzureOpenAIService";
 import { AIProviderType, AIProvider } from "./copilot/AIProvider";
 import { getTracingService } from "./copilot/TracingService";
 import { MainVaultAssistant } from "./realtime-agent/MainVaultAssistant";
-import { createAIProvider } from "./copilot/AIProviderFactory";
-import { isMobile, isProviderAvailable, supportsLocalProcesses } from "./utils/platform";
+import { isMobile, supportsLocalProcesses } from "./utils/platform";
 
 /**
  * Session info returned by the API

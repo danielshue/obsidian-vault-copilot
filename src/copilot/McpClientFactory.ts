@@ -62,9 +62,15 @@ export async function createMcpClient(config: McpServerConfig): Promise<McpClien
 		}
 		
 		// Dynamic import to avoid loading child_process on mobile
-		const { StdioMcpClient } = await import("./StdioMcpClient");
-		return new StdioMcpClient(config);
+		try {
+			const { StdioMcpClient } = await import("./StdioMcpClient");
+			return new StdioMcpClient(config);
+		} catch (error) {
+			throw new Error(
+				`Failed to load stdio MCP client for "${config.name}": ${error instanceof Error ? error.message : String(error)}`
+			);
+		}
 	}
 
-	throw new Error(`Unknown MCP transport: ${(config as any).transport}`);
+	throw new Error(`Unknown MCP transport: ${(config as unknown as { transport: string }).transport}`);
 }

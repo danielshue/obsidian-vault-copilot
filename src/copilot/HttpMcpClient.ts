@@ -53,6 +53,14 @@ export class HttpMcpClient {
 
 	constructor(config: HttpMcpServerConfig) {
 		this.config = config;
+		
+		// Warn if URL is not HTTPS (when API key is present)
+		if (config.apiKey && !config.url.startsWith("https://")) {
+			console.warn(
+				`[HttpMcpClient] Warning: MCP server "${config.name}" uses HTTP instead of HTTPS. ` +
+				`API credentials may be transmitted insecurely. Consider using HTTPS for production.`
+			);
+		}
 	}
 
 	/**

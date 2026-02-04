@@ -4,7 +4,6 @@
 
 import { describe, it, expect } from "vitest";
 import {
-	httpRequest,
 	HttpRequestOptions,
 	HttpResponse,
 } from "../../utils/http";

@@ -47,9 +47,33 @@ export async function httpRequest<T = unknown>(
 
 	const response = await requestUrl(params);
 
+	// Handle non-JSON responses gracefully
+	let data: unknown;
+	if (response.json !== undefined && response.json !== null) {
+		// Pre-parsed JSON is available
+		data = response.json;
+	} else {
+		// Fallback: check Content-Type header
+		const headers = response.headers || {};
+		const contentType = headers["content-type"] || headers["Content-Type"] || "";
+		
+		if (typeof contentType === "string" && contentType.includes("application/json")) {
+			// Attempt to parse JSON from text
+			try {
+				data = JSON.parse(response.text);
+			} catch {
+				// Parsing failed, return raw text
+				data = response.text;
+			}
+		} else {
+			// Non-JSON response
+			data = response.text;
+		}
+	}
+
 	return {
 		status: response.status,
-		data: response.json as T,
+		data: data as T,
 		headers: response.headers,
 	};
 }

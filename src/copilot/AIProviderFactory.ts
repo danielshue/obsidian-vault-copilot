@@ -4,7 +4,7 @@
  * Ensures providers are only instantiated on compatible platforms
  */
 
-import { App, Platform, Notice } from "obsidian";
+import { App, Platform } from "obsidian";
 import { AIProvider, AIProviderConfig, OpenAIProviderConfig, AzureOpenAIProviderConfig, CopilotProviderConfig } from "./AIProvider";
 import { OpenAIService } from "./OpenAIService";
 import { AzureOpenAIService } from "./AzureOpenAIService";
