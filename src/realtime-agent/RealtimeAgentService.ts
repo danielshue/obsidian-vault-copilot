@@ -96,6 +96,7 @@ export class RealtimeAgentService {
 	 */
 	private setState(newState: RealtimeAgentState): void {
 		if (this.state !== newState) {
+			logger.info(`[STATE CHANGE] ${this.state} -> ${newState}`);
 			this.state = newState;
 			this.emit("stateChange", newState);
 		}
@@ -423,6 +424,25 @@ Remember: If you find yourself typing out instructions or code instead of callin
 			}
 		});
 
+		// Handle user started speaking (listening state)
+		// Use type assertion as this event may not be in the SDK's typed events
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(this.session as any).on("input_audio_buffer_speech_started", () => {
+			logger.debug("User started speaking");
+			if (this.state === "connected") {
+				this.setState("listening");
+			}
+		});
+
+		// Handle user stopped speaking
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(this.session as any).on("input_audio_buffer_speech_stopped", () => {
+			logger.debug("User stopped speaking");
+			if (this.state === "listening") {
+				this.setState("connected");
+			}
+		});
+
 		// Handle agent tool calls
 		this.session.on(
 			"agent_tool_start",
@@ -467,14 +487,73 @@ Remember: If you find yourself typing out instructions or code instead of callin
 			}
 		);
 
-		// Debug: Log raw transport events to see what's coming from the API
+		// Debug: Try to capture all possible listening/audio events from WebRTC
+		const audioEventNames = [
+			"input_audio_buffer_speech_started",
+			"input_audio_buffer_speech_stopped",
+			"input_audio_buffer_committed",
+			"input_audio_buffer_cleared",
+			"input_audio_buffer_statistics_updated",
+			"response_created",
+			"response_done",
+			"content_block_start",
+			"content_block_delta",
+			"conversation_item_input_audio_transcription_started",
+			"conversation_item_input_audio_transcription_completed",
+		];
+
+		audioEventNames.forEach(eventName => {
+			try {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const session = this.session as any;
+				if (session.on) {
+					session.on(eventName, (...args: unknown[]) => {
+						logger.info(`[AUDIO EVENT] ${eventName}`, { args });
+					});
+				}
+			} catch (e) {
+				// Event not supported, ignore
+			}
+		});
+
+		// Handle transport events for state changes (speech detection)
 		this.session.on("transport_event", (event) => {
 			const eventType = (event as Record<string, unknown>).type as string;
-			if (eventType?.includes("function") || eventType?.includes("tool")) {
-				logger.debug(
-					"Transport event (tool-related):",
-					event
-				);
+			
+			// Skip noisy delta events for logging
+			const isDelta = eventType?.includes(".delta");
+			
+			// Handle user speech events for state transitions
+			if (eventType === "input_audio_buffer.speech_started") {
+				logger.info(`[STATE] speech_started - current: ${this.state}`);
+				if (this.state === "connected" || this.state === "processing") {
+					this.setState("listening");
+				}
+			} else if (eventType === "input_audio_buffer.speech_stopped") {
+				logger.info(`[STATE] speech_stopped - current: ${this.state}`);
+				// Don't transition yet - wait for transcription.completed for more reliable timing
+			} else if (eventType === "conversation.item.input_audio_transcription.completed") {
+				// User's speech has been transcribed - AI is now processing
+				// Only transition from valid source states (whitelist approach for safety)
+				// Transcription can arrive AFTER audio starts, so we must not transition from speaking
+				const currentState = this.state;
+				if (currentState === "listening" || currentState === "connected") {
+					logger.info(`[STATE] transcription.completed - current: ${currentState} -> processing`);
+					this.setState("processing");
+				} else {
+					logger.info(`[STATE] transcription.completed - ignoring (state is ${currentState})`);
+				}
+			} else if (eventType === "response.audio.delta" || eventType === "response.audio_transcript.delta") {
+				// AI has started responding with audio - hide thinking (only log first time)
+				if (this.state === "processing" || this.state === "connected" || this.state === "listening") {
+					logger.info(`[STATE] audio response started - current: ${this.state} -> speaking`);
+					this.setState("speaking");
+				}
+			}
+			
+			// Debug logging for relevant events (skip delta events)
+			if (!isDelta && (eventType?.includes("function") || eventType?.includes("tool") || eventType?.includes("input") || eventType?.includes("audio") || eventType?.includes("response") || eventType?.includes("transcription"))) {
+				logger.info(`[TRANSPORT] ${eventType}`);
 			}
 		});
 

@@ -229,11 +229,49 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 			// Add debug listener for ALL transport events to diagnose audio issues
 			this.session.on("transport_event", (event) => {
 				const eventType = (event as Record<string, unknown>).type as string;
-				// Log ALL events during debug
-				logger.info(`[${this.name}] Transport event:`, eventType);
-				// Log full event for audio/input/speech related
-				if (eventType?.includes("audio") || eventType?.includes("input") || eventType?.includes("speech") || eventType?.includes("session")) {
-					logger.info(`[${this.name}] Transport event detail:`, JSON.stringify(event, null, 2));
+				
+				// Handle state transitions for thinking indicator
+				if (eventType === "input_audio_buffer.speech_started") {
+					logger.info(`[${this.name}] [STATE] speech_started - current: ${this.state}`);
+					if (this.state === "connected" || this.state === "processing") {
+						this.setState("listening");
+					}
+				} else if (eventType === "input_audio_buffer.speech_stopped") {
+					logger.info(`[${this.name}] [STATE] speech_stopped - current: ${this.state}`);
+					// Don't transition yet - wait for transcription.completed
+				} else if (eventType === "conversation.item.input_audio_transcription.completed") {
+					// User's speech has been transcribed - AI is now processing
+					// Only transition from valid source states (whitelist approach for safety)
+					// Transcription can arrive AFTER audio starts, so we must not transition from speaking
+					const currentState = this.state;
+					if (currentState === "listening" || currentState === "connected") {
+						logger.info(`[${this.name}] [STATE] transcription.completed - current: ${currentState} -> processing`);
+						this.setState("processing");
+					} else {
+						logger.info(`[${this.name}] [STATE] transcription.completed - ignoring (state is ${currentState})`);
+					}
+				} else if (eventType === "response.audio.delta" || eventType === "response.audio_transcript.delta" || eventType === "output_audio_buffer.started") {
+					// AI has started responding with audio - hide thinking
+					if (this.state === "processing" || this.state === "listening") {
+						logger.info(`[${this.name}] [STATE] audio response started - current: ${this.state} -> speaking`);
+						this.setState("speaking");
+					}
+				} else if (eventType === "output_audio_buffer.stopped") {
+					// AI finished speaking - return to connected
+					if (this.state === "speaking") {
+						logger.info(`[${this.name}] [STATE] audio stopped - current: ${this.state} -> connected`);
+						this.setState("connected");
+					}
+				}
+				
+				// Log ALL events during debug (except noisy delta events)
+				const isDelta = eventType?.includes(".delta");
+				if (!isDelta) {
+					logger.info(`[${this.name}] Transport event:`, eventType);
+					// Log full event for audio/input/speech related
+					if (eventType?.includes("audio") || eventType?.includes("input") || eventType?.includes("speech") || eventType?.includes("session")) {
+						logger.info(`[${this.name}] Transport event detail:`, JSON.stringify(event, null, 2));
+					}
 				}
 			});
 

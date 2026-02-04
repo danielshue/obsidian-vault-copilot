@@ -477,6 +477,35 @@ export abstract class BaseVoiceAgent {
 			this.emit("interrupted");
 		});
 
+		// Debug: Try to capture all possible listening/audio events from WebRTC
+		const audioEventNames = [
+			"input_audio_buffer_speech_started",
+			"input_audio_buffer_speech_stopped",
+			"input_audio_buffer_committed",
+			"input_audio_buffer_cleared",
+			"input_audio_buffer_statistics_updated",
+			"response_created",
+			"response_done",
+			"content_block_start",
+			"content_block_delta",
+			"conversation_item_input_audio_transcription_started",
+			"conversation_item_input_audio_transcription_completed",
+		];
+
+		audioEventNames.forEach(eventName => {
+			try {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const session = this.session as any;
+				if (session.on) {
+					session.on(eventName, (...args: unknown[]) => {
+						logger.info(`[${this.name}] AUDIO EVENT: ${eventName}`, { args });
+					});
+				}
+			} catch (e) {
+				// Event not supported, ignore
+			}
+		});
+
 		// Handle agent audio start/stop
 		this.session.on("audio_start", () => {
 			this.setState("speaking");
@@ -484,6 +513,25 @@ export abstract class BaseVoiceAgent {
 
 		this.session.on("audio_stopped", () => {
 			if (this.state === "speaking") {
+				this.setState("connected");
+			}
+		});
+
+		// Handle user started speaking (listening state)
+		// Use type assertion as this event may not be in the SDK's typed events
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(this.session as any).on("input_audio_buffer_speech_started", () => {
+			logger.debug(`[${this.name}] User started speaking`);
+			if (this.state === "connected") {
+				this.setState("listening");
+			}
+		});
+
+		// Handle user stopped speaking
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(this.session as any).on("input_audio_buffer_speech_stopped", () => {
+			logger.debug(`[${this.name}] User stopped speaking`);
+			if (this.state === "listening") {
 				this.setState("connected");
 			}
 		});

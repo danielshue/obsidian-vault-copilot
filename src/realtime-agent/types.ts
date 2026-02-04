@@ -34,6 +34,7 @@ export type RealtimeAgentState =
 	| "connected"
 	| "speaking"
 	| "listening"
+	| "processing"
 	| "error";
 
 /** Tool names that can be conditionally enabled/disabled */

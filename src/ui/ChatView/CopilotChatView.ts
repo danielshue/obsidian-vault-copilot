@@ -828,6 +828,7 @@ export class CopilotChatView extends ItemView {
 		// Subscribe to state changes
 		this.realtimeAgentUnsubscribes.push(
 			this.realtimeAgentService.on('stateChange', (state) => {
+				console.log(`[UI] stateChange received: ${state}`);
 				this.updateAgentButtonState(state);
 			})
 		);
@@ -1547,11 +1548,24 @@ export class CopilotChatView extends ItemView {
 				this.showThinkingIndicator();
 				break;
 			case 'connected':
-			case 'listening':
 				this.agentBtn.addClass('vc-agent-connected');
 				this.agentBtn.innerHTML = activeIcon;
 				this.agentBtn.setAttribute('aria-label', 'Voice agent active - click to stop');
 				this.hideThinkingIndicator();
+				break;
+			case 'listening':
+				this.agentBtn.addClass('vc-agent-listening');
+				this.agentBtn.innerHTML = activeIcon;
+				this.agentBtn.setAttribute('aria-label', 'Agent listening...');
+				// Don't show thinking while user is speaking
+				this.hideThinkingIndicator();
+				break;
+			case 'processing':
+				this.agentBtn.addClass('vc-agent-listening'); // Reuse listening style
+				this.agentBtn.innerHTML = activeIcon;
+				this.agentBtn.setAttribute('aria-label', 'Processing...');
+				// Show thinking while AI is processing after user finished speaking
+				this.showThinkingIndicator();
 				break;
 			case 'speaking':
 				this.agentBtn.addClass('vc-agent-speaking');
@@ -1578,6 +1592,7 @@ export class CopilotChatView extends ItemView {
 	 * Show "Thinking..." indicator while waiting for response
 	 */
 	private showThinkingIndicator(): void {
+		console.log('[UI] showThinkingIndicator called, existing:', !!this.thinkingIndicatorEl);
 		if (this.thinkingIndicatorEl || !this.inputArea) {
 			return; // Already showing or no input area
 		}
@@ -1595,15 +1610,18 @@ export class CopilotChatView extends ItemView {
 		if (this.inputArea.firstChild) {
 			this.inputArea.insertBefore(this.thinkingIndicatorEl, this.inputArea.firstChild);
 		}
+		console.log('[UI] Thinking indicator CREATED');
 	}
 
 	/**
 	 * Hide "Thinking..." indicator
 	 */
 	private hideThinkingIndicator(): void {
+		console.log('[UI] hideThinkingIndicator called, existing:', !!this.thinkingIndicatorEl);
 		if (this.thinkingIndicatorEl) {
 			this.thinkingIndicatorEl.remove();
 			this.thinkingIndicatorEl = null;
+			console.log('[UI] Thinking indicator REMOVED');
 		}
 	}
 
