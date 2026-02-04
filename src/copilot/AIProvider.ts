@@ -242,19 +242,16 @@ export const OPENAI_MODELS = [
 ];
 
 /**
- * Get API key from environment or config
+ * Get API key from config
+ * Note: No longer checks environment variables for mobile compatibility
+ * API key must be provided through config/settings
  */
 export function getOpenAIApiKey(configKey?: string): string | undefined {
-	// First check config
+	// Return config key if provided
 	if (configKey) {
 		return configKey;
 	}
 	
-	// Then check environment variables (works in Node.js context)
-	// In Obsidian, we can access process.env
-	if (typeof process !== "undefined" && process.env) {
-		return process.env.OPENAI_API_KEY;
-	}
-	
+	// No environment variable fallback for mobile compatibility
 	return undefined;
 }

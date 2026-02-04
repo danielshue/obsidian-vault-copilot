@@ -21,8 +21,9 @@ import {
 	getSourceLabel,
 	getSourceIcon,
 } from "./McpConfigDiscovery";
-import { StdioMcpClient } from "./StdioMcpClient";
-import type { App } from "obsidian";
+import { createMcpClient, McpClient } from "./McpClientFactory";
+import type { App, Platform } from "obsidian";
+import { supportsLocalProcesses } from "../utils/platform";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -42,7 +43,7 @@ type McpManagerListener = (event: McpManagerEvent) => void;
 export class McpManager {
 	private app: App;
 	private servers = new Map<string, DiscoveredMcpServer>();
-	private clients = new Map<string, StdioMcpClient>();
+	private clients = new Map<string, McpClient>();
 	private vaultConfig: VaultMcpConfig = DEFAULT_VAULT_MCP_CONFIG;
 	private listeners = new Set<McpManagerListener>();
 	private initialized = false;
@@ -60,8 +61,12 @@ export class McpManager {
 		// Load vault-specific config
 		await this.loadVaultConfig();
 
-		// Discover MCP servers from external sources
-		await this.discoverServers();
+		// Only auto-discover on desktop (requires filesystem access and local processes)
+		if (supportsLocalProcesses()) {
+			await this.discoverServers();
+		} else {
+			console.log("[McpManager] Skipping server discovery on mobile (filesystem access not available)");
+		}
 
 		this.initialized = true;
 
@@ -214,9 +219,12 @@ export class McpManager {
 			throw new Error(`Server not found: ${id}`);
 		}
 
-		// Only support stdio servers for now
-		if (!isStdioConfig(server.config)) {
-			throw new Error(`HTTP servers not yet supported: ${id}`);
+		// Check platform compatibility
+		if (isStdioConfig(server.config) && !supportsLocalProcesses()) {
+			throw new Error(
+				`Cannot start stdio server "${server.config.name}" on mobile. ` +
+				`Only HTTP servers are supported.`
+			);
 		}
 
 		// Check if already running
@@ -227,33 +235,47 @@ export class McpManager {
 			}
 		}
 
-		// Create and start client
-		const client = new StdioMcpClient(server.config);
+		// Create client using factory (handles platform-specific logic)
+		const client = await createMcpClient(server.config);
 		
-		client.on((event) => {
-			switch (event.type) {
-				case "connected":
-					this.updateServerStatus(id, "connected");
-					break;
-				case "disconnected":
-					this.updateServerStatus(id, "disconnected", event.error);
-					break;
-				case "error":
-					this.updateServerStatus(id, "error", event.error);
-					break;
-				case "tools":
-					server.status.tools = event.tools;
-					this.emit({ type: "server-tools-updated", serverId: id, tools: event.tools });
-					break;
+		// For StdioMcpClient, set up event handlers
+		if (isStdioConfig(server.config)) {
+			const stdioClient = client as any;
+			if (stdioClient.on) {
+				stdioClient.on((event: any) => {
+					switch (event.type) {
+						case "connected":
+							this.updateServerStatus(id, "connected");
+							break;
+						case "disconnected":
+							this.updateServerStatus(id, "disconnected", event.error);
+							break;
+						case "error":
+							this.updateServerStatus(id, "error", event.error);
+							break;
+						case "tools":
+							server.status.tools = event.tools;
+							this.emit({ type: "server-tools-updated", serverId: id, tools: event.tools });
+							break;
+					}
+				});
 			}
-		});
+		}
 
 		this.clients.set(id, client);
 		
 		try {
 			await client.start();
+			
+			// For HTTP clients, update status and tools manually
+			if (!isStdioConfig(server.config)) {
+				this.updateServerStatus(id, "connected");
+				server.status.tools = client.getTools();
+				this.emit({ type: "server-tools-updated", serverId: id, tools: client.getTools() });
+			}
 		} catch (error) {
 			console.error(`[McpManager] Failed to start server ${id}:`, error);
+			this.updateServerStatus(id, "error", error instanceof Error ? error.message : String(error));
 			throw error;
 		}
 	}
