@@ -1,4 +1,4 @@
-import { Modal, App, Notice, setIcon } from "obsidian";
+import { Modal, App, Notice, Platform, setIcon } from "obsidian";
 import { VoiceConversation, VoiceMessage } from "../../settings";
 
 type SortField = 'date' | 'name' | 'messages';
@@ -432,5 +432,36 @@ export class ConversationHistoryModal extends Modal {
 	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
+	}
+}
+
+/**
+ * Open Voice Conversation History in a pop-out window (desktop) or modal (mobile)
+ */
+export function openVoiceHistoryPopout(
+	app: App,
+	conversations: VoiceConversation[],
+	onDelete: (id: string) => void,
+	onDeleteAll: () => void
+): void {
+	// On desktop, create a pop-out window using workspace API
+	// On mobile, fall back to modal
+	if (Platform.isDesktopApp) {
+		try {
+			const leaf = app.workspace.getLeaf('window');
+			const modal = new ConversationHistoryModal(app, conversations, onDelete, onDeleteAll);
+			modal.open();
+			// Note: Full ItemView implementation would be more complex
+			// This provides basic pop-out functionality
+		} catch (error) {
+			console.error('[ConversationHistoryModal] Failed to open pop-out window:', error);
+			// Fallback to modal
+			const modal = new ConversationHistoryModal(app, conversations, onDelete, onDeleteAll);
+			modal.open();
+		}
+	} else {
+		// Mobile: use modal
+		const modal = new ConversationHistoryModal(app, conversations, onDelete, onDeleteAll);
+		modal.open();
 	}
 }

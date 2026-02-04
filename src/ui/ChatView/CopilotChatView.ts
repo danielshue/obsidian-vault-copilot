@@ -1442,18 +1442,17 @@ export class CopilotChatView extends ItemView {
 	}
 
 	/**
-	 * Open the conversation history modal
+	 * Open the conversation history modal/pop-out
 	 */
 	private openConversationHistory(): void {
 		const conversations = this.plugin.settings.voice?.conversations || [];
 		
-		const modal = new ConversationHistoryModal(
+		openVoiceHistoryPopout(
 			this.app,
 			conversations,
 			(id) => this.deleteVoiceConversation(id),
 			() => this.deleteAllVoiceConversations()
 		);
-		modal.open();
 	}
 
 	/**

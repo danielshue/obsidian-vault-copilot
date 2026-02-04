@@ -357,7 +357,7 @@ export class AIProviderProfileModal extends Modal {
 		// API Key
 		new Setting(container)
 			.setName('API Key')
-			.setDesc('Your OpenAI API key. Leave empty to use OPENAI_API_KEY environment variable.')
+			.setDesc('Your OpenAI API key. Leave empty to use OPENAI_API_KEY environment variable. API keys are stored securely in Obsidian\'s encrypted keychain.')
 			.addText((text) => {
 				text.setPlaceholder('sk-...');
 				text.setValue((this.profile as OpenAIProviderProfile).apiKey || '');
@@ -386,7 +386,7 @@ export class AIProviderProfileModal extends Modal {
 		// API Key
 		new Setting(container)
 			.setName('API Key')
-			.setDesc('Your Azure OpenAI API key. Leave empty to use AZURE_OPENAI_KEY environment variable.')
+			.setDesc('Your Azure OpenAI API key. Leave empty to use AZURE_OPENAI_KEY environment variable. API keys are stored securely in Obsidian\'s encrypted keychain.')
 			.addText((text) => {
 				text.setPlaceholder('');
 				text.setValue((this.profile as AzureOpenAIProviderProfile).apiKey || '');
