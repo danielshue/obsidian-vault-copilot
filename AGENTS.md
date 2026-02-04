@@ -146,12 +146,18 @@ Vault Copilot supports multiple AI providers for chat functionality:
 - **Switching Providers**: Auto-reconnects when changed
 
 ### Model Context Protocol (MCP)
-- **GitHub Copilot CLI MCP**: Exclusive to GitHub Copilot provider via StdioMcpClient
-  - Supports stdio-based MCP servers
-  - Configured per vault in `.github/copilot-mcp-servers.json`
-- **General MCP Tools**: Available to all providers (GitHub Copilot, OpenAI, Azure OpenAI)
-  - Managed by McpManager
-  - Exposed as function/tool calls to the AI model
+- **Stdio MCP (Desktop Only)**: Via `StdioMcpClient` (src/copilot/StdioMcpClient.ts)
+  - Spawns local MCP server processes
+  - Configured in `.github/copilot-mcp-servers.json`
+  - Requires Node.js child_process (desktop only)
+- **HTTP MCP (Cross-Platform)**: Via `HttpMcpClient` (src/copilot/HttpMcpClient.ts)
+  - Connects to remote MCP servers over HTTP/HTTPS
+  - Uses JSON-RPC 2.0 protocol
+  - Works on both desktop and mobile
+  - Uses Obsidian's `requestUrl` for cross-platform HTTP
+- **MCP Manager**: Coordinates both transport types
+  - Managed by `McpManager` (src/copilot/McpManager.ts)
+  - Exposes tools as function/tool calls to AI providers
   - Same tools available across all providers for consistency
 
 ### Provider Architecture
@@ -161,10 +167,40 @@ Vault Copilot supports multiple AI providers for chat functionality:
   - Tools management: setTools(), convertMcpToolsToToolDefinitions()
   - History management: getMessageHistory(), clearHistory()
 - **Implementation Classes**:
-  - `CopilotService`: GitHub Copilot CLI SDK integration (src/copilot/CopilotService.ts)
+  - `GitHubCopilotCliService`: GitHub Copilot CLI SDK integration (src/copilot/GitHubCopilotCliService.ts)
   - `OpenAIService`: OpenAI API integration (src/copilot/OpenAIService.ts)
   - `AzureOpenAIService`: Azure OpenAI API integration (src/copilot/AzureOpenAIService.ts)
 - **Provider Initialization**: main.ts handles provider selection and initialization based on user configuration
+
+## Utilities
+
+### Platform Detection (src/utils/platform.ts)
+- `isMobile` / `isDesktop`: Platform detection constants
+- `getAvailableProviders()`: Returns AI providers available on current platform
+- `getMcpTransports()`: Returns MCP transport types available on current platform
+- `supportsLocalProcesses()`: Check if platform can spawn local processes
+
+### SecretStorage (src/utils/secrets.ts)
+- `getSecretValue(app, secretId)`: Safely read secrets from Obsidian's SecretStorage
+- Used for secure API key storage
+- Returns undefined if secret not set or unavailable
+
+### HTTP Utilities (src/utils/http.ts)
+- `httpRequest()`: Cross-platform HTTP requests using Obsidian's `requestUrl`
+- Works on both desktop and mobile
+- Used by `HttpMcpClient` for MCP over HTTP
+
+## Diagnostics & Tracing
+
+### TracingService (src/copilot/TracingService.ts)
+- Captures SDK logs, prompts, responses, and events
+- Singleton pattern via `getTracingService()`
+- Supports trace spans and events for debugging
+
+### Pop-out Windows
+- `openTracingPopout(app)`: Open diagnostics in a pop-out window (desktop) or modal (mobile)
+- `openVoiceHistoryPopout(app)`: Open voice conversation history in a pop-out window
+- Located in src/ui/ChatView/TracingModal.ts and ConversationHistoryModal.ts
 
 ## Commands & settings
 
@@ -223,6 +259,32 @@ Follow Obsidian's **Developer Policies** and **Plugin Guidelines**. In particula
 - Where feasible, test on iOS and Android.
 - Don't assume desktop-only behavior unless `isDesktopOnly` is `true`.
 - Avoid large in-memory structures; be mindful of memory and storage constraints.
+
+### Platform Detection
+Use the platform utilities (src/utils/platform.ts) for cross-platform compatibility:
+```ts
+import { isMobile, isDesktop, getAvailableProviders, getMcpTransports, supportsLocalProcesses } from "./utils/platform";
+
+// Check platform
+if (isMobile) {
+  // Mobile-specific behavior
+}
+
+// Get available AI providers for current platform
+const providers = getAvailableProviders();
+// Desktop: ["copilot", "openai", "azure-openai"]
+// Mobile: ["openai", "azure-openai"] (no CLI-based Copilot)
+
+// Get available MCP transports
+const transports = getMcpTransports();
+// Desktop: ["stdio", "http"]
+// Mobile: ["http"] (no local process spawning)
+```
+
+### Mobile Limitations
+- **GitHub Copilot CLI**: Not available on mobile (requires local process spawning)
+- **Stdio MCP servers**: Not available on mobile (use HTTP MCP instead)
+- **Voice input**: May have platform-specific limitations
 
 ## Agent do/don't
 
