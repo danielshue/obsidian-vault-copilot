@@ -466,7 +466,11 @@ export class McpManager {
 				server.status.connectedAt = Date.now();
 				const client = this.clients.get(id);
 				if (client) {
-					server.status.pid = client.getPid();
+					// getPid() only exists on StdioMcpClient, not on all clients
+					const stdioClient = client as any;
+					if (stdioClient.getPid) {
+						server.status.pid = stdioClient.getPid();
+					}
 					server.status.tools = client.getTools();
 				}
 			}

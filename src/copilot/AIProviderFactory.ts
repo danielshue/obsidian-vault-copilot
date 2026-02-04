@@ -29,10 +29,10 @@ export async function createAIProvider(
 
 	switch (config.provider) {
 		case "openai":
-			return new OpenAIService(app, config);
+			return new OpenAIService(app, config as any);
 
 		case "azure-openai":
-			return new AzureOpenAIService(app, config);
+			return new AzureOpenAIService(app, config as any);
 
 		case "copilot":
 			if (Platform.isMobile) {
@@ -43,7 +43,7 @@ export async function createAIProvider(
 			}
 			// Dynamic import to avoid loading Node.js modules on mobile
 			const { CopilotService } = await import("./CopilotService");
-			return new CopilotService(app, config) as unknown as AIProvider;
+			return new CopilotService(app, config as any) as unknown as AIProvider;
 
 		default:
 			throw new Error(`Unknown provider type: ${config.provider}`);
