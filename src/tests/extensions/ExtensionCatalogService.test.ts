@@ -206,7 +206,7 @@ describe("ExtensionCatalogService", () => {
 				textQuery: "journal",
 			});
 			expect(results).toHaveLength(1);
-			expect(results[0].uniqueId).toBe("journal-prompt");
+			expect(results[0]?.uniqueId).toBe("journal-prompt");
 		});
 		
 		it("should filter by text query in description", async () => {
@@ -214,7 +214,7 @@ describe("ExtensionCatalogService", () => {
 				textQuery: "reflection",
 			});
 			expect(results).toHaveLength(1);
-			expect(results[0].uniqueId).toBe("journal-prompt");
+			expect(results[0]?.uniqueId).toBe("journal-prompt");
 		});
 		
 		it("should filter by text query in keywords", async () => {
@@ -222,7 +222,7 @@ describe("ExtensionCatalogService", () => {
 				textQuery: "daily",
 			});
 			expect(results).toHaveLength(1);
-			expect(results[0].uniqueId).toBe("journal-prompt");
+			expect(results[0]?.uniqueId).toBe("journal-prompt");
 		});
 		
 		it("should filter by text query in categories", async () => {
@@ -230,7 +230,7 @@ describe("ExtensionCatalogService", () => {
 				textQuery: "testing",
 			});
 			expect(results).toHaveLength(1);
-			expect(results[0].uniqueId).toBe("test-agent-1");
+			expect(results[0]?.uniqueId).toBe("test-agent-1");
 		});
 		
 		it("should filter by extension kind", async () => {
@@ -238,7 +238,7 @@ describe("ExtensionCatalogService", () => {
 				filterByKind: "agent",
 			});
 			expect(results).toHaveLength(1);
-			expect(results[0].kind).toBe("agent");
+			expect(results[0]?.kind).toBe("agent");
 		});
 		
 		it("should filter by category", async () => {
@@ -246,7 +246,7 @@ describe("ExtensionCatalogService", () => {
 				filterByCategories: ["Journaling"],
 			});
 			expect(results).toHaveLength(1);
-			expect(results[0].uniqueId).toBe("journal-prompt");
+			expect(results[0]?.uniqueId).toBe("journal-prompt");
 		});
 		
 		it("should apply multiple filters together", async () => {
@@ -256,7 +256,7 @@ describe("ExtensionCatalogService", () => {
 				filterByCategories: ["Productivity"],
 			});
 			expect(results).toHaveLength(1);
-			expect(results[0].uniqueId).toBe("test-agent-1");
+			expect(results[0]?.uniqueId).toBe("test-agent-1");
 		});
 		
 		it("should return empty array if no matches", async () => {
@@ -302,7 +302,7 @@ describe("ExtensionCatalogService", () => {
 		it("should return featured extensions", async () => {
 			const results = await service.getFeatured();
 			expect(results).toHaveLength(1);
-			expect(results[0].uniqueId).toBe("test-agent-1");
+		expect(results[0]?.uniqueId).toBe("test-agent-1");
 		});
 	});
 	

@@ -270,9 +270,9 @@ describe("ExtensionManager", () => {
 			const updates = await manager.checkForUpdates(catalogExtensions);
 			
 			expect(updates).toHaveLength(1);
-			expect(updates[0].extensionId).toBe("test-extension");
-			expect(updates[0].currentlyInstalledVersion).toBe("1.0.0");
-			expect(updates[0].availableNewerVersion).toBe("2.0.0");
+			expect(updates[0]?.extensionId).toBe("test-extension");
+			expect(updates[0]?.currentlyInstalledVersion).toBe("1.0.0");
+			expect(updates[0]?.availableNewerVersion).toBe("2.0.0");
 		});
 		
 		it("should not report update for same version", async () => {
@@ -312,7 +312,7 @@ describe("ExtensionManager", () => {
 			const updates = await manager.checkForUpdates(catalogExtensions);
 			
 			expect(updates).toHaveLength(1);
-			expect(updates[0].availableNewerVersion).toBe("1.0.1");
+			expect(updates[0]?.availableNewerVersion).toBe("1.0.1");
 		});
 	});
 	
