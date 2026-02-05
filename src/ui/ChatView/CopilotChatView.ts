@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Dan Shue. All rights reserved.
+// Licensed under the MIT License.
+
 /**
  * @module CopilotChatView
  * @description Main chat view component for Vault Copilot.
@@ -117,6 +120,7 @@ export class CopilotChatView extends ItemView {
 	// Voice chat
 	private voiceChatService: VoiceChatService | null = null;
 	private voiceBtn: HTMLButtonElement | null = null;
+	private voiceStopBtn: HTMLButtonElement | null = null;
 	private voiceStateUnsubscribe: (() => void) | null = null;
 	private toolbarRightEl: HTMLDivElement | null = null;
 	
@@ -635,29 +639,54 @@ export class CopilotChatView extends ItemView {
 		const state = this.voiceChatService.getState();
 		console.log('VoiceInput: Current state:', state);
 
-		if (state === 'recording') {
-			// Stop recording and transcribe
-			try {
-				const result = await this.voiceChatService.stopRecording();
-				console.log('VoiceInput: Got result:', result);
-				if (result.text) {
-					// Insert transcribed text into input
-					this.insertTextAtCursor(result.text);
-				} else {
-					console.log('VoiceInput: No text in result');
-				}
-			} catch (error) {
-				console.error('Voice transcription failed:', error);
+		try {
+			switch (state) {
+				case 'recording':
+					await this.voiceChatService.pauseRecording();
+					break;
+				case 'paused':
+					await this.voiceChatService.resumeRecording();
+					break;
+				case 'idle':
+				case 'error':
+					await this.voiceChatService.startRecording();
+					break;
+				case 'processing':
+				default:
+					// No-op while processing
+					break;
 			}
-		} else if (state === 'idle' || state === 'error') {
-			// Start recording
-			try {
-				await this.voiceChatService.startRecording();
-			} catch (error) {
-				console.error('Failed to start recording:', error);
-			}
+		} catch (error) {
+			console.error('Voice input action failed:', error);
 		}
-		// If processing, do nothing (wait for it to complete)
+	}
+
+	/**
+	 * Stop recording and transcribe the captured audio
+	 */
+	private async handleVoiceStop(): Promise<void> {
+		if (!this.voiceChatService) {
+			console.error('Voice input is not available');
+			return;
+		}
+
+		const state = this.voiceChatService.getState();
+		if (state !== 'recording' && state !== 'paused') {
+			console.log('VoiceStop: Ignoring stop, not currently recording');
+			return;
+		}
+
+		try {
+			const result = await this.voiceChatService.stopRecording();
+			console.log('VoiceStop: Got result:', result);
+			if (result.text) {
+				this.insertTextAtCursor(result.text);
+			} else {
+				console.log('VoiceStop: No text in result');
+			}
+		} catch (error) {
+			console.error('Voice transcription failed:', error);
+		}
 	}
 
 	/**
@@ -721,6 +750,15 @@ export class CopilotChatView extends ItemView {
 			});
 			this.updateVoiceButtonState('idle');
 			this.voiceBtn.addEventListener("click", () => this.handleVoiceInput());
+
+			// Stop button appears only while recording/paused
+			this.voiceStopBtn = this.toolbarRightEl.createEl("button", {
+				cls: "vc-toolbar-btn vc-voice-stop-btn",
+				attr: { "aria-label": "Stop recording and transcribe" }
+			});
+			this.voiceStopBtn.style.display = "none";
+			this.voiceStopBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>`;
+			this.voiceStopBtn.addEventListener("click", () => this.handleVoiceStop());
 			
 			// Subscribe to voice chat state changes
 			if (this.voiceChatService) {
@@ -798,6 +836,10 @@ export class CopilotChatView extends ItemView {
 			this.voiceBtn.remove();
 			this.voiceBtn = null;
 		}
+		if (this.voiceStopBtn) {
+			this.voiceStopBtn.remove();
+			this.voiceStopBtn = null;
+		}
 
 		// Move send button to end temporarily
 		const sendButton = this.sendButton;
@@ -817,14 +859,19 @@ export class CopilotChatView extends ItemView {
 		if (!this.voiceBtn) return;
 
 		// Remove all state classes
-		this.voiceBtn.removeClass('vc-voice-recording', 'vc-voice-processing', 'vc-voice-error');
+		this.voiceBtn.removeClass('vc-voice-recording', 'vc-voice-processing', 'vc-voice-error', 'vc-voice-paused');
 
 		// Update icon and state
 		switch (state) {
 			case 'recording':
 				this.voiceBtn.addClass('vc-voice-recording');
-				this.voiceBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>`;
-				this.voiceBtn.setAttribute('aria-label', 'Stop recording');
+				this.voiceBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>`;
+				this.voiceBtn.setAttribute('aria-label', 'Pause recording');
+				break;
+			case 'paused':
+				this.voiceBtn.addClass('vc-voice-paused');
+				this.voiceBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>`;
+				this.voiceBtn.setAttribute('aria-label', 'Resume recording');
 				break;
 			case 'processing':
 				this.voiceBtn.addClass('vc-voice-processing');
@@ -839,6 +886,12 @@ export class CopilotChatView extends ItemView {
 				this.voiceBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>`;
 				this.voiceBtn.setAttribute('aria-label', 'Voice input');
 				break;
+		}
+
+		if (this.voiceStopBtn) {
+			const showStop = state === 'recording' || state === 'paused' || state === 'processing';
+			this.voiceStopBtn.style.display = showStop ? '' : 'none';
+			this.voiceStopBtn.disabled = state === 'processing';
 		}
 	}
 

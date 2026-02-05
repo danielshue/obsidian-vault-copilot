@@ -1,9 +1,23 @@
+// Copyright (c) 2026 Dan Shue. All rights reserved.
+// Licensed under the MIT License.
+
 /**
- * LocalWhisperService - Speech-to-text using a local whisper.cpp server
- * Uses MediaRecorder to capture audio and sends it to a local REST API
- * 
- * Compatible with whisper.cpp server: https://github.com/ggerganov/whisper.cpp/tree/master/examples/server
- * Also compatible with faster-whisper-server (speaches): https://github.com/fedirz/faster-whisper-server
+ * @module LocalWhisperService
+ * @description Speech-to-text using a local whisper.cpp-compatible server. Captures audio with
+ * MediaRecorder and posts it to a local REST API.
+ *
+ * @example
+ * ```typescript
+ * const service = new LocalWhisperService({ serverUrl: 'http://127.0.0.1:8080' });
+ * await service.initialize();
+ * await service.startRecording();
+ * await service.pauseRecording();
+ * await service.resumeRecording();
+ * const result = await service.stopRecording();
+ * ```
+ * @see https://github.com/ggerganov/whisper.cpp/tree/master/examples/server
+ * @see https://github.com/fedirz/faster-whisper-server
+ * @since 0.0.14
  */
 
 import {
@@ -42,6 +56,7 @@ export class LocalWhisperService {
 	private mediaRecorder: MediaRecorder | null = null;
 	private audioChunks: Blob[] = [];
 	private isRecording: boolean = false;
+	private isPaused: boolean = false;
 	private stream: MediaStream | null = null;
 	private recordingStartTime: number = 0;
 
@@ -158,6 +173,7 @@ export class LocalWhisperService {
 
 			this.recordingStartTime = Date.now();
 			this.isRecording = true;
+			this.isPaused = false;
 
 			// Start recording with timeslice to get chunks periodically
 			this.mediaRecorder.start(1000); // Get data every second
@@ -206,6 +222,7 @@ export class LocalWhisperService {
 
 			this.mediaRecorder.stop();
 			this.isRecording = false;
+			this.isPaused = false;
 		});
 	}
 
@@ -218,6 +235,30 @@ export class LocalWhisperService {
 		}
 		this.cleanup();
 		console.log('LocalWhisperService: Recording cancelled');
+	}
+
+	/**
+	 * Pause recording without ending the session
+	 */
+	async pauseRecording(): Promise<void> {
+		if (!this.mediaRecorder || !this.isRecording || this.isPaused) {
+			throw new Error('Cannot pause when not recording');
+		}
+		this.mediaRecorder.pause();
+		this.isPaused = true;
+		console.log('LocalWhisperService: Recording paused');
+	}
+
+	/**
+	 * Resume a paused recording
+	 */
+	async resumeRecording(): Promise<void> {
+		if (!this.mediaRecorder || !this.isRecording || !this.isPaused) {
+			throw new Error('Cannot resume when not paused');
+		}
+		this.mediaRecorder.resume();
+		this.isPaused = false;
+		console.log('LocalWhisperService: Recording resumed');
 	}
 
 	/**
@@ -418,6 +459,7 @@ export class LocalWhisperService {
 		this.mediaRecorder = null;
 		this.audioChunks = [];
 		this.isRecording = false;
+		this.isPaused = false;
 	}
 
 	/**

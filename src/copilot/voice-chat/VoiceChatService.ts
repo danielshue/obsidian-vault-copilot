@@ -1,9 +1,24 @@
+// Copyright (c) 2026 Dan Shue. All rights reserved.
+// Licensed under the MIT License.
+
 /**
- * VoiceChatService - Main service for voice recording and transcription
- * Supports multiple backends:
+ * @module VoiceChatService
+ * @description Main service for voice recording and transcription.
+ *
+ * Coordinates multiple backends:
  * - local-whisper: Uses MediaRecorder + local whisper.cpp server
  * - openai-whisper: Uses MediaRecorder + OpenAI Whisper API (recommended)
  * - azure-whisper: Uses MediaRecorder + Azure OpenAI Whisper API
+ *
+ * @example
+ * ```typescript
+ * const service = new VoiceChatService({ backend: 'openai-whisper' });
+ * await service.startRecording();
+ * await service.pauseRecording();
+ * await service.resumeRecording();
+ * const transcript = await service.stopRecording();
+ * ```
+ * @since 0.0.14
  */
 
 import { LocalWhisperService } from './whisper/LocalWhisperService';
@@ -228,6 +243,10 @@ export class VoiceChatService {
 		if (this.state === 'recording') {
 			return;
 		}
+		if (this.state === 'paused') {
+			await this.resumeRecording();
+			return;
+		}
 
 		try {
 			// Initialize if not already done
@@ -260,7 +279,7 @@ export class VoiceChatService {
 	 * Stop recording and transcribe
 	 */
 	async stopRecording(): Promise<TranscriptionResult> {
-		if (this.state !== 'recording') {
+		if (this.state !== 'recording' && this.state !== 'paused') {
 			throw new Error('Not recording');
 		}
 
@@ -293,6 +312,58 @@ export class VoiceChatService {
 	}
 
 	/**
+	 * Pause recording without ending the session
+	 */
+	async pauseRecording(): Promise<void> {
+		if (this.state !== 'recording') {
+			throw new Error('Cannot pause when not recording');
+		}
+
+		try {
+			if (this.activeBackend === 'openai-whisper' && this.openaiWhisper) {
+				await this.openaiWhisper.pauseRecording();
+			} else if (this.activeBackend === 'azure-whisper' && this.azureWhisper) {
+				await this.azureWhisper.pauseRecording();
+			} else if (this.activeBackend === 'local-whisper' && this.localWhisper) {
+				await this.localWhisper.pauseRecording();
+			}
+
+			this.setState('paused');
+			console.log('VoiceChatService: Recording paused');
+		} catch (error) {
+			this.setState('error');
+			this.emit('error', error instanceof Error ? error : new Error(String(error)));
+			throw error;
+		}
+	}
+
+	/**
+	 * Resume a previously paused recording
+	 */
+	async resumeRecording(): Promise<void> {
+		if (this.state !== 'paused') {
+			throw new Error('Cannot resume when not paused');
+		}
+
+		try {
+			if (this.activeBackend === 'openai-whisper' && this.openaiWhisper) {
+				await this.openaiWhisper.resumeRecording();
+			} else if (this.activeBackend === 'azure-whisper' && this.azureWhisper) {
+				await this.azureWhisper.resumeRecording();
+			} else if (this.activeBackend === 'local-whisper' && this.localWhisper) {
+				await this.localWhisper.resumeRecording();
+			}
+
+			this.setState('recording');
+			console.log('VoiceChatService: Recording resumed');
+		} catch (error) {
+			this.setState('error');
+			this.emit('error', error instanceof Error ? error : new Error(String(error)));
+			throw error;
+		}
+	}
+
+	/**
 	 * Cancel recording without transcription
 	 */
 	cancelRecording(): void {
@@ -313,6 +384,9 @@ export class VoiceChatService {
 	async toggleRecording(): Promise<TranscriptionResult | null> {
 		if (this.state === 'recording') {
 			return await this.stopRecording();
+		} else if (this.state === 'paused') {
+			await this.resumeRecording();
+			return null;
 		} else if (this.state === 'idle') {
 			await this.startRecording();
 			return null;

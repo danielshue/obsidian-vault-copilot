@@ -1,8 +1,22 @@
+// Copyright (c) 2026 Dan Shue. All rights reserved.
+// Licensed under the MIT License.
+
 /**
- * AzureWhisperService - Speech-to-text using Azure OpenAI's Whisper API
- * Uses MediaRecorder to capture audio and sends it to Azure OpenAI's transcription endpoint
- * 
- * Azure OpenAI Whisper API Reference: https://learn.microsoft.com/en-us/azure/ai-services/openai/whisper-quickstart
+ * @module AzureWhisperService
+ * @description Speech-to-text using Azure OpenAI's Whisper API. Captures audio with MediaRecorder
+ * and uploads to the configured Azure deployment.
+ *
+ * @example
+ * ```typescript
+ * const service = new AzureWhisperService({ endpoint: 'https://example.openai.azure.com', deploymentName: 'whisper' });
+ * await service.initialize();
+ * await service.startRecording();
+ * await service.pauseRecording();
+ * await service.resumeRecording();
+ * const result = await service.stopRecording();
+ * ```
+ * @see https://learn.microsoft.com/en-us/azure/ai-services/openai/whisper-quickstart
+ * @since 0.0.14
  */
 
 import {
@@ -65,6 +79,7 @@ export class AzureWhisperService {
 	private mediaRecorder: MediaRecorder | null = null;
 	private audioChunks: Blob[] = [];
 	private isRecording: boolean = false;
+	private isPaused: boolean = false;
 	private stream: MediaStream | null = null;
 	private recordingStartTime: number = 0;
 
@@ -224,6 +239,7 @@ export class AzureWhisperService {
 
 			this.recordingStartTime = Date.now();
 			this.isRecording = true;
+			this.isPaused = false;
 
 			// Start recording with timeslice
 			this.mediaRecorder.start(1000);
@@ -272,6 +288,7 @@ export class AzureWhisperService {
 
 			this.mediaRecorder.stop();
 			this.isRecording = false;
+			this.isPaused = false;
 		});
 	}
 
@@ -284,6 +301,30 @@ export class AzureWhisperService {
 		}
 		this.cleanup();
 		console.log('AzureWhisperService: Recording cancelled');
+	}
+
+	/**
+	 * Pause recording without ending the session
+	 */
+	async pauseRecording(): Promise<void> {
+		if (!this.mediaRecorder || !this.isRecording || this.isPaused) {
+			throw new Error('Cannot pause when not recording');
+		}
+		this.mediaRecorder.pause();
+		this.isPaused = true;
+		console.log('AzureWhisperService: Recording paused');
+	}
+
+	/**
+	 * Resume a paused recording
+	 */
+	async resumeRecording(): Promise<void> {
+		if (!this.mediaRecorder || !this.isRecording || !this.isPaused) {
+			throw new Error('Cannot resume when not paused');
+		}
+		this.mediaRecorder.resume();
+		this.isPaused = false;
+		console.log('AzureWhisperService: Recording resumed');
 	}
 
 	/**
@@ -448,6 +489,7 @@ export class AzureWhisperService {
 		this.mediaRecorder = null;
 		this.audioChunks = [];
 		this.isRecording = false;
+		this.isPaused = false;
 	}
 
 	/**

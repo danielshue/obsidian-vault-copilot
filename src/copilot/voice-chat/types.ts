@@ -1,12 +1,28 @@
+// Copyright (c) 2026 Dan Shue. All rights reserved.
+// Licensed under the MIT License.
+
 /**
- * Voice Chat Types
- * Type definitions for voice recording and transcription
+ * @module VoiceChatTypes
+ * @description Type definitions for voice recording and transcription.
+ *
+ * Provides the enums and interfaces shared by the voice chat services and UI:
+ * - Recording lifecycle state machine
+ * - Transcription result and segment shapes
+ * - Voice chat service contract and events
+ *
+ * @example
+ * ```typescript
+ * import type { RecordingState, TranscriptionResult } from './types';
+ * const state: RecordingState = 'recording';
+ * const result: TranscriptionResult = { text: 'hello', segments: [], transcribeDurationMs: 10 };
+ * ```
+ * @since 0.0.14
  */
 
 /**
  * Recording state for the voice recorder
  */
-export type RecordingState = 'idle' | 'recording' | 'processing' | 'error';
+export type RecordingState = 'idle' | 'recording' | 'paused' | 'processing' | 'error';
 
 /**
  * Transcription segment
@@ -47,6 +63,10 @@ export interface IVoiceChatService {
 	initialize(): Promise<void>;
 	/** Start recording */
 	startRecording(): Promise<void>;
+	/** Pause recording without ending the session */
+	pauseRecording(): Promise<void>;
+	/** Resume a paused recording */
+	resumeRecording(): Promise<void>;
 	/** Stop recording and get transcription */
 	stopRecording(): Promise<TranscriptionResult>;
 	/** Cancel recording without transcription */
