@@ -356,4 +356,6 @@ export interface CopilotPluginSettings {
 	cliStatusChecked?: boolean;
 	/** Last known CLI status from a successful check */
 	cliLastKnownStatus?: CliStatus | null;
+	/** Extension marketplace catalog URL */
+	extensionCatalogUrl?: string;
 }

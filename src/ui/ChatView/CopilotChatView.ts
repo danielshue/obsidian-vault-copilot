@@ -1983,10 +1983,8 @@ export class CopilotChatView extends ItemView {
 			item.setTitle("Extensions")
 				.setIcon("puzzle")
 				.onClick(() => {
-					// TODO: Open ExtensionBrowserView when implemented
-					// For now, open settings
-					(this.app as any).setting.open();
-					(this.app as any).setting.openTabById("obsidian-vault-copilot");
+					// Open Extension Browser
+					this.plugin.activateExtensionBrowser();
 				});
 		});
 
