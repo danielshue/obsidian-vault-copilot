@@ -1,15 +1,30 @@
+// Copyright (c) 2026 Dan Shue. All rights reserved.
+// Licensed under the MIT License.
+
 /**
- * TracingModal - Modal to display tracing information
- * 
- * Shows captured traces and spans from agent executions in a 
- * tree-like format for debugging and inspection.
+ * @module TracingModal
+ * @description Tracing modal and workspace view for visualizing traces and SDK logs with filtering, sorting, and drill-in detail panes.
+ *
+ * The tracing surface consolidates two tabs: voice traces (span tree + detail) and SDK logs (filterable, sortable list). The SDK log layout
+ * uses a persistent filter rail so controls remain visible while scrolling the log list.
+ *
+ * @example
+ * ```typescript
+ * import { openTracingPopout } from "./TracingModal";
+ * openTracingPopout(app);
+ * ```
+ *
+ * @see {@link ../../../copilot/TracingService} for data collection
+ * @since 0.0.14
  */
 
 import { App, ItemView, Menu, Modal, Platform, WorkspaceLeaf, setIcon } from "obsidian";
 import { TracingService, TracingTrace, TracingSpan, TracingEvent, SDKLogEntry, getTracingService } from "../../../copilot/TracingService";
+import type CopilotPlugin from "../../../main";
 
 type TabType = 'traces' | 'sdk-logs';
 type SortDirection = 'asc' | 'desc';
+type SdkLogPreset = 'all' | 'voice' | 'cli' | 'errors' | 'warnings-errors';
 
 interface SdkLogFilters {
 	sources: Set<string>; // 'voice', 'cli'
@@ -74,6 +89,8 @@ class TracingPanel {
 	private selectedTraceId: string | null = null;
 	private autoRefresh: boolean = true;
 	private currentTab: TabType = 'traces';
+	private logLevel: 'debug' | 'info' | 'warn' | 'error' = 'info';
+	private plugin: CopilotPlugin | null = null;
 	
 	// SDK Logs state
 	private sdkLogSortDir: SortDirection = 'desc'; // newest first by default
@@ -84,8 +101,29 @@ class TracingPanel {
 		searchText: ''
 	};
 
-	constructor(private readonly containerEl: HTMLElement) {
+	constructor(private readonly containerEl: HTMLElement, private readonly app: App, plugin?: CopilotPlugin | null) {
 		this.tracingService = getTracingService();
+		this.plugin = plugin ?? this.lookupPlugin();
+		this.logLevel = this.plugin?.settings.logLevel || 'info';
+	}
+
+	/**
+	 * Resolve the plugin instance so we can read and persist log level without a hard dependency on constructor wiring.
+	 */
+	private lookupPlugin(): CopilotPlugin | null {
+		const pluginsApi = (this.app as unknown as { plugins?: { getPlugin?: (id: string) => CopilotPlugin | null } }).plugins;
+		if (pluginsApi?.getPlugin) {
+			return pluginsApi.getPlugin('obsidian-vault-copilot') ?? null;
+		}
+		return null;
+	}
+
+	private async updateLogLevel(level: 'debug' | 'info' | 'warn' | 'error'): Promise<void> {
+		this.logLevel = level;
+		if (this.plugin) {
+			this.plugin.settings.logLevel = level;
+			await this.plugin.saveSettings();
+		}
 	}
 
 	mount(): void {
@@ -97,6 +135,28 @@ class TracingPanel {
 		header.createEl("h2", { text: "Tracing & Diagnostics" });
 		
 		const controls = header.createDiv({ cls: "vc-tracing-controls" });
+
+		const logLevelGroup = controls.createDiv({ cls: "vc-tracing-select-group" });
+		logLevelGroup.createSpan({ cls: "vc-tracing-select-label", text: "Log level" });
+		const logLevelSelect = logLevelGroup.createEl("select", { cls: "vc-tracing-select" });
+		const logLevelOptions: Array<{ value: 'debug' | 'info' | 'warn' | 'error'; label: string }> = [
+			{ value: 'debug', label: 'Debug' },
+			{ value: 'info', label: 'Info' },
+			{ value: 'warn', label: 'Warn' },
+			{ value: 'error', label: 'Error' }
+		];
+		for (const option of logLevelOptions) {
+			const opt = logLevelSelect.createEl("option", { value: option.value, text: option.label });
+			if (option.value === this.logLevel) {
+				opt.selected = true;
+			}
+		}
+		logLevelSelect.addEventListener("change", (event) => {
+			const value = (event.target as HTMLSelectElement).value as 'debug' | 'info' | 'warn' | 'error';
+			if (value !== this.logLevel) {
+				void this.updateLogLevel(value);
+			}
+		});
 		
 		// Auto-refresh toggle
 		const autoRefreshBtn = controls.createEl("button", { 
@@ -171,6 +231,44 @@ class TracingPanel {
 		this.renderTraces();
 	}
 
+	/**
+	 * Apply a preset to SDK log filters so users can quickly focus on common scenarios without manual chip selection.
+	 *
+	 * @param preset - Named preset describing the desired source and level combination
+	 * @internal
+	 */
+	private applySdkLogPreset(preset: SdkLogPreset): void {
+		const allSources = new Set(['voice', 'cli', 'service']);
+		const allLevels = new Set(['debug', 'info', 'warning', 'error']);
+		this.sdkLogFilters.searchText = '';
+		this.sdkLogFilters.agents.clear();
+
+		switch (preset) {
+			case 'all':
+				this.sdkLogFilters.sources = allSources;
+				this.sdkLogFilters.levels = allLevels;
+				break;
+			case 'voice':
+				this.sdkLogFilters.sources = new Set(['voice']);
+				this.sdkLogFilters.levels = allLevels;
+				break;
+			case 'cli':
+				this.sdkLogFilters.sources = new Set(['cli', 'service']);
+				this.sdkLogFilters.levels = allLevels;
+				break;
+			case 'errors':
+				this.sdkLogFilters.sources = allSources;
+				this.sdkLogFilters.levels = new Set(['error']);
+				break;
+			case 'warnings-errors':
+				this.sdkLogFilters.sources = allSources;
+				this.sdkLogFilters.levels = new Set(['warning', 'error']);
+				break;
+		}
+
+		this.render();
+	}
+
 	private updateTabStyles(tabBar: HTMLElement): void {
 		const tabs = tabBar.querySelectorAll('.vc-tracing-tab');
 		tabs.forEach(tab => {
@@ -236,6 +334,11 @@ class TracingPanel {
 		}
 	}
 
+	/**
+	 * Render the SDK Logs tab with persistent filter rail, sticky header, and expandable log rows.
+	 *
+	 * @internal
+	 */
 	private renderSdkLogs(): void {
 		if (!this.tracingContentEl) return;
 
@@ -245,40 +348,60 @@ class TracingPanel {
 		const agentNames = new Set<string>();
 		for (const log of allLogs) {
 			const agentName = extractAgentName(log.message);
-			// Exclude service sources - they're not agents
 			if (agentName && agentName !== 'GitHubCopilotCliService' && agentName !== 'Vault Copilot') {
 				agentNames.add(agentName);
 			}
 		}
 		const sortedAgentNames = Array.from(agentNames).sort();
 
-		// Filter controls
-		const filterBar = this.tracingContentEl.createDiv({ cls: "vc-sdk-logs-filters" });
-		
-		// Sort button
-		const sortBtn = filterBar.createEl("button", { 
-			cls: "vc-tracing-btn vc-sort-btn",
+		const layout = this.tracingContentEl.createDiv({ cls: 'vc-sdk-logs-grid' });
+		const rail = layout.createDiv({ cls: 'vc-sdk-logs-rail' });
+		const main = layout.createDiv({ cls: 'vc-sdk-logs-main' });
+
+		// Presets + sort
+		const presetSection = rail.createDiv({ cls: 'vc-sdk-logs-rail-section' });
+		presetSection.createEl('div', { cls: 'vc-rail-title', text: 'View presets' });
+		const presetRow = presetSection.createDiv({ cls: 'vc-filter-chips' });
+		const presetConfigs: Array<{ label: string; preset: SdkLogPreset }> = [
+			{ label: 'All', preset: 'all' },
+			{ label: 'Voice', preset: 'voice' },
+			{ label: 'CLI', preset: 'cli' },
+			{ label: 'Errors', preset: 'errors' },
+			{ label: 'Warn+Err', preset: 'warnings-errors' }
+		];
+		for (const preset of presetConfigs) {
+			const btn = presetRow.createEl('button', {
+				cls: 'vc-filter-btn vc-filter-pill',
+				text: preset.label
+			});
+			btn.addEventListener('click', () => this.applySdkLogPreset(preset.preset));
+		}
+
+		const sortSection = rail.createDiv({ cls: 'vc-sdk-logs-rail-section vc-rail-row' });
+		sortSection.createEl('div', { cls: 'vc-rail-title', text: 'Sort' });
+		const sortBtn = sortSection.createEl('button', {
+			cls: 'vc-tracing-btn vc-sort-btn',
 			attr: { title: `Sort by date (${this.sdkLogSortDir === 'desc' ? 'newest first' : 'oldest first'})` }
 		});
 		setIcon(sortBtn, this.sdkLogSortDir === 'desc' ? 'arrow-down' : 'arrow-up');
 		sortBtn.createSpan({ text: this.sdkLogSortDir === 'desc' ? 'Newest' : 'Oldest' });
-		sortBtn.addEventListener("click", () => {
+		sortBtn.addEventListener('click', () => {
 			this.sdkLogSortDir = this.sdkLogSortDir === 'desc' ? 'asc' : 'desc';
 			this.render();
 		});
 
-		// Source filter dropdown
-		const sourceFilter = filterBar.createDiv({ cls: "vc-filter-group" });
-		sourceFilter.createEl("span", { text: "Source:", cls: "vc-filter-label" });
-		
+		// Source filters
+		const sourceSection = rail.createDiv({ cls: 'vc-sdk-logs-rail-section' });
+		sourceSection.createEl('div', { cls: 'vc-rail-title', text: 'Source' });
 		const sources = ['voice', 'cli', 'service'] as const;
+		const sourceRow = sourceSection.createDiv({ cls: 'vc-filter-chips' });
 		for (const source of sources) {
 			const isActive = this.sdkLogFilters.sources.has(source);
-			const btn = sourceFilter.createEl("button", {
-				cls: `vc-filter-btn ${isActive ? 'vc-active' : ''}`,
+			const btn = sourceRow.createEl('button', {
+				cls: `vc-filter-btn vc-filter-pill ${isActive ? 'vc-active' : ''}`,
 				text: source
 			});
-			btn.addEventListener("click", () => {
+			btn.addEventListener('click', () => {
 				if (isActive) {
 					this.sdkLogFilters.sources.delete(source);
 				} else {
@@ -288,18 +411,18 @@ class TracingPanel {
 			});
 		}
 
-		// Level filter dropdown
-		const levelFilter = filterBar.createDiv({ cls: "vc-filter-group" });
-		levelFilter.createEl("span", { text: "Level:", cls: "vc-filter-label" });
-		
+		// Level filters
+		const levelSection = rail.createDiv({ cls: 'vc-sdk-logs-rail-section' });
+		levelSection.createEl('div', { cls: 'vc-rail-title', text: 'Level' });
 		const levels = ['debug', 'info', 'warning', 'error'] as const;
+		const levelRow = levelSection.createDiv({ cls: 'vc-filter-chips' });
 		for (const level of levels) {
 			const isActive = this.sdkLogFilters.levels.has(level);
-			const btn = levelFilter.createEl("button", {
-				cls: `vc-filter-btn vc-level-${level} ${isActive ? 'vc-active' : ''}`,
+			const btn = levelRow.createEl('button', {
+				cls: `vc-filter-btn vc-filter-pill vc-level-${level} ${isActive ? 'vc-active' : ''}`,
 				text: level
 			});
-			btn.addEventListener("click", () => {
+			btn.addEventListener('click', () => {
 				if (isActive) {
 					this.sdkLogFilters.levels.delete(level);
 				} else {
@@ -309,32 +432,29 @@ class TracingPanel {
 			});
 		}
 
-		// Agent filter (only show if there are voice logs with agent names)
+		// Agent filters
 		if (sortedAgentNames.length > 0) {
-			const agentFilter = filterBar.createDiv({ cls: "vc-filter-group" });
-			agentFilter.createEl("span", { text: "Agent:", cls: "vc-filter-label" });
-			
-			// "All" button
+			const agentSection = rail.createDiv({ cls: 'vc-sdk-logs-rail-section' });
+			agentSection.createEl('div', { cls: 'vc-rail-title', text: 'Agent' });
+			const agentRow = agentSection.createDiv({ cls: 'vc-filter-chips' });
 			const allAgentsActive = this.sdkLogFilters.agents.size === 0;
-			const allBtn = agentFilter.createEl("button", {
-				cls: `vc-filter-btn ${allAgentsActive ? 'vc-active' : ''}`,
-				text: "All"
+			const allBtn = agentRow.createEl('button', {
+				cls: `vc-filter-btn vc-filter-pill ${allAgentsActive ? 'vc-active' : ''}`,
+				text: 'All'
 			});
-			allBtn.addEventListener("click", () => {
+			allBtn.addEventListener('click', () => {
 				this.sdkLogFilters.agents.clear();
 				this.render();
 			});
-			
 			for (const agentName of sortedAgentNames) {
 				const isActive = this.sdkLogFilters.agents.has(agentName);
-				// Shorten long agent names for the button
-				const shortName = agentName.length > 20 ? agentName.substring(0, 17) + '...' : agentName;
-				const btn = agentFilter.createEl("button", {
-					cls: `vc-filter-btn vc-agent-filter ${isActive ? 'vc-active' : ''}`,
+				const shortName = agentName.length > 20 ? `${agentName.substring(0, 17)}...` : agentName;
+				const btn = agentRow.createEl('button', {
+					cls: `vc-filter-btn vc-filter-pill vc-agent-filter ${isActive ? 'vc-active' : ''}`,
 					text: shortName,
 					attr: { title: agentName }
 				});
-				btn.addEventListener("click", () => {
+				btn.addEventListener('click', () => {
 					if (isActive) {
 						this.sdkLogFilters.agents.delete(agentName);
 					} else {
@@ -345,21 +465,32 @@ class TracingPanel {
 			}
 		}
 
-		// Search input
-		const searchGroup = filterBar.createDiv({ cls: "vc-filter-group vc-search-group" });
-		const searchInput = searchGroup.createEl("input", {
-			cls: "vc-sdk-log-search",
-			attr: { 
-				type: "text", 
-				placeholder: "Search logs...",
+		// Search + reset
+		const searchSection = rail.createDiv({ cls: 'vc-sdk-logs-rail-section' });
+		searchSection.createEl('div', { cls: 'vc-rail-title', text: 'Search' });
+		const searchInput = searchSection.createEl('input', {
+			cls: 'vc-sdk-log-search',
+			attr: {
+				type: 'text',
+				placeholder: 'Search logs…',
 				value: this.sdkLogFilters.searchText
 			}
 		});
-		searchInput.addEventListener("input", (e) => {
+		searchInput.addEventListener('input', (e) => {
 			this.sdkLogFilters.searchText = (e.target as HTMLInputElement).value;
 			this.render();
 		});
-		// Keep focus on search input after re-render
+		const resetBtn = searchSection.createEl('button', { cls: 'vc-tracing-btn vc-rail-reset', text: 'Reset filters' });
+		resetBtn.addEventListener('click', () => {
+			this.sdkLogFilters = {
+				sources: new Set(['voice', 'cli', 'service']),
+				levels: new Set(['info', 'warning', 'error', 'debug']),
+				agents: new Set(),
+				searchText: ''
+			};
+			this.sdkLogSortDir = 'desc';
+			this.render();
+		});
 		if (this.sdkLogFilters.searchText) {
 			setTimeout(() => {
 				searchInput.focus();
@@ -368,168 +499,92 @@ class TracingPanel {
 		}
 
 		// Apply filters
-		const filteredLogs = allLogs.filter(log => {
+		const filteredLogs = allLogs.filter((log) => {
 			const logSource = getEffectiveSource(log);
-			
-			// Check source filter
-			if (!this.sdkLogFilters.sources.has(logSource)) {
-				return false;
-			}
-			
-			// Check level filter
-			if (!this.sdkLogFilters.levels.has(log.level)) {
-				return false;
-			}
-			
-			// Check agent filter (applies to both voice and CLI logs)
+			if (!this.sdkLogFilters.sources.has(logSource)) return false;
+			if (!this.sdkLogFilters.levels.has(log.level)) return false;
 			if (this.sdkLogFilters.agents.size > 0) {
 				const agentName = extractAgentName(log.message);
-				// If no agent name or the agent doesn't match filter, exclude it
-				if (!agentName || !this.sdkLogFilters.agents.has(agentName)) {
-					return false;
-				}
+				if (!agentName || !this.sdkLogFilters.agents.has(agentName)) return false;
 			}
-			
-			// Check search text filter
 			if (this.sdkLogFilters.searchText) {
 				const searchLower = this.sdkLogFilters.searchText.toLowerCase();
-				if (!log.message.toLowerCase().includes(searchLower)) {
-					return false;
-				}
+				if (!log.message.toLowerCase().includes(searchLower)) return false;
 			}
-			
 			return true;
 		});
 
-		// Apply sort
-		const sortedLogs = [...filteredLogs].sort((a, b) => {
-			return this.sdkLogSortDir === 'desc' 
-				? b.timestamp - a.timestamp 
-				: a.timestamp - b.timestamp;
-		});
+		const sortedLogs = [...filteredLogs].sort((a, b) => (this.sdkLogSortDir === 'desc' ? b.timestamp - a.timestamp : a.timestamp - b.timestamp));
 
 		if (sortedLogs.length === 0) {
-			const emptyState = this.tracingContentEl.createDiv({ cls: "vc-tracing-empty" });
+			const emptyState = main.createDiv({ cls: 'vc-tracing-empty' });
 			if (allLogs.length === 0) {
-				emptyState.createEl("p", { text: "No SDK logs captured yet." });
-				emptyState.createEl("p", { 
-					text: "SDK logs are captured from:",
-					cls: "vc-tracing-hint"
-				});
-				const list = emptyState.createEl("ul", { cls: "vc-tracing-hint" });
-				list.createEl("li", { text: "Realtime voice agent sessions" });
-				list.createEl("li", { text: "Copilot CLI operations" });
+				emptyState.createEl('p', { text: 'No SDK logs captured yet.' });
+				emptyState.createEl('p', { cls: 'vc-tracing-hint', text: 'SDK logs are captured from:' });
+				const list = emptyState.createEl('ul', { cls: 'vc-tracing-hint' });
+				list.createEl('li', { text: 'Realtime voice agent sessions' });
+				list.createEl('li', { text: 'Copilot CLI operations' });
 			} else {
-				emptyState.createEl("p", { text: "No logs match the current filters." });
+				emptyState.createEl('p', { text: 'No logs match the current filters.' });
 			}
 			return;
 		}
 
-		// Log list container
-		const logsContainer = this.tracingContentEl.createDiv({ cls: "vc-sdk-logs-container" });
-		
-		// Header with count
-		const header = logsContainer.createDiv({ cls: "vc-sdk-logs-header" });
-		header.createEl("span", { text: `${sortedLogs.length} log entries` + (allLogs.length !== sortedLogs.length ? ` (${allLogs.length} total)` : '') });
-		
-		// Clear button
-		const clearBtn = header.createEl("button", { cls: "vc-tracing-btn", text: "Clear" });
-		clearBtn.addEventListener("click", () => {
+		const logsContainer = main.createDiv({ cls: 'vc-sdk-logs-container' });
+		const header = logsContainer.createDiv({ cls: 'vc-sdk-logs-header' });
+		header.createEl('span', { text: `${sortedLogs.length} log entries${allLogs.length !== sortedLogs.length ? ` (${allLogs.length} total)` : ''}` });
+		const clearBtn = header.createEl('button', { cls: 'vc-tracing-btn', text: 'Clear' });
+		clearBtn.addEventListener('click', () => {
 			this.tracingService.clearSdkLogs();
 			this.render();
 		});
 
-		// Log entries
-		const logList = logsContainer.createDiv({ cls: "vc-sdk-logs-list" });
-		
-		// Threshold for considering a message "long" (needs expand/collapse)
+		const logList = logsContainer.createDiv({ cls: 'vc-sdk-logs-list' });
 		const LONG_MESSAGE_THRESHOLD = 150;
-		
+
 		for (const log of sortedLogs) {
 			const isLongMessage = log.message.length > LONG_MESSAGE_THRESHOLD;
-			const entry = logList.createDiv({ 
+			const entry = logList.createDiv({
 				cls: `vc-sdk-log-entry vc-log-${log.level}${isLongMessage ? ' vc-log-expandable vc-log-collapsed' : ''}`
 			});
-			
-			// Right-click context menu for copying
-			entry.addEventListener("contextmenu", (e) => {
+
+			entry.addEventListener('contextmenu', (e) => {
 				e.preventDefault();
 				const menu = new Menu();
-				
-				// Copy message only
 				menu.addItem((item) => {
-					item.setTitle("Copy message")
-						.setIcon("copy")
-						.onClick(() => {
-							navigator.clipboard.writeText(log.message);
-						});
+					item.setTitle('Copy message').setIcon('copy').onClick(() => {
+						navigator.clipboard.writeText(log.message);
+					});
 				});
-				
-				// Copy full log entry (timestamp, level, source, message)
 				menu.addItem((item) => {
 					const fullEntry = `[${this.formatTime(log.timestamp)}] [${log.level.toUpperCase()}] [${log.source}] ${log.message}`;
-					item.setTitle("Copy full entry")
-						.setIcon("clipboard-copy")
-						.onClick(() => {
-							navigator.clipboard.writeText(fullEntry);
-						});
+					item.setTitle('Copy full entry').setIcon('clipboard-copy').onClick(() => {
+						navigator.clipboard.writeText(fullEntry);
+					});
 				});
-				
 				menu.showAtMouseEvent(e);
 			});
-			
-			// Timestamp
-			entry.createSpan({ 
-				cls: "vc-sdk-log-time",
-				text: this.formatTime(log.timestamp)
-			});
-			
-			// Source badge
+
+			entry.createSpan({ cls: 'vc-sdk-log-time', text: this.formatTime(log.timestamp) });
 			const sourceText = getEffectiveSource(log);
-			entry.createSpan({ 
-				cls: `vc-sdk-log-source`,
-				text: sourceText
-			});
-			
-			// Level badge
-			entry.createSpan({ 
-				cls: `vc-sdk-log-level vc-level-${log.level}`,
-				text: log.level.toUpperCase()
-			});
-			
-			// Message container
-			const messageContainer = entry.createDiv({ cls: "vc-sdk-log-message-container" });
-			
+			entry.createSpan({ cls: 'vc-sdk-log-source', text: sourceText });
+			entry.createSpan({ cls: `vc-sdk-log-level vc-level-${log.level}`, text: log.level.toUpperCase() });
+
+			const messageContainer = entry.createDiv({ cls: 'vc-sdk-log-message-container' });
 			if (isLongMessage) {
-				// Truncated message (shown when collapsed)
-				messageContainer.createSpan({ 
-					cls: "vc-sdk-log-message-truncated",
-					text: log.message.substring(0, LONG_MESSAGE_THRESHOLD) + '...'
-				});
-				
-				// Full message (shown when expanded)
-				messageContainer.createSpan({ 
-					cls: "vc-sdk-log-message-full",
-					text: log.message
-				});
-				
-				// Expand/collapse toggle
-				const toggle = entry.createSpan({ cls: "vc-sdk-log-toggle" });
-				setIcon(toggle, "chevron-down");
-				toggle.setAttribute("title", "Click to expand");
-				
-				entry.addEventListener("click", () => {
-					const isCollapsed = entry.hasClass("vc-log-collapsed");
-					entry.toggleClass("vc-log-collapsed", !isCollapsed);
-					setIcon(toggle, isCollapsed ? "chevron-up" : "chevron-down");
-					toggle.setAttribute("title", isCollapsed ? "Click to collapse" : "Click to expand");
+				messageContainer.createSpan({ cls: 'vc-sdk-log-message-truncated', text: `${log.message.substring(0, LONG_MESSAGE_THRESHOLD)}...` });
+				messageContainer.createSpan({ cls: 'vc-sdk-log-message-full', text: log.message });
+				const toggle = entry.createSpan({ cls: 'vc-sdk-log-toggle' });
+				setIcon(toggle, 'chevron-down');
+				toggle.setAttribute('title', 'Click to expand');
+				entry.addEventListener('click', () => {
+					const isCollapsed = entry.hasClass('vc-log-collapsed');
+					entry.toggleClass('vc-log-collapsed', !isCollapsed);
+					setIcon(toggle, isCollapsed ? 'chevron-up' : 'chevron-down');
+					toggle.setAttribute('title', isCollapsed ? 'Click to collapse' : 'Click to expand');
 				});
 			} else {
-				// Short message - just show it directly
-				messageContainer.createSpan({ 
-					cls: "vc-sdk-log-message",
-					text: log.message
-				});
+				messageContainer.createSpan({ cls: 'vc-sdk-log-message', text: log.message });
 			}
 		}
 	}
@@ -734,7 +789,7 @@ export class TracingModal extends Modal {
 	onOpen(): void {
 		const { contentEl, modalEl } = this;
 		modalEl.addClass("vc-tracing-modal");
-		this.panel = new TracingPanel(contentEl);
+		this.panel = new TracingPanel(contentEl, this.app);
 		this.panel.mount();
 	}
 
@@ -767,7 +822,7 @@ export class TracingView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		this.containerEl.addClass("vc-tracing-modal");
-		this.panel = new TracingPanel(this.contentEl);
+		this.panel = new TracingPanel(this.contentEl, this.app);
 		this.panel.mount();
 	}
 

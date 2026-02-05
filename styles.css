@@ -3548,15 +3548,26 @@
    ============================================ */
 
 .vc-tracing-modal {
-	width: 90vw;
-	max-width: 1200px;
-	height: 80vh;
+	width: 100%;
+	max-width: none;
+	height: 100%;
+	max-height: none;
 }
 
 .vc-tracing-modal .modal-content {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
+	padding: 16px;
+	min-height: 0;
+}
+
+/* Stretch tracing view when used in a workspace leaf (desktop pop-out) */
+.workspace-leaf-content .vc-tracing-modal {
+	padding: 0;
+}
+
+.workspace-leaf-content .vc-tracing-modal .modal-content {
 	padding: 16px;
 }
 
@@ -3576,6 +3587,27 @@
 .vc-tracing-controls {
 	display: flex;
 	gap: 8px;
+}
+
+.vc-tracing-select-group {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.vc-tracing-select-label {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.vc-tracing-select {
+	height: 32px;
+	padding: 4px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 13px;
 }
 
 .vc-tracing-btn {
@@ -3617,6 +3649,7 @@
 .vc-tracing-content {
 	flex: 1;
 	overflow: hidden;
+	min-height: 0;
 }
 
 .vc-tracing-empty {
@@ -3631,17 +3664,21 @@
 }
 
 .vc-tracing-layout {
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
 	gap: 16px;
 	height: 100%;
+	min-height: 0;
 }
 
 .vc-tracing-list {
-	width: 320px;
-	flex-shrink: 0;
+	min-width: 260px;
+	max-width: 420px;
 	overflow-y: auto;
 	border-right: 1px solid var(--background-modifier-border);
 	padding-right: 16px;
+	height: 100%;
+	min-height: 0;
 }
 
 .vc-tracing-list-item {
@@ -3706,6 +3743,8 @@
 	flex: 1;
 	overflow-y: auto;
 	min-width: 0;
+	min-height: 0;
+	height: 100%;
 }
 
 .vc-tracing-detail-header {
@@ -3884,10 +3923,115 @@
 }
 
 /* SDK Logs Styles */
+.vc-sdk-logs-grid {
+	display: grid;
+	grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+	gap: 12px;
+	height: 100%;
+	min-height: 0;
+	align-items: stretch;
+}
+
+.vc-sdk-logs-rail {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	position: sticky;
+	top: 0;
+	align-self: start;
+	max-height: 100%;
+	min-width: 240px;
+	max-width: 420px;
+	height: 100%;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.vc-sdk-logs-rail-section {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.vc-rail-title {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+	font-weight: 700;
+}
+
+.vc-filter-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.vc-filter-pill {
+	min-width: 0;
+	text-transform: capitalize;
+}
+
+.vc-rail-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-sdk-log-search {
+	width: 100%;
+	padding: 6px 8px;
+	font-size: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+}
+
+.vc-sdk-log-search:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.vc-rail-reset {
+	align-self: flex-start;
+}
+
+@media (max-width: 960px) {
+	.vc-sdk-logs-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.vc-sdk-logs-rail {
+		position: static;
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.vc-sdk-logs-rail-section {
+		min-width: 220px;
+	}
+}
+
+.vc-sdk-logs-main {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	height: 100%;
+	gap: 8px;
+	min-height: 0;
+}
+
 .vc-sdk-logs-container {
 	height: 100%;
 	display: flex;
 	flex-direction: column;
+	min-height: 0;
 }
 
 .vc-sdk-logs-header {
@@ -3897,6 +4041,10 @@
 	margin-bottom: 12px;
 	padding-bottom: 8px;
 	border-bottom: 1px solid var(--background-modifier-border);
+	position: sticky;
+	top: 0;
+	background: var(--background-primary);
+	z-index: 1;
 }
 
 .vc-sdk-logs-list {
@@ -3904,6 +4052,7 @@
 	overflow-y: auto;
 	font-family: var(--font-monospace);
 	font-size: 12px;
+	padding-right: 4px;
 }
 
 .vc-sdk-log-entry {
@@ -3920,8 +4069,9 @@
 
 .vc-sdk-log-time {
 	color: var(--text-muted);
-	flex-shrink: 0;
+	flex: 0 0 110px;
 	font-size: 11px;
+	text-align: left;
 }
 
 .vc-sdk-log-source {
@@ -3929,8 +4079,7 @@
 	border-radius: 3px;
 	font-size: 10px;
 	font-weight: 500;
-	flex-shrink: 0;
-	min-width: 36px;
+	flex: 0 0 56px;
 	text-align: center;
 	background: var(--background-modifier-border);
 	color: var(--text-muted);
@@ -3941,8 +4090,7 @@
 	border-radius: 3px;
 	font-size: 10px;
 	font-weight: 600;
-	flex-shrink: 0;
-	min-width: 50px;
+	flex: 0 0 64px;
 	text-align: center;
 }
 
@@ -3981,6 +4129,7 @@
 
 .vc-log-expandable {
 	cursor: pointer;
+	overflow: hidden;
 }
 
 .vc-log-expandable:hover {
@@ -3993,6 +4142,19 @@
 
 .vc-log-expandable:not(.vc-log-collapsed) .vc-sdk-log-message-truncated {
 	display: none;
+}
+
+/* Keep a single-line row until expanded; allow wrapping only after toggle */
+.vc-log-expandable .vc-sdk-log-message-container {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.vc-log-expandable:not(.vc-log-collapsed) .vc-sdk-log-message-container {
+	white-space: normal;
+	overflow: visible;
 }
 
 .vc-sdk-log-message-truncated {
@@ -4008,6 +4170,7 @@
 	flex-shrink: 0;
 	color: var(--text-muted);
 	opacity: 0.6;
+	margin-left: 6px;
 }
 
 .vc-log-expandable:hover .vc-sdk-log-toggle {
@@ -4176,15 +4339,26 @@
    ============================================ */
 
 .vc-conversation-history-modal {
-	width: 90vw;
-	max-width: 1100px;
-	height: 80vh;
+	width: 100%;
+	max-width: none;
+	height: 100%;
+	max-height: none;
 }
 
 .vc-conversation-history-modal .modal-content {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
+	padding: 16px;
+	min-height: 0;
+}
+
+/* Stretch voice history view in workspace leaf (desktop pop-out) */
+.workspace-leaf-content .vc-conversation-history-modal {
+	padding: 0;
+}
+
+.workspace-leaf-content .vc-conversation-history-modal .modal-content {
 	padding: 16px;
 }
 

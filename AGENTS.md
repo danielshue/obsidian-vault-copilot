@@ -17,6 +17,8 @@
 
 ### Install
 
+> Use PowerShell (`pwsh`) for all terminal commands.
+
 ```bash
 npm install
 ```
