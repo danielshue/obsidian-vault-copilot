@@ -5211,3 +5211,363 @@ color: var(--text-error);
 color: var(--text-on-accent);
 }
 
+
+/* ============================================================================
+   Extension Marketplace Styles
+   ============================================================================ */
+
+/* Extension Browser Container */
+.vc-extension-browser {
+display: flex;
+flex-direction: column;
+height: 100%;
+background: var(--background-secondary);
+overflow: hidden;
+}
+
+/* Extension Browser Header */
+.vc-extension-browser-header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 12px 16px;
+border-bottom: 1px solid var(--background-modifier-border);
+background: var(--background-secondary);
+}
+
+.vc-extension-browser-header h2 {
+margin: 0;
+font-size: 16px;
+font-weight: 600;
+color: var(--text-normal);
+}
+
+.vc-extension-browser-header-actions {
+display: flex;
+gap: 8px;
+align-items: center;
+}
+
+.vc-extension-browser-btn {
+background: transparent;
+border: none;
+padding: 6px;
+border-radius: var(--radius-s);
+cursor: pointer;
+color: var(--text-muted);
+display: flex;
+align-items: center;
+justify-content: center;
+transition: all 0.2s;
+}
+
+.vc-extension-browser-btn:hover {
+background: var(--background-modifier-hover);
+color: var(--text-normal);
+}
+
+.vc-extension-browser-btn svg {
+width: 18px;
+height: 18px;
+}
+
+/* Filters Bar */
+.vc-extension-browser-filters {
+display: flex;
+gap: 12px;
+padding: 12px 16px;
+border-bottom: 1px solid var(--background-modifier-border);
+background: var(--background-primary);
+align-items: center;
+}
+
+.vc-extension-browser-search {
+flex: 1;
+display: flex;
+align-items: center;
+gap: 8px;
+background: var(--background-secondary);
+border: 1px solid var(--background-modifier-border);
+border-radius: var(--radius-s);
+padding: 6px 12px;
+}
+
+.vc-extension-browser-search-icon {
+color: var(--text-muted);
+display: flex;
+align-items: center;
+}
+
+.vc-extension-browser-search-icon svg {
+width: 16px;
+height: 16px;
+}
+
+.vc-extension-browser-search-input {
+flex: 1;
+border: none;
+background: transparent;
+color: var(--text-normal);
+outline: none;
+font-size: 14px;
+}
+
+.vc-extension-browser-search-input::placeholder {
+color: var(--text-muted);
+}
+
+.vc-extension-browser-select {
+background: var(--background-secondary);
+border: 1px solid var(--background-modifier-border);
+border-radius: var(--radius-s);
+padding: 6px 12px;
+color: var(--text-normal);
+font-size: 14px;
+cursor: pointer;
+outline: none;
+}
+
+.vc-extension-browser-select:hover {
+background: var(--background-modifier-hover);
+}
+
+/* Sections Container */
+.vc-extension-browser-sections {
+flex: 1;
+overflow-y: auto;
+padding: 16px;
+}
+
+/* Section */
+.vc-extension-browser-section {
+margin-bottom: 24px;
+}
+
+.vc-extension-browser-section-header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 8px 0;
+cursor: pointer;
+user-select: none;
+}
+
+.vc-extension-browser-section-header:hover {
+opacity: 0.8;
+}
+
+.vc-extension-browser-section-title {
+display: flex;
+align-items: center;
+gap: 8px;
+font-size: 14px;
+font-weight: 600;
+color: var(--text-normal);
+text-transform: uppercase;
+letter-spacing: 0.5px;
+}
+
+.vc-extension-browser-section-icon {
+display: flex;
+align-items: center;
+transition: transform 0.2s;
+}
+
+.vc-extension-browser-section-icon svg {
+width: 16px;
+height: 16px;
+}
+
+.vc-extension-browser-section.collapsed .vc-extension-browser-section-icon {
+transform: rotate(-90deg);
+}
+
+.vc-extension-browser-section-count {
+color: var(--text-muted);
+font-size: 12px;
+font-weight: 500;
+}
+
+.vc-extension-browser-section-content {
+display: flex;
+flex-direction: column;
+gap: 12px;
+padding-top: 12px;
+}
+
+.vc-extension-browser-section.collapsed .vc-extension-browser-section-content {
+display: none;
+}
+
+.vc-extension-browser-empty {
+padding: 32px 16px;
+text-align: center;
+color: var(--text-muted);
+font-size: 14px;
+}
+
+/* Extension Card */
+.vc-extension-card {
+background: var(--background-primary);
+border: 1px solid var(--background-modifier-border);
+border-radius: var(--radius-m);
+padding: 16px;
+cursor: pointer;
+transition: all 0.2s;
+}
+
+.vc-extension-card:hover {
+background: var(--background-modifier-hover);
+border-color: var(--background-modifier-border-hover);
+box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.vc-extension-card--installed {
+border-color: var(--interactive-accent);
+background: var(--background-primary-alt);
+}
+
+.vc-extension-card--has-update {
+border-color: var(--text-warning);
+}
+
+/* Card Header */
+.vc-extension-card__header {
+display: flex;
+align-items: flex-start;
+gap: 12px;
+margin-bottom: 12px;
+}
+
+.vc-extension-card__icon {
+flex-shrink: 0;
+width: 32px;
+height: 32px;
+display: flex;
+align-items: center;
+justify-content: center;
+background: var(--background-secondary);
+border-radius: var(--radius-s);
+color: var(--text-muted);
+}
+
+.vc-extension-card__icon svg {
+width: 20px;
+height: 20px;
+}
+
+.vc-extension-card__title-container {
+flex: 1;
+min-width: 0;
+}
+
+.vc-extension-card__title {
+font-size: 15px;
+font-weight: 600;
+color: var(--text-normal);
+margin-bottom: 4px;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+}
+
+.vc-extension-card__version {
+font-size: 12px;
+color: var(--text-muted);
+font-weight: 500;
+}
+
+.vc-extension-card__update-badge {
+background: var(--text-warning);
+color: var(--text-on-accent);
+padding: 2px 8px;
+border-radius: var(--radius-s);
+font-size: 11px;
+font-weight: 600;
+text-transform: uppercase;
+letter-spacing: 0.5px;
+}
+
+/* Card Description */
+.vc-extension-card__description {
+color: var(--text-muted);
+font-size: 13px;
+line-height: 1.5;
+margin-bottom: 12px;
+display: -webkit-box;
+-webkit-line-clamp: 2;
+-webkit-box-orient: vertical;
+overflow: hidden;
+}
+
+/* Card Footer */
+.vc-extension-card__footer {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 12px;
+}
+
+.vc-extension-card__categories {
+display: flex;
+gap: 6px;
+flex-wrap: wrap;
+flex: 1;
+min-width: 0;
+}
+
+.vc-extension-card__category-badge {
+background: var(--background-secondary);
+color: var(--text-muted);
+padding: 2px 8px;
+border-radius: var(--radius-s);
+font-size: 11px;
+font-weight: 500;
+white-space: nowrap;
+}
+
+.vc-extension-card__category-badge--more {
+background: var(--interactive-accent);
+color: var(--text-on-accent);
+}
+
+.vc-extension-card__actions {
+display: flex;
+gap: 8px;
+flex-shrink: 0;
+}
+
+.vc-extension-card__action-btn {
+background: var(--interactive-accent);
+color: var(--text-on-accent);
+border: none;
+padding: 6px 12px;
+border-radius: var(--radius-s);
+font-size: 13px;
+font-weight: 500;
+cursor: pointer;
+display: flex;
+align-items: center;
+gap: 4px;
+transition: all 0.2s;
+}
+
+.vc-extension-card__action-btn:hover {
+background: var(--interactive-accent-hover);
+transform: translateY(-1px);
+box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.vc-extension-card__action-btn svg {
+width: 14px;
+height: 14px;
+}
+
+/* Prevent card click when clicking actions */
+.vc-extension-card__actions {
+pointer-events: all;
+}
+
+.vc-extension-card__action-btn {
+pointer-events: all;
+}
