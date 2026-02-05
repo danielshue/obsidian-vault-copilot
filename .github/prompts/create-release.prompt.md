@@ -42,16 +42,29 @@ Use `github/push_files` to commit and push all version updates in a single commi
 
 Commit message: `Bump version to X.Y.Z`
 
-### Step 5: Create Release
-Use `execute/runInTerminal` to create the GitHub release with the `gh` CLI:
+### Step 5: Draft Detailed Release Notes
+Summarize the commits since the last release in a structured, user-facing way (no raw git log dump). Use `execute/runInTerminal` to gather commit context:
+
+1. `git log <LAST_TAG>..HEAD --oneline`
+2. Optionally, `git diff --stat <LAST_TAG>..HEAD` for component-level changes.
+
+Write a concise release body that includes:
+- Highlights (features/fixes) grouped by area (e.g., Platform/Mobile, Diagnostics/Tracing, Tooling/Docs)
+- Notable breaking/behavior changes (if any)
+- Testing performed (e.g., `npm run build`, `node deploy.mjs`)
+
+Save the notes to a temporary file (e.g., `release-notes.txt`).
+
+### Step 6: Create Release
+Use `execute/runInTerminal` to create the GitHub release with the `gh` CLI using your crafted notes:
 
 ```bash
-gh release create X.Y.Z --repo danielshue/obsidian-vault-copilot --title "Release X.Y.Z" --generate-notes
+gh release create X.Y.Z --repo danielshue/obsidian-vault-copilot --title "Release X.Y.Z" --notes-file release-notes.txt
 ```
 
 This command will:
 - Create a new tag `X.Y.Z` (no 'v' prefix per Obsidian conventions)
-- Create a GitHub release with auto-generated release notes from commits since the last release
+- Create a GitHub release with your curated notes
 - The release workflow in `.github/workflows/release.yml` will automatically attach build artifacts
 
 ## Output Format
