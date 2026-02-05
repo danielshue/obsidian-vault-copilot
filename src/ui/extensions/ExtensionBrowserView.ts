@@ -41,14 +41,18 @@ export class ExtensionBrowserView extends ItemView {
 	private currentFilter: BrowseFilter = {};
 	private allExtensions: MarketplaceExtension[] = [];
 	private installedExtensionIds: Set<string> = new Set();
+	private availableUpdates: Map<string, string> = new Map(); // extensionId -> new version
 	
 	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin) {
 		super(leaf);
 		this.plugin = plugin;
 		
 		// Initialize services
-		const catalogUrl = plugin.settings.extensionCatalogUrl || 
-			"https://danielshue.github.io/vault-copilot-extensions/catalog/catalog.json";
+		const catalogUrl = plugin.settings.extensionCatalogUrl;
+		
+		if (!catalogUrl) {
+			throw new Error("Extension catalog URL not configured");
+		}
 		
 		this.catalogService = new ExtensionCatalogService(this.app, {
 			catalogEndpoint: catalogUrl,
@@ -85,9 +89,10 @@ export class ExtensionBrowserView extends ItemView {
 	 * Renders the main UI structure
 	 */
 	private render(): void {
-		const container = this.containerEl;
+		const container = this.contentEl;
 		container.empty();
 		container.addClass("vc-extension-browser");
+		this.containerEl = container;
 		
 		// Header
 		const header = container.createDiv({ cls: "vc-extension-browser-header" });
@@ -195,6 +200,13 @@ export class ExtensionBrowserView extends ItemView {
 			const installed = await this.extensionManager.getInstalledExtensions();
 			this.installedExtensionIds = new Set(installed.keys());
 			
+			// Check for updates
+			const updates = await this.extensionManager.checkForUpdates(catalog.availableExtensions);
+			this.availableUpdates.clear();
+			for (const update of updates) {
+				this.availableUpdates.set(update.extensionId, update.availableNewerVersion);
+			}
+			
 			// Render sections
 			await this.renderSections();
 			
@@ -295,7 +307,7 @@ export class ExtensionBrowserView extends ItemView {
 		
 		for (const ext of extensions) {
 			const isInstalled = this.installedExtensionIds.has(ext.uniqueId);
-			const hasUpdate = false; // TODO: Check for updates
+			const hasUpdate = this.availableUpdates.has(ext.uniqueId);
 			
 			const card = new ExtensionCardComponent({
 				extensionData: ext,
@@ -323,6 +335,7 @@ export class ExtensionBrowserView extends ItemView {
 	 */
 	private async handleRefresh(): Promise<void> {
 		this.catalogService.clearCache();
+		this.availableUpdates.clear();
 		await this.loadExtensions();
 	}
 	
@@ -344,6 +357,7 @@ export class ExtensionBrowserView extends ItemView {
 			
 			if (result.operationSucceeded) {
 				this.installedExtensionIds.add(ext.uniqueId);
+				this.availableUpdates.delete(ext.uniqueId); // Remove from updates if present
 				await this.renderSections();
 			}
 		} catch (error) {
@@ -360,6 +374,7 @@ export class ExtensionBrowserView extends ItemView {
 			const result = await this.extensionManager.updateExtension(ext.uniqueId, ext);
 			
 			if (result.operationSucceeded) {
+				this.availableUpdates.delete(ext.uniqueId); // Remove from updates after successful update
 				await this.renderSections();
 			}
 		} catch (error) {
@@ -377,6 +392,7 @@ export class ExtensionBrowserView extends ItemView {
 			
 			if (result.operationSucceeded) {
 				this.installedExtensionIds.delete(ext.uniqueId);
+				this.availableUpdates.delete(ext.uniqueId);
 				await this.renderSections();
 			}
 		} catch (error) {
