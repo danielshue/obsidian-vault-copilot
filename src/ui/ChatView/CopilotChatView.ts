@@ -1978,6 +1978,20 @@ export class CopilotChatView extends ItemView {
 	private showSettingsMenu(e: Event): void {
 		const menu = new Menu();
 
+		// Extensions
+		menu.addItem((item) => {
+			item.setTitle("Extensions")
+				.setIcon("puzzle")
+				.onClick(() => {
+					// TODO: Open ExtensionBrowserView when implemented
+					// For now, open settings
+					(this.app as any).setting.open();
+					(this.app as any).setting.openTabById("obsidian-vault-copilot");
+				});
+		});
+
+		menu.addSeparator();
+
 		// Custom Agents
 		menu.addItem((item) => {
 			item.setTitle("Custom Agents")
