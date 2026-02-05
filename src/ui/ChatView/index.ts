@@ -1,63 +1,46 @@
 /**
- * ChatView module exports
+ * @module ChatView
+ * @description Main chat view module for Vault Copilot.
  * 
  * This module contains all components related to the main chat view:
- * - CopilotChatView: The main chat view component
- * - SessionPanel: Session management panel
- * - ToolPickerModal: Tool selection modal
- * - SlashCommands: Slash command definitions
- * - NoteSuggestModal: Note picker modal
- * - WelcomeMessage: Welcome screen rendering
- * - PromptPicker: Prompt picker dropdown
- * - ContextPicker: Context/file picker dropdown
- * - PromptProcessor: Prompt variable processing
- * - MessageRenderer: Message rendering utilities
+ * 
+ * ## Submodules
+ * - **modals/** - Modal dialogs (TracingModal, ToolPickerModal, etc.)
+ * - **pickers/** - Dropdown pickers (ContextPicker, PromptPicker)
+ * - **renderers/** - Rendering utilities (MessageRenderer, WelcomeMessage)
+ * 
+ * ## Main Components
+ * - **CopilotChatView** - The main chat view component
+ * - **SessionPanel** - Session management panel
+ * - **SessionManager** - Session state management
+ * 
+ * @since 0.0.14
  */
 
 // Main view component
 export { CopilotChatView, COPILOT_VIEW_TYPE } from "./CopilotChatView";
 
-// Supporting components
+// Session components
 export { SessionPanel } from "./SessionPanel";
 export type { SessionPanelCallbacks } from "./SessionPanel";
-
-export { ToolPickerModal } from "./ToolPickerModal";
-export type { ToolPickerModalOptions } from "./ToolPickerModal";
-
-// Picker components
-export { PromptPicker } from "./PromptPicker";
-export { ContextPicker } from "./ContextPicker";
-
-// Processing utilities
-export { PromptProcessor } from "./PromptProcessor";
-export { MessageRenderer } from "./MessageRenderer";
-
-// Session management
 export { SessionManager } from "./SessionManager";
 export type { SessionManagerCallbacks } from "./SessionManager";
 
-// Tool execution rendering
-export { ToolExecutionRenderer } from "./ToolExecutionRenderer";
-export type { ToolExecutionCallback } from "./ToolExecutionRenderer";
+// Modals
+export * from "./modals";
 
-// Tracing
-export { TracingModal, openTracingPopout } from "./TracingModal";
+// Pickers
+export * from "./pickers";
 
-// Conversation History
-export { ConversationHistoryModal } from "./ConversationHistoryModal";
+// Renderers
+export * from "./renderers";
+
+// Processing utilities
+export { PromptProcessor } from "./PromptProcessor";
 
 // Utilities
 export { SLASH_COMMANDS } from "./SlashCommands";
 export type { SlashCommand } from "./SlashCommands";
-
-export { NoteSuggestModal } from "./NoteSuggestModal";
-
-export { 
-	renderWelcomeMessage, 
-	WELCOME_CAPABILITIES, 
-	WELCOME_EXAMPLES 
-} from "./WelcomeMessage";
-export type { WelcomeExample } from "./WelcomeMessage";
 
 // Icons
 export * from "./iconSvgs";

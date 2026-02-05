@@ -663,7 +663,7 @@ interface VaultCopilotAPI {
   clearHistory(): Promise<void>;
   
   // Session Management
-  listSessions(): SessionInfo[];
+  listSessions(): Promise<SessionInfo[]>;
   getActiveSessionId(): string | null;
   createSession(name?: string): Promise<SessionInfo>;
   loadSession(sessionId: string): Promise<void>;
@@ -671,6 +671,9 @@ interface VaultCopilotAPI {
   unarchiveSession(sessionId: string): Promise<void>;
   deleteSession(sessionId: string): Promise<void>;
   renameSession(sessionId: string, newName: string): Promise<void>;
+  
+  // Model Discovery
+  listModels(): Promise<ModelInfoResult[]>;
   
   // Skill Management
   registerSkill(skill: VaultCopilotSkill): void;

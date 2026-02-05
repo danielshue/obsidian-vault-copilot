@@ -21,7 +21,7 @@ import {
 	type RealtimeAgentConfig,
 	type RealtimeHistoryItem,
 	type ToolExecutionCallback,
-} from "../../realtime-agent/types";
+} from "../../copilot/realtime-agent/types";
 
 describe("types.ts", () => {
 	describe("REALTIME_MODEL constant", () => {

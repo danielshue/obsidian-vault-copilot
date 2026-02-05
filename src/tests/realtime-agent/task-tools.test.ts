@@ -17,8 +17,8 @@ import {
 	createListTasksTool,
 	TASK_TOOL_NAMES,
 	type ParsedTask,
-} from "../../realtime-agent/task-tools";
-import type { ToolExecutionCallback } from "../../realtime-agent/types";
+} from "../../copilot/realtime-agent/tools/task-tools";
+import type { ToolExecutionCallback } from "../../copilot/realtime-agent/types";
 import { App } from "obsidian";
 
 // Mock the VaultOperations module
@@ -500,7 +500,7 @@ Some text here.
 				
 				expect(tool).toBeDefined();
 				expect(tool.name).toBe("get_tasks");
-				expect(tool.description).toContain("Get all tasks");
+				expect(tool.description).toContain("Get tasks");
 			});
 
 			it("should create a tool with needsApproval set", () => {
@@ -537,7 +537,7 @@ Some text here.
 				
 				expect(tool).toBeDefined();
 				expect(tool.name).toBe("list_tasks");
-				expect(tool.description).toContain("Query and filter tasks");
+				expect(tool.description).toContain("List tasks");
 			});
 		});
 

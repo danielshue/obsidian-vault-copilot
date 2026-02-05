@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { isToolEnabled, getToolNames } from "../../realtime-agent/tool-manager";
+import { isToolEnabled, getToolNames } from "../../copilot/realtime-agent/tools/tool-manager";
 import {
 	VAULT_READ_TOOLS,
 	VAULT_WRITE_TOOLS,
@@ -11,7 +11,7 @@ import {
 	setLogLevel,
 	type RealtimeToolConfig,
 	type RealtimeToolName,
-} from "../../realtime-agent/types";
+} from "../../copilot/realtime-agent/types";
 
 describe("tool-manager.ts", () => {
 	beforeEach(() => {
