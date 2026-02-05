@@ -1,5 +1,18 @@
-import { CopilotSession, CopilotPluginSettings } from "../../settings";
-import { GitHubCopilotCliService, ChatMessage } from "../../copilot/GitHubCopilotCliService";
+// Copyright (c) 2026 Dan Shue. All rights reserved.
+// Licensed under the MIT License.
+
+/**
+ * @module SessionManager
+ * @description Manages chat session lifecycle for Vault Copilot chat view.
+ *
+ * Handles creation, loading, persistence, and auto-naming of chat sessions while
+ * coordinating with the GitHub Copilot CLI service for message history.
+ *
+ * @since 0.0.14
+ */
+
+import { CopilotSession, CopilotPluginSettings } from "../../ui/settings";
+import { GitHubCopilotCliService, ChatMessage } from "../../copilot/providers/GitHubCopilotCliService";
 
 /**
  * Callback interface for SessionManager to notify the view of changes
@@ -42,7 +55,7 @@ export class SessionManager {
 	getCurrentSession(): CopilotSession | undefined {
 		const activeSessionId = this.settings.activeSessionId;
 		if (activeSessionId) {
-			return this.settings.sessions.find(s => s.id === activeSessionId);
+			return this.settings.sessions.find((s: CopilotSession) => s.id === activeSessionId);
 		}
 		return undefined;
 	}
@@ -132,7 +145,7 @@ export class SessionManager {
 	async saveCurrentSession(): Promise<void> {
 		const activeSessionId = this.settings.activeSessionId;
 		if (activeSessionId) {
-			const session = this.settings.sessions.find(s => s.id === activeSessionId);
+			const session = this.settings.sessions.find((s: CopilotSession) => s.id === activeSessionId);
 			if (session) {
 				session.messages = this.githubCopilotCliService.getMessageHistory();
 				session.lastUsedAt = Date.now();
@@ -185,7 +198,7 @@ export class SessionManager {
 	 */
 	async autoRenameSessionFromFirstMessage(firstMessage: string, sessionPanelRender?: () => void): Promise<void> {
 		const currentSession = this.settings.sessions.find(
-			s => s.id === this.settings.activeSessionId
+			(s: CopilotSession) => s.id === this.settings.activeSessionId
 		);
 		
 		if (!currentSession) {

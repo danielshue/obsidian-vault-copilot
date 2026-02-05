@@ -254,6 +254,88 @@ Follow Obsidian's **Developer Policies** and **Plugin Guidelines**. In particula
 - Avoid Node/Electron APIs if you want mobile compatibility; set `isDesktopOnly` accordingly.
 - Prefer `async/await` over promise chains; handle errors gracefully.
 
+## Documentation standards
+
+** All source code files should have a standardized header comment **
+// Copyright (c) 2026 Dan Shue. All rights reserved.
+// Licensed under the MIT License.
+
+**All code must include comprehensive JSDoc documentation.** When touching any file, examine it and add/update documentation as needed.
+
+### Required JSDoc tags
+
+| Tag | When to use | Example |
+|-----|-------------|---------|
+| `@module` | Top of every file | `@module TaskOperations` |
+| `@description` | File-level and complex functions | Overview of purpose |
+| `@param` | Every function parameter | `@param path - The note file path` |
+| `@returns` | Every function with return value | `@returns Parsed task or null` |
+| `@example` | All public functions | Runnable code snippet |
+| `@throws` | Functions that throw errors | `@throws {Error} If file not found` |
+| `@see` | Cross-references | `@see {@link parseTaskLine}` |
+| `@since` | New APIs | `@since 0.0.14` |
+| `@deprecated` | Deprecated APIs | `@deprecated Use newMethod instead` |
+| `@internal` | Private helpers | Mark non-exported functions |
+
+### File-level documentation template
+
+```typescript
+/**
+ * @module ModuleName
+ * @description Brief description of what this module provides.
+ * 
+ * Detailed explanation of:
+ * - Key features
+ * - Architecture decisions
+ * - Usage patterns
+ * 
+ * @example
+ * ```typescript
+ * import { mainFunction } from './ModuleName';
+ * const result = mainFunction(args);
+ * ```
+ * 
+ * @see {@link RelatedModule} for related functionality
+ * @since 0.0.14
+ */
+```
+
+### Function documentation template
+
+```typescript
+/**
+ * Brief one-line description of what the function does.
+ * 
+ * Longer explanation if needed, including:
+ * - Edge cases
+ * - Side effects
+ * - Performance considerations
+ * 
+ * @param paramName - Description of the parameter
+ * @param optionalParam - Description (defaults to X)
+ * @returns Description of return value
+ * 
+ * @example
+ * ```typescript
+ * const result = myFunction('input');
+ * console.log(result); // expected output
+ * ```
+ * 
+ * @throws {ErrorType} When this error occurs
+ * @see {@link relatedFunction} for similar functionality
+ */
+```
+
+### Documentation checklist (apply when touching any file)
+
+- [ ] File has `@module` tag with description
+- [ ] All exported functions have JSDoc with `@param`, `@returns`, `@example`
+- [ ] All exported interfaces/types have doc comments
+- [ ] Complex logic has inline comments explaining "why"
+- [ ] Private helpers marked with `@internal`
+- [ ] Cross-references added with `@see` where helpful
+- [ ] Examples are runnable and accurate
+
 ## Mobile
 
 - Where feasible, test on iOS and Android.
@@ -391,3 +473,4 @@ this.registerInterval(window.setInterval(() => { /* ... */ }, 1000));
 - Developer policies: https://docs.obsidian.md/Developer+policies
 - Plugin guidelines: https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines
 - Style guide: https://help.obsidian.md/style-guide
+- GitHub Copilot CLI SDK: https://github.com/github/copilot-sdk/blob/main/nodejs/README.md

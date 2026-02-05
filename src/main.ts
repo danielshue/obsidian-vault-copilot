@@ -1,8 +1,56 @@
+/**
+ * @module Main
+ * @description Vault Copilot - Main Obsidian Plugin Entry Point.
+ * 
+ * This is the primary entry point for the Vault Copilot plugin. It handles:
+ * - Plugin lifecycle management (load/unload)
+ * - Service initialization (AI providers, MCP, caching)
+ * - Command registration
+ * - View registration (Chat, Tracing, Voice History)
+ * - Public API exposure for other plugins
+ * 
+ * ## Architecture Overview
+ * 
+ * ```
+ * CopilotPlugin
+ * ├── AI Providers
+ * │   ├── GitHubCopilotCliService (desktop only)
+ * │   ├── OpenAIService
+ * │   └── AzureOpenAIService
+ * ├── MCP Manager (stdio + HTTP MCP servers)
+ * ├── Skill Registry (custom tools)
+ * ├── Agent Cache (custom agents)
+ * ├── Prompt Cache (custom prompts)
+ * └── Views
+ *     ├── CopilotChatView
+ *     ├── TracingView
+ *     └── ConversationHistoryView
+ * ```
+ * 
+ * ## Public API
+ * 
+ * Other plugins can interact with Vault Copilot via the `api` property:
+ * 
+ * ```typescript
+ * // Get the Vault Copilot API from another plugin
+ * const vc = (app as any).plugins.plugins['obsidian-vault-copilot']?.api;
+ * 
+ * if (vc && vc.isConnected()) {
+ *   const response = await vc.sendMessage("What's in my vault?");
+ *   console.log(response);
+ * }
+ * ```
+ * 
+ * @see {@link VaultCopilotAPI} for the public API interface
+ * @see {@link CopilotPluginSettings} for configuration options
+ * @since 0.0.1
+ */
+
 import { Plugin, Notice } from "obsidian";
-import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "./settings";
-import { GitHubCopilotCliService, GitHubCopilotCliConfig, ChatMessage } from "./copilot/GitHubCopilotCliService";
+import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "./ui/settings";
+import { GitHubCopilotCliService, GitHubCopilotCliConfig, ChatMessage, ModelInfoResult, ModelCapabilitiesInfo, ModelPolicyInfo } from "./copilot/providers/GitHubCopilotCliService";
 import { CopilotChatView, COPILOT_VIEW_TYPE, ConversationHistoryView, TracingView, TRACING_VIEW_TYPE, VOICE_HISTORY_VIEW_TYPE } from "./ui/ChatView";
-import { GitHubCopilotCliManager } from "./copilot/GitHubCopilotCliManager";
+import { GitHubCopilotCliManager } from "./copilot/providers/GitHubCopilotCliManager";
 import { 
 	SkillRegistry, 
 	getSkillRegistry, 
@@ -11,37 +59,114 @@ import {
 	SkillResult,
 	McpServerConfig,
 	SkillRegistryEvent
-} from "./copilot/SkillRegistry";
-import { McpManager } from "./copilot/McpManager";
-import { AgentCache, CachedAgentInfo } from "./copilot/AgentCache";
-import { PromptCache, CachedPromptInfo } from "./copilot/PromptCache";
-import { CustomPrompt } from "./copilot/CustomizationLoader";
-import { OpenAIService } from "./copilot/OpenAIService";
-import { AzureOpenAIService } from "./copilot/AzureOpenAIService";
-import { AIProviderType, AIProvider } from "./copilot/AIProvider";
+} from "./copilot/customization/SkillRegistry";
+import { McpManager } from "./copilot/mcp/McpManager";
+import { AgentCache, CachedAgentInfo } from "./copilot/customization/AgentCache";
+import { PromptCache, CachedPromptInfo } from "./copilot/customization/PromptCache";
+import { CustomPrompt } from "./copilot/customization/CustomizationLoader";
+import { OpenAIService } from "./copilot/providers/OpenAIService";
+import { AzureOpenAIService } from "./copilot/providers/AzureOpenAIService";
+import { AIProviderType, AIProvider } from "./copilot/providers/AIProvider";
 import { getTracingService } from "./copilot/TracingService";
-import { MainVaultAssistant } from "./realtime-agent/MainVaultAssistant";
+import { MainVaultAssistant } from "./copilot/realtime-agent/MainVaultAssistant";
 import { isMobile, supportsLocalProcesses } from "./utils/platform";
+import * as VaultOps from "./copilot/tools/VaultOperations";
 
 /**
- * Session info returned by the API
+ * Session information combining local UI state with SDK session metadata.
+ * 
+ * This interface represents a complete view of a chat session, merging:
+ * - Local persistence (name, archived status, messages)
+ * - SDK state (remote storage, AI-generated summaries)
+ * 
+ * @example
+ * ```typescript
+ * const sessions = await plugin.api.listSessions();
+ * for (const session of sessions) {
+ *   console.log(`${session.name} - ${session.messageCount} messages`);
+ *   if (session.summary) {
+ *     console.log(`  Summary: ${session.summary}`);
+ *   }
+ * }
+ * ```
  */
 export interface SessionInfo {
+	/** Unique session identifier */
 	id: string;
+	/** User-assigned or auto-generated session name */
 	name: string;
+	/** Unix timestamp (ms) when session was created */
 	createdAt: number;
+	/** Unix timestamp (ms) when session was last used */
 	lastUsedAt: number;
+	/** Unix timestamp (ms) when session was archived (if archived) */
 	completedAt?: number;
+	/** Duration in milliseconds from first to last message */
 	durationMs?: number;
+	/** Whether the session is archived */
 	archived: boolean;
+	/** Number of messages in the session */
 	messageCount: number;
+	// SDK session metadata (available when connected to provider)
+	/** SDK session start time as Unix timestamp in milliseconds */
+	startTime?: number;
+	/** SDK session last modified time as Unix timestamp in milliseconds */
+	modifiedTime?: number;
+	/** AI-generated summary of the session */
+	summary?: string;
+	/** Whether the session is stored remotely */
+	isRemote?: boolean;
 }
 
 // Re-export skill types for external plugins
 export type { VaultCopilotSkill, SkillInfo, SkillResult, McpServerConfig, SkillRegistryEvent, CachedAgentInfo, CachedPromptInfo, CustomPrompt };
 
+// Re-export model types for external plugins
+export type { ModelInfoResult, ModelCapabilitiesInfo, ModelPolicyInfo };
+
 /**
- * Public API for other plugins to interact with Vault Copilot
+ * Public API for other plugins to interact with Vault Copilot.
+ * 
+ * This interface provides a stable API for external plugins to:
+ * - Send messages to the AI assistant
+ * - Manage chat sessions
+ * - Register custom skills/tools
+ * - Perform vault operations (read, write, search notes)
+ * - Execute custom prompts
+ * 
+ * ## Accessing the API
+ * 
+ * ```typescript
+ * // From another Obsidian plugin
+ * const vc = (app as any).plugins.plugins['obsidian-vault-copilot']?.api as VaultCopilotAPI;
+ * 
+ * if (vc?.isConnected()) {
+ *   const response = await vc.sendMessage("Summarize my tasks");
+ * }
+ * ```
+ * 
+ * ## Registering Custom Skills
+ * 
+ * ```typescript
+ * vc.registerSkill({
+ *   name: "my-plugin-tool",
+ *   pluginId: "my-plugin",
+ *   category: "custom",
+ *   description: "Does something useful",
+ *   parameters: {
+ *     type: "object",
+ *     properties: {
+ *       input: { type: "string", description: "Input text" },
+ *     },
+ *     required: ["input"],
+ *   },
+ *   execute: async (args) => {
+ *     return { result: `Processed: ${args.input}` };
+ *   },
+ * });
+ * ```
+ * 
+ * @see {@link CopilotPlugin.api} for the implementation
  */
 export interface VaultCopilotAPI {
 	/** Check if the Copilot service is connected */
@@ -71,8 +196,8 @@ export interface VaultCopilotAPI {
 	
 	// ===== Session Management =====
 	
-	/** List all sessions */
-	listSessions(): SessionInfo[];
+	/** List all sessions (async - merges local state with SDK session metadata) */
+	listSessions(): Promise<SessionInfo[]>;
 	
 	/** Get the active session ID */
 	getActiveSessionId(): string | null;
@@ -94,6 +219,14 @@ export interface VaultCopilotAPI {
 	
 	/** Rename a session */
 	renameSession(sessionId: string, newName: string): Promise<void>;
+	
+	// ===== Model Discovery =====
+	
+	/** 
+	 * List available models from the connected provider
+	 * Returns models with capabilities, policy, and billing info
+	 */
+	listModels(): Promise<ModelInfoResult[]>;
 	
 	// ===== Skill Registration =====
 	
@@ -200,20 +333,58 @@ export interface VaultCopilotAPI {
 	renameNote(oldPath: string, newPath: string): Promise<{ success: boolean; newPath?: string; error?: string }>;
 }
 
+/**
+ * Main Vault Copilot plugin class.
+ * 
+ * This class manages the entire plugin lifecycle including:
+ * - Loading and saving settings
+ * - Initializing AI providers (GitHub Copilot CLI, OpenAI, Azure OpenAI)
+ * - Managing MCP server connections
+ * - Registering commands and views
+ * - Exposing the public API for other plugins
+ * 
+ * @see {@link VaultCopilotAPI} for the public API
+ * @see {@link CopilotPluginSettings} for configuration
+ */
 export default class CopilotPlugin extends Plugin {
-	settings: CopilotPluginSettings;
+	/** Plugin settings */
+	settings!: CopilotPluginSettings;
+	/** GitHub Copilot CLI service (desktop only, null on mobile) */
 	githubCopilotCliService: GitHubCopilotCliService | null = null;
+	/** OpenAI service instance */
 	openaiService: OpenAIService | null = null;
+	/** Azure OpenAI service instance */
 	azureOpenaiService: AzureOpenAIService | null = null;
-	skillRegistry: SkillRegistry;
-	agentCache: AgentCache;
-	promptCache: PromptCache;
-	mcpManager: McpManager;
+	/** Custom skill registry for tool definitions */
+	skillRegistry!: SkillRegistry;
+	/** Cache for custom agent definitions */
+	agentCache!: AgentCache;
+	/** Cache for custom prompt definitions */
+	promptCache!: PromptCache;
+	/** MCP server manager */
+	mcpManager!: McpManager;
+	/** Status bar element reference */
 	private statusBarEl: HTMLElement | null = null;
 
 	/**
-	 * Get the currently active AI service based on settings
-	 * Initializes the service on demand if not already initialized
+	 * Get the currently active AI service based on user settings.
+	 * 
+	 * Returns the appropriate AI provider instance based on:
+	 * 1. Selected chat provider profile (if configured)
+	 * 2. Legacy aiProvider setting
+	 * 3. Default to GitHub Copilot CLI (desktop) or null (mobile)
+	 * 
+	 * Initializes the service on demand if not already initialized.
+	 * 
+	 * @returns The active AI provider, or null if none available
+	 * 
+	 * @example
+	 * ```typescript
+	 * const service = plugin.getActiveService();
+	 * if (service?.isReady()) {
+	 *   const response = await service.sendMessage("Hello");
+	 * }
+	 * ```
 	 */
 	getActiveService(): AIProvider | GitHubCopilotCliService | null {
 		// If a chat provider profile is selected, use it
@@ -319,7 +490,22 @@ export default class CopilotPlugin extends Plugin {
 	}
 
 	/**
-	 * Check if any service is connected
+	 * Check if any AI service is currently connected and ready.
+	 * 
+	 * Checks the appropriate service based on current settings:
+	 * - If a chat provider profile is selected, checks that profile's service
+	 * - Otherwise falls back to legacy aiProvider setting
+	 * 
+	 * @returns `true` if the active service is connected, `false` otherwise
+	 * 
+	 * @example
+	 * ```typescript
+	 * if (plugin.isAnyServiceConnected()) {
+	 *   // Safe to send messages
+	 * } else {
+	 *   await plugin.connectCopilot();
+	 * }
+	 * ```
 	 */
 	isAnyServiceConnected(): boolean {
 		// If a chat provider profile is selected, check it
@@ -341,6 +527,20 @@ export default class CopilotPlugin extends Plugin {
 		return this.githubCopilotCliService?.isConnected() ?? false;
 	}
 
+	/**
+	 * Plugin load lifecycle hook.
+	 * 
+	 * Called by Obsidian when the plugin is enabled. Initializes:
+	 * - Settings (with mobile compatibility checks)
+	 * - Model discovery (desktop only)
+	 * - Tracing service (if enabled)
+	 * - Skill registry and caches
+	 * - MCP manager
+	 * - AI service instances
+	 * - Views, commands, and ribbon icons
+	 * 
+	 * @internal
+	 */
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
@@ -478,6 +678,17 @@ export default class CopilotPlugin extends Plugin {
 		// await this.connectCopilot();
 	}
 
+	/**
+	 * Plugin unload lifecycle hook.
+	 * 
+	 * Called by Obsidian when the plugin is disabled. Cleans up:
+	 * - AI service connections
+	 * - MCP server connections
+	 * - Cache resources
+	 * - Voice agent registrations
+	 * 
+	 * @internal
+	 */
 	async onunload(): Promise<void> {
 		await this.disconnectCopilot();
 		await this.mcpManager?.shutdown();
@@ -488,6 +699,14 @@ export default class CopilotPlugin extends Plugin {
 		MainVaultAssistant.unregisterBuiltInAgents();
 	}
 
+	/**
+	 * Load plugin settings from disk.
+	 * 
+	 * Performs deep merge with defaults to preserve nested object structure.
+	 * Also handles migration from legacy settings formats.
+	 * 
+	 * @internal
+	 */
 	async loadSettings(): Promise<void> {
 		const savedData = await this.loadData() as Partial<CopilotPluginSettings> || {};
 		
@@ -527,7 +746,7 @@ export default class CopilotPlugin extends Plugin {
 		await this.migrateVoiceSettingsToProfiles();
 		
 		// Ensure built-in profiles (like GitHub Copilot CLI) exist
-		const { ensureBuiltInProfiles } = await import('./settings');
+		const { ensureBuiltInProfiles } = await import('./ui/settings');
 		ensureBuiltInProfiles(this.settings);
 		await this.saveSettings();
 	}
@@ -616,6 +835,16 @@ export default class CopilotPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Save plugin settings to disk.
+	 * 
+	 * Also triggers updates to:
+	 * - Service configuration
+	 * - Tracing service state
+	 * - Agent and prompt cache directories
+	 * 
+	 * @internal
+	 */
 	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
 		
@@ -664,8 +893,10 @@ export default class CopilotPlugin extends Plugin {
 			cliPath: this.settings.cliPath || undefined,
 			cliUrl: this.settings.cliUrl || undefined,
 			streaming: this.settings.streaming,
+			vaultPath: vaultPath,
 			requestTimeout: this.settings.requestTimeout,
 			tracingEnabled: this.settings.tracingEnabled,
+			logLevel: this.settings.logLevel,
 			skillRegistry: this.skillRegistry,
 			mcpManager: this.mcpManager,
 			skillDirectories: resolvePaths(this.settings.skillDirectories),
@@ -1037,8 +1268,36 @@ export default class CopilotPlugin extends Plugin {
 			
 			// ===== Session Management =====
 			
-			listSessions: () => {
-				return plugin.settings.sessions.map(toSessionInfo);
+			listSessions: async () => {
+				// Start with local sessions
+				const localSessions = plugin.settings.sessions.map(toSessionInfo);
+				
+				// If SDK service is available and connected, enrich with SDK metadata
+				if (githubCopilotCliService && githubCopilotCliService.isConnected()) {
+					try {
+						const sdkSessions = await githubCopilotCliService.listSessions();
+						const sdkSessionMap = new Map(sdkSessions.map(s => [s.sessionId, s]));
+						
+						// Merge SDK metadata into local sessions, converting Date to number
+						return localSessions.map(session => {
+							const sdkSession = sdkSessionMap.get(session.id);
+							if (sdkSession) {
+								return {
+									...session,
+									startTime: sdkSession.startTime?.getTime(),
+									modifiedTime: sdkSession.modifiedTime?.getTime(),
+									summary: sdkSession.summary,
+									isRemote: sdkSession.isRemote,
+								};
+							}
+							return session;
+						});
+					} catch (error) {
+						console.warn('[Vault Copilot] Failed to fetch SDK sessions, returning local only:', error);
+					}
+				}
+				
+				return localSessions;
 			},
 			
 			getActiveSessionId: () => {
@@ -1110,6 +1369,16 @@ export default class CopilotPlugin extends Plugin {
 				const index = plugin.settings.sessions.findIndex(s => s.id === sessionId);
 				if (index === -1) throw new Error(`Session not found: ${sessionId}`);
 				
+				// Delete from SDK first (if service is available)
+				if (githubCopilotCliService) {
+					try {
+						await githubCopilotCliService.deleteSession(sessionId);
+					} catch (error) {
+						console.warn('[Vault Copilot] Failed to delete SDK session:', error);
+						// Continue with local deletion even if SDK delete fails
+					}
+				}
+				
 				plugin.settings.sessions.splice(index, 1);
 				
 				if (plugin.settings.activeSessionId === sessionId) {
@@ -1127,41 +1396,41 @@ export default class CopilotPlugin extends Plugin {
 				await plugin.saveSettings();
 			},
 			
+			// ===== Model Discovery =====
+			
+			listModels: async () => {
+				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
+				return await githubCopilotCliService.listModels();
+			},
+			
 			// ===== Note Operations =====
 			
 			readNote: async (path) => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.readNote(path);
+				return await VaultOps.readNote(plugin.app, path);
 			},
 			
 			searchNotes: async (query, limit = 10) => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.searchNotes(query, limit);
+				return await VaultOps.searchNotes(plugin.app, query, limit);
 			},
 			
 			createNote: async (path, content) => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.createNote(path, content);
+				return await VaultOps.createNote(plugin.app, path, content);
 			},
 			
 			getActiveNote: async () => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.getActiveNote();
+				return await VaultOps.getActiveNote(plugin.app);
 			},
 			
 			listNotes: async (folder) => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.listNotes(folder);
+				return await VaultOps.listNotes(plugin.app, folder);
 			},
 			
 			listNotesRecursively: async (folder, limit) => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.listNotesRecursively(folder, limit);
+				return await VaultOps.listNotesRecursively(plugin.app, folder, limit);
 			},
 			
 			appendToNote: async (path, content) => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.appendToNote(path, content);
+				return await VaultOps.appendToNote(plugin.app, path, content);
 			},
 			
 			batchReadNotes: async (paths) => {
@@ -1170,28 +1439,23 @@ export default class CopilotPlugin extends Plugin {
 			},
 			
 			updateNote: async (path, content) => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.updateNote(path, content);
+				return await VaultOps.updateNote(plugin.app, path, content);
 			},
 			
 			deleteNote: async (path) => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.deleteNote(path);
+				return await VaultOps.deleteNote(plugin.app, path);
 			},
 			
 			getRecentChanges: async (limit = 10) => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.getRecentChanges(limit);
+				return await VaultOps.getRecentChanges(plugin.app, limit);
 			},
 			
 			getDailyNote: async (date) => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.getDailyNote(date);
+				return await VaultOps.getDailyNote(plugin.app, date);
 			},
 			
 			renameNote: async (oldPath, newPath) => {
-				if (!githubCopilotCliService) throw new Error("Vault Copilot service not initialized");
-				return await githubCopilotCliService.renameNote(oldPath, newPath);
+				return await VaultOps.renameNote(plugin.app, oldPath, newPath);
 			},
 			
 			// ===== Skill Registration =====

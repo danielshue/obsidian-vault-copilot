@@ -8,10 +8,10 @@ import {
 	executeTaskCompletion,
 	handlePossibleJsonToolCall,
 	mightBeJsonToolCall,
-} from "../../realtime-agent/workarounds";
+} from "../../copilot/realtime-agent/workarounds";
 import { App, TFile, Notice, Vault, Workspace } from "../../__mocks__/obsidian";
-import type { RealtimeHistoryItem, ToolExecutionCallback } from "../../realtime-agent/types";
-import { setLogLevel } from "../../realtime-agent/types";
+import type { RealtimeHistoryItem, ToolExecutionCallback } from "../../copilot/realtime-agent/types";
+import { setLogLevel } from "../../copilot/realtime-agent/types";
 
 // Mock the obsidian module
 vi.mock("obsidian", () => import("../../__mocks__/obsidian"));

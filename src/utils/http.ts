@@ -1,12 +1,64 @@
 /**
- * Cross-platform HTTP client for Obsidian
- * Works on both desktop and mobile platforms using Obsidian's requestUrl API
+ * @module Http
+ * @description Cross-platform HTTP client for Obsidian.
+ * 
+ * This module provides HTTP utilities that work consistently across both
+ * desktop and mobile platforms using Obsidian's built-in `requestUrl` API.
+ * 
+ * ## Why Use This Module
+ * 
+ * - **Cross-Platform**: Works on iOS, Android, and desktop
+ * - **Consistent API**: Abstracts away platform differences
+ * - **Type-Safe**: Full TypeScript support with generics
+ * - **Streaming Support**: SSE/streaming for real-time responses
+ * 
+ * ## When to Use
+ * 
+ * Use `httpRequest` for standard HTTP calls:
+ * - API requests to AI providers
+ * - REST API calls
+ * - Fetching remote resources
+ * 
+ * Use `streamingRequest` for SSE (Server-Sent Events):
+ * - Streaming chat completions
+ * - Real-time event feeds
+ * 
+ * @example
+ * ```typescript
+ * import { httpRequest, streamingRequest } from "./utils/http";
+ * 
+ * // Simple GET request
+ * const response = await httpRequest<{ data: string[] }>({
+ *   url: "https://api.example.com/data",
+ *   method: "GET",
+ * });
+ * console.log(response.data);
+ * 
+ * // Streaming POST request
+ * await streamingRequest("https://api.example.com/stream", {
+ *   method: "POST",
+ *   headers: { "Content-Type": "application/json" },
+ *   body: JSON.stringify({ prompt: "Hello" }),
+ *   onData: (chunk) => console.log("Received:", chunk),
+ *   onComplete: () => console.log("Stream complete"),
+ *   onError: (err) => console.error("Stream error:", err),
+ * });
+ * ```
+ * 
+ * @see {@link HttpMcpClient} for MCP-specific HTTP handling
+ * @since 0.0.14
  */
 
 import { requestUrl, RequestUrlParam } from "obsidian";
 
 /**
- * HTTP request options
+ * HTTP request configuration options.
+ * 
+ * @property url - The URL to request
+ * @property method - HTTP method (default: "GET")
+ * @property headers - Optional request headers
+ * @property body - Optional request body (string or object to be JSON-serialized)
+ * @property timeout - Optional timeout in milliseconds
  */
 export interface HttpRequestOptions {
 	url: string;
@@ -17,7 +69,12 @@ export interface HttpRequestOptions {
 }
 
 /**
- * HTTP response structure
+ * HTTP response structure with typed data.
+ * 
+ * @typeParam T - The expected type of the response data
+ * @property status - HTTP status code
+ * @property data - Parsed response data
+ * @property headers - Response headers
  */
 export interface HttpResponse<T = unknown> {
 	status: number;
@@ -26,11 +83,34 @@ export interface HttpResponse<T = unknown> {
 }
 
 /**
- * Cross-platform HTTP client using Obsidian's requestUrl
- * Works on both desktop and mobile platforms
+ * Make a cross-platform HTTP request using Obsidian's requestUrl API.
  * 
- * @param options - HTTP request options
- * @returns HTTP response with typed data
+ * This function works on both desktop and mobile platforms, automatically
+ * handling JSON serialization/deserialization and content type detection.
+ * 
+ * @typeParam T - Expected response data type (defaults to `unknown`)
+ * @param options - HTTP request configuration
+ * @returns Promise resolving to the HTTP response with typed data
+ * 
+ * @example
+ * ```typescript
+ * // GET request with typed response
+ * interface User { id: string; name: string; }
+ * const response = await httpRequest<User>({
+ *   url: "https://api.example.com/user/123",
+ * });
+ * console.log(response.data.name);
+ * 
+ * // POST request with body
+ * const createResponse = await httpRequest<User>({
+ *   url: "https://api.example.com/users",
+ *   method: "POST",
+ *   headers: { "Content-Type": "application/json" },
+ *   body: { name: "New User" },
+ * });
+ * ```
+ * 
+ * @throws {Error} If the request fails (network error, timeout, etc.)
  */
 export async function httpRequest<T = unknown>(
 	options: HttpRequestOptions
@@ -79,11 +159,55 @@ export async function httpRequest<T = unknown>(
 }
 
 /**
- * Stream-capable fetch for SSE (Server-Sent Events)
- * Works on platforms that support streaming fetch
+ * Make a streaming HTTP request for SSE (Server-Sent Events).
  * 
- * @param url - Request URL
- * @param options - Streaming options with callbacks
+ * This function uses the native `fetch` API with streaming support,
+ * which works in Obsidian on both desktop and mobile platforms.
+ * 
+ * Use this for:
+ * - Streaming chat completions from AI APIs
+ * - Real-time event feeds
+ * - Long-running requests where incremental data is available
+ * 
+ * @param url - The URL to request
+ * @param options - Streaming options including callbacks
+ * @param options.method - HTTP method (default: "POST")
+ * @param options.headers - Optional request headers
+ * @param options.body - Optional request body (string)
+ * @param options.onData - Callback invoked for each chunk of data received
+ * @param options.onComplete - Callback invoked when the stream ends successfully
+ * @param options.onError - Callback invoked if an error occurs
+ * 
+ * @example
+ * ```typescript
+ * let fullResponse = "";
+ * 
+ * await streamingRequest("https://api.openai.com/v1/chat/completions", {
+ *   method: "POST",
+ *   headers: {
+ *     "Authorization": `Bearer ${apiKey}`,
+ *     "Content-Type": "application/json",
+ *   },
+ *   body: JSON.stringify({
+ *     model: "gpt-4",
+ *     messages: [{ role: "user", content: "Hello" }],
+ *     stream: true,
+ *   }),
+ *   onData: (chunk) => {
+ *     // Parse SSE chunk and update UI
+ *     process.stdout.write(chunk);
+ *     fullResponse += chunk;
+ *   },
+ *   onComplete: () => {
+ *     console.log("\n--- Stream complete ---");
+ *   },
+ *   onError: (error) => {
+ *     console.error("Stream failed:", error.message);
+ *   },
+ * });
+ * ```
+ * 
+ * @throws {Error} Passed to `onError` callback if request fails
  */
 export async function streamingRequest(
 	url: string,

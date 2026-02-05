@@ -1,9 +1,52 @@
 /**
- * TracingService - Captures and stores traces from the OpenAI Agents SDK
- * 
- * Uses the SDK's trace processor API to intercept traces and spans
- * for local viewing and debugging. Traces are persisted to IndexedDB
- * to survive plugin reloads and Obsidian restarts.
+ * @module TracingService
+ * @description Trace capture and persistence for agent execution diagnostics.
+ *
+ * The TracingService intercepts execution traces from the OpenAI Agents SDK
+ * and stores them for debugging and analysis. Traces include spans for each
+ * operation (tool calls, LLM requests, etc.) with timing and metadata.
+ *
+ * ## Storage
+ *
+ * Traces are persisted to IndexedDB with two object stores:
+ * - `traces`: Complete trace records with spans
+ * - `sdkLogs`: SDK debug log entries
+ *
+ * ## Architecture
+ *
+ * ```
+ * OpenAI Agents SDK
+ *   └── TraceProcessor (SDK hook)
+ *         └── TracingService (this module)
+ *               ├── IndexedDB (persistence)
+ *               └── TracingModal (UI display)
+ * ```
+ *
+ * ## Usage
+ *
+ * ```typescript
+ * // Get the singleton instance
+ * const tracingService = getTracingService();
+ *
+ * // Enable tracing
+ * await tracingService.initialize();
+ * tracingService.setEnabled(true);
+ *
+ * // Listen for trace events
+ * tracingService.on((event) => {
+ *   if (event.type === 'trace-ended') {
+ *     console.log('Trace completed:', event.trace.workflowName);
+ *   }
+ * });
+ *
+ * // Get all traces
+ * const traces = await tracingService.getTraces();
+ * ```
+ *
+ * @see {@link TracingTrace} for trace data structure
+ * @see {@link TracingSpan} for span data structure
+ * @see {@link TracingModal} for the diagnostics UI
+ * @since 0.0.1
  */
 
 import { addTraceProcessor, getGlobalTraceProvider } from "@openai/agents";

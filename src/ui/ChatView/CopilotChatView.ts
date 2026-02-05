@@ -1,31 +1,80 @@
+/**
+ * @module CopilotChatView
+ * @description Main chat view component for Vault Copilot.
+ *
+ * This is the primary user interface for AI-powered chat, displayed as an
+ * Obsidian ItemView in the right sidebar. It integrates all chat functionality
+ * including message rendering, voice input, session management, and tool execution.
+ *
+ * ## Features
+ *
+ * - **Chat Interface**: Message input, streaming responses, markdown rendering
+ * - **Session Management**: Save, restore, and archive chat sessions
+ * - **Voice Input**: Whisper-based voice transcription
+ * - **Realtime Agent**: Live voice conversation with tool execution
+ * - **Context Awareness**: Attach notes for context, inline @-mentions
+ * - **Tool Execution**: Visual feedback for AI tool calls
+ * - **Prompt Library**: Quick access to saved prompts
+ *
+ * ## Architecture
+ *
+ * ```
+ * CopilotChatView (ItemView)
+ *   ├── SessionPanel (sidebar)
+ *   ├── AgentSelector (toolbar)
+ *   ├── PromptPicker (toolbar)
+ *   ├── ContextPicker (toolbar)
+ *   ├── MessagesContainer (main area)
+ *   │    └── MessageRenderer
+ *   ├── InputArea (bottom)
+ *   │    ├── VoiceButton
+ *   │    └── SendButton
+ *   └── VoiceChatService / RealtimeAgentService
+ * ```
+ *
+ * ## View Registration
+ *
+ * ```typescript
+ * this.registerView(
+ *   COPILOT_VIEW_TYPE,
+ *   (leaf) => new CopilotChatView(leaf, this)
+ * );
+ * ```
+ *
+ * @see {@link SessionManager} for session state management
+ * @see {@link MessageRenderer} for message display
+ * @see {@link VoiceChatService} for voice input
+ * @since 0.0.1
+ */
+
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon, Menu } from "obsidian";
-import { GitHubCopilotCliService, ChatMessage } from "../../copilot/GitHubCopilotCliService";
+import { GitHubCopilotCliService, ChatMessage } from "../../copilot/providers/GitHubCopilotCliService";
 import CopilotPlugin from "../../main";
-import { getAvailableModels, getModelDisplayName, CopilotSession, VoiceConversation, VoiceMessage, getVoiceServiceConfigFromProfile, getProfileById, OpenAIProviderProfile, AzureOpenAIProviderProfile, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "../../settings";
+import { getAvailableModels, getModelDisplayName, CopilotSession, VoiceConversation, VoiceMessage, getVoiceServiceConfigFromProfile, getProfileById, OpenAIProviderProfile, AzureOpenAIProviderProfile, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "../../ui/settings";
 import { SessionPanel } from "./SessionPanel";
-import { CachedAgentInfo } from "../../copilot/AgentCache";
-import { CachedPromptInfo } from "../../copilot/PromptCache";
-import { ToolCatalog } from "../../copilot/ToolCatalog";
-import { ToolPickerModal } from "./ToolPickerModal";
-import { PromptInputModal, parseInputVariables } from "./PromptInputModal";
+import { CachedAgentInfo } from "../../copilot/customization/AgentCache";
+import { CachedPromptInfo } from "../../copilot/customization/PromptCache";
+import { ToolCatalog } from "../../copilot/tools/ToolCatalog";
+import { ToolPickerModal } from "./modals/ToolPickerModal";
+import { PromptInputModal, parseInputVariables } from "./modals/PromptInputModal";
 import { 
 	McpAppContainer,
 	UIResourceContent,
 	ToolCallResult
 } from "../mcp-apps";
 import { SLASH_COMMANDS } from "./SlashCommands";
-import { NoteSuggestModal } from "./NoteSuggestModal";
-import { renderWelcomeMessage } from "./WelcomeMessage";
-import { PromptPicker } from "./PromptPicker";
-import { ContextPicker } from "./ContextPicker";
+import { NoteSuggestModal } from "./modals/NoteSuggestModal";
+import { renderWelcomeMessage } from "./renderers/WelcomeMessage";
+import { PromptPicker } from "./pickers/PromptPicker";
+import { ContextPicker } from "./pickers/ContextPicker";
 import { PromptProcessor } from "./PromptProcessor";
-import { MessageRenderer, UsedReference } from "./MessageRenderer";
+import { MessageRenderer, UsedReference } from "./renderers/MessageRenderer";
 import { SessionManager } from "./SessionManager";
-import { ToolExecutionRenderer } from "./ToolExecutionRenderer";
-import { openTracingPopout } from "./TracingModal";
-import { openVoiceHistoryPopout } from "./ConversationHistoryModal";
-import { VoiceChatService, RecordingState, MainVaultAssistant, RealtimeAgentState, RealtimeHistoryItem, ToolApprovalRequest } from "../../voice-chat";
-import { AIProvider } from "../../copilot/AIProvider";
+import { ToolExecutionRenderer } from "./renderers/ToolExecutionRenderer";
+import { openTracingPopout } from "./modals/TracingModal";
+import { openVoiceHistoryPopout } from "./modals/ConversationHistoryModal";
+import { VoiceChatService, RecordingState, MainVaultAssistant, RealtimeAgentState, RealtimeHistoryItem, ToolApprovalRequest } from "../../copilot/voice-chat";
+import { AIProvider } from "../../copilot/providers/AIProvider";
 import { getSecretValue } from "../../utils/secrets";
 import { getTracingService } from "../../copilot/TracingService";
 

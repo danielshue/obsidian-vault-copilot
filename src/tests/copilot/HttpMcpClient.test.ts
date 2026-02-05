@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { HttpMcpClient } from "../../copilot/HttpMcpClient";
-import { HttpMcpServerConfig } from "../../copilot/McpTypes";
+import { HttpMcpClient } from "../../copilot/mcp/HttpMcpClient";
+import { HttpMcpServerConfig } from "../../copilot/mcp/McpTypes";
 
 describe("HttpMcpClient", () => {
 	let config: HttpMcpServerConfig;

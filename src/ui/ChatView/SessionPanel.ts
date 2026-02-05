@@ -1,6 +1,19 @@
+// Copyright (c) 2026 Dan Shue. All rights reserved.
+// Licensed under the MIT License.
+
+/**
+ * @module SessionPanel
+ * @description Sidebar panel for listing, filtering, and managing chat sessions.
+ *
+ * Renders session metadata, supports archiving/deleting, and exposes context menu
+ * actions for Vault Copilot chat workflows.
+ *
+ * @since 0.0.14
+ */
+
 import { Menu, Notice, setIcon } from "obsidian";
 import CopilotPlugin from "../../main";
-import { CopilotSession } from "../../settings";
+import { CopilotSession } from "../../ui/settings";
 
 /**
  * Format a timestamp as a relative time string (e.g., "5 mins ago")
