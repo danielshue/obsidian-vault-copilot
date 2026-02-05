@@ -259,8 +259,10 @@ Follow Obsidian's **Developer Policies** and **Plugin Guidelines**. In particula
 ## Documentation standards
 
 ** All source code files should have a standardized header comment **
-// Copyright (c) 2026 Dan Shue. All rights reserved.
-// Licensed under the MIT License.
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 
 **All code must include comprehensive JSDoc documentation.** When touching any file, examine it and add/update documentation as needed.
 
