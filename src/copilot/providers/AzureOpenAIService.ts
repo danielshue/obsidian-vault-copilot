@@ -235,81 +235,12 @@ export class AzureOpenAIService extends AIProvider {
 		let fullContent = "";
 
 		try {
-			const stream = await this.client!.chat.completions.create({
-				model: this.config.deploymentName,
-				messages,
-				tools: tools.length > 0 ? tools : undefined,
-				max_tokens: this.config.maxTokens,
-				temperature: this.config.temperature,
-				stream: true,
-			}, {
-				signal: this.abortController.signal,
-			});
+			// Loop to handle multiple rounds of tool calls (e.g. sequential ask_question calls)
+			let continueLoop = true;
+			let isFirstStream = true;
 
-			let currentToolCalls: Map<number, { id: string; name: string; arguments: string }> = new Map();
-			let hasToolCalls = false;
-
-			for await (const chunk of stream) {
-				const delta = chunk.choices[0]?.delta;
-
-				// Handle content delta
-				if (delta?.content) {
-					fullContent += delta.content;
-					callbacks.onDelta(delta.content);
-				}
-
-				// Handle tool calls
-				if (delta?.tool_calls) {
-					hasToolCalls = true;
-					for (const toolCall of delta.tool_calls) {
-						const index = toolCall.index;
-						if (!currentToolCalls.has(index)) {
-							currentToolCalls.set(index, {
-								id: toolCall.id || "",
-								name: toolCall.function?.name || "",
-								arguments: "",
-							});
-						}
-						const tc = currentToolCalls.get(index)!;
-						if (toolCall.id) tc.id = toolCall.id;
-						if (toolCall.function?.name) tc.name = toolCall.function.name;
-						if (toolCall.function?.arguments) tc.arguments += toolCall.function.arguments;
-					}
-				}
-			}
-
-			// If we have tool calls, execute them and continue
-			if (hasToolCalls && currentToolCalls.size > 0) {
-				const toolCalls: AzureOpenAIToolCall[] = Array.from(currentToolCalls.values()).map(tc => ({
-					id: tc.id,
-					type: "function" as const,
-					function: {
-						name: tc.name,
-						arguments: tc.arguments,
-					},
-				}));
-
-				// Execute tool calls
-				const toolResults = await this.executeToolCalls(toolCalls);
-
-				// Add assistant message with tool calls
-				messages.push({
-					role: "assistant",
-					content: fullContent || null,
-					tool_calls: toolCalls,
-				});
-
-				// Add tool results
-				for (const result of toolResults) {
-					messages.push({
-						role: "tool",
-						tool_call_id: result.tool_call_id,
-						content: JSON.stringify(result.result),
-					});
-				}
-
-				// Continue streaming with tool results
-				const continueStream = await this.client!.chat.completions.create({
+			while (continueLoop) {
+				const stream = await this.client!.chat.completions.create({
 					model: this.config.deploymentName,
 					messages,
 					tools: tools.length > 0 ? tools : undefined,
@@ -320,12 +251,77 @@ export class AzureOpenAIService extends AIProvider {
 					signal: this.abortController.signal,
 				});
 
-				for await (const chunk of continueStream) {
+				let currentToolCalls: Map<number, { id: string; name: string; arguments: string }> = new Map();
+				let hasToolCalls = false;
+
+				for await (const chunk of stream) {
 					const delta = chunk.choices[0]?.delta;
+
+					// Handle content delta
 					if (delta?.content) {
 						fullContent += delta.content;
 						callbacks.onDelta(delta.content);
 					}
+
+					// Handle tool calls
+					if (delta?.tool_calls) {
+						hasToolCalls = true;
+						for (const toolCall of delta.tool_calls) {
+							const index = toolCall.index;
+							if (!currentToolCalls.has(index)) {
+								currentToolCalls.set(index, {
+									id: toolCall.id || "",
+									name: toolCall.function?.name || "",
+									arguments: "",
+								});
+							}
+							const tc = currentToolCalls.get(index)!;
+							if (toolCall.id) tc.id = toolCall.id;
+							if (toolCall.function?.name) tc.name = toolCall.function.name;
+							if (toolCall.function?.arguments) tc.arguments += toolCall.function.arguments;
+						}
+					}
+				}
+
+				if (hasToolCalls && currentToolCalls.size > 0) {
+					const toolCalls: AzureOpenAIToolCall[] = Array.from(currentToolCalls.values()).map(tc => ({
+						id: tc.id,
+						type: "function" as const,
+						function: {
+							name: tc.name,
+							arguments: tc.arguments,
+						},
+					}));
+
+					// Execute tool calls
+					const toolResults = await this.executeToolCalls(toolCalls);
+
+					// Add assistant message with tool calls
+					messages.push({
+						role: "assistant",
+						content: fullContent || null,
+						tool_calls: toolCalls,
+					});
+
+					// Reset fullContent for next round (content before tool calls was already streamed)
+					if (!isFirstStream) {
+						// Content was already accumulated; don't double-count
+					}
+
+					// Add tool results
+					for (const result of toolResults) {
+						messages.push({
+							role: "tool",
+							tool_call_id: result.tool_call_id,
+							content: JSON.stringify(result.result),
+						});
+					}
+
+					// Continue the loop with the updated messages (tool results appended)
+					isFirstStream = false;
+				} else {
+					// No more tool calls — we're done
+					continueLoop = false;
 				}
 			}
 
@@ -398,11 +394,17 @@ export class AzureOpenAIService extends AIProvider {
 
 	/**
 	 * Build tools array for API call
-	 * Includes both manually set tools and MCP tools
+	 * Includes manually set tools, MCP tools, and ask_question tool
 	 */
 	private buildTools(): AzureOpenAITool[] {
 		// Combine manually set tools with MCP tools
 		const allTools = [...this.tools, ...this.convertMcpToolsToToolDefinitions()];
+
+		// Add ask_question tool if question callback is available
+		const askQuestionTool = this.createAskQuestionToolDefinition();
+		if (askQuestionTool) {
+			allTools.push(askQuestionTool);
+		}
 		
 		return allTools.map((tool) => ({
 			type: "function" as const,
@@ -422,9 +424,16 @@ export class AzureOpenAIService extends AIProvider {
 	): Promise<Array<{ tool_call_id: string; result: unknown }>> {
 		const results: Array<{ tool_call_id: string; result: unknown }> = [];
 
+		// Build complete tool list for lookup (same sources as buildTools)
+		const allTools = [...this.tools, ...this.convertMcpToolsToToolDefinitions()];
+		const askQuestionTool = this.createAskQuestionToolDefinition();
+		if (askQuestionTool) {
+			allTools.push(askQuestionTool);
+		}
+
 		for (const toolCall of toolCalls) {
 			const toolName = toolCall.function.name;
-			const tool = this.tools.find((t) => t.name === toolName);
+			const tool = allTools.find((t) => t.name === toolName);
 
 			if (!tool) {
 				results.push({

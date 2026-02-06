@@ -67,7 +67,7 @@ import {
 } from "../mcp-apps";
 import { SLASH_COMMANDS } from "./SlashCommands";
 import { NoteSuggestModal } from "./modals/NoteSuggestModal";
-import { QuestionModal } from "./modals/QuestionModal";
+import { InlineQuestionRenderer } from "./renderers/InlineQuestionRenderer";
 import { renderWelcomeMessage } from "./renderers/WelcomeMessage";
 import { PromptPicker } from "./pickers/PromptPicker";
 import { ContextPicker } from "./pickers/ContextPicker";
@@ -161,6 +161,10 @@ export class CopilotChatView extends ItemView {
 		// Initialize SessionManager with callbacks
 		// Use getActiveService() to get the appropriate provider (Copilot, OpenAI, or Azure)
 		const activeService = this.getActiveAIService();
+
+		// Wire question callback so text chat providers can use ask_question tool
+		this.wireQuestionCallback(activeService);
+
 		this.sessionManager = new SessionManager(
 			plugin.settings,
 			activeService as GitHubCopilotCliService, // SessionManager expects CopilotService but works with any AIProvider
@@ -1316,14 +1320,41 @@ export class CopilotChatView extends ItemView {
 	}
 
 	/**
-	 * Handle question request from agent
-	 * Shows a modal to get user response
+	 * Handle question request from agent.
+	 * Renders the question inline in the chat conversation flow.
+	 *
+	 * @param question - The question request to present to the user
+	 * @returns The user's response, or null if skipped
+	 * @since 0.0.18
 	 */
 	private async handleQuestionRequest(question: QuestionRequest): Promise<QuestionResponse | null> {
-		return new Promise((resolve) => {
-			const modal = new QuestionModal(this.app, question, resolve);
-			modal.open();
-		});
+		// Hide the thinking indicator — user needs to interact, not wait
+		this.hideThinkingIndicator();
+		const renderer = new InlineQuestionRenderer(this.messagesContainer);
+		const response = await renderer.render(question);
+		// User answered — back to processing, re-show the thinking indicator
+		this.showThinkingIndicator();
+		return response;
+	}
+
+	/**
+	 * Wire the question callback on a text chat service (Copilot CLI, OpenAI, or Azure OpenAI).
+	 * This enables the `ask_question` tool to present a QuestionModal to the user.
+	 * 
+	 * @param service - The active AI service to wire the callback on
+	 * @since 0.0.17
+	 */
+	private wireQuestionCallback(service: GitHubCopilotCliService | AIProvider): void {
+		const questionHandler = async (question: QuestionRequest): Promise<QuestionResponse | null> => {
+			return await this.handleQuestionRequest(question);
+		};
+
+		if (service instanceof AIProvider) {
+			service.setQuestionCallback(questionHandler);
+		} else if (service && typeof (service as any).setQuestionCallback === 'function') {
+			// GitHubCopilotCliService (not an AIProvider subclass)
+			(service as GitHubCopilotCliService).setQuestionCallback(questionHandler);
+		}
 	}
 
 	/**
@@ -3219,6 +3250,7 @@ export class CopilotChatView extends ItemView {
 		// Set processing state
 		this.isProcessing = true;
 		this.updateUIState();
+		this.showThinkingIndicator();
 		
 		try {
 			// Process the prompt content with VS Code compatible variable replacement
@@ -3403,6 +3435,7 @@ export class CopilotChatView extends ItemView {
 			}
 			this.addErrorMessage(String(error));
 		} finally {
+			this.hideThinkingIndicator();
 			this.isProcessing = false;
 			this.updateUIState();
 			this.scrollToBottom();
@@ -3457,6 +3490,7 @@ export class CopilotChatView extends ItemView {
 		// Set processing state
 		this.isProcessing = true;
 		this.updateUIState();
+		this.showThinkingIndicator();
 		
 		try {
 			// Create streaming message element
@@ -3523,6 +3557,7 @@ export class CopilotChatView extends ItemView {
 			}
 			this.addErrorMessage(String(error));
 		} finally {
+			this.hideThinkingIndicator();
 			this.isProcessing = false;
 			this.updateUIState();
 			this.scrollToBottom();

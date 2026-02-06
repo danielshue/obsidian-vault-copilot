@@ -60,6 +60,7 @@ import { normalizeVaultPath, ensureMarkdownExtension } from "../../utils/pathUti
 import * as VaultOps from "../tools/VaultOperations";
 import { getTracingService } from "../TracingService";
 import { TOOL_NAMES, TOOL_DESCRIPTIONS, TOOL_JSON_SCHEMAS } from "../tools/ToolDefinitions";
+import type { QuestionRequest, QuestionResponse } from "../../types/questions";
 
 export interface GitHubCopilotCliConfig {
 	model: string;
@@ -162,6 +163,7 @@ export class GitHubCopilotCliService {
 	private customizationLoader: CustomizationLoader;
 	private loadedInstructions: CustomInstruction[] = [];
 	private mcpEventUnsubscribe: (() => void) | null = null;
+	private questionCallback: ((question: QuestionRequest) => Promise<QuestionResponse | null>) | null = null;
 
 	constructor(app: App, config: GitHubCopilotCliConfig) {
 		this.app = app;
@@ -395,6 +397,16 @@ export class GitHubCopilotCliService {
 			this.client = null;
 		}
 		this.messageHistory = [];
+	}
+
+	/**
+	 * Set the question callback for asking the user questions via modal UI.
+	 * 
+	 * @param callback - Function that shows a QuestionModal and returns the user's response
+	 * @since 0.0.17
+	 */
+	setQuestionCallback(callback: ((question: QuestionRequest) => Promise<QuestionResponse | null>) | null): void {
+		this.questionCallback = callback;
 	}
 
 	/**
@@ -828,27 +840,44 @@ export class GitHubCopilotCliService {
 					timeoutId = null;
 				}
 			};
-			
-			// Set up timeout
-			timeoutId = setTimeout(async () => {
-				if (!hasCompleted) {
-					cleanup();
-					unsubscribe();
-					
-					// Try to abort the request
-					try {
-						await this.session?.abort();
-					} catch (abortError) {
-						console.warn('[Vault Copilot] Error aborting timed-out request:', abortError);
-					}
-					
-					tracingService.addSdkLog('error', `[Streaming Timeout] Request timed out after ${requestTimeout / 1000} seconds`, 'copilot-error');
-					reject(new Error(`Streaming request timed out after ${requestTimeout / 1000} seconds`));
+
+			/**
+			 * Reset the inactivity timeout.
+			 * Called on every SDK event so that interactive tool calls (like ask_question,
+			 * which block while waiting for user input) don't cause a spurious timeout.
+			 */
+			const resetTimeout = () => {
+				if (hasCompleted) return;
+				if (timeoutId) {
+					clearTimeout(timeoutId);
 				}
-			}, requestTimeout);
+				timeoutId = setTimeout(async () => {
+					if (!hasCompleted) {
+						cleanup();
+						unsubscribe();
+						
+						// Try to abort the request
+						try {
+							await this.session?.abort();
+						} catch (abortError) {
+							console.warn('[Vault Copilot] Error aborting timed-out request:', abortError);
+						}
+						
+						tracingService.addSdkLog('error', `[Streaming Timeout] Request timed out after ${requestTimeout / 1000} seconds of inactivity`, 'copilot-error');
+						reject(new Error(`Streaming request timed out after ${requestTimeout / 1000} seconds of inactivity`));
+					}
+				}, requestTimeout);
+			};
+			
+			// Start the initial timeout
+			resetTimeout();
 			
 			const unsubscribe = this.session!.on((event: SessionEvent) => {
 				if (hasCompleted) return;
+
+				// Reset timeout on every event — keeps the clock alive during
+				// interactive tool calls (e.g. ask_question waiting for user input)
+				resetTimeout();
 				
 				// Log all events for debugging (except deltas which are too verbose)
 				if (event.type !== "assistant.message_delta") {
@@ -1350,7 +1379,7 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 	}
 
 	private createObsidianTools() {
-		return [
+		const tools = [
 			defineTool(TOOL_NAMES.READ_NOTE, {
 				description: TOOL_DESCRIPTIONS[TOOL_NAMES.READ_NOTE],
 				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.READ_NOTE],
@@ -1471,6 +1500,111 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 				},
 			}),
 		];
+
+		// Add ask_question tool if question callback is available
+		if (this.questionCallback) {
+			const callback = this.questionCallback;
+			tools.push(
+				defineTool(TOOL_NAMES.ASK_QUESTION, {
+					description: TOOL_DESCRIPTIONS[TOOL_NAMES.ASK_QUESTION],
+					parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.ASK_QUESTION],
+					handler: async (args: {
+						type: string;
+						question: string;
+						context?: string;
+						options?: string[];
+						allowMultiple?: boolean;
+						placeholder?: string;
+						textLabel?: string;
+						defaultValue?: string;
+						defaultSelected?: string[];
+						multiline?: boolean;
+						required?: boolean;
+					}) => {
+						const id = `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+						// Build question request based on type
+						const questionRequest: QuestionRequest = {
+							id,
+							type: args.type,
+							question: args.question,
+							context: args.context,
+							required: args.required !== false,
+						} as QuestionRequest;
+
+						// Add type-specific properties
+						if (args.type === "text") {
+							(questionRequest as any).placeholder = args.placeholder;
+							(questionRequest as any).defaultValue = args.defaultValue;
+							(questionRequest as any).multiline = args.multiline || false;
+						} else if (args.type === "multipleChoice") {
+							if (!args.options || args.options.length === 0) {
+								return { success: false, error: "multipleChoice type requires options array" };
+							}
+							(questionRequest as any).options = args.options;
+							(questionRequest as any).allowMultiple = args.allowMultiple || false;
+							(questionRequest as any).defaultSelected = args.defaultSelected;
+						} else if (args.type === "radio") {
+							if (!args.options || args.options.length === 0) {
+								return { success: false, error: "radio type requires options array" };
+							}
+							(questionRequest as any).options = args.options;
+							(questionRequest as any).defaultSelected = args.defaultSelected?.[0];
+						} else if (args.type === "mixed") {
+							if (!args.options || args.options.length === 0) {
+								return { success: false, error: "mixed type requires options array" };
+							}
+							(questionRequest as any).options = args.options;
+							(questionRequest as any).allowMultiple = args.allowMultiple || false;
+							(questionRequest as any).defaultSelected = args.defaultSelected;
+							(questionRequest as any).textPlaceholder = args.placeholder;
+							(questionRequest as any).textLabel = args.textLabel;
+						}
+
+						try {
+							const response = await callback(questionRequest);
+
+							if (!response) {
+								return { success: false, cancelled: true, message: "User cancelled the question" };
+							}
+
+							// Format response
+							let formattedResponse: string;
+							if (response.type === "text") {
+								formattedResponse = response.text;
+							} else if (response.type === "multipleChoice" || response.type === "radio") {
+								formattedResponse = response.selected.join(", ");
+							} else if (response.type === "mixed") {
+								const parts = [];
+								if (response.selected.length > 0) {
+									parts.push(`Selected: ${response.selected.join(", ")}`);
+								}
+								if (response.text) {
+									parts.push(`Additional input: ${response.text}`);
+								}
+								formattedResponse = parts.join("; ");
+							} else {
+								formattedResponse = JSON.stringify(response);
+							}
+
+							return {
+								success: true,
+								question: args.question,
+								response: formattedResponse,
+								responseData: response,
+							};
+						} catch (error) {
+							return {
+								success: false,
+								error: error instanceof Error ? error.message : String(error),
+							};
+						}
+					},
+				})
+			);
+		}
+
+		return tools;
 	}
 
 	async batchReadNotes(paths: string[], aiSummarize?: boolean, summaryPrompt?: string): Promise<{ results: Array<{ path: string; success: boolean; content?: string; summary?: string; error?: string }> }> {
