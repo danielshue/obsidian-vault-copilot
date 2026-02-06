@@ -1,0 +1,37 @@
+# CODEOWNERS - Automatically request reviews from designated owners
+# 
+# When a pull request is opened that modifies files matching a pattern,
+# the specified users/teams are automatically requested as reviewers.
+#
+# More info: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+# This means @danielshue will be requested as a reviewer for all PRs
+* @danielshue
+
+# Core plugin source code
+/src/ @danielshue
+
+# Build configuration
+/esbuild.config.mjs @danielshue
+/tsconfig.json @danielshue
+/package.json @danielshue
+/package-lock.json @danielshue
+
+# GitHub workflows and automation
+/.github/ @danielshue
+
+# Extension catalog infrastructure
+/scripts/ @danielshue
+/schema/ @danielshue
+
+# Extensions - require review for all extensions
+/extensions/ @danielshue
+
+# Documentation (could be less strict in the future)
+/docs/ @danielshue
+/README.md @danielshue
+
+# Manifest and versioning
+/manifest.json @danielshue
+/versions.json @danielshue
