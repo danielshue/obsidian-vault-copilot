@@ -122,9 +122,15 @@ export class ExtensionCatalogService {
 				timeout: 30000, // 30 second timeout
 			});
 			
-			// Validate that we got a response
+			// Validate that we got a response with proper structure
 			if (!response.data || typeof response.data !== "object") {
 				throw new Error("Invalid catalog format received from server");
+			}
+			
+			// Validate required fields exist
+			const data = response.data as any;
+			if (!data.version || !Array.isArray(data.extensions) || !Array.isArray(data.categories)) {
+				throw new Error("Invalid catalog format: missing required fields");
 			}
 			
 			// Transform raw catalog to internal format

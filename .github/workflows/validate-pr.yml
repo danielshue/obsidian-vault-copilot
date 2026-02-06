@@ -4,13 +4,28 @@ on:
   pull_request:
     paths:
       - 'extensions/**'
+      - 'schema/**'
+      - 'scripts/validate-extension.cjs'
+  pull_request_target:
+    types: [labeled]
+    paths:
+      - 'extensions/**'
 
 jobs:
   validate:
+    name: validate
     runs-on: ubuntu-latest
+    # Only run on pull_request_target if labeled with 'safe-to-test'
+    if: |
+      github.event_name == 'pull_request' || 
+      (github.event_name == 'pull_request_target' && contains(github.event.pull_request.labels.*.name, 'safe-to-test'))
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # For pull_request_target, checkout the PR head
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -20,17 +35,56 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Validate extensions
-        run: node scripts/validate-extension.cjs
+      - name: Validate extensions (GitHub mode)
+        id: validate
+        run: node scripts/validate-extension.cjs --pr
+        continue-on-error: true
       
-      - name: Comment on PR
-        if: failure()
+      - name: Check validation result
+        if: steps.validate.outcome == 'failure'
+        run: exit 1
+      
+      - name: Post summary
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '❌ Extension validation failed. Please check the workflow logs for details.'
-            })
+            const outcome = '${{ steps.validate.outcome }}';
+            const icon = outcome === 'success' ? '✅' : '❌';
+            const status = outcome === 'success' ? 'passed' : 'failed';
+            
+            const body = `${icon} Extension validation ${status}
+            
+            ${outcome === 'failure' ? 'Please check the workflow annotations for details.' : 'All extensions are valid!'}
+            
+            View full details in the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}).`;
+            
+            // Only comment if there were failures or if it's a new PR
+            if (outcome === 'failure') {
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number
+              });
+              
+              // Find and update existing validation comment
+              const botComment = comments.data.find(c => 
+                c.user.type === 'Bot' && c.body.includes('Extension validation')
+              );
+              
+              if (botComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body
+                });
+              }
+            }
