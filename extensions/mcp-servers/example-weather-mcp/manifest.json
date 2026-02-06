@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../schema/manifest.schema.json",
+  "id": "example-weather-mcp",
+  "name": "Weather MCP Server",
+  "version": "1.0.0",
+  "type": "mcp-server",
+  "description": "Example MCP server integration that provides weather data for your notes and daily planning.",
+  "author": {
+    "name": "Dan Shue",
+    "url": "https://danielshue.com"
+  },
+  "repository": "https://github.com/danielshue/obsidian-vault-copilot",
+  "license": "MIT",
+  "minVaultCopilotVersion": "0.1.0",
+  "categories": ["Integration", "MCP", "Utility"],
+  "tags": ["weather", "mcp", "api", "daily-notes", "planning"],
+  "files": [
+    {
+      "source": "mcp-config.json",
+      "installPath": ".obsidian/"
+    }
+  ],
+  "tools": [],
+  "permissions": ["network-access"],
+  "dependencies": [],
+  "preview": "preview.png",
+  "featured": false,
+  "publishedAt": "2026-02-01T00:00:00Z",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "date": "2026-02-01",
+      "changes": [
+        "Initial release",
+        "Current weather data integration",
+        "Forecast support for daily planning",
+        "Location-based weather lookup"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "../manifest.schema.json",
+  "id": "github-mcp-integration",
+  "name": "GitHub MCP Server",
+  "version": "1.3.2",
+  "type": "mcp-server",
+  "description": "Integrates GitHub with Vault Copilot via MCP, enabling issue tracking, PR management, and repository browsing.",
+  "author": {
+    "name": "DevTools Collective",
+    "url": "https://github.com/devtools-collective",
+    "email": "support@devtools-collective.io"
+  },
+  "repository": "https://github.com/devtools-collective/github-mcp-server",
+  "license": "Apache-2.0",
+  "minVaultCopilotVersion": "1.2.0",
+  "categories": ["MCP", "Integration", "Productivity"],
+  "tags": ["github", "mcp", "issues", "pull-requests", "version-control", "developer-tools"],
+  "files": [
+    {
+      "source": "github-mcp-config.json",
+      "installPath": ".obsidian/"
+    },
+    {
+      "source": "README.md",
+      "installPath": "Reference/MCP-Servers/GitHub/"
+    }
+  ],
+  "tools": ["mcp_github_list_issues", "mcp_github_create_issue", "mcp_github_list_pull_requests"],
+  "dependencies": [],
+  "permissions": ["network-access"],
+  "preview": "github-mcp-preview.png",
+  "changelog": "CHANGELOG.md",
+  "featured": true,
+  "publishedAt": "2025-09-20T08:00:00Z"
+}

@@ -1,0 +1,3 @@
+# Build Scripts Directory
+# - build-catalog.js: Aggregates manifests into catalog.json
+# - validate-extension.js: Validates manifest and files

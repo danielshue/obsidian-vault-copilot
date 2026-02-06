@@ -26,7 +26,7 @@ import {
 } from "./types";
 
 /**
- * Structure of the tracking file stored in .obsidian/vault-copilot-extensions.json
+ * Structure of the tracking file stored in .obsidian/obsidian-vault-copilot-extensions.json
  */
 interface TrackingFileData {
 	/** Version of the tracking file format */
@@ -68,7 +68,7 @@ export class ExtensionManager {
 	 */
 	constructor(app: App) {
 		this.app = app;
-		this.trackingFilePath = ".obsidian/vault-copilot-extensions.json";
+		this.trackingFilePath = ".obsidian/obsidian-vault-copilot-extensions.json";
 		this.installedExtensionsMap = new Map();
 	}
 	

@@ -1,0 +1,24 @@
+<article class="extension-card">
+  <div class="card-icon">
+    {% if extension.type == 'agent' %}🤖
+    {% elsif extension.type == 'voice-agent' %}🎙️
+    {% elsif extension.type == 'prompt' %}📝
+    {% elsif extension.type == 'skill' %}⚡
+    {% elsif extension.type == 'mcp-server' %}🔌
+    {% else %}📦
+    {% endif %}
+  </div>
+  <div class="card-content">
+    <h3 class="card-title">
+      <a href="{{ extension.detailPageUrl }}">{{ extension.name }}</a>
+    </h3>
+    <p class="card-description">{{ extension.description }}</p>
+    <div class="card-meta">
+      <span class="card-categories">{{ extension.categories | join: ' · ' }}</span>
+      <span class="card-version">v{{ extension.version }}</span>
+    </div>
+  </div>
+  <div class="card-actions">
+    <a href="{{ extension.detailPageUrl }}" class="btn btn-primary">View</a>
+  </div>
+</article>

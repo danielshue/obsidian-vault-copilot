@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "weather": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-weather"
+      ],
+      "env": {
+        "OPENWEATHER_API_KEY": "${OPENWEATHER_API_KEY}"
+      }
+    }
+  }
+}

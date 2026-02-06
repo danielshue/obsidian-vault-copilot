@@ -1,0 +1,35 @@
+{
+  "$schema": "../manifest.schema.json",
+  "id": "daily-notes-assistant",
+  "name": "Daily Notes Assistant",
+  "version": "2.1.0",
+  "type": "agent",
+  "description": "An intelligent agent that creates, organizes, and summarizes daily notes with automatic tagging and cross-linking to related content.",
+  "author": {
+    "name": "Sarah Chen",
+    "url": "https://github.com/sarahchen",
+    "email": "sarah@vaultcommunity.dev"
+  },
+  "repository": "https://github.com/vault-community/daily-notes-assistant",
+  "license": "MIT",
+  "minVaultCopilotVersion": "1.0.0",
+  "categories": ["Productivity", "Journaling"],
+  "tags": ["daily-notes", "automation", "journaling", "templates", "organization"],
+  "files": [
+    {
+      "source": "daily-notes-assistant.agent.md",
+      "installPath": "Reference/Agents/"
+    },
+    {
+      "source": "daily-template.md",
+      "installPath": "Templates/"
+    }
+  ],
+  "tools": ["create_note", "read_note", "search_vault", "update_note", "get_daily_note"],
+  "dependencies": [],
+  "permissions": ["file-system"],
+  "preview": "preview.png",
+  "changelog": "CHANGELOG.md",
+  "featured": true,
+  "publishedAt": "2025-11-15T14:30:00Z"
+}

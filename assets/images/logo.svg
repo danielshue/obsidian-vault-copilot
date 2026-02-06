@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="url(#grad)"/>
+  <!-- Package box icon -->
+  <g fill="none" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Box outline -->
+    <path d="M60 75 L100 55 L140 75 L140 125 L100 145 L60 125 Z"/>
+    <!-- Box divider -->
+    <path d="M100 95 L100 145"/>
+    <path d="M60 75 L100 95 L140 75"/>
+    <!-- Top flap -->
+    <path d="M80 65 L100 55 L120 65"/>
+  </g>
+  <!-- Sparkle -->
+  <circle cx="150" cy="60" r="8" fill="white" opacity="0.8"/>
+  <circle cx="155" cy="55" r="4" fill="white" opacity="0.6"/>
+</svg>

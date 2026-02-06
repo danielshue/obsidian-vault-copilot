@@ -1,0 +1,84 @@
+name: Extension Submission Request
+description: Request to add a new extension to the catalog
+title: "[Extension]: "
+labels: ["new-extension", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for contributing! Most extensions should be submitted as Pull Requests.
+        Use this issue only if you need help getting started.
+
+  - type: input
+    id: extension-name
+    attributes:
+      label: Extension Name
+      description: What is the name of your extension?
+      placeholder: "My Cool Agent"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: extension-type
+    attributes:
+      label: Extension Type
+      description: What type of extension is this?
+      options:
+        - Agent
+        - Voice Agent
+        - Prompt
+        - Skill
+        - MCP Server
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe what your extension does
+      placeholder: "This extension helps users..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: categories
+    attributes:
+      label: Categories
+      description: Select applicable categories
+      multiple: true
+      options:
+        - Productivity
+        - Journaling
+        - Research
+        - Writing
+        - Task Management
+        - Voice
+        - Integration
+        - MCP
+        - Utility
+    validations:
+      required: true
+
+  - type: textarea
+    id: help-needed
+    attributes:
+      label: Help Needed
+      description: What do you need help with?
+      placeholder: "I need help with..."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have read the CONTRIBUTING.md guide
+          required: true
+        - label: This extension does not already exist in the catalog
+          required: true
+        - label: There are no security concerns with this extension
+          required: true

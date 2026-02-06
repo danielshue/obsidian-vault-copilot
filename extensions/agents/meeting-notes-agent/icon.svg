@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="mbg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#mbg)"/>
+  <!-- People at meeting -->
+  <circle cx="20" cy="28" r="7" fill="#fff" opacity="0.95"/>
+  <circle cx="44" cy="28" r="7" fill="#fff" opacity="0.95"/>
+  <circle cx="32" cy="22" r="8" fill="#fff"/>
+  <!-- Speech bubble -->
+  <rect x="22" y="40" width="20" height="14" rx="4" fill="#fff"/>
+  <polygon points="28,54 32,60 36,54" fill="#fff"/>
+  <!-- Mic lines -->
+  <line x1="30" y1="45" x2="38" y2="45" stroke="#93c5fd" stroke-width="2" stroke-linecap="round"/>
+  <line x1="30" y1="49" x2="36" y2="49" stroke="#93c5fd" stroke-width="2" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,373 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-02-06T04:23:57.029Z",
+  "totalExtensions": 5,
+  "extensions": [
+    {
+      "id": "daily-journal-agent",
+      "name": "Daily Journal Agent",
+      "type": "agent",
+      "version": "1.0.0",
+      "description": "Creates structured daily journal entries with prompts for reflection, gratitude, and goal tracking.",
+      "author": {
+        "name": "Dan Shue",
+        "url": "https://danielshue.com"
+      },
+      "categories": [
+        "Productivity",
+        "Journaling"
+      ],
+      "tags": [
+        "daily",
+        "journal",
+        "reflection",
+        "gratitude",
+        "goals",
+        "habits"
+      ],
+      "downloads": 0,
+      "rating": null,
+      "ratingCount": 0,
+      "publishedAt": "2026-02-01T00:00:00Z",
+      "updatedAt": "2026-02-06T04:23:50.226Z",
+      "size": "2.4 KB",
+      "sizeBytes": 2450,
+      "minVaultCopilotVersion": "0.1.0",
+      "repository": "https://github.com/danielshue/obsidian-vault-copilot",
+      "license": "MIT",
+      "detailPageUrl": "https://danielshue.github.io/obsidian-vault-copilot/extensions/agents/daily-journal-agent/",
+      "discussionUrl": null,
+      "files": [
+        {
+          "source": "daily-journal-agent.agent.md",
+          "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/daily-journal-agent/daily-journal-agent.agent.md",
+          "installPath": "Reference/Agents/",
+          "size": "2.4 KB"
+        }
+      ],
+      "tools": [
+        "create_note",
+        "read_note",
+        "search_vault",
+        "get_daily_note"
+      ],
+      "permissions": [],
+      "dependencies": [],
+      "preview": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/daily-journal-agent/preview.png",
+      "icon": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/daily-journal-agent/icon.svg",
+      "featured": true,
+      "versions": [
+        {
+          "version": "1.0.0",
+          "date": "2026-02-01",
+          "changes": [
+            "Initial release",
+            "Structured journal entries with gratitude and goals sections",
+            "Pattern recognition from previous entries",
+            "Smart linking to related notes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "meeting-notes-agent",
+      "name": "Meeting Notes Agent",
+      "type": "agent",
+      "version": "1.0.0",
+      "description": "Captures, organizes, and summarizes meeting notes with action items, attendees, and follow-up tracking.",
+      "author": {
+        "name": "Dan Shue",
+        "url": "https://danielshue.com"
+      },
+      "categories": [
+        "Productivity",
+        "Task Management"
+      ],
+      "tags": [
+        "meetings",
+        "notes",
+        "action-items",
+        "agenda",
+        "summary",
+        "collaboration"
+      ],
+      "downloads": 0,
+      "rating": null,
+      "ratingCount": 0,
+      "publishedAt": "2026-02-01T00:00:00Z",
+      "updatedAt": "2026-02-06T04:23:50.227Z",
+      "size": "2.5 KB",
+      "sizeBytes": 2577,
+      "minVaultCopilotVersion": "0.1.0",
+      "repository": "https://github.com/danielshue/obsidian-vault-copilot",
+      "license": "MIT",
+      "detailPageUrl": "https://danielshue.github.io/obsidian-vault-copilot/extensions/agents/meeting-notes-agent/",
+      "discussionUrl": null,
+      "files": [
+        {
+          "source": "meeting-notes-agent.agent.md",
+          "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/meeting-notes-agent/meeting-notes-agent.agent.md",
+          "installPath": "Reference/Agents/",
+          "size": "2.5 KB"
+        }
+      ],
+      "tools": [
+        "create_note",
+        "read_note",
+        "search_vault",
+        "update_note"
+      ],
+      "permissions": [],
+      "dependencies": [],
+      "preview": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/meeting-notes-agent/preview.png",
+      "icon": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/meeting-notes-agent/icon.svg",
+      "featured": true,
+      "versions": [
+        {
+          "version": "1.0.0",
+          "date": "2026-02-01",
+          "changes": [
+            "Initial release",
+            "Meeting capture with attendees and agenda",
+            "Automatic action item extraction",
+            "Follow-up tracking integration"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "task-management-prompt",
+      "name": "Task Management Prompt",
+      "type": "prompt",
+      "version": "1.0.0",
+      "description": "A reusable prompt for organizing, prioritizing, and tracking tasks using proven productivity methods.",
+      "author": {
+        "name": "Dan Shue",
+        "url": "https://danielshue.com"
+      },
+      "categories": [
+        "Productivity",
+        "Task Management"
+      ],
+      "tags": [
+        "tasks",
+        "todo",
+        "gtd",
+        "eisenhower",
+        "priority",
+        "planning"
+      ],
+      "downloads": 0,
+      "rating": null,
+      "ratingCount": 0,
+      "publishedAt": "2026-02-01T00:00:00Z",
+      "updatedAt": "2026-02-06T04:23:50.230Z",
+      "size": "1.5 KB",
+      "sizeBytes": 1526,
+      "minVaultCopilotVersion": "0.1.0",
+      "repository": "https://github.com/danielshue/obsidian-vault-copilot",
+      "license": "MIT",
+      "detailPageUrl": "https://danielshue.github.io/obsidian-vault-copilot/extensions/prompts/task-management-prompt/",
+      "discussionUrl": null,
+      "files": [
+        {
+          "source": "task-management-prompt.prompt.md",
+          "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/prompts/task-management-prompt/task-management-prompt.prompt.md",
+          "installPath": "Reference/Prompts/",
+          "size": "1.5 KB"
+        }
+      ],
+      "tools": [
+        "search_vault",
+        "read_note",
+        "create_note"
+      ],
+      "permissions": [],
+      "dependencies": [],
+      "preview": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/prompts/task-management-prompt/preview.png",
+      "icon": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/prompts/task-management-prompt/icon.svg",
+      "featured": false,
+      "versions": [
+        {
+          "version": "1.0.0",
+          "date": "2026-02-01",
+          "changes": [
+            "Initial release",
+            "Eisenhower matrix prioritization",
+            "GTD next actions support",
+            "Task categorization and tagging"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "example-weather-mcp",
+      "name": "Weather MCP Server",
+      "type": "mcp-server",
+      "version": "1.0.0",
+      "description": "Example MCP server integration that provides weather data for your notes and daily planning.",
+      "author": {
+        "name": "Dan Shue",
+        "url": "https://danielshue.com"
+      },
+      "categories": [
+        "Integration",
+        "MCP",
+        "Utility"
+      ],
+      "tags": [
+        "weather",
+        "mcp",
+        "api",
+        "daily-notes",
+        "planning"
+      ],
+      "downloads": 0,
+      "rating": null,
+      "ratingCount": 0,
+      "publishedAt": "2026-02-01T00:00:00Z",
+      "updatedAt": "2026-02-06T04:23:50.228Z",
+      "size": "0.2 KB",
+      "sizeBytes": 252,
+      "minVaultCopilotVersion": "0.1.0",
+      "repository": "https://github.com/danielshue/obsidian-vault-copilot",
+      "license": "MIT",
+      "detailPageUrl": "https://danielshue.github.io/obsidian-vault-copilot/extensions/mcp-servers/example-weather-mcp/",
+      "discussionUrl": null,
+      "files": [
+        {
+          "source": "mcp-config.json",
+          "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/mcp-servers/example-weather-mcp/mcp-config.json",
+          "installPath": ".obsidian/",
+          "size": "252 B"
+        }
+      ],
+      "tools": [],
+      "permissions": [
+        "network-access"
+      ],
+      "dependencies": [],
+      "preview": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/mcp-servers/example-weather-mcp/preview.png",
+      "icon": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/mcp-servers/example-weather-mcp/icon.svg",
+      "featured": false,
+      "versions": [
+        {
+          "version": "1.0.0",
+          "date": "2026-02-01",
+          "changes": [
+            "Initial release",
+            "Current weather data integration",
+            "Forecast support for daily planning",
+            "Location-based weather lookup"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "weekly-review-agent",
+      "name": "Weekly Review Agent",
+      "type": "agent",
+      "version": "1.0.0",
+      "description": "Guides you through a comprehensive weekly review process to reflect on accomplishments, plan ahead, and maintain productivity.",
+      "author": {
+        "name": "Dan Shue",
+        "url": "https://danielshue.com"
+      },
+      "categories": [
+        "Productivity",
+        "Task Management"
+      ],
+      "tags": [
+        "weekly-review",
+        "gtd",
+        "planning",
+        "reflection",
+        "goals",
+        "productivity"
+      ],
+      "downloads": 0,
+      "rating": null,
+      "ratingCount": 0,
+      "publishedAt": "2026-02-01T00:00:00Z",
+      "updatedAt": "2026-02-06T04:23:50.228Z",
+      "size": "3.5 KB",
+      "sizeBytes": 3597,
+      "minVaultCopilotVersion": "0.1.0",
+      "repository": "https://github.com/danielshue/obsidian-vault-copilot",
+      "license": "MIT",
+      "detailPageUrl": "https://danielshue.github.io/obsidian-vault-copilot/extensions/agents/weekly-review-agent/",
+      "discussionUrl": null,
+      "files": [
+        {
+          "source": "weekly-review-agent.agent.md",
+          "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/weekly-review-agent/weekly-review-agent.agent.md",
+          "installPath": "Reference/Agents/",
+          "size": "3.5 KB"
+        }
+      ],
+      "tools": [
+        "create_note",
+        "read_note",
+        "search_vault",
+        "list_folder"
+      ],
+      "permissions": [],
+      "dependencies": [],
+      "preview": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/weekly-review-agent/preview.png",
+      "icon": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/weekly-review-agent/icon.svg",
+      "featured": true,
+      "versions": [
+        {
+          "version": "1.0.0",
+          "date": "2026-02-01",
+          "changes": [
+            "Initial release",
+            "GTD-inspired weekly review workflow",
+            "Accomplishments and goals tracking",
+            "Week-over-week comparison"
+          ]
+        }
+      ]
+    }
+  ],
+  "categories": [
+    "Productivity",
+    "Journaling",
+    "Research",
+    "Writing",
+    "Task Management",
+    "Voice",
+    "Integration",
+    "MCP",
+    "Utility"
+  ],
+  "featured": [
+    "daily-journal-agent",
+    "meeting-notes-agent",
+    "weekly-review-agent",
+    "task-management-prompt",
+    "example-weather-mcp"
+  ],
+  "stats": {
+    "byType": {
+      "agents": 3,
+      "voice-agents": 0,
+      "prompts": 1,
+      "skills": 0,
+      "mcp-servers": 1
+    },
+    "byCategory": {
+      "Productivity": 4,
+      "Journaling": 1,
+      "Research": 0,
+      "Writing": 0,
+      "Task Management": 3,
+      "Voice": 0,
+      "Integration": 1,
+      "MCP": 1,
+      "Utility": 1
+    },
+    "withRatings": 0,
+    "averageRating": null
+  }
+}

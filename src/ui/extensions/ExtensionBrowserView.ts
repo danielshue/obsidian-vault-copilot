@@ -56,7 +56,7 @@ export class ExtensionBrowserView extends ItemView {
 		
 		// Initialize services
 		this.catalogUrl = plugin.settings.extensionCatalogUrl || 
-			"https://danielshue.github.io/vault-copilot-extensions/catalog/catalog.json";
+			"https://danielshue.github.io/obsidian-vault-copilot/catalog/catalog.json";
 		
 		this.catalogService = new ExtensionCatalogService(this.app, {
 			catalogEndpoint: this.catalogUrl,

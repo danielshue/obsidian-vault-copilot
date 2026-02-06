@@ -1,0 +1,38 @@
+<header class="site-header">
+  <div class="header-container">
+    <!-- Logo and Title -->
+    <a href="{{ '/' | relative_url }}" class="site-logo">
+      <img src="{{ '/assets/images/logo.png' | relative_url }}" alt="{{ site.title }} logo" class="logo-image" width="32" height="32">
+      <span class="site-title">{{ site.title }}</span>
+    </a>
+    
+    <!-- Navigation -->
+    <nav class="site-nav">
+      <ul class="nav-links">
+        <li><a href="{{ '/' | relative_url }}" class="nav-link">Home</a></li>
+        <li><a href="{{ '/catalog/' | relative_url }}" class="nav-link">Browse</a></li>
+        <li><a href="{{ '/docs/AUTHORING' | relative_url }}" class="nav-link">Contribute</a></li>
+      </ul>
+    </nav>
+    
+    <!-- Search -->
+    <div class="site-search">
+      <input type="search" placeholder="Search extensions..." class="search-input" aria-label="Search extensions">
+      <button type="button" class="search-button" aria-label="Submit search">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Mobile Menu Toggle -->
+    <button type="button" class="mobile-menu-toggle" aria-label="Toggle navigation menu">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+  </div>
+</header>

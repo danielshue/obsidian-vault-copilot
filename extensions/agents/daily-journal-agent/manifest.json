@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../schema/manifest.schema.json",
+  "id": "daily-journal-agent",
+  "name": "Daily Journal Agent",
+  "version": "1.0.0",
+  "type": "agent",
+  "description": "Creates structured daily journal entries with prompts for reflection, gratitude, and goal tracking.",
+  "author": {
+    "name": "Dan Shue",
+    "url": "https://danielshue.com"
+  },
+  "repository": "https://github.com/danielshue/obsidian-vault-copilot",
+  "license": "MIT",
+  "minVaultCopilotVersion": "0.1.0",
+  "categories": ["Productivity", "Journaling"],
+  "tags": ["daily", "journal", "reflection", "gratitude", "goals", "habits"],
+  "files": [
+    {
+      "source": "daily-journal-agent.agent.md",
+      "installPath": "Reference/Agents/"
+    }
+  ],
+  "tools": ["create_note", "read_note", "search_vault", "get_daily_note"],
+  "dependencies": [],
+  "preview": "preview.png",
+  "featured": true,
+  "publishedAt": "2026-02-01T00:00:00Z",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "date": "2026-02-01",
+      "changes": [
+        "Initial release",
+        "Structured journal entries with gratitude and goals sections",
+        "Pattern recognition from previous entries",
+        "Smart linking to related notes"
+      ]
+    }
+  ]
+}

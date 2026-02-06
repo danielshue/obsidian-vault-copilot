@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  
+  <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
+  
+  <!-- SEO -->
+  {% seo %}
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="{{ '/assets/css/extensions.css' | relative_url }}">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="{{ '/assets/images/favicon.png' | relative_url }}">
+</head>
+<body>
+  {% include header.html %}
+  
+  <main class="main-content">
+    <div class="extension-container">
+      <!-- Main Content Column -->
+      <article class="extension-content">
+        <header class="extension-header">
+          {% if page.icon %}
+          <img src="{{ page.icon | relative_url }}" alt="{{ page.title }} icon" class="extension-icon">
+          {% endif %}
+          <div class="extension-title-group">
+            <h1>{{ page.title }}</h1>
+            {% if page.author %}
+            <p class="extension-author">by {{ page.author }}</p>
+            {% endif %}
+            {% if page.description %}
+            <p class="extension-description-text">{{ page.description }}</p>
+            {% endif %}
+          </div>
+        </header>
+        
+        <div class="extension-description">
+          {{ content }}
+        </div>
+        
+        <!-- Changelog Section -->
+        {% if page.versions and page.versions.size > 0 %}
+        <section class="extension-changelog">
+          <h2>Version History</h2>
+          <div class="changelog-list">
+            {% for version in page.versions %}
+            <div class="changelog-entry">
+              <div class="changelog-header">
+                <span class="changelog-version">v{{ version.version }}</span>
+                <span class="changelog-date">{{ version.date }}</span>
+              </div>
+              {% if version.changes and version.changes.size > 0 %}
+              <ul class="changelog-changes">
+                {% for change in version.changes %}
+                <li>{{ change }}</li>
+                {% endfor %}
+              </ul>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+        {% endif %}
+        
+        <!-- Comments Section -->
+        <section class="extension-comments">
+          <h2>Feedback & Discussion</h2>
+          <script src="https://giscus.app/client.js"
+            data-repo="danielshue/vault-copilot-extensions"
+            data-repo-id="R_kgDORJfKUQ"
+            data-category="Extension Feedback"
+            data-category-id="DIC_kwDORJfKUc4C18J5"
+            data-mapping="pathname"
+            data-strict="0"
+            data-reactions-enabled="1"
+            data-emit-metadata="0"
+            data-input-position="bottom"
+            data-theme="preferred_color_scheme"
+            data-lang="en"
+            crossorigin="anonymous"
+            async>
+          </script>
+        </section>
+      </article>
+      
+      <!-- Sidebar Column -->
+      <aside class="extension-sidebar">
+        {% include metadata-sidebar.html %}
+      </aside>
+    </div>
+  </main>
+  
+  {% include footer.html %}
+</body>
+</html>

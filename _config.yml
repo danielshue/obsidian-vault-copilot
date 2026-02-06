@@ -1,0 +1,47 @@
+# Vault Copilot Extensions - Jekyll Configuration
+title: Vault Copilot Extensions
+description: Discover and install extensions for Vault Copilot
+baseurl: "/obsidian-vault-copilot"
+url: "https://danielshue.github.io"
+
+# Include catalog folder in build
+include:
+  - catalog
+
+# Collections configuration
+collections:
+  extensions:
+    output: true
+    permalink: /extensions/:path/
+
+# Default front matter
+defaults:
+  - scope:
+      path: ""
+      type: "extensions"
+    values:
+      layout: "extension"
+
+# Plugins
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+# Markdown configuration
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  auto_ids: true
+  syntax_highlighter: rouge
+
+# Build settings
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+  - scripts
+  - schema
+  - "*.json"
+  - README.md

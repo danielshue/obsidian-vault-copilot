@@ -1,0 +1,6 @@
+# Voice Agent Extensions Directory
+# Each subdirectory contains a voice agent extension with:
+# - manifest.json: Extension metadata
+# - README.md: Documentation (becomes detail page)
+# - {name}.voice-agent.md: The voice agent file
+# - preview.png: Screenshot (optional but recommended)

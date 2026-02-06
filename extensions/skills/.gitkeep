@@ -1,0 +1,6 @@
+# Skill Extensions Directory
+# Each subdirectory contains a skill extension with:
+# - manifest.json: Extension metadata
+# - README.md: Documentation (becomes detail page)
+# - skill.md: The skill file
+# - preview.png: Screenshot (optional but recommended)

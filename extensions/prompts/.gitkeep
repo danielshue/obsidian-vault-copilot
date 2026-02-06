@@ -1,0 +1,6 @@
+# Prompt Extensions Directory
+# Each subdirectory contains a prompt extension with:
+# - manifest.json: Extension metadata
+# - README.md: Documentation (becomes detail page)
+# - {name}.prompt.md: The prompt file
+# - preview.png: Screenshot (optional but recommended)

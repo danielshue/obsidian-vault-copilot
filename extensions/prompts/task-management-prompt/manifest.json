@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../schema/manifest.schema.json",
+  "id": "task-management-prompt",
+  "name": "Task Management Prompt",
+  "version": "1.0.0",
+  "type": "prompt",
+  "description": "A reusable prompt for organizing, prioritizing, and tracking tasks using proven productivity methods.",
+  "author": {
+    "name": "Dan Shue",
+    "url": "https://danielshue.com"
+  },
+  "repository": "https://github.com/danielshue/obsidian-vault-copilot",
+  "license": "MIT",
+  "minVaultCopilotVersion": "0.1.0",
+  "categories": ["Productivity", "Task Management"],
+  "tags": ["tasks", "todo", "gtd", "eisenhower", "priority", "planning"],
+  "files": [
+    {
+      "source": "task-management-prompt.prompt.md",
+      "installPath": "Reference/Prompts/"
+    }
+  ],
+  "tools": ["search_vault", "read_note", "create_note"],
+  "dependencies": [],
+  "preview": "preview.png",
+  "featured": false,
+  "publishedAt": "2026-02-01T00:00:00Z",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "date": "2026-02-01",
+      "changes": [
+        "Initial release",
+        "Eisenhower matrix prioritization",
+        "GTD next actions support",
+        "Task categorization and tagging"
+      ]
+    }
+  ]
+}

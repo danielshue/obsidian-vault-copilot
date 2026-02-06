@@ -1,0 +1,6 @@
+# MCP Server Extensions Directory
+# Each subdirectory contains an MCP server extension with:
+# - manifest.json: Extension metadata
+# - README.md: Documentation (becomes detail page)
+# - mcp-config.json: The MCP server configuration
+# - preview.png: Screenshot (optional but recommended)

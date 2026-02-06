@@ -54,7 +54,7 @@ export interface CatalogServiceConfig {
  * @example
  * ```typescript
  * const service = new ExtensionCatalogService(app, {
- *   catalogEndpoint: "https://danielshue.github.io/vault-copilot-extensions/catalog/catalog.json",
+ *   catalogEndpoint: "https://danielshue.github.io/obsidian-vault-copilot/catalog/catalog.json",
  *   cacheTTLMillis: 300000 // 5 minutes
  * });
  * 
