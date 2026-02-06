@@ -51,6 +51,7 @@ import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSess
 import { GitHubCopilotCliService, GitHubCopilotCliConfig, ChatMessage, ModelInfoResult, ModelCapabilitiesInfo, ModelPolicyInfo } from "./copilot/providers/GitHubCopilotCliService";
 import { CopilotChatView, COPILOT_VIEW_TYPE, ConversationHistoryView, TracingView, TRACING_VIEW_TYPE, VOICE_HISTORY_VIEW_TYPE } from "./ui/ChatView";
 import { ExtensionBrowserView, EXTENSION_BROWSER_VIEW_TYPE } from "./ui/extensions/ExtensionBrowserView";
+import { ExtensionWebView, EXTENSION_WEB_VIEW_TYPE } from "./ui/extensions/ExtensionWebView";
 import { GitHubCopilotCliManager } from "./copilot/providers/GitHubCopilotCliManager";
 import { 
 	SkillRegistry, 
@@ -613,6 +614,11 @@ export default class CopilotPlugin extends Plugin {
 		this.registerView(
 			EXTENSION_BROWSER_VIEW_TYPE,
 			(leaf) => new ExtensionBrowserView(leaf, this)
+		);
+
+		this.registerView(
+			EXTENSION_WEB_VIEW_TYPE,
+			(leaf) => new ExtensionWebView(leaf)
 		);
 
 		// Add ribbon icon to open chat

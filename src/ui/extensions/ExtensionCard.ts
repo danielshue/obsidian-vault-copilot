@@ -13,6 +13,7 @@
 
 import { setIcon } from "obsidian";
 import { MarketplaceExtension, VaultExtensionKind } from "../../extensions/types";
+import { ExtensionHoverPopup } from "./ExtensionHoverPopup";
 
 /**
  * Configuration for rendering an extension card.
@@ -62,9 +63,21 @@ export interface ExtensionCardConfig {
  */
 export class ExtensionCardComponent {
 	private config: ExtensionCardConfig;
+	private hoverPopup: ExtensionHoverPopup | null = null;
+	private hoverTimeout: number | null = null;
 	
 	constructor(config: ExtensionCardConfig) {
 		this.config = config;
+		
+		// Create hover popup
+		this.hoverPopup = new ExtensionHoverPopup({
+			extension: config.extensionData,
+			isInstalled: config.isCurrentlyInstalled,
+			hasUpdate: config.hasAvailableUpdate,
+			onInstall: config.onInstallClick,
+			onUpdate: config.onUpdateClick,
+			onRemove: config.onRemoveClick
+		});
 	}
 	
 	/**
@@ -94,6 +107,24 @@ export class ExtensionCardComponent {
 			this.config.onCardClick(this.config.extensionData);
 		});
 		
+		// Add hover handlers
+		cardContainer.addEventListener("mouseenter", (evt) => {
+			// Delay showing popup slightly to avoid flickering
+			this.hoverTimeout = window.setTimeout(() => {
+				this.hoverPopup?.show(cardContainer, evt);
+			}, 400);
+		});
+		
+		cardContainer.addEventListener("mouseleave", () => {
+			// Cancel pending show
+			if (this.hoverTimeout !== null) {
+				window.clearTimeout(this.hoverTimeout);
+				this.hoverTimeout = null;
+			}
+			// Hide popup
+			this.hoverPopup?.hide();
+		});
+		
 		// Build header section
 		const headerSection = this.createHeaderSection();
 		cardContainer.appendChild(headerSection);
@@ -110,6 +141,19 @@ export class ExtensionCardComponent {
 	}
 	
 	/**
+	 * Destroys the card and cleans up resources.
+	 */
+	public destroy(): void {
+		if (this.hoverTimeout !== null) {
+			window.clearTimeout(this.hoverTimeout);
+			this.hoverTimeout = null;
+		}
+		
+		this.hoverPopup?.destroy();
+		this.hoverPopup = null;
+	}
+	
+	/**
 	 * Creates the header section with icon, title, and version.
 	 */
 	private createHeaderSection(): HTMLElement {
@@ -119,6 +163,7 @@ export class ExtensionCardComponent {
 		// Icon
 		const iconWrapper = document.createElement("div");
 		iconWrapper.addClass("vc-extension-card__icon");
+		iconWrapper.setAttribute("data-kind", this.config.extensionData.kind);
 		const iconName = this.getIconForExtensionKind(this.config.extensionData.kind);
 		setIcon(iconWrapper, iconName);
 		header.appendChild(iconWrapper);
@@ -174,6 +219,7 @@ export class ExtensionCardComponent {
 		for (const category of this.config.extensionData.classificationTags.slice(0, 2)) {
 			const badge = document.createElement("span");
 			badge.addClass("vc-extension-card__category-badge");
+			badge.setAttribute("data-category", category);
 			badge.textContent = category;
 			categoriesContainer.appendChild(badge);
 		}
@@ -232,6 +278,7 @@ export class ExtensionCardComponent {
 		const button = document.createElement("button");
 		button.addClass("vc-extension-card__action-btn");
 		button.setAttribute("aria-label", label);
+		button.setAttribute("data-action", label.toLowerCase());
 		
 		const iconEl = document.createElement("span");
 		setIcon(iconEl, iconName);

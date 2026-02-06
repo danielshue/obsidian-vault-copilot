@@ -169,6 +169,61 @@ export interface MarketplaceExtension {
 }
 
 /**
+ * Raw extension data as received from the catalog JSON file.
+ * This is the actual structure from GitHub Pages, which differs from our internal format.
+ */
+export interface RawCatalogExtension {
+	id: string;
+	name: string;
+	type: string;
+	version: string;
+	description: string;
+	author: {
+		name: string;
+		url?: string;
+		email?: string;
+	};
+	categories: string[];
+	tags: string[];
+	downloads?: number;
+	rating?: number;
+	publishedAt?: string;
+	updatedAt?: string;
+	size?: string;
+	minVaultCopilotVersion?: string;
+	repository?: string;
+	detailPageUrl?: string;
+	files: Array<{
+		source: string;
+		downloadUrl: string;
+		installPath: string;
+		size?: string;
+	}>;
+	tools?: string[];
+	dependencies?: string[];
+	preview?: string;
+	featured?: boolean;
+}
+
+/**
+ * Raw catalog response structure as received from catalog.json.
+ * This is the actual JSON structure from danielshue.github.io/vault-copilot-extensions.
+ */
+export interface RawCatalogResponse {
+	version: string;
+	generated: string;
+	totalExtensions: number;
+	extensions: RawCatalogExtension[];
+	categories: string[];
+	featured: string[];
+	stats?: {
+		totalDownloads?: number;
+		totalExtensions?: number;
+		byType?: Record<string, number>;
+	};
+}
+
+/**
  * Response structure from the catalog.json endpoint.
  * Contains the complete catalog of available extensions plus metadata.
  * 
@@ -389,4 +444,77 @@ export function isValidCatalogManifest(obj: unknown): obj is CatalogManifest {
 		Array.isArray(candidate.availableExtensions) &&
 		Array.isArray(candidate.knownCategories) &&
 		Array.isArray(candidate.highlightedExtensions);
+}
+
+/**
+ * Transforms a raw catalog extension to the internal MarketplaceExtension format.
+ * Maps field names from the GitHub Pages catalog structure to our internal schema.
+ * 
+ * @param raw - Raw extension data from catalog.json
+ * @returns Transformed MarketplaceExtension object
+ * 
+ * @example
+ * ```typescript
+ * const rawExt = { id: "my-agent", name: "My Agent", type: "agent", ... };
+ * const transformed = transformRawExtension(rawExt);
+ * console.log(transformed.uniqueId); // "my-agent"
+ * console.log(transformed.displayTitle); // "My Agent"
+ * ```
+ */
+export function transformRawExtension(raw: RawCatalogExtension): MarketplaceExtension {
+	return {
+		uniqueId: raw.id,
+		displayTitle: raw.name,
+		kind: raw.type as VaultExtensionKind,
+		semanticVersion: raw.version,
+		briefSummary: raw.description,
+		creator: {
+			displayName: raw.author.name,
+			profileLink: raw.author.url,
+			contactEmail: raw.author.email,
+		},
+		classificationTags: raw.categories,
+		searchKeywords: raw.tags,
+		downloadMetrics: raw.downloads,
+		communityRating: raw.rating,
+		publishTimestamp: raw.publishedAt || new Date().toISOString(),
+		lastModifiedTimestamp: raw.updatedAt || new Date().toISOString(),
+		totalSizeBytes: raw.size || "0",
+		requiredPluginVersion: raw.minVaultCopilotVersion || "0.0.0",
+		sourceRepository: raw.repository,
+		webDetailPage: raw.detailPageUrl || `https://danielshue.github.io/vault-copilot-extensions/extensions/${raw.type}s/${raw.id}/`,
+		packageContents: raw.files.map(file => ({
+			relativePath: file.source,
+			downloadSource: file.downloadUrl,
+			targetLocation: file.installPath,
+		})),
+		requiredCapabilities: raw.tools || [],
+		dependsOnExtensions: raw.dependencies || [],
+		previewImageUrl: raw.preview,
+	};
+}
+
+/**
+ * Transforms a raw catalog response to the internal CatalogManifest format.
+ * Maps field names and transforms all extensions in the catalog.
+ * 
+ * @param raw - Raw catalog data from catalog.json
+ * @returns Transformed CatalogManifest object
+ * 
+ * @example
+ * ```typescript
+ * const response = await fetch("catalog.json");
+ * const rawData = await response.json() as RawCatalogResponse;
+ * const catalog = transformRawCatalog(rawData);
+ * console.log(catalog.availableExtensions.length);
+ * ```
+ */
+export function transformRawCatalog(raw: RawCatalogResponse): CatalogManifest {
+	return {
+		schemaVersion: raw.version,
+		buildTimestamp: raw.generated,
+		availableExtensions: raw.extensions.map(transformRawExtension),
+		knownCategories: raw.categories,
+		highlightedExtensions: raw.featured,
+	};
 }

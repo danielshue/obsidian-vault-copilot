@@ -127,6 +127,11 @@ export async function httpRequest<T = unknown>(
 
 	const response = await requestUrl(params);
 
+	// Check for error status codes
+	if (response.status >= 400) {
+		throw new Error(`HTTP ${response.status}: ${response.text || 'Request failed'}`);
+	}
+
 	// Handle non-JSON responses gracefully
 	let data: unknown;
 	if (response.json !== undefined && response.json !== null) {
@@ -141,9 +146,13 @@ export async function httpRequest<T = unknown>(
 			// Attempt to parse JSON from text
 			try {
 				data = JSON.parse(response.text);
-			} catch {
-				// Parsing failed, return raw text
-				data = response.text;
+			} catch (parseError) {
+				// Parsing failed - provide helpful error
+				const preview = response.text.substring(0, 100);
+				throw new Error(
+					`Expected JSON response but received: "${preview}..." ` +
+					`(JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)})`
+				);
 			}
 		} else {
 			// Non-JSON response

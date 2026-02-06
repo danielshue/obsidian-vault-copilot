@@ -153,6 +153,8 @@ export class ExtensionManager {
 	 */
 	async installExtension(manifest: MarketplaceExtension): Promise<InstallationOutcome> {
 		try {
+			console.log(`[ExtensionManager] Starting installation of ${manifest.uniqueId}`);
+			
 			// Check if already installed
 			if (this.isInstalled(manifest.uniqueId)) {
 				return {
@@ -189,11 +191,17 @@ export class ExtensionManager {
 			// Download all files
 			const downloadedFiles: Array<{ content: string; targetPath: string }> = [];
 			for (const file of manifest.packageContents) {
-				const content = await this.downloadFile(file.downloadSource);
-				downloadedFiles.push({
-					content,
-					targetPath: file.targetLocation,
-				});
+				console.log(`[ExtensionManager] Downloading ${file.relativePath} from ${file.downloadSource}`);
+				try {
+					const content = await this.downloadFile(file.downloadSource);
+					downloadedFiles.push({
+						content,
+						targetPath: file.targetLocation,
+					});
+				} catch (downloadError) {
+					const errorMsg = downloadError instanceof Error ? downloadError.message : String(downloadError);
+					throw new Error(`Failed to download ${file.relativePath}: ${errorMsg}`);
+				}
 			}
 			
 			// Install files to vault
@@ -215,8 +223,6 @@ export class ExtensionManager {
 			this.installedExtensionsMap.set(manifest.uniqueId, record);
 			await this.saveTrackingFile();
 			
-			new Notice(`Extension "${manifest.displayTitle}" installed successfully`);
-			
 			return {
 				operationSucceeded: true,
 				affectedExtensionId: manifest.uniqueId,
@@ -224,8 +230,6 @@ export class ExtensionManager {
 			};
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
-			
-			new Notice(`Failed to install extension: ${errorMsg}`, 5000);
 			
 			return {
 				operationSucceeded: false,
@@ -286,8 +290,6 @@ export class ExtensionManager {
 			this.installedExtensionsMap.delete(extensionId);
 			await this.saveTrackingFile();
 			
-			new Notice(`Extension "${extensionId}" uninstalled successfully`);
-			
 			return {
 				operationSucceeded: true,
 				affectedExtensionId: extensionId,
@@ -295,8 +297,6 @@ export class ExtensionManager {
 			};
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
-			
-			new Notice(`Failed to uninstall extension: ${errorMsg}`, 5000);
 			
 			return {
 				operationSucceeded: false,
@@ -434,15 +434,39 @@ export class ExtensionManager {
 			
 			if (file instanceof TFile) {
 				const content = await this.app.vault.read(file);
-				const data: TrackingFileData = JSON.parse(content);
 				
-				// Populate map from tracking file
-				for (const [id, record] of Object.entries(data.installedExtensions)) {
-					this.installedExtensionsMap.set(id, record);
+				// Validate content before parsing
+				if (!content || content.trim().length === 0) {
+					console.warn("Tracking file is empty, starting fresh");
+					this.installedExtensionsMap.clear();
+					return;
+				}
+				
+				try {
+					const data: TrackingFileData = JSON.parse(content);
+					
+					// Validate structure
+					if (!data || typeof data !== 'object' || !data.installedExtensions) {
+						console.warn("Tracking file has invalid structure, starting fresh");
+						this.installedExtensionsMap.clear();
+						return;
+					}
+					
+					// Populate map from tracking file
+					for (const [id, record] of Object.entries(data.installedExtensions)) {
+						this.installedExtensionsMap.set(id, record);
+					}
+				} catch (parseError) {
+					console.error("Failed to parse tracking file:", parseError);
+					console.error("Content preview:", content.substring(0, 100));
+					// Delete corrupted file and start fresh
+					await this.app.vault.delete(file);
+					this.installedExtensionsMap.clear();
 				}
 			}
 		} catch (error) {
-			// Tracking file doesn't exist or is corrupted - start fresh
+			// Tracking file doesn't exist or other error - start fresh
+			console.warn("Error loading tracking file:", error);
 			this.installedExtensionsMap.clear();
 		}
 	}
@@ -471,18 +495,35 @@ export class ExtensionManager {
 	 * Downloads a file from a URL.
 	 */
 	private async downloadFile(url: string): Promise<string> {
-		const response = await httpRequest<string>({
-			url,
-			method: "GET",
-			timeout: 30000,
-		});
-		
-		if (typeof response.data === "string") {
-			return response.data;
+		try {
+			const response = await httpRequest<string>({
+				url,
+				method: "GET",
+				timeout: 30000,
+			});
+			
+			// Check for non-200 status codes
+			if (response.status < 200 || response.status >= 300) {
+				throw new Error(`HTTP ${response.status}: Failed to download from ${url}`);
+			}
+			
+			if (typeof response.data === "string") {
+				// Validate that we didn't get an HTML error page
+				const trimmed = response.data.trim();
+				if (trimmed.startsWith('<') || trimmed.startsWith('<!DOCTYPE')) {
+					throw new Error(`Received HTML instead of file content from ${url}. The extension files may not be published yet.`);
+				}
+				return response.data;
+			}
+			
+			// If response is JSON, stringify it
+			return JSON.stringify(response.data);
+		} catch (error) {
+			if (error instanceof Error) {
+				throw error;
+			}
+			throw new Error(`Failed to download ${url}: ${String(error)}`);
 		}
-		
-		// If response is JSON, stringify it
-		return JSON.stringify(response.data);
 	}
 	
 	/**

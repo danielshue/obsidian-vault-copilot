@@ -20,7 +20,8 @@ import {
 	CatalogManifest,
 	MarketplaceExtension,
 	BrowseFilter,
-	isValidCatalogManifest,
+	RawCatalogResponse,
+	transformRawCatalog,
 } from "./types";
 
 /**
@@ -115,34 +116,33 @@ export class ExtensionCatalogService {
 		
 		try {
 			// Fetch fresh catalog from remote
-			const response = await httpRequest<unknown>({
+			const response = await httpRequest<RawCatalogResponse>({
 				url: this.config.catalogEndpoint,
 				method: "GET",
 				timeout: 30000, // 30 second timeout
 			});
 			
-			// Validate response structure
-			if (!isValidCatalogManifest(response.data)) {
+			// Validate that we got a response
+			if (!response.data || typeof response.data !== "object") {
 				throw new Error("Invalid catalog format received from server");
 			}
 			
-			// Cache the fresh data
+			// Transform raw catalog to internal format
+			const transformedCatalog = transformRawCatalog(response.data);
+			
+			// Cache the transformed data
 			this.cachedData = {
-				manifestData: response.data,
+				manifestData: transformedCatalog,
 				fetchedAtTimestamp: Date.now(),
 			};
 			
-			return response.data;
+			return transformedCatalog;
 		} catch (error) {
 			// Network or validation error occurred
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			
 			// If we have stale cache, use it as fallback
 			if (this.cachedData) {
-				new Notice(
-					`Using cached catalog (network unavailable: ${errorMsg})`,
-					4000
-				);
 				return this.cachedData.manifestData;
 			}
 			
