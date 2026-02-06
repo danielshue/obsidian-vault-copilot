@@ -1097,15 +1097,21 @@ body {
   transform: translateY(-2px);
 }
 
-.feature-icon {
-  font-size: 2.5rem;
-  display: block;
+.feature-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
   margin-bottom: var(--spacing-md);
+}
+
+.feature-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
 }
 
 .feature-card h3 {
   font-size: 1.25rem;
-  margin-bottom: var(--spacing-sm);
+  margin: 0;
 }
 
 .feature-card p {
@@ -1273,3 +1279,4 @@ body {
   margin: 0;
   line-height: 1.6;
 }
+
