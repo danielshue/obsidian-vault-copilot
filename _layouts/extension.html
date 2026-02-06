@@ -20,6 +20,18 @@
   {% include header.html %}
   
   <main class="main-content">
+    <!-- Backdrop overlay for mobile sidebar -->
+    <div class="sidebar-backdrop"></div>
+    
+    <!-- Sidebar Toggle Button -->
+    <button class="sidebar-toggle" aria-label="Toggle sidebar" aria-expanded="false">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+    
     <div class="extension-container">
       <!-- Main Content Column -->
       <article class="extension-content">
@@ -95,5 +107,58 @@
   </main>
   
   {% include footer.html %}
+  
+  <script>
+    // Sidebar toggle functionality
+    (function() {
+      const toggle = document.querySelector('.sidebar-toggle');
+      const sidebar = document.querySelector('.extension-sidebar');
+      const closeBtn = document.querySelector('.sidebar-close');
+      const backdrop = document.querySelector('.sidebar-backdrop');
+      
+      function closeSidebar() {
+        sidebar.classList.remove('sidebar-open');
+        backdrop.classList.remove('backdrop-visible');
+        toggle.setAttribute('aria-expanded', 'false');
+      }
+      
+      function openSidebar() {
+        sidebar.classList.add('sidebar-open');
+        backdrop.classList.add('backdrop-visible');
+        toggle.setAttribute('aria-expanded', 'true');
+      }
+      
+      if (toggle && sidebar) {
+        // Toggle button click
+        toggle.addEventListener('click', function() {
+          const isExpanded = this.getAttribute('aria-expanded') === 'true';
+          if (isExpanded) {
+            closeSidebar();
+          } else {
+            openSidebar();
+          }
+        });
+        
+        // Close button click
+        if (closeBtn) {
+          closeBtn.addEventListener('click', closeSidebar);
+        }
+        
+        // Backdrop click
+        if (backdrop) {
+          backdrop.addEventListener('click', closeSidebar);
+        }
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(e) {
+          if (window.innerWidth <= 900) {
+            if (!sidebar.contains(e.target) && !toggle.contains(e.target) && sidebar.classList.contains('sidebar-open')) {
+              closeSidebar();
+            }
+          }
+        });
+      }
+    })();
+  </script>
 </body>
 </html>

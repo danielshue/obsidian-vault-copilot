@@ -1,25 +1,11 @@
 <div class="metadata-sidebar">
-  <!-- Install Button -->
-  {% assign type_folder = page.type | default: 'agents' %}
-  {% if page.type == 'agent' %}{% assign type_folder = 'agents' %}
-  {% elsif page.type == 'prompt' %}{% assign type_folder = 'prompts' %}
-  {% elsif page.type == 'skill' %}{% assign type_folder = 'skills' %}
-  {% elsif page.type == 'mcp-server' %}{% assign type_folder = 'mcp-servers' %}
-  {% elsif page.type == 'voice-agent' %}{% assign type_folder = 'voice-agents' %}
-  {% endif %}
-  {% assign raw_base = 'https://raw.githubusercontent.com/danielshue/vault-copilot-extensions/main' %}
-  {% assign download_url = raw_base | append: '/extensions/' | append: type_folder | append: '/' | append: page.identifier | append: '/manifest.json' %}
-  
-  <div class="sidebar-section sidebar-install">
-    <a href="{{ page.install_url | default: download_url }}" class="install-button" target="_blank" rel="noopener noreferrer">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="7 10 12 15 17 10"></polyline>
-        <line x1="12" y1="15" x2="12" y2="3"></line>
-      </svg>
-      Install Extension
-    </a>
-  </div>
+  <!-- Close button for mobile -->
+  <button class="sidebar-close" aria-label="Close sidebar">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  </button>
   
   <!-- Identifier -->
   {% if page.identifier %}
