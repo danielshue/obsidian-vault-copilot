@@ -712,6 +712,34 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
+	 * Mute the microphone input
+	 */
+	mute(): void {
+		if (this.session) {
+			this.session.mute(true);
+			logger.info(`[${this.name}] Microphone muted`);
+		}
+	}
+
+	/**
+	 * Unmute the microphone input
+	 */
+	unmute(): void {
+		if (this.session) {
+			this.session.mute(false);
+			logger.info(`[${this.name}] Microphone unmuted`);
+		}
+	}
+
+	/**
+	 * Check if the microphone is currently muted
+	 */
+	isMuted(): boolean {
+		if (!this.session) return false;
+		return this.session.muted ?? false;
+	}
+
+	/**
 	 * Send a text message to the agent
 	 */
 	sendMessage(text: string): void {

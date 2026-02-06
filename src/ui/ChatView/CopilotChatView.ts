@@ -127,6 +127,7 @@ export class CopilotChatView extends ItemView {
 	// Realtime agent
 	private realtimeAgentService: MainVaultAssistant | null = null;
 	private agentBtn: HTMLButtonElement | null = null;
+	private agentMuteBtn: HTMLButtonElement | null = null;
 	private realtimeAgentUnsubscribes: (() => void)[] = [];
 	private pendingToolApproval: ToolApprovalRequest | null = null;
 	private toolApprovalEl: HTMLElement | null = null;
@@ -731,6 +732,15 @@ export class CopilotChatView extends ItemView {
 			this.updateAgentButtonState('idle');
 			this.agentBtn.addEventListener("click", () => this.handleAgentToggle());
 			
+			// Mute button - only shown when agent is active
+			this.agentMuteBtn = this.toolbarRightEl.createEl("button", {
+				cls: "vc-toolbar-btn vc-agent-mute-btn",
+				attr: { "aria-label": "Mute microphone" }
+			});
+			this.agentMuteBtn.style.display = "none"; // Hidden by default
+			this.agentMuteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>`;
+			this.agentMuteBtn.addEventListener("click", () => this.handleAgentMuteToggle());
+			
 			// Initialize realtime agent service (if not already created)
 			if (!this.realtimeAgentService) {
 				this.initRealtimeAgentService();
@@ -831,6 +841,10 @@ export class CopilotChatView extends ItemView {
 		if (this.agentBtn) {
 			this.agentBtn.remove();
 			this.agentBtn = null;
+		}
+		if (this.agentMuteBtn) {
+			this.agentMuteBtn.remove();
+			this.agentMuteBtn = null;
 		}
 		if (this.voiceBtn) {
 			this.voiceBtn.remove();
@@ -1111,6 +1125,25 @@ export class CopilotChatView extends ItemView {
 			this.saveCurrentVoiceConversation();
 			// Stop the agent
 			this.realtimeAgentService.disconnect();
+		}
+	}
+
+	/**
+	 * Handle mute/unmute toggle for the realtime agent
+	 */
+	private handleAgentMuteToggle(): void {
+		if (!this.realtimeAgentService || !this.realtimeAgentService.isConnected()) {
+			return;
+		}
+
+		const isMuted = this.realtimeAgentService.isMuted();
+		
+		if (isMuted) {
+			this.realtimeAgentService.unmute();
+			this.updateAgentMuteButtonState(false);
+		} else {
+			this.realtimeAgentService.mute();
+			this.updateAgentMuteButtonState(true);
 		}
 	}
 
@@ -1687,6 +1720,16 @@ export class CopilotChatView extends ItemView {
 		// Pulsing/active icon for connected states
 		const activeIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="10" x="3" y="11" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" x2="8" y1="16" y2="16"></line><line x1="16" x2="16" y1="16" y2="16"></line></svg>`;
 
+		// Show/hide mute button based on state
+		const isActiveState = state !== 'idle' && state !== 'error';
+		if (this.agentMuteBtn) {
+			this.agentMuteBtn.style.display = isActiveState ? '' : 'none';
+			// Update mute button state based on current mute status
+			if (isActiveState && this.realtimeAgentService) {
+				this.updateAgentMuteButtonState(this.realtimeAgentService.isMuted());
+			}
+		}
+
 		// Update icon and state
 		switch (state) {
 			case 'connecting':
@@ -1733,6 +1776,30 @@ export class CopilotChatView extends ItemView {
 				this.agentBtn.setAttribute('aria-label', 'Start voice agent');
 				this.hideThinkingIndicator();
 				break;
+		}
+	}
+
+	/**
+	 * Update the mute button visual state
+	 */
+	private updateAgentMuteButtonState(isMuted: boolean): void {
+		if (!this.agentMuteBtn) return;
+
+		// Unmuted microphone icon (default)
+		const micOnIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>`;
+		
+		// Muted microphone icon (with slash)
+		const micOffIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="2" y2="22"></line><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"></path><path d="M5 10v2a7 7 0 0 0 12 5"></path><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"></path><path d="M9 9v3a3 3 0 0 0 5.12 2.12"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>`;
+
+		this.agentMuteBtn.removeClass('vc-agent-muted');
+		
+		if (isMuted) {
+			this.agentMuteBtn.addClass('vc-agent-muted');
+			this.agentMuteBtn.innerHTML = micOffIcon;
+			this.agentMuteBtn.setAttribute('aria-label', 'Unmute microphone');
+		} else {
+			this.agentMuteBtn.innerHTML = micOnIcon;
+			this.agentMuteBtn.setAttribute('aria-label', 'Mute microphone');
 		}
 	}
 

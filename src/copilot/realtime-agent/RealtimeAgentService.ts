@@ -774,6 +774,34 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
+	 * Mute the microphone input
+	 */
+	mute(): void {
+		if (this.session) {
+			this.session.mute(true);
+			logger.info("Microphone muted");
+		}
+	}
+
+	/**
+	 * Unmute the microphone input
+	 */
+	unmute(): void {
+		if (this.session) {
+			this.session.mute(false);
+			logger.info("Microphone unmuted");
+		}
+	}
+
+	/**
+	 * Check if the microphone is currently muted
+	 */
+	isMuted(): boolean {
+		if (!this.session) return false;
+		return this.session.muted ?? false;
+	}
+
+	/**
 	 * Destroy the service
 	 */
 	async destroy(): Promise<void> {
