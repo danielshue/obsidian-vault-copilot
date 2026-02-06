@@ -127,6 +127,7 @@ export class CopilotChatView extends ItemView {
 	// Realtime agent
 	private realtimeAgentService: MainVaultAssistant | null = null;
 	private agentBtn: HTMLButtonElement | null = null;
+	private agentMuteBtn: HTMLButtonElement | null = null;
 	private realtimeAgentUnsubscribes: (() => void)[] = [];
 	private pendingToolApproval: ToolApprovalRequest | null = null;
 	private toolApprovalEl: HTMLElement | null = null;
@@ -731,6 +732,15 @@ export class CopilotChatView extends ItemView {
 			this.updateAgentButtonState('idle');
 			this.agentBtn.addEventListener("click", () => this.handleAgentToggle());
 			
+			// Mute button for realtime agent - hidden initially, shown when agent is active
+			this.agentMuteBtn = this.toolbarRightEl.createEl("button", {
+				cls: "vc-toolbar-btn vc-agent-mute-btn",
+				attr: { "aria-label": "Mute microphone" }
+			});
+			this.agentMuteBtn.style.display = "none";
+			this.updateAgentMuteButtonState(false);
+			this.agentMuteBtn.addEventListener("click", () => this.handleAgentMuteToggle());
+			
 			// Initialize realtime agent service (if not already created)
 			if (!this.realtimeAgentService) {
 				this.initRealtimeAgentService();
@@ -1034,6 +1044,14 @@ export class CopilotChatView extends ItemView {
 			this.realtimeAgentService.on('chatOutput', (content, sourceAgent) => {
 				console.log(`[VoiceAgent] Chat output from ${sourceAgent}:`, content?.substring(0, 100));
 				this.handleChatOutput(content, sourceAgent);
+			})
+		);
+
+		// Subscribe to mute state changes
+		this.realtimeAgentUnsubscribes.push(
+			this.realtimeAgentService.on('muteChange', (isMuted) => {
+				console.log(`[VoiceAgent] Mute state changed: ${isMuted}`);
+				this.updateAgentMuteButtonState(isMuted);
 			})
 		);
 	}
@@ -1734,6 +1752,51 @@ export class CopilotChatView extends ItemView {
 				this.hideThinkingIndicator();
 				break;
 		}
+
+		// Show mute button only when agent is active (matches voice stop button pattern)
+		// Hide voice input button when agent is active to avoid double microphone icons
+		const agentActive = state === 'connected' || state === 'listening' || state === 'processing' || state === 'speaking';
+		
+		if (this.agentMuteBtn) {
+			this.agentMuteBtn.style.display = agentActive ? 'inline-flex' : 'none';
+		}
+		
+		// Hide voice input button when agent is active
+		if (this.voiceBtn) {
+			this.voiceBtn.style.display = agentActive ? 'none' : '';
+		}
+	}
+
+	/**
+	 * Update the mute button visual state
+	 */
+	private updateAgentMuteButtonState(isMuted: boolean): void {
+		if (!this.agentMuteBtn) return;
+
+		// Microphone icon (unmuted)
+		const micIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>`;
+		
+		// Muted microphone icon (with slash)
+		const micMutedIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="2" y2="22"></line><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"></path><path d="M5 10v2a7 7 0 0 0 12 5"></path><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"></path><path d="M9 9v3a3 3 0 0 0 5.12 2.12"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>`;
+
+		if (isMuted) {
+			this.agentMuteBtn.addClass('vc-agent-muted');
+			this.agentMuteBtn.innerHTML = micMutedIcon;
+			this.agentMuteBtn.setAttribute('aria-label', 'Unmute microphone');
+		} else {
+			this.agentMuteBtn.removeClass('vc-agent-muted');
+			this.agentMuteBtn.innerHTML = micIcon;
+			this.agentMuteBtn.setAttribute('aria-label', 'Mute microphone');
+		}
+	}
+
+	/**
+	 * Handle mute button toggle
+	 */
+	private handleAgentMuteToggle(): void {
+		if (!this.realtimeAgentService) return;
+		
+		this.realtimeAgentService.toggleMute();
 	}
 
 	/**

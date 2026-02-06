@@ -192,6 +192,8 @@ export interface RealtimeAgentEvents {
 	chatOutput: (content: string, sourceAgent: string) => void;
 	error: (error: Error) => void;
 	interrupted: () => void;
+	/** Emitted when the mute state changes */
+	muteChange: (isMuted: boolean) => void;
 }
 
 /** Callback type for tool execution */

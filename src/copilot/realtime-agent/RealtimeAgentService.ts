@@ -774,6 +774,61 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
+	 * Get mute state
+	 */
+	isMuted(): boolean {
+		if (!this.session) return false;
+		return this.session.muted ?? false;
+	}
+
+	/**
+	 * Mute the microphone input
+	 */
+	mute(): void {
+		if (!this.session) {
+			logger.warn("[RealtimeAgent] Cannot mute: no active session");
+			return;
+		}
+		
+		try {
+			this.session.mute(true);
+			logger.info("[RealtimeAgent] Microphone muted");
+			this.emit("muteChange", true);
+		} catch (error) {
+			logger.error("[RealtimeAgent] Failed to mute:", error);
+		}
+	}
+
+	/**
+	 * Unmute the microphone input
+	 */
+	unmute(): void {
+		if (!this.session) {
+			logger.warn("[RealtimeAgent] Cannot unmute: no active session");
+			return;
+		}
+		
+		try {
+			this.session.mute(false);
+			logger.info("[RealtimeAgent] Microphone unmuted");
+			this.emit("muteChange", false);
+		} catch (error) {
+			logger.error("[RealtimeAgent] Failed to unmute:", error);
+		}
+	}
+
+	/**
+	 * Toggle mute state
+	 */
+	toggleMute(): void {
+		if (this.isMuted()) {
+			this.unmute();
+		} else {
+			this.mute();
+		}
+	}
+
+	/**
 	 * Destroy the service
 	 */
 	async destroy(): Promise<void> {
