@@ -43,5 +43,10 @@ exclude:
   - vendor
   - scripts
   - schema
-  - "*.json"
+  - package.json
+  - package-lock.json
+  - tsconfig.json
+  - vitest.config.ts
+  - manifest.json
+  - versions.json
   - README.md
