@@ -50,6 +50,8 @@ import { Plugin, Notice } from "obsidian";
 import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "./ui/settings";
 import { GitHubCopilotCliService, GitHubCopilotCliConfig, ChatMessage, ModelInfoResult, ModelCapabilitiesInfo, ModelPolicyInfo } from "./copilot/providers/GitHubCopilotCliService";
 import { CopilotChatView, COPILOT_VIEW_TYPE, ConversationHistoryView, TracingView, TRACING_VIEW_TYPE, VOICE_HISTORY_VIEW_TYPE } from "./ui/ChatView";
+import { ExtensionBrowserView, EXTENSION_BROWSER_VIEW_TYPE } from "./ui/extensions/ExtensionBrowserView";
+import { ExtensionWebView, EXTENSION_WEB_VIEW_TYPE } from "./ui/extensions/ExtensionWebView";
 import { GitHubCopilotCliManager } from "./copilot/providers/GitHubCopilotCliManager";
 import { 
 	SkillRegistry, 
@@ -609,6 +611,16 @@ export default class CopilotPlugin extends Plugin {
 			(leaf) => new ConversationHistoryView(leaf, this)
 		);
 
+		this.registerView(
+			EXTENSION_BROWSER_VIEW_TYPE,
+			(leaf) => new ExtensionBrowserView(leaf, this)
+		);
+
+		this.registerView(
+			EXTENSION_WEB_VIEW_TYPE,
+			(leaf) => new ExtensionWebView(leaf)
+		);
+
 		// Add ribbon icon to open chat
 		this.addRibbonIcon("message-square", "Open Vault Copilot", () => {
 			this.activateChatView();
@@ -668,6 +680,14 @@ export default class CopilotPlugin extends Plugin {
 			name: "Disconnect from Vault Copilot",
 			callback: async () => {
 				await this.disconnectCopilot();
+			},
+		});
+
+		this.addCommand({
+			id: "open-extension-browser",
+			name: "Open Extension Browser",
+			callback: async () => {
+				await this.activateExtensionBrowser();
 			},
 		});
 
@@ -925,6 +945,25 @@ export default class CopilotPlugin extends Plugin {
 			if (rightLeaf) {
 				leaf = rightLeaf;
 				await leaf.setViewState({ type: COPILOT_VIEW_TYPE, active: true });
+			}
+		}
+
+		if (leaf) {
+			workspace.revealLeaf(leaf);
+		}
+	}
+
+	async activateExtensionBrowser(): Promise<void> {
+		const { workspace } = this.app;
+		
+		let leaf = workspace.getLeavesOfType(EXTENSION_BROWSER_VIEW_TYPE)[0];
+
+		if (!leaf) {
+			// Open in left sidebar
+			const leftLeaf = workspace.getLeftLeaf(false);
+			if (leftLeaf) {
+				leaf = leftLeaf;
+				await leaf.setViewState({ type: EXTENSION_BROWSER_VIEW_TYPE, active: true });
 			}
 		}
 

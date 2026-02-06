@@ -112,6 +112,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	periodicNotes: { ...DEFAULT_PERIODIC_NOTES },
 	cliStatusChecked: false,
 	cliLastKnownStatus: null,
+	extensionCatalogUrl: "https://danielshue.github.io/vault-copilot-extensions/catalog/catalog.json",
 };
 
 // ============================================================================

@@ -127,28 +127,40 @@ export async function httpRequest<T = unknown>(
 
 	const response = await requestUrl(params);
 
+	// Check for error status codes
+	if (response.status >= 400) {
+		throw new Error(`HTTP ${response.status}: ${response.text || 'Request failed'}`);
+	}
+
 	// Handle non-JSON responses gracefully
 	let data: unknown;
-	if (response.json !== undefined && response.json !== null) {
-		// Pre-parsed JSON is available
-		data = response.json;
-	} else {
-		// Fallback: check Content-Type header
-		const headers = response.headers || {};
-		const contentType = headers["content-type"] || headers["Content-Type"] || "";
-		
-		if (typeof contentType === "string" && contentType.includes("application/json")) {
-			// Attempt to parse JSON from text
+	
+	// Check Content-Type header first to determine if we should expect JSON
+	const headers = response.headers || {};
+	const contentType = headers["content-type"] || headers["Content-Type"] || "";
+	const isJsonContentType = typeof contentType === "string" && contentType.includes("application/json");
+	
+	if (isJsonContentType) {
+		// Content-Type indicates JSON - try to parse it
+		try {
+			// Safely attempt to access response.json (this may trigger parsing)
+			data = response.json;
+		} catch {
+			// If accessing .json fails, try parsing text manually
 			try {
 				data = JSON.parse(response.text);
-			} catch {
-				// Parsing failed, return raw text
-				data = response.text;
+			} catch (parseError) {
+				// Parsing failed - provide helpful error
+				const preview = response.text.substring(0, 100);
+				throw new Error(
+					`Expected JSON response but received: "${preview}..." ` +
+					`(JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)})`
+				);
 			}
-		} else {
-			// Non-JSON response
-			data = response.text;
 		}
+	} else {
+		// Non-JSON content type - return text directly
+		data = response.text;
 	}
 
 	return {

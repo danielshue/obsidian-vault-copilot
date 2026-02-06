@@ -1978,6 +1978,18 @@ export class CopilotChatView extends ItemView {
 	private showSettingsMenu(e: Event): void {
 		const menu = new Menu();
 
+		// Extensions
+		menu.addItem((item) => {
+			item.setTitle("Extensions")
+				.setIcon("puzzle")
+				.onClick(() => {
+					// Open Extension Browser
+					this.plugin.activateExtensionBrowser();
+				});
+		});
+
+		menu.addSeparator();
+
 		// Custom Agents
 		menu.addItem((item) => {
 			item.setTitle("Custom Agents")
