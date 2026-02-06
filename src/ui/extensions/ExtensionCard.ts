@@ -73,10 +73,7 @@ export class ExtensionCardComponent {
 		this.hoverPopup = new ExtensionHoverPopup({
 			extension: config.extensionData,
 			isInstalled: config.isCurrentlyInstalled,
-			hasUpdate: config.hasAvailableUpdate,
-			onInstall: config.onInstallClick,
-			onUpdate: config.onUpdateClick,
-			onRemove: config.onRemoveClick
+			hasUpdate: config.hasAvailableUpdate
 		});
 	}
 	

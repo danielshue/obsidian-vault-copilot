@@ -483,11 +483,18 @@ export function transformRawExtension(raw: RawCatalogExtension): MarketplaceExte
 		requiredPluginVersion: raw.minVaultCopilotVersion || "0.0.0",
 		sourceRepository: raw.repository,
 		webDetailPage: raw.detailPageUrl || `https://danielshue.github.io/vault-copilot-extensions/extensions/${raw.type}s/${raw.id}/`,
-		packageContents: raw.files.map(file => ({
-			relativePath: file.source,
-			downloadSource: file.downloadUrl,
-			targetLocation: file.installPath,
-		})),
+		packageContents: raw.files.map(file => {
+			// If installPath is a directory (ends with /), append the source filename
+			let targetLocation = file.installPath;
+			if (targetLocation.endsWith('/')) {
+				targetLocation = targetLocation + file.source;
+			}
+			return {
+				relativePath: file.source,
+				downloadSource: file.downloadUrl,
+				targetLocation,
+			};
+		}),
 		requiredCapabilities: raw.tools || [],
 		dependsOnExtensions: raw.dependencies || [],
 		previewImageUrl: raw.preview,

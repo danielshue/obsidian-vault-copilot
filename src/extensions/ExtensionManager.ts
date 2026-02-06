@@ -17,6 +17,7 @@
 
 import { App, Notice, TFile, Vault } from "obsidian";
 import { httpRequest } from "../utils/http";
+import { FileConflictModal, FileConflictResolution } from "./FileConflictModal";
 import {
 	MarketplaceExtension,
 	LocalExtensionRecord,
@@ -194,22 +195,63 @@ export class ExtensionManager {
 				console.log(`[ExtensionManager] Downloading ${file.relativePath} from ${file.downloadSource}`);
 				try {
 					const content = await this.downloadFile(file.downloadSource);
+					console.log(`[ExtensionManager] Successfully downloaded ${file.relativePath} (${content.length} bytes)`);
 					downloadedFiles.push({
 						content,
 						targetPath: file.targetLocation,
 					});
 				} catch (downloadError) {
 					const errorMsg = downloadError instanceof Error ? downloadError.message : String(downloadError);
+					console.error(`[ExtensionManager] Download failed for ${file.relativePath}:`, downloadError);
 					throw new Error(`Failed to download ${file.relativePath}: ${errorMsg}`);
 				}
 			}
 			
-			// Install files to vault
+			// Install files to vault (with conflict resolution)
 			const installedPaths: string[] = [];
 			for (const file of downloadedFiles) {
-				await this.writeFileToVault(file.targetPath, file.content);
-				installedPaths.push(file.targetPath);
+				try {
+					console.log(`[ExtensionManager] Installing to: ${file.targetPath}`);
+					
+					// Validate path is not a directory
+					if (file.targetPath.endsWith('/')) {
+						throw new Error(`Invalid file path (appears to be a directory): ${file.targetPath}`);
+					}
+					
+					// Check if file already exists
+					const existing = this.app.vault.getAbstractFileByPath(file.targetPath);
+					let finalPath = file.targetPath;
+					
+					if (existing) {
+						if (existing instanceof TFile) {
+							// File exists - ask user what to do
+							console.log(`[ExtensionManager] File already exists: ${file.targetPath}, showing conflict resolution modal`);
+							const resolution = await FileConflictModal.show(this.app, file.targetPath);
+							
+							if (resolution.action === "cancel") {
+								throw new Error(`Installation cancelled by user (file conflict at ${file.targetPath})`);
+							} else if (resolution.action === "rename") {
+								finalPath = resolution.newPath;
+								console.log(`[ExtensionManager] User chose to rename to: ${finalPath}`);
+							} else {
+								console.log(`[ExtensionManager] User chose to override existing file`);
+							}
+						} else {
+							// Path exists but is not a file (probably a folder)
+							throw new Error(`Path exists as a folder, not a file: ${file.targetPath}`);
+						}
+					}
+					
+					await this.writeFileToVault(finalPath, file.content);
+					console.log(`[ExtensionManager] Successfully wrote file: ${finalPath}`);
+					installedPaths.push(finalPath);
+				} catch (writeError) {
+					console.error(`[ExtensionManager] Failed to write ${file.targetPath}:`, writeError);
+					throw new Error(`Failed to write ${file.targetPath}: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
+				}
 			}
+			
+			console.log(`[ExtensionManager] Successfully downloaded and installed ${installedPaths.length} file(s)`);
 			
 			// Update tracking file
 			const record: LocalExtensionRecord = {
@@ -223,6 +265,8 @@ export class ExtensionManager {
 			this.installedExtensionsMap.set(manifest.uniqueId, record);
 			await this.saveTrackingFile();
 			
+			console.log(`[ExtensionManager] Installation of ${manifest.uniqueId} completed successfully`);
+			
 			return {
 				operationSucceeded: true,
 				affectedExtensionId: manifest.uniqueId,
@@ -230,6 +274,7 @@ export class ExtensionManager {
 			};
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
+			console.error(`[ExtensionManager] Installation of ${manifest.uniqueId} failed:`, error);
 			
 			return {
 				operationSucceeded: false,
@@ -257,9 +302,12 @@ export class ExtensionManager {
 	 */
 	async uninstallExtension(extensionId: string): Promise<InstallationOutcome> {
 		try {
+			console.log(`[ExtensionManager] Starting uninstall of ${extensionId}`);
+			
 			// Check if installed
 			const record = this.installedExtensionsMap.get(extensionId);
 			if (!record) {
+				console.log(`[ExtensionManager] Extension not installed: ${extensionId}`);
 				return {
 					operationSucceeded: false,
 					affectedExtensionId: extensionId,
@@ -271,6 +319,7 @@ export class ExtensionManager {
 			// Check if other extensions depend on this one
 			const dependents = this.findDependentExtensions(extensionId);
 			if (dependents.length > 0) {
+				console.log(`[ExtensionManager] Cannot uninstall ${extensionId}: required by ${dependents.join(", ")}`);
 				return {
 					operationSucceeded: false,
 					affectedExtensionId: extensionId,
@@ -282,13 +331,18 @@ export class ExtensionManager {
 			// Remove all installed files
 			const removedPaths: string[] = [];
 			for (const filePath of record.installedFilePaths) {
+				console.log(`[ExtensionManager] Deleting file: ${filePath}`);
 				await this.deleteFileFromVault(filePath);
 				removedPaths.push(filePath);
 			}
 			
+			console.log(`[ExtensionManager] Deleted ${removedPaths.length} file(s)`);
+			
 			// Update tracking file
 			this.installedExtensionsMap.delete(extensionId);
+			console.log(`[ExtensionManager] Updating tracking file...`);
 			await this.saveTrackingFile();
+			console.log(`[ExtensionManager] Tracking file updated successfully`);
 			
 			return {
 				operationSucceeded: true,
@@ -297,6 +351,7 @@ export class ExtensionManager {
 			};
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
+			console.error(`[ExtensionManager] Uninstall of ${extensionId} failed:`, error);
 			
 			return {
 				operationSucceeded: false,
@@ -482,12 +537,35 @@ export class ExtensionManager {
 		
 		const content = JSON.stringify(data, null, 2);
 		
-		const file = this.app.vault.getAbstractFileByPath(this.trackingFilePath);
-		
-		if (file instanceof TFile) {
-			await this.app.vault.modify(file, content);
-		} else {
-			await this.app.vault.create(this.trackingFilePath, content);
+		try {
+			const file = this.app.vault.getAbstractFileByPath(this.trackingFilePath);
+			
+			if (file instanceof TFile) {
+				console.log(`[ExtensionManager] Tracking file exists, modifying...`);
+				await this.app.vault.modify(file, content);
+			} else {
+				// File doesn't exist, create it
+				console.log(`[ExtensionManager] Tracking file doesn't exist, creating...`);
+				await this.app.vault.create(this.trackingFilePath, content);
+			}
+		} catch (error) {
+			console.error(`[ExtensionManager] saveTrackingFile error:`, error);
+			// If creation failed because file exists (vault caching issue), try to modify it
+			const errorMsg = error instanceof Error ? error.message : String(error);
+			if (errorMsg.toLowerCase().includes("already exists") || errorMsg.toLowerCase().includes("file already exists")) {
+				console.log(`[ExtensionManager] File exists error, retrying with modify...`);
+				// Force re-fetch the file
+				const file = this.app.vault.getAbstractFileByPath(this.trackingFilePath);
+				if (file instanceof TFile) {
+					await this.app.vault.modify(file, content);
+				} else {
+					// Ultimate fallback: adapter direct write
+					console.log(`[ExtensionManager] Using adapter.write as fallback...`);
+					await this.app.vault.adapter.write(this.trackingFilePath, content);
+				}
+			} else {
+				throw error;
+			}
 		}
 	}
 	
@@ -496,11 +574,14 @@ export class ExtensionManager {
 	 */
 	private async downloadFile(url: string): Promise<string> {
 		try {
+			console.log(`[ExtensionManager] HTTP GET ${url}`);
 			const response = await httpRequest<string>({
 				url,
 				method: "GET",
 				timeout: 30000,
 			});
+			
+			console.log(`[ExtensionManager] HTTP ${response.status} from ${url}`);
 			
 			// Check for non-200 status codes
 			if (response.status < 200 || response.status >= 300) {
@@ -519,6 +600,7 @@ export class ExtensionManager {
 			// If response is JSON, stringify it
 			return JSON.stringify(response.data);
 		} catch (error) {
+			console.error(`[ExtensionManager] Download error for ${url}:`, error);
 			if (error instanceof Error) {
 				throw error;
 			}
@@ -530,13 +612,20 @@ export class ExtensionManager {
 	 * Writes a file to the vault, creating parent folders if needed.
 	 */
 	private async writeFileToVault(path: string, content: string): Promise<void> {
-		const file = this.app.vault.getAbstractFileByPath(path);
+		console.log(`[ExtensionManager] writeFileToVault called with path: "${path}"`);
 		
-		if (file instanceof TFile) {
+		const existing = this.app.vault.getAbstractFileByPath(path);
+		
+		if (existing instanceof TFile) {
 			// File exists, overwrite it
-			await this.app.vault.modify(file, content);
+			console.log(`[ExtensionManager] File exists, modifying: ${path}`);
+			await this.app.vault.modify(existing, content);
+		} else if (existing) {
+			// Path exists but is not a file (probably a folder)
+			throw new Error(`Path exists but is not a file: ${path}`);
 		} else {
 			// Create new file (Obsidian creates parent folders automatically)
+			console.log(`[ExtensionManager] Creating new file: ${path}`);
 			await this.app.vault.create(path, content);
 		}
 	}

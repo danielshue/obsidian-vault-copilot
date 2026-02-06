@@ -6289,6 +6289,20 @@ font-size: 14px;
 	word-wrap: break-word;
 }
 
+/* File Conflict Modal */
+.vc-file-conflict-path {
+	display: block;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: 8px 12px;
+	margin: 12px 0 16px 0;
+	font-size: 12px;
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	word-wrap: break-word;
+}
+
 .vc-extension-card__action-btn {
 pointer-events: all;
 }

@@ -26,15 +26,6 @@ export interface HoverPopupConfig {
 	
 	/** Whether an update is available */
 	hasUpdate: boolean;
-	
-	/** Callback when install button is clicked */
-	onInstall?: (ext: MarketplaceExtension) => void;
-	
-	/** Callback when update button is clicked */
-	onUpdate?: (ext: MarketplaceExtension) => void;
-	
-	/** Callback when remove button is clicked */
-	onRemove?: (ext: MarketplaceExtension) => void;
 }
 
 /**
@@ -46,8 +37,7 @@ export interface HoverPopupConfig {
  * const popup = new ExtensionHoverPopup({
  *   extension: myExtension,
  *   isInstalled: false,
- *   hasUpdate: false,
- *   onInstall: (ext) => installExtension(ext)
+ *   hasUpdate: false
  * });
  * 
  * popup.show(cardElement, mouseEvent);
@@ -196,35 +186,6 @@ export class ExtensionHoverPopup {
 			links.appendChild(homeLink);
 		}
 		
-		// Action buttons
-		const actions = popup.createDiv({ cls: "vc-extension-hover-popup__actions" });
-		
-		if (this.config.hasUpdate && this.config.onUpdate) {
-			const updateBtn = this.createActionButton("Update", "sync");
-			updateBtn.addEventListener("click", (e) => {
-				e.stopPropagation();
-				this.config.onUpdate?.(this.config.extension);
-				this.hide(true);
-			});
-			actions.appendChild(updateBtn);
-		} else if (this.config.isInstalled && this.config.onRemove) {
-			const removeBtn = this.createActionButton("Remove", "trash");
-			removeBtn.addEventListener("click", (e) => {
-				e.stopPropagation();
-				this.config.onRemove?.(this.config.extension);
-				this.hide(true);
-			});
-			actions.appendChild(removeBtn);
-		} else if (!this.config.isInstalled && this.config.onInstall) {
-			const installBtn = this.createActionButton("Install", "download");
-			installBtn.addEventListener("click", (e) => {
-				e.stopPropagation();
-				this.config.onInstall?.(this.config.extension);
-				this.hide(true);
-			});
-			actions.appendChild(installBtn);
-		}
-		
 		return popup;
 	}
 	
@@ -237,25 +198,6 @@ export class ExtensionHoverPopup {
 		button.href = url;
 		button.target = "_blank";
 		button.rel = "noopener noreferrer";
-		
-		const icon = document.createElement("span");
-		setIcon(icon, iconName);
-		button.appendChild(icon);
-		
-		const text = document.createElement("span");
-		text.textContent = label;
-		button.appendChild(text);
-		
-		return button;
-	}
-	
-	/**
-	 * Creates an action button with icon.
-	 */
-	private createActionButton(label: string, iconName: string): HTMLElement {
-		const button = document.createElement("button");
-		button.addClass("vc-extension-hover-popup__action-btn");
-		button.setAttribute("aria-label", label);
 		
 		const icon = document.createElement("span");
 		setIcon(icon, iconName);
