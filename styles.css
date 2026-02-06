@@ -3477,6 +3477,20 @@
 	color: var(--color-red) !important;
 }
 
+/* Agent Mute Button */
+.vc-agent-mute-btn {
+	position: relative;
+	transition: color 0.15s, transform 0.1s;
+}
+
+.vc-agent-mute-btn:hover {
+	transform: scale(1.05);
+}
+
+.vc-agent-mute-btn.vc-agent-muted {
+	color: var(--color-red) !important;
+}
+
 /* Transcript Message Styling */
 .vc-message-transcript {
 	border-left: 2px solid var(--interactive-accent);
