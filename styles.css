@@ -6326,3 +6326,104 @@ font-size: 14px;
 .vc-extension-card__action-btn {
 pointer-events: all;
 }
+
+/* ============================================================================
+   No Provider Placeholder
+   Shown when no AI provider is configured (no CLI, no API keys)
+   ============================================================================ */
+
+.vc-no-provider {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 24px 16px;
+	margin: 8px 2px;
+	background: var(--background-primary);
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: 12px;
+	text-align: center;
+}
+
+.vc-no-provider-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.vc-no-provider-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-warning);
+}
+
+.vc-no-provider-icon svg,
+.vc-no-provider-icon .svg-icon {
+	width: 20px;
+	height: 20px;
+}
+
+.vc-no-provider-title {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-no-provider-description {
+	font-size: 13px;
+	color: var(--text-muted);
+	margin-bottom: 12px;
+}
+
+.vc-no-provider-options {
+	list-style: disc;
+	text-align: left;
+	margin: 0 0 16px 0;
+	padding-left: 24px;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.vc-no-provider-options li {
+	margin: 4px 0;
+}
+
+.vc-no-provider-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.vc-no-provider-btn {
+	padding: 6px 14px;
+	font-size: 13px;
+	font-weight: 500;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.vc-no-provider-btn-primary {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: 1px solid var(--interactive-accent);
+}
+
+.vc-no-provider-btn-primary:hover {
+	background: var(--interactive-accent-hover);
+	border-color: var(--interactive-accent-hover);
+}
+
+.vc-no-provider-btn-secondary {
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-no-provider-btn-secondary:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+}

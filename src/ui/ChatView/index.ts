@@ -26,6 +26,10 @@ export type { SessionPanelCallbacks } from "./SessionPanel";
 export { SessionManager } from "./SessionManager";
 export type { SessionManagerCallbacks } from "./SessionManager";
 
+// No provider placeholder
+export { NoProviderPlaceholder } from "./NoProviderPlaceholder";
+export type { NoProviderPlaceholderCallbacks } from "./NoProviderPlaceholder";
+
 // Modals
 export * from "./modals";
 

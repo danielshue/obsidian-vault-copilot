@@ -80,6 +80,9 @@ import { VoiceChatService, RecordingState, MainVaultAssistant, RealtimeAgentStat
 import { AIProvider } from "../../copilot/providers/AIProvider";
 import { getSecretValue } from "../../utils/secrets";
 import { getTracingService } from "../../copilot/TracingService";
+import { NoProviderPlaceholder } from "./NoProviderPlaceholder";
+import { checkAnyProviderAvailable } from "../../utils/providerAvailability";
+import { isDesktop } from "../../utils/platform";
 
 export const COPILOT_VIEW_TYPE = "copilot-chat-view";
 
@@ -135,6 +138,10 @@ export class CopilotChatView extends ItemView {
 	
 	// Thinking indicator
 	private thinkingIndicatorEl: HTMLElement | null = null;
+	
+	// No provider placeholder
+	private noProviderPlaceholder: NoProviderPlaceholder | null = null;
+	private settingsChangeUnsubscribe: (() => void) | null = null;
 	
 	// Input history for up/down arrow navigation
 	private inputHistory: string[] = [];
@@ -626,6 +633,63 @@ export class CopilotChatView extends ItemView {
 
 		// Register keyboard shortcuts
 		this.registerKeyboardShortcuts();
+		
+		// Check provider availability and show placeholder if needed
+		await this.updateProviderAvailabilityUI();
+		
+		// Subscribe to settings changes to update provider availability UI
+		this.settingsChangeUnsubscribe = this.plugin.onSettingsChange(() => {
+			this.updateProviderAvailabilityUI();
+		});
+	}
+
+	/**
+	 * Check provider availability and toggle between input area and placeholder.
+	 * Called on view open and when settings change.
+	 */
+	private async updateProviderAvailabilityUI(): Promise<void> {
+		const cliManager = this.plugin.getCliManager?.();
+		const status = await checkAnyProviderAvailable(
+			this.app,
+			this.plugin.settings,
+			cliManager
+		);
+
+		if (status.available) {
+			// Provider available: show input area, hide placeholder
+			if (this.inputArea) {
+				this.inputArea.style.display = "";
+			}
+			if (this.noProviderPlaceholder) {
+				this.noProviderPlaceholder.hide();
+			}
+		} else {
+			// No provider: hide input area, show placeholder
+			if (this.inputArea) {
+				this.inputArea.style.display = "none";
+			}
+			
+			// Create placeholder if it doesn't exist
+			if (!this.noProviderPlaceholder && this.mainViewEl) {
+				this.noProviderPlaceholder = new NoProviderPlaceholder(
+					this.mainViewEl,
+					this.app,
+					{
+						onOpenSettings: () => {
+							// Open plugin settings
+							(this.app as any).setting.open();
+							(this.app as any).setting.openTabById("obsidian-vault-copilot");
+						},
+						onInstallCli: isDesktop ? () => {
+							// Open Copilot CLI documentation
+							window.open("https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line", "_blank");
+						} : undefined,
+					}
+				);
+			} else if (this.noProviderPlaceholder) {
+				this.noProviderPlaceholder.show();
+			}
+		}
 	}
 
 	/**
@@ -2417,6 +2481,16 @@ export class CopilotChatView extends ItemView {
 		if (this.realtimeAgentService) {
 			this.realtimeAgentService.destroy();
 			this.realtimeAgentService = null;
+		}
+		// Unsubscribe from settings changes
+		if (this.settingsChangeUnsubscribe) {
+			this.settingsChangeUnsubscribe();
+			this.settingsChangeUnsubscribe = null;
+		}
+		// Cleanup no provider placeholder
+		if (this.noProviderPlaceholder) {
+			this.noProviderPlaceholder.destroy();
+			this.noProviderPlaceholder = null;
 		}
 	}
 

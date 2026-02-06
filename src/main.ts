@@ -367,6 +367,34 @@ export default class CopilotPlugin extends Plugin {
 	mcpManager!: McpManager;
 	/** Status bar element reference */
 	private statusBarEl: HTMLElement | null = null;
+	/** CLI manager for checking Copilot CLI status */
+	private cliManager: GitHubCopilotCliManager | null = null;
+	/** Settings change listeners */
+	private settingsChangeListeners: Set<() => void> = new Set();
+
+	/**
+	 * Get the CLI manager instance for checking Copilot CLI availability.
+	 * Only available on desktop platforms.
+	 * 
+	 * @returns The CLI manager, or null on mobile platforms
+	 */
+	getCliManager(): GitHubCopilotCliManager | null {
+		return this.cliManager;
+	}
+
+	/**
+	 * Subscribe to settings changes.
+	 * Returns an unsubscribe function.
+	 * 
+	 * @param listener - Callback to invoke when settings change
+	 * @returns Function to unsubscribe the listener
+	 */
+	onSettingsChange(listener: () => void): () => void {
+		this.settingsChangeListeners.add(listener);
+		return () => {
+			this.settingsChangeListeners.delete(listener);
+		};
+	}
 
 	/**
 	 * Get the currently active AI service based on user settings.
@@ -588,6 +616,8 @@ export default class CopilotPlugin extends Plugin {
 		// Initialize Copilot service (desktop only)
 		if (supportsLocalProcesses()) {
 			this.githubCopilotCliService = new GitHubCopilotCliService(this.app, this.getServiceConfig());
+			// Initialize CLI manager for status checking
+			this.cliManager = new GitHubCopilotCliManager(this.settings.cliPath || undefined);
 		}
 		
 		// Initialize OpenAI/Azure services for mobile or desktop alternative providers
@@ -889,6 +919,20 @@ export default class CopilotPlugin extends Plugin {
 		// Update prompt cache when prompt directories change
 		if (this.promptCache) {
 			await this.promptCache.updateDirectories(this.settings.promptDirectories);
+		}
+		
+		// Update CLI manager path if changed
+		if (this.cliManager) {
+			this.cliManager.setCliPath(this.settings.cliPath || "copilot");
+		}
+		
+		// Notify settings change listeners
+		for (const listener of this.settingsChangeListeners) {
+			try {
+				listener();
+			} catch (e) {
+				console.error("[VaultCopilot] Settings change listener error:", e);
+			}
 		}
 	}
 
