@@ -24,7 +24,7 @@ import type {
 	MultipleChoiceQuestionRequest,
 	RadioQuestionRequest,
 	MixedQuestionRequest,
-} from "../../types/questions";
+} from "../../../types/questions";
 
 /**
  * Modal for asking questions to the user
@@ -121,7 +121,7 @@ export class QuestionModal extends Modal {
 
 		// Submit on Enter for single-line input
 		if (!question.multiline) {
-			this.textInput.addEventListener("keydown", (e) => {
+			this.textInput.addEventListener("keydown", (e: KeyboardEvent) => {
 				if (e.key === "Enter") {
 					e.preventDefault();
 					this.submitResponse();
@@ -142,7 +142,7 @@ export class QuestionModal extends Modal {
 
 		// Pre-select default options
 		if (question.defaultSelected) {
-			question.defaultSelected.forEach((opt) => this.selectedOptions.add(opt));
+			question.defaultSelected.forEach((opt: string) => this.selectedOptions.add(opt));
 		}
 
 		for (const option of question.options) {
@@ -234,7 +234,7 @@ export class QuestionModal extends Modal {
 
 		// Pre-select default options
 		if (question.defaultSelected) {
-			question.defaultSelected.forEach((opt) => this.selectedOptions.add(opt));
+			question.defaultSelected.forEach((opt: string) => this.selectedOptions.add(opt));
 		}
 
 		for (const option of question.options) {
