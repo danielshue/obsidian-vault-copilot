@@ -953,10 +953,10 @@ export default class CopilotPlugin extends Plugin {
 		let leaf = workspace.getLeavesOfType(EXTENSION_BROWSER_VIEW_TYPE)[0];
 
 		if (!leaf) {
-			// Open in right sidebar by default
-			const rightLeaf = workspace.getRightLeaf(false);
-			if (rightLeaf) {
-				leaf = rightLeaf;
+			// Open in left sidebar
+			const leftLeaf = workspace.getLeftLeaf(false);
+			if (leftLeaf) {
+				leaf = leftLeaf;
 				await leaf.setViewState({ type: EXTENSION_BROWSER_VIEW_TYPE, active: true });
 			}
 		}
