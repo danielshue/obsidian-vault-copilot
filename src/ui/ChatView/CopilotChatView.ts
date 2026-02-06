@@ -67,6 +67,7 @@ import {
 } from "../mcp-apps";
 import { SLASH_COMMANDS } from "./SlashCommands";
 import { NoteSuggestModal } from "./modals/NoteSuggestModal";
+import { QuestionModal } from "./modals/QuestionModal";
 import { renderWelcomeMessage } from "./renderers/WelcomeMessage";
 import { PromptPicker } from "./pickers/PromptPicker";
 import { ContextPicker } from "./pickers/ContextPicker";
@@ -77,6 +78,7 @@ import { ToolExecutionRenderer } from "./renderers/ToolExecutionRenderer";
 import { openTracingPopout } from "./modals/TracingModal";
 import { openVoiceHistoryPopout } from "./modals/ConversationHistoryModal";
 import { VoiceChatService, RecordingState, MainVaultAssistant, RealtimeAgentState, RealtimeHistoryItem, ToolApprovalRequest } from "../../copilot/voice-chat";
+import type { QuestionRequest, QuestionResponse } from "../../types/questions";
 import { AIProvider } from "../../copilot/providers/AIProvider";
 import { getSecretValue } from "../../utils/secrets";
 import { getTracingService } from "../../copilot/TracingService";
@@ -1111,6 +1113,11 @@ export class CopilotChatView extends ItemView {
 			})
 		);
 
+		// Set question callback for asking user for input
+		this.realtimeAgentService.setQuestionCallback(async (question) => {
+			return await this.handleQuestionRequest(question);
+		});
+
 		// Subscribe to mute state changes
 		this.realtimeAgentUnsubscribes.push(
 			this.realtimeAgentService.on('muteChange', (isMuted) => {
@@ -1306,6 +1313,17 @@ export class CopilotChatView extends ItemView {
 			this.toolApprovalEl.remove();
 			this.toolApprovalEl = null;
 		}
+	}
+
+	/**
+	 * Handle question request from agent
+	 * Shows a modal to get user response
+	 */
+	private async handleQuestionRequest(question: QuestionRequest): Promise<QuestionResponse | null> {
+		return new Promise((resolve) => {
+			const modal = new QuestionModal(this.app, question, resolve);
+			modal.open();
+		});
 	}
 
 	/**
