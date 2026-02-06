@@ -5,12 +5,21 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { BaseVoiceAgent } from "../../copilot/realtime-agent/BaseVoiceAgent";
 import type { BaseVoiceAgentConfig } from "../../copilot/realtime-agent/types";
+import type { tool } from "@openai/agents/realtime";
 import { App } from "obsidian";
 
 // Create a concrete test implementation of BaseVoiceAgent
 class TestVoiceAgent extends BaseVoiceAgent {
 	getInstructions(): string {
 		return "Test instructions";
+	}
+
+	getHandoffDescription(): string {
+		return "Test handoff description";
+	}
+
+	getTools(): ReturnType<typeof tool>[] {
+		return [];
 	}
 
 	// Expose session for testing

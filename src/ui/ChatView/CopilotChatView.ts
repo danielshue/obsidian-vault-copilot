@@ -1712,14 +1712,12 @@ export class CopilotChatView extends ItemView {
 				this.agentBtn.innerHTML = agentIcon;
 				this.agentBtn.setAttribute('aria-label', 'Connecting...');
 				this.showThinkingIndicator();
-				if (this.agentMuteBtn) this.agentMuteBtn.style.display = "none";
 				break;
 			case 'connected':
 				this.agentBtn.addClass('vc-agent-connected');
 				this.agentBtn.innerHTML = activeIcon;
 				this.agentBtn.setAttribute('aria-label', 'Voice agent active - click to stop');
 				this.hideThinkingIndicator();
-				if (this.agentMuteBtn) this.agentMuteBtn.style.display = "inline-flex";
 				break;
 			case 'listening':
 				this.agentBtn.addClass('vc-agent-listening');
@@ -1727,7 +1725,6 @@ export class CopilotChatView extends ItemView {
 				this.agentBtn.setAttribute('aria-label', 'Agent listening...');
 				// Don't show thinking while user is speaking
 				this.hideThinkingIndicator();
-				if (this.agentMuteBtn) this.agentMuteBtn.style.display = "inline-flex";
 				break;
 			case 'processing':
 				this.agentBtn.addClass('vc-agent-listening'); // Reuse listening style
@@ -1735,29 +1732,38 @@ export class CopilotChatView extends ItemView {
 				this.agentBtn.setAttribute('aria-label', 'Processing...');
 				// Show thinking while AI is processing after user finished speaking
 				this.showThinkingIndicator();
-				if (this.agentMuteBtn) this.agentMuteBtn.style.display = "inline-flex";
 				break;
 			case 'speaking':
 				this.agentBtn.addClass('vc-agent-speaking');
 				this.agentBtn.innerHTML = activeIcon;
 				this.agentBtn.setAttribute('aria-label', 'Agent speaking - click to interrupt');
 				this.hideThinkingIndicator();
-				if (this.agentMuteBtn) this.agentMuteBtn.style.display = "inline-flex";
 				break;
 			case 'error':
 				this.agentBtn.addClass('vc-agent-error');
 				this.agentBtn.innerHTML = agentIcon;
 				this.agentBtn.setAttribute('aria-label', 'Voice agent error - click to retry');
 				this.hideThinkingIndicator();
-				if (this.agentMuteBtn) this.agentMuteBtn.style.display = "none";
 				break;
 			case 'idle':
 		default:
 				this.agentBtn.innerHTML = agentIcon;
 				this.agentBtn.setAttribute('aria-label', 'Start voice agent');
 				this.hideThinkingIndicator();
-				if (this.agentMuteBtn) this.agentMuteBtn.style.display = "none";
 				break;
+		}
+
+		// Show mute button only when agent is active (matches voice stop button pattern)
+		// Hide voice input button when agent is active to avoid double microphone icons
+		const agentActive = state === 'connected' || state === 'listening' || state === 'processing' || state === 'speaking';
+		
+		if (this.agentMuteBtn) {
+			this.agentMuteBtn.style.display = agentActive ? 'inline-flex' : 'none';
+		}
+		
+		// Hide voice input button when agent is active
+		if (this.voiceBtn) {
+			this.voiceBtn.style.display = agentActive ? 'none' : '';
 		}
 	}
 
