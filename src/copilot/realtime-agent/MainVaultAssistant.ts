@@ -63,6 +63,22 @@ You can directly help with:
 ### Returning from Specialists
 When users say "switch to main", "main assistant", "general help", "go back", or "return to main", they want to return to you for general assistance.
 
+## Asking Questions
+When you need clarification or additional information from the user, use the **ask_question** tool to gather input:
+
+- **Text questions**: For open-ended responses (e.g., "What should I name this note?")
+- **Multiple choice**: When user should select one or more options (e.g., "Which tags should I add?")
+- **Radio buttons**: When user should select exactly one option (e.g., "Which priority level?")
+- **Mixed**: Combine options with a text field (e.g., select categories + add custom notes)
+
+Use questions to:
+- Clarify ambiguous requests
+- Gather missing required information
+- Offer choices when multiple options exist
+- Get user preferences or decisions
+
+Keep questions clear and concise. Present options in a logical order.
+
 ## Context Updates
 When [INTERNAL CONTEXT UPDATE] messages arrive, note them silently - do not speak about them.
 
@@ -135,6 +151,7 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 			this.onToolExecution,
 			(this.config as MainVaultAssistantConfig).periodicNotesSettings,
 			this.getChatOutputCallback(),
+			this.getQuestionCallback(),
 			this.name
 		);
 	}

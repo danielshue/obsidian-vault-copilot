@@ -51,6 +51,8 @@ import { App } from "obsidian";
 import { ChatMessage } from "./GitHubCopilotCliService";
 import { McpManager } from "../mcp/McpManager";
 import * as VaultOps from "../tools/VaultOperations";
+import type { QuestionRequest, QuestionResponse } from "../../types/questions";
+import { TOOL_NAMES, TOOL_DESCRIPTIONS, TOOL_JSON_SCHEMAS } from "../tools/ToolDefinitions";
 import type {
 	ReadNoteResult,
 	SearchNotesResult,
@@ -225,6 +227,8 @@ export abstract class AIProvider {
 	protected tools: ToolDefinition[] = [];
 	/** System prompt prepended to conversations */
 	protected systemPrompt: string = "";
+	/** Callback for handling question requests from the AI */
+	protected questionCallback: ((question: QuestionRequest) => Promise<QuestionResponse | null>) | null = null;
 
 	constructor(app: App, config: AIProviderConfig) {
 		this.app = app;
@@ -276,6 +280,143 @@ export abstract class AIProvider {
 	 */
 	setTools(tools: ToolDefinition[]): void {
 		this.tools = tools;
+	}
+
+	/**
+	 * Set the question callback for asking the user questions via modal UI.
+	 * This enables the `ask_question` tool for this provider.
+	 * 
+	 * @param callback - Function that shows a QuestionModal and returns the user's response
+	 * 
+	 * @example
+	 * ```typescript
+	 * provider.setQuestionCallback(async (question) => {
+	 *   return new Promise((resolve) => {
+	 *     const modal = new QuestionModal(app, question, resolve);
+	 *     modal.open();
+	 *   });
+	 * });
+	 * ```
+	 * 
+	 * @since 0.0.17
+	 */
+	setQuestionCallback(callback: ((question: QuestionRequest) => Promise<QuestionResponse | null>) | null): void {
+		this.questionCallback = callback;
+	}
+
+	/**
+	 * Create a ToolDefinition for the ask_question tool.
+	 * Used by OpenAI and Azure OpenAI providers to include ask_question in their tool set.
+	 * 
+	 * @returns ToolDefinition for ask_question, or null if no question callback is set
+	 * @internal
+	 * @since 0.0.17
+	 */
+	protected createAskQuestionToolDefinition(): ToolDefinition | null {
+		if (!this.questionCallback) {
+			return null;
+		}
+
+		const callback = this.questionCallback;
+
+		return {
+			name: TOOL_NAMES.ASK_QUESTION,
+			description: TOOL_DESCRIPTIONS[TOOL_NAMES.ASK_QUESTION],
+			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.ASK_QUESTION] as Record<string, unknown>,
+			handler: async (args: Record<string, unknown>) => {
+				const type = args.type as string;
+				const question = args.question as string;
+				const context = args.context as string | undefined;
+				const options = args.options as string[] | undefined;
+				const allowMultiple = args.allowMultiple as boolean | undefined;
+				const placeholder = args.placeholder as string | undefined;
+				const textLabel = args.textLabel as string | undefined;
+				const defaultValue = args.defaultValue as string | undefined;
+				const defaultSelected = args.defaultSelected as string[] | undefined;
+				const multiline = args.multiline as boolean | undefined;
+				const required = args.required as boolean | undefined;
+
+				// Generate unique ID
+				const id = `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+				// Build question request based on type
+				const questionRequest: QuestionRequest = {
+					id,
+					type,
+					question,
+					context,
+					required: required !== false,
+				} as QuestionRequest;
+
+				// Add type-specific properties
+				if (type === "text") {
+					(questionRequest as any).placeholder = placeholder;
+					(questionRequest as any).defaultValue = defaultValue;
+					(questionRequest as any).multiline = multiline || false;
+				} else if (type === "multipleChoice") {
+					if (!options || options.length === 0) {
+						return { success: false, error: "multipleChoice type requires options array" };
+					}
+					(questionRequest as any).options = options;
+					(questionRequest as any).allowMultiple = allowMultiple || false;
+					(questionRequest as any).defaultSelected = defaultSelected;
+				} else if (type === "radio") {
+					if (!options || options.length === 0) {
+						return { success: false, error: "radio type requires options array" };
+					}
+					(questionRequest as any).options = options;
+					(questionRequest as any).defaultSelected = defaultSelected?.[0];
+				} else if (type === "mixed") {
+					if (!options || options.length === 0) {
+						return { success: false, error: "mixed type requires options array" };
+					}
+					(questionRequest as any).options = options;
+					(questionRequest as any).allowMultiple = allowMultiple || false;
+					(questionRequest as any).defaultSelected = defaultSelected;
+					(questionRequest as any).textPlaceholder = placeholder;
+					(questionRequest as any).textLabel = textLabel;
+				}
+
+				try {
+					const response = await callback(questionRequest);
+
+					if (!response) {
+						return { success: false, cancelled: true, message: "User cancelled the question" };
+					}
+
+					// Format response
+					let formattedResponse: string;
+					if (response.type === "text") {
+						formattedResponse = response.text;
+					} else if (response.type === "multipleChoice" || response.type === "radio") {
+						formattedResponse = response.selected.join(", ");
+					} else if (response.type === "mixed") {
+						const parts = [];
+						if (response.selected.length > 0) {
+							parts.push(`Selected: ${response.selected.join(", ")}`);
+						}
+						if (response.text) {
+							parts.push(`Additional input: ${response.text}`);
+						}
+						formattedResponse = parts.join("; ");
+					} else {
+						formattedResponse = JSON.stringify(response);
+					}
+
+					return {
+						success: true,
+						question: question,
+						response: formattedResponse,
+						responseData: response,
+					};
+				} catch (error) {
+					return {
+						success: false,
+						error: error instanceof Error ? error.message : String(error),
+					};
+				}
+			},
+		};
 	}
 
 	/**

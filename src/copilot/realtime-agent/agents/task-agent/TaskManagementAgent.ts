@@ -131,6 +131,7 @@ export class TaskManagementAgent extends BaseVoiceAgent {
 			this.onToolExecution,
 			this.config.periodicNotesSettings,
 			this.getChatOutputCallback(),
+			this.getQuestionCallback(),
 			this.name
 		);
 	}

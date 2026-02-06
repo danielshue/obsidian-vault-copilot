@@ -24,6 +24,7 @@ import {
 } from "../../types";
 import { createMcpTools } from "../../tools/mcp-tools";
 import { createOutputTools } from "../../tools/output-tools";
+import { createQuestionTools } from "../../tools/question-tools";
 import type { VoiceAgentDefinition } from "../../../customization/CustomizationLoader";
 import {
 	getVoiceAgentRegistry,
@@ -161,6 +162,14 @@ export class WorkIQAgent extends BaseVoiceAgent {
 			new Set() // No approval needed for output tools
 		);
 		tools.push(...outputTools);
+
+		// Add question tools for asking user for input
+		const questionTools = createQuestionTools(
+			this.getQuestionCallback(),
+			this.name,
+			new Set() // No approval needed for question tools
+		);
+		tools.push(...questionTools);
 
 		// Get tools from definition if specified
 		const definedTools = this.voiceAgentDefinition?.tools || [];

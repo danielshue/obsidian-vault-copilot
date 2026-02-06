@@ -70,7 +70,8 @@ export type RealtimeToolName =
 	| "list_tasks"
 	| "fetch_web_page"
 	| "web_search"
-	| "send_to_chat";
+	| "send_to_chat"
+	| "ask_question";
 
 /** Configuration for which tools are enabled */
 export interface RealtimeToolConfig {
@@ -209,6 +210,11 @@ export type ChatOutputCallback = (
 	sourceAgent: string
 ) => void;
 
+/** Callback type for question handling - asks user for input and returns response */
+export type QuestionCallback = (
+	question: import("../../types/questions").QuestionRequest
+) => Promise<import("../../types/questions").QuestionResponse | null>;
+
 /** Tool category definitions for tool enablement checking */
 export const VAULT_READ_TOOLS: RealtimeToolName[] = [
 	"read_note",
@@ -245,7 +251,7 @@ export const TASK_TOOLS: RealtimeToolName[] = [
 export const WEB_TOOLS: RealtimeToolName[] = ["fetch_web_page", "web_search"];
 
 /** Output tools for displaying content in the ChatView */
-export const OUTPUT_TOOLS: RealtimeToolName[] = ["send_to_chat"];
+export const OUTPUT_TOOLS: RealtimeToolName[] = ["send_to_chat", "ask_question"];
 
 /** Logger configuration */
 let currentLogLevel: LogLevel = "info";

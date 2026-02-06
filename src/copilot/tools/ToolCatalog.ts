@@ -121,6 +121,7 @@ const BUILTIN_TOOLS: ToolInfo[] = [
 	createBuiltinTool(TOOL_NAMES.SEND_TO_CHAT, "Send To Chat"),
 	createBuiltinTool(TOOL_NAMES.SHOW_MARKDOWN, "Show Markdown"),
 	createBuiltinTool(TOOL_NAMES.SPEAK, "Speak"),
+	createBuiltinTool(TOOL_NAMES.ASK_QUESTION, "Ask Question"),
 ];
 
 /**
