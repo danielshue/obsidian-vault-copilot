@@ -1,13 +1,14 @@
 {
   "version": "1.0.0",
-  "generated": "2026-02-06T22:53:50.368Z",
+  "generated": "2026-02-06T23:16:24.824Z",
   "totalExtensions": 5,
   "extensions": [
     {
       "id": "daily-journal-agent",
+      "guid": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789",
       "name": "Daily Journal Agent",
       "type": "agent",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "Creates structured daily journal entries with prompts for reflection, gratitude, and goal tracking.",
       "author": {
         "name": "Dan Shue",
@@ -29,9 +30,9 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T22:53:40.428Z",
-      "size": "2.3 KB",
-      "sizeBytes": 2373,
+      "updatedAt": "2026-02-06T23:13:01.345Z",
+      "size": "4.7 KB",
+      "sizeBytes": 4785,
       "minVaultCopilotVersion": "0.1.0",
       "repository": "https://github.com/danielshue/obsidian-vault-copilot",
       "license": "MIT",
@@ -43,13 +44,31 @@
           "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/daily-journal-agent/daily-journal-agent.agent.md",
           "installPath": "Reference/Agents/",
           "size": "2.3 KB"
+        },
+        {
+          "source": "create-daily-journal.prompt.md",
+          "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/daily-journal-agent/create-daily-journal.prompt.md",
+          "installPath": "Reference/Prompts/",
+          "size": "1.1 KB"
+        },
+        {
+          "source": "update-daily-journal.prompt.md",
+          "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/daily-journal-agent/update-daily-journal.prompt.md",
+          "installPath": "Reference/Prompts/",
+          "size": "1.3 KB"
         }
       ],
       "tools": [
         "create_note",
         "read_note",
+        "update_note",
         "search_vault",
-        "get_daily_note"
+        "get_daily_note",
+        "ask_question",
+        "get_tasks",
+        "create_task",
+        "list_tasks",
+        "mark_tasks"
       ],
       "permissions": [],
       "dependencies": [],
@@ -57,6 +76,16 @@
       "icon": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/daily-journal-agent/icon.svg",
       "featured": true,
       "versions": [
+        {
+          "version": "1.1.0",
+          "date": "2026-02-06",
+          "changes": [
+            "Added GUID for unique extension tracking",
+            "Included related prompt files (Create and Update Daily Journal)",
+            "Extended tool list to include task management and question asking capabilities",
+            "All related files now installed together as a bundle"
+          ]
+        },
         {
           "version": "1.0.0",
           "date": "2026-02-01",
@@ -71,6 +100,7 @@
     },
     {
       "id": "meeting-notes-agent",
+      "guid": null,
       "name": "Meeting Notes Agent",
       "type": "agent",
       "version": "1.0.0",
@@ -95,7 +125,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T22:53:40.429Z",
+      "updatedAt": "2026-02-06T23:11:44.660Z",
       "size": "2.4 KB",
       "sizeBytes": 2481,
       "minVaultCopilotVersion": "0.1.0",
@@ -137,6 +167,7 @@
     },
     {
       "id": "task-management-prompt",
+      "guid": null,
       "name": "Task Management Prompt",
       "type": "prompt",
       "version": "1.0.0",
@@ -161,7 +192,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T22:53:40.430Z",
+      "updatedAt": "2026-02-06T23:11:44.662Z",
       "size": "1.4 KB",
       "sizeBytes": 1467,
       "minVaultCopilotVersion": "0.1.0",
@@ -202,6 +233,7 @@
     },
     {
       "id": "example-weather-mcp",
+      "guid": null,
       "name": "Weather MCP Server",
       "type": "mcp-server",
       "version": "1.0.0",
@@ -226,7 +258,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T22:53:40.430Z",
+      "updatedAt": "2026-02-06T23:11:44.661Z",
       "size": "0.2 KB",
       "sizeBytes": 238,
       "minVaultCopilotVersion": "0.1.0",
@@ -265,6 +297,7 @@
     },
     {
       "id": "weekly-review-agent",
+      "guid": null,
       "name": "Weekly Review Agent",
       "type": "agent",
       "version": "1.0.0",
@@ -289,7 +322,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T22:53:40.429Z",
+      "updatedAt": "2026-02-06T23:11:44.660Z",
       "size": "3.4 KB",
       "sizeBytes": 3458,
       "minVaultCopilotVersion": "0.1.0",
