@@ -98,11 +98,11 @@ export class NoProviderPlaceholder {
 			this.callbacks.onOpenSettings();
 		});
 
-		// Install Copilot CLI button (desktop only)
+		// Install GitHub Copilot CLI button (desktop only)
 		if (isDesktop && this.callbacks.onInstallCli) {
 			const installBtn = actions.createEl("button", {
 				cls: "vc-no-provider-btn vc-no-provider-btn-secondary",
-				text: "Install Copilot CLI"
+				text: "Install GitHub Copilot CLI"
 			});
 			installBtn.addEventListener("click", () => {
 				this.callbacks.onInstallCli?.();

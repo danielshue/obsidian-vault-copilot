@@ -681,8 +681,8 @@ export class CopilotChatView extends ItemView {
 							(this.app as any).setting.openTabById("obsidian-vault-copilot");
 						},
 						onInstallCli: isDesktop ? () => {
-							// Open Copilot CLI documentation
-							window.open("https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line", "_blank");
+							// Open Copilot CLI installation documentation
+							window.open("https://docs.github.com/en/copilot/how-tos/copilot-cli/install-copilot-cli", "_blank");
 						} : undefined,
 					}
 				);

@@ -251,19 +251,6 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 		// Action buttons
 		const btnRow = actionsEl.createDiv({ cls: "vc-btn-row" });
-		
-		const installBtn = btnRow.createEl("button", { text: "Install Automatically", cls: "vc-btn-primary" });
-		installBtn.addEventListener("click", async () => {
-			installBtn.disabled = true;
-			installBtn.textContent = "Installing...";
-			const success = await this.githubCopilotCliManager.installCli();
-			if (success) {
-				this.githubCopilotCliManager.invalidateCache();
-				await this.checkStatusAsync();
-			}
-			installBtn.disabled = false;
-			installBtn.textContent = "Install Automatically";
-		});
 
 		const docsLink = btnRow.createEl("a", { text: "View Guide", cls: "vc-btn-link", href: installInfo.url });
 		docsLink.setAttr("target", "_blank");
