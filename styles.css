@@ -3477,6 +3477,26 @@
 	color: var(--color-red) !important;
 }
 
+/* Agent Mute Button */
+.vc-agent-mute-btn {
+	position: relative;
+	transition: color 0.15s, transform 0.1s;
+	color: var(--text-muted);
+}
+
+.vc-agent-mute-btn:hover {
+	color: var(--text-normal);
+}
+
+.vc-agent-mute-btn.vc-agent-muted {
+	color: var(--color-red) !important;
+}
+
+.vc-agent-mute-btn.vc-agent-muted:hover {
+	color: var(--color-red) !important;
+	opacity: 0.8;
+}
+
 /* Transcript Message Styling */
 .vc-message-transcript {
 	border-left: 2px solid var(--interactive-accent);
