@@ -29,7 +29,6 @@ export class ExtensionBrowserView extends ItemView {
 	private catalogService: ExtensionCatalogService;
 	private extensionManager: ExtensionManager;
 	
-	private containerEl: HTMLElement | null = null;
 	private searchInput: HTMLInputElement | null = null;
 	private typeSelect: HTMLSelectElement | null = null;
 	private categorySelect: HTMLSelectElement | null = null;
@@ -81,8 +80,7 @@ export class ExtensionBrowserView extends ItemView {
 	}
 	
 	async onClose(): Promise<void> {
-		// Cleanup
-		this.containerEl = null;
+		// Cleanup handled by parent class
 	}
 	
 	/**
@@ -92,7 +90,6 @@ export class ExtensionBrowserView extends ItemView {
 		const container = this.contentEl;
 		container.empty();
 		container.addClass("vc-extension-browser");
-		this.containerEl = container;
 		
 		// Header
 		const header = container.createDiv({ cls: "vc-extension-browser-header" });
@@ -178,7 +175,8 @@ export class ExtensionBrowserView extends ItemView {
 	 * Toggles a section's expanded/collapsed state
 	 */
 	private toggleSection(section: HTMLElement): void {
-		section.toggleClass("collapsed");
+		const isCollapsed = section.hasClass("collapsed");
+		section.toggleClass("collapsed", !isCollapsed);
 	}
 	
 	/**
