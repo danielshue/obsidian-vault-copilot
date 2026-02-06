@@ -47,11 +47,8 @@ export class ExtensionBrowserView extends ItemView {
 		this.plugin = plugin;
 		
 		// Initialize services
-		const catalogUrl = plugin.settings.extensionCatalogUrl;
-		
-		if (!catalogUrl) {
-			throw new Error("Extension catalog URL not configured");
-		}
+		const catalogUrl = plugin.settings.extensionCatalogUrl || 
+			"https://danielshue.github.io/vault-copilot-extensions/catalog/catalog.json";
 		
 		this.catalogService = new ExtensionCatalogService(this.app, {
 			catalogEndpoint: catalogUrl,
@@ -211,7 +208,52 @@ export class ExtensionBrowserView extends ItemView {
 			new Notice("Extensions loaded successfully");
 		} catch (error) {
 			console.error("Failed to load extensions:", error);
-			new Notice("Failed to load extensions. Check console for details.");
+			
+			// Show user-friendly error in the UI
+			this.showCatalogError(error);
+			
+			// Still try to show installed extensions
+			try {
+				const installed = await this.extensionManager.getInstalledExtensions();
+				this.installedExtensionIds = new Set(installed.keys());
+				await this.renderSections();
+			} catch (e) {
+				console.error("Failed to load installed extensions:", e);
+			}
+		}
+	}
+	
+	/**
+	 * Display a friendly error message when catalog is unavailable
+	 */
+	private showCatalogError(error: unknown): void {
+		const container = this.contentEl;
+		const errorContainer = container.createDiv({ cls: "vc-extension-browser-error" });
+		
+		const iconEl = errorContainer.createDiv({ cls: "vc-extension-browser-error-icon" });
+		setIcon(iconEl, "cloud-off");
+		
+		const titleEl = errorContainer.createEl("h3", { 
+			text: "Extension Catalog Unavailable",
+			cls: "vc-extension-browser-error-title"
+		});
+		
+		const messageEl = errorContainer.createEl("p", { 
+			text: "The extension marketplace is not yet available. The catalog endpoint may not be configured or accessible.",
+			cls: "vc-extension-browser-error-message"
+		});
+		
+		const detailsEl = errorContainer.createEl("p", {
+			text: "You can still manage any installed extensions below.",
+			cls: "vc-extension-browser-error-details"
+		});
+		
+		if (error instanceof Error && error.message.includes("not valid JSON")) {
+			const technicalEl = errorContainer.createEl("details", { cls: "vc-extension-browser-error-technical" });
+			const summaryEl = technicalEl.createEl("summary", { text: "Technical details" });
+			const codeEl = technicalEl.createEl("code", { 
+				text: `The catalog URL returned HTML instead of JSON. This usually means the endpoint doesn't exist yet or returned an error page.`
+			});
 		}
 	}
 	
