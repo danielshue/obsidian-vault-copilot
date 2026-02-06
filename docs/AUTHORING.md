@@ -81,6 +81,7 @@ cd extensions/agents/my-agent-name
 ```json
 {
   "$schema": "../../../schema/manifest.schema.json",
+  "guid": "YOUR-GUID-HERE",
   "id": "my-agent-name",
   "name": "My Agent Name",
   "version": "1.0.0",
@@ -107,6 +108,73 @@ cd extensions/agents/my-agent-name
   "featured": false
 }
 ```
+
+#### Understanding the GUID Field
+
+The `guid` field is an optional but recommended globally unique identifier (UUID v4) for your extension. It provides:
+
+- **Stable tracking** across different versions and installations
+- **Global uniqueness** even if extension IDs collide across repositories
+- **Installation management** to detect updates and prevent duplicates
+
+To generate a GUID, use one of these methods:
+
+**Online:**
+- [uuidgenerator.net](https://www.uuidgenerator.net/)
+- Run: `https://www.uuidgenerator.net/version4` in your browser
+
+**Command line:**
+```bash
+# Linux/Mac
+uuidgen | tr '[:upper:]' '[:lower:]'
+
+# Node.js
+node -e "console.log(require('crypto').randomUUID())"
+
+# Python
+python -c "import uuid; print(uuid.uuid4())"
+```
+
+**Important:** Once you set a GUID for your extension, never change it. It's like a permanent fingerprint.
+
+#### Including Related Files
+
+Extensions can bundle multiple files that work together. This is useful for:
+
+- **Agents with prompts** - Include ready-to-use prompts that invoke the agent
+- **Templates** - Package starter templates with the extension
+- **Configuration** - Include default config files or settings
+- **Documentation** - Add reference materials or guides
+
+**Example: Agent with Related Prompts**
+
+```json
+{
+  "files": [
+    {
+      "source": "my-agent.agent.md",
+      "installPath": "Reference/Agents/"
+    },
+    {
+      "source": "quick-start.prompt.md",
+      "installPath": "Reference/Prompts/"
+    },
+    {
+      "source": "advanced-workflow.prompt.md",
+      "installPath": "Reference/Prompts/"
+    }
+  ]
+}
+```
+
+When users install this extension, all three files are installed together automatically. This ensures related files are never missing.
+
+**Best practices for related files:**
+- Keep related files in the same extension folder
+- Name files clearly to show their relationship
+- Document related files in your README
+- Use the same file naming conventions (kebab-case)
+- Test that all files work together before publishing
 
 ### 2.4 Create the Extension File
 

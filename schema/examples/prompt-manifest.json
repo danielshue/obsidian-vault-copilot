@@ -1,5 +1,6 @@
 {
   "$schema": "../manifest.schema.json",
+  "guid": "e5f6a7b8-c9d0-4123-a456-b7c8d9e0f123",
   "id": "research-paper-analyzer",
   "name": "Research Paper Analyzer",
   "version": "1.0.5",

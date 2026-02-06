@@ -1,8 +1,9 @@
 {
   "$schema": "../../../schema/manifest.schema.json",
+  "guid": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789",
   "id": "daily-journal-agent",
   "name": "Daily Journal Agent",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "agent",
   "description": "Creates structured daily journal entries with prompts for reflection, gratitude, and goal tracking.",
   "author": {
@@ -18,14 +19,32 @@
     {
       "source": "daily-journal-agent.agent.md",
       "installPath": "Reference/Agents/"
+    },
+    {
+      "source": "create-daily-journal.prompt.md",
+      "installPath": "Reference/Prompts/"
+    },
+    {
+      "source": "update-daily-journal.prompt.md",
+      "installPath": "Reference/Prompts/"
     }
   ],
-  "tools": ["create_note", "read_note", "search_vault", "get_daily_note"],
+  "tools": ["create_note", "read_note", "update_note", "search_vault", "get_daily_note", "ask_question", "get_tasks", "create_task", "list_tasks", "mark_tasks"],
   "dependencies": [],
   "preview": "preview.png",
   "featured": true,
   "publishedAt": "2026-02-01T00:00:00Z",
   "versions": [
+    {
+      "version": "1.1.0",
+      "date": "2026-02-06",
+      "changes": [
+        "Added GUID for unique extension tracking",
+        "Included related prompt files (Create and Update Daily Journal)",
+        "Extended tool list to include task management and question asking capabilities",
+        "All related files now installed together as a bundle"
+      ]
+    },
     {
       "version": "1.0.0",
       "date": "2026-02-01",

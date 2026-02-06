@@ -1,5 +1,6 @@
 {
   "$schema": "../manifest.schema.json",
+  "guid": "d4e5f6a7-b8c9-4012-a345-b6c7d8e9f012",
   "id": "daily-notes-assistant",
   "name": "Daily Notes Assistant",
   "version": "2.1.0",

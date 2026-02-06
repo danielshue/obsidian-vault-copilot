@@ -1,5 +1,6 @@
 {
   "$schema": "../manifest.schema.json",
+  "guid": "f6a7b8c9-d0e1-4234-a567-b8c9d0e1f234",
   "id": "github-mcp-integration",
   "name": "GitHub MCP Server",
   "version": "1.3.2",
