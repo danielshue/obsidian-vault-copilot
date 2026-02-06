@@ -3,83 +3,133 @@ layout: default
 title: Home
 ---
 
-<div class="hero">
-  <h1>Vault Copilot Extensions</h1>
-  <p class="lead">Discover and install agents, prompts, skills, voice agents, and MCP servers to supercharge your Obsidian vault.</p>
-  <div class="hero-actions">
-    <a href="{{ '/catalog/' | relative_url }}" class="btn btn-primary">Browse Extensions</a>
-    <a href="{{ '/docs/authoring/' | relative_url }}" class="btn btn-secondary">Create an Extension</a>
+<div class="hero hero-large">
+  <div class="hero-content">
+    <h1 class="hero-title">Vault Copilot</h1>
+    <p class="hero-subtitle">AI-powered assistance for your entire Obsidian vault</p>
+    <p class="hero-description">Bring GitHub Copilot's intelligence directly into your notes. Chat with AI, automate workflows, and extend your vault with a powerful skill system.</p>
+    <div class="hero-actions">
+      <a href="https://github.com/danielshue/obsidian-vault-copilot" class="btn btn-primary" target="_blank">View on GitHub</a>
+      <a href="{{ '/extensions/' | relative_url }}" class="btn btn-secondary">Browse Extensions</a>
+    </div>
+  </div>
+  <div class="hero-image">
+    <img src="{{ '/docs/images/obsidian-vault-chat-session.png' | relative_url }}" alt="Vault Copilot Chat Interface" />
   </div>
 </div>
 
-<section class="extension-types">
-  <h2>Extension Types</h2>
-  <div class="type-grid">
-    <div class="type-card">
-      <span class="type-icon">🤖</span>
-      <h3>Agents</h3>
-      <p>AI assistants with specific goals and capabilities</p>
+<section class="features">
+  <h2>Key Features</h2>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-header">
+        <span class="feature-icon">💬</span>
+        <h3>AI-Powered Chat</h3>
+      </div>
+      <p>Have natural conversations with GitHub Copilot directly inside Obsidian. Ask questions, explore ideas, analyze content, and draft or rewrite text.</p>
     </div>
-    <div class="type-card">
-      <span class="type-icon">🎙️</span>
-      <h3>Voice Agents</h3>
-      <p>Voice-activated AI assistants for hands-free interaction</p>
+    
+    <div class="feature-card">
+      <div class="feature-header">
+        <span class="feature-icon">📎</span>
+        <h3>Note Context</h3>
+      </div>
+      <p>Attach notes to conversations for context-aware responses. Perfect for research, documentation, journaling, or large project work.</p>
     </div>
-    <div class="type-card">
-      <span class="type-icon">📝</span>
-      <h3>Prompts</h3>
-      <p>Reusable prompt templates for common tasks</p>
+    
+    <div class="feature-card">
+      <div class="feature-header">
+        <span class="feature-icon">🗄️</span>
+        <h3>Vault Integration</h3>
+      </div>
+      <p>Read, search, create, modify, and organize notes. Vault operations are exposed as skills that AI can call when needed.</p>
     </div>
-    <div class="type-card">
-      <span class="type-icon">⚡</span>
-      <h3>Skills</h3>
-      <p>Agent capabilities and tools that extend functionality</p>
+    
+    <div class="feature-card">
+      <div class="feature-header">
+        <span class="feature-icon">⚡</span>
+        <h3>Extensible Skills</h3>
+      </div>
+      <p>Add custom skills to extend functionality. Agent Skills teach Copilot domain-specific workflows for specialized tasks.</p>
     </div>
-    <div class="type-card">
-      <span class="type-icon">🔌</span>
-      <h3>MCP Servers</h3>
-      <p>Model Context Protocol integrations for external services</p>
+    
+    <div class="feature-card">
+      <div class="feature-header">
+        <span class="feature-icon">🔌</span>
+        <h3>MCP Support</h3>
+      </div>
+      <p>Integrate external tools and APIs through Model Context Protocol. Connect to custom data sources and automation scripts.</p>
+    </div>
+    
+    <div class="feature-card">
+      <div class="feature-header">
+        <span class="feature-icon">🎙️</span>
+        <h3>Voice & Realtime</h3>
+      </div>
+      <p>Interact with AI using voice commands and realtime audio conversations. Hands-free note-taking and vault operations.</p>
     </div>
   </div>
 </section>
 
-<section class="featured-extensions">
-  <h2>Featured Extensions</h2>
-  <p class="section-description">Coming soon — Featured extensions will appear here once the catalog grows!</p>
+<section class="how-it-works">
+  <h2>How It Works</h2>
+  <div class="workflow-steps">
+    <div class="workflow-step">
+      <div class="step-marker">1</div>
+      <h3>Connect GitHub Copilot</h3>
+      <p>Vault Copilot uses the GitHub Copilot CLI SDK for secure, structured AI interactions. Requires an active GitHub Copilot subscription.</p>
+    </div>
+    
+    <div class="workflow-step">
+      <div class="step-marker">2</div>
+      <h3>Chat & Attach Context</h3>
+      <p>Open the chat interface, attach relevant notes, and start a conversation. The AI has full awareness of your vault structure and content.</p>
+    </div>
+    
+    <div class="workflow-step">
+      <div class="step-marker">3</div>
+      <h3>Extend with Skills</h3>
+      <p>Install extensions from the catalog or create your own. Skills give the AI new capabilities like task management, journaling workflows, or external integrations.</p>
+    </div>
+  </div>
 </section>
 
-<section class="categories">
-  <h2>Browse by Category</h2>
-  <div class="category-grid">
-    <a href="{{ '/?category=productivity' | relative_url }}" class="category-link">🎯 Productivity</a>
-    <a href="{{ '/?category=journaling' | relative_url }}" class="category-link">📓 Journaling</a>
-    <a href="{{ '/?category=research' | relative_url }}" class="category-link">🔬 Research</a>
-    <a href="{{ '/?category=writing' | relative_url }}" class="category-link">✏️ Writing</a>
-    <a href="{{ '/?category=task-management' | relative_url }}" class="category-link">✅ Task Management</a>
-    <a href="{{ '/?category=voice' | relative_url }}" class="category-link">🎙️ Voice</a>
-    <a href="{{ '/?category=integration' | relative_url }}" class="category-link">🔗 Integration</a>
-    <a href="{{ '/?category=mcp' | relative_url }}" class="category-link">🔌 MCP</a>
-    <a href="{{ '/?category=utility' | relative_url }}" class="category-link">🛠️ Utility</a>
+<section class="technology">
+  <h2>Built on Modern Technology</h2>
+  <div class="tech-grid">
+    <div class="tech-item">
+      <h4>GitHub Copilot CLI SDK</h4>
+      <p>Secure execution of structured commands with parameterized, typed tools for reliable AI operations.</p>
+    </div>
+    
+    <div class="tech-item">
+      <h4>Agent Skills</h4>
+      <p>Teach Copilot domain-specific workflows that load automatically when relevant to your task.</p>
+    </div>
+    
+    <div class="tech-item">
+      <h4>Model Context Protocol</h4>
+      <p>Standard protocol for integrating external tools, APIs, and custom automation into AI workflows.</p>
+    </div>
+    
+    <div class="tech-item">
+      <h4>Multiple AI Models</h4>
+      <p>Support for GPT-4, Claude, Gemini, and other models through GitHub Copilot's model selection.</p>
+    </div>
   </div>
 </section>
 
-<section class="quick-install">
-  <h2>Quick Start</h2>
-  <div class="install-steps">
-    <div class="step">
-      <span class="step-number">1</span>
-      <h3>Open Vault Copilot</h3>
-      <p>Open your Obsidian vault with Vault Copilot installed</p>
-    </div>
-    <div class="step">
-      <span class="step-number">2</span>
-      <h3>Access Extensions</h3>
-      <p>Click the gear icon (⚙️) in Chat View and select <strong>Extensions</strong></p>
-    </div>
-    <div class="step">
-      <span class="step-number">3</span>
-      <h3>Install</h3>
-      <p>Browse, search, and install extensions with one click</p>
+<section class="cta">
+  <div class="cta-content">
+    <h2>Ready to Get Started?</h2>
+    <p>Install Vault Copilot and bring AI-powered assistance to your Obsidian vault.</p>
+    <div class="cta-actions">
+      <a href="https://github.com/danielshue/obsidian-vault-copilot#installation" class="btn btn-primary" target="_blank">Installation Guide</a>
+      <a href="{{ '/extensions/' | relative_url }}" class="btn btn-secondary">Explore Extensions</a>
     </div>
   </div>
+</section>
+
+<section class="disclaimer">
+  <p><strong>Note:</strong> Vault Copilot is a community project and is not affiliated with, sponsored by, or endorsed by Microsoft or GitHub. An active GitHub Copilot subscription is required for AI features.</p>
 </section>

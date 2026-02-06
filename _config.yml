@@ -1,5 +1,5 @@
 # Vault Copilot Extensions - Jekyll Configuration
-title: Vault Copilot Extensions
+title: Vault Copilot
 description: Discover and install extensions for Vault Copilot
 baseurl: "/obsidian-vault-copilot"
 url: "https://danielshue.github.io"
@@ -43,5 +43,10 @@ exclude:
   - vendor
   - scripts
   - schema
-  - "*.json"
+  - package.json
+  - package-lock.json
+  - tsconfig.json
+  - vitest.config.ts
+  - manifest.json
+  - versions.json
   - README.md

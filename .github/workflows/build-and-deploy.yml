@@ -2,7 +2,7 @@ name: Build Catalog and Deploy Pages
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
@@ -46,7 +46,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: master
       
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1

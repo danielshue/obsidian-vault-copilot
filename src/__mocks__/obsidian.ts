@@ -128,6 +128,26 @@ export class Notice {
 	}
 }
 
+// Mock Modal
+export class Modal {
+	app: App;
+	contentEl: HTMLElement;
+	modalEl: HTMLElement;
+	titleEl: HTMLElement;
+
+	constructor(app: App) {
+		this.app = app;
+		this.contentEl = document.createElement("div");
+		this.modalEl = document.createElement("div");
+		this.titleEl = document.createElement("div");
+	}
+
+	open(): void {}
+	close(): void {}
+	onOpen(): void {}
+	onClose(): void {}
+}
+
 // Mock requestUrl for fetch operations
 export const requestUrl = vi.fn();
 
