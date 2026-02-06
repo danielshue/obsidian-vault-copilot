@@ -135,6 +135,7 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 			this.onToolExecution,
 			(this.config as MainVaultAssistantConfig).periodicNotesSettings,
 			this.getChatOutputCallback(),
+			this.getQuestionCallback(),
 			this.name
 		);
 	}

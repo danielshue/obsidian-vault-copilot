@@ -58,6 +58,9 @@ export abstract class BaseVoiceAgent {
 	/** Chat output callback for displaying content in the ChatView */
 	protected onChatOutput: ChatOutputCallback | null = null;
 
+	/** Question callback for asking user for input */
+	protected onQuestion: import("./types").QuestionCallback | null = null;
+
 	/** Registered handoff agents by name */
 	protected handoffAgents: Map<string, BaseVoiceAgent> = new Map();
 
@@ -747,6 +750,13 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
+	 * Set question callback
+	 */
+	setQuestionCallback(callback: import("./types").QuestionCallback | null): void {
+		this.onQuestion = callback;
+	}
+
+	/**
 	 * Get a chat output callback that emits the chatOutput event
 	 * This is used by tools to output content to the ChatView
 	 */
@@ -759,6 +769,14 @@ export abstract class BaseVoiceAgent {
 				this.onChatOutput(content, sourceAgent);
 			}
 		};
+	}
+
+	/**
+	 * Get a question callback
+	 * This is used by tools to ask questions to the user
+	 */
+	protected getQuestionCallback(): import("./types").QuestionCallback | null {
+		return this.onQuestion;
 	}
 
 	/**

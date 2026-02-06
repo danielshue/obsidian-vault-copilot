@@ -20,6 +20,7 @@ import {
 	RealtimeToolName,
 	ToolExecutionCallback,
 	ChatOutputCallback,
+	QuestionCallback,
 	VAULT_READ_TOOLS,
 	VAULT_WRITE_TOOLS,
 	WEB_TOOLS,
@@ -32,6 +33,7 @@ import { createWebTools } from "./web-tools";
 import { createMcpTools } from "./mcp-tools";
 import { createAllTaskTools, TASK_TOOL_NAMES } from "./task-tools";
 import { createOutputTools } from "./output-tools";
+import { createQuestionTools } from "./question-tools";
 
 /**
  * Check if a specific tool is enabled based on configuration
@@ -102,6 +104,7 @@ export function createAllTools(
 	onToolExecution: ToolExecutionCallback | null,
 	periodicNotesSettings?: PeriodicNotesSettings,
 	onChatOutput?: ChatOutputCallback | null,
+	onQuestion?: QuestionCallback | null,
 	sourceAgent?: string
 ): ReturnType<typeof tool>[] {
 	const tools: ReturnType<typeof tool>[] = [];
@@ -125,6 +128,7 @@ export function createAllTools(
 	const webTools = createWebTools(onToolExecution, requiresApproval);
 	const taskTools = createAllTaskTools(app, onToolExecution, requiresApproval);
 	const outputTools = createOutputTools(onChatOutput ?? null, sourceAgent ?? "assistant", requiresApproval);
+	const questionTools = createQuestionTools(onQuestion ?? null, sourceAgent ?? "assistant", requiresApproval);
 
 	// Build a map of tool name to tool for filtering
 	const toolMap: Array<{
@@ -149,6 +153,11 @@ export function createAllTools(
 
 	// Map output tools
 	for (const t of outputTools) {
+		toolMap.push({ name: t.name as RealtimeToolName, tool: t });
+	}
+
+	// Map question tools
+	for (const t of questionTools) {
 		toolMap.push({ name: t.name as RealtimeToolName, tool: t });
 	}
 
@@ -181,6 +190,7 @@ export function getToolNames(tools: ReturnType<typeof tool>[]): string[] {
  * @param onToolExecution - Optional callback for tool execution events
  * @param periodicNotesSettings - Optional periodic notes settings for weekly/monthly/quarterly/yearly notes
  * @param onChatOutput - Optional callback for outputting content to the ChatView
+ * @param onQuestion - Optional callback for asking questions to the user
  * @param sourceAgent - Name of the agent creating the tools (for attribution)
  * @returns Array of tools filtered to the allowlist
  */
@@ -192,6 +202,7 @@ export function createToolsForAgent(
 	onToolExecution: ToolExecutionCallback | null,
 	periodicNotesSettings?: PeriodicNotesSettings,
 	onChatOutput?: ChatOutputCallback | null,
+	onQuestion?: QuestionCallback | null,
 	sourceAgent?: string
 ): ReturnType<typeof tool>[] {
 	const tools: ReturnType<typeof tool>[] = [];
@@ -203,9 +214,10 @@ export function createToolsForAgent(
 	const webTools = createWebTools(onToolExecution, requiresApproval);
 	const taskTools = createAllTaskTools(app, onToolExecution, requiresApproval);
 	const outputTools = createOutputTools(onChatOutput ?? null, sourceAgent ?? "assistant", requiresApproval);
+	const questionTools = createQuestionTools(onQuestion ?? null, sourceAgent ?? "assistant", requiresApproval);
 
 	// Combine all tools
-	const allTools = [...vaultTools, ...webTools, ...taskTools, ...outputTools];
+	const allTools = [...vaultTools, ...webTools, ...taskTools, ...outputTools, ...questionTools];
 
 	// Filter to only allowed tools
 	for (const t of allTools) {

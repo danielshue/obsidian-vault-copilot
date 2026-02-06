@@ -122,6 +122,9 @@ export const TOOL_NAMES = {
 	SEND_TO_CHAT: "send_to_chat",
 	SHOW_MARKDOWN: "show_markdown",
 	SPEAK: "speak",
+
+	// Question operations
+	ASK_QUESTION: "ask_question",
 } as const;
 
 export type ToolName = typeof TOOL_NAMES[keyof typeof TOOL_NAMES];
@@ -165,6 +168,7 @@ export const TOOL_DESCRIPTIONS = {
 	[TOOL_NAMES.SEND_TO_CHAT]: "Display formatted content in the chat window instead of speaking it. Use for structured data like tables, lists, schedules, or content better read than spoken.",
 	[TOOL_NAMES.SHOW_MARKDOWN]: "Display markdown content to the user in a modal",
 	[TOOL_NAMES.SPEAK]: "Speak text to the user using text-to-speech",
+	[TOOL_NAMES.ASK_QUESTION]: "Ask the user a question and get their response. Supports text input, multiple choice, radio buttons, and mixed (choice + text) questions. Use this when you need clarification, additional information, or user preferences to complete a task.",
 } as const;
 
 // ============================================================================
@@ -552,6 +556,54 @@ export const TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
 			text: { type: "string", description: "The text to speak" }
 		},
 		required: ["text"]
+	},
+
+	[TOOL_NAMES.ASK_QUESTION]: {
+		type: "object",
+		properties: {
+			type: { 
+				type: "string", 
+				enum: ["text", "multipleChoice", "radio", "mixed"],
+				description: "Type of question: 'text' for text input, 'multipleChoice' for selecting options, 'radio' for single selection, 'mixed' for options + text input" 
+			},
+			question: { type: "string", description: "The question to ask the user" },
+			context: { type: "string", description: "Optional additional context or explanation for the question" },
+			options: { 
+				type: "array", 
+				items: { type: "string" },
+				description: "Available options (for multipleChoice, radio, or mixed types)" 
+			},
+			allowMultiple: { 
+				type: "boolean", 
+				description: "Allow selecting multiple options (for multipleChoice or mixed, default: false)" 
+			},
+			placeholder: { 
+				type: "string", 
+				description: "Placeholder text for text input (for text or mixed types)" 
+			},
+			textLabel: { 
+				type: "string", 
+				description: "Label for the text input field (for mixed type)" 
+			},
+			defaultValue: { 
+				type: "string", 
+				description: "Default text value (for text type)" 
+			},
+			defaultSelected: { 
+				type: "array", 
+				items: { type: "string" },
+				description: "Pre-selected options (for multipleChoice, radio, or mixed types)" 
+			},
+			multiline: { 
+				type: "boolean", 
+				description: "Use a multiline textarea for text input (default: false)" 
+			},
+			required: { 
+				type: "boolean", 
+				description: "Whether this question is required (default: true)" 
+			}
+		},
+		required: ["type", "question"]
 	}
 } as const;
 
@@ -734,6 +786,7 @@ export const TOOL_CATEGORIES = {
 		TOOL_NAMES.SEND_TO_CHAT,
 		TOOL_NAMES.SHOW_MARKDOWN,
 		TOOL_NAMES.SPEAK,
+		TOOL_NAMES.ASK_QUESTION,
 	],
 } as const;
 
