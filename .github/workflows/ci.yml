@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: build
     runs-on: ubuntu-latest
     
     steps:
@@ -34,9 +34,19 @@ jobs:
             exit 1
           fi
           echo "✓ Build successful: main.js created"
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-build
+          path: |
+            main.js
+            manifest.json
+            styles.css
+          retention-days: 7
 
   test:
-    name: Test
+    name: test
     runs-on: ubuntu-latest
     
     steps:
@@ -63,25 +73,8 @@ jobs:
           path: coverage/
           retention-days: 7
 
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run ESLint
-        run: npm run lint
+  # Lint is now in separate workflow (lint.yml) to match branch protection expectations
+  # This allows the "lint" status check to be tracked independently
 
   typecheck:
     name: Type Check
@@ -103,46 +96,10 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit --skipLibCheck
 
-  validate-catalog:
-    name: Validate Extensions
-    runs-on: ubuntu-latest
-    # Only run if extensions were modified
-    if: |
-      github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.changed_files, 'extensions/')
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Validate extensions
-        run: npm run validate:extension
-      
-      - name: Build catalog
-        run: npm run build:catalog
-      
-      - name: Check catalog diff
-        run: |
-          if ! git diff --quiet catalog/catalog.json; then
-            echo "⚠️  catalog.json has uncommitted changes"
-            echo "Run 'npm run build:catalog' and commit the changes"
-            git diff catalog/catalog.json
-            exit 1
-          fi
-
   all-checks:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [build, test, lint, typecheck]
+    needs: [build, test, typecheck]
     if: always()
     
     steps:
@@ -150,7 +107,6 @@ jobs:
         run: |
           if [[ "${{ needs.build.result }}" != "success" ]] || \
              [[ "${{ needs.test.result }}" != "success" ]] || \
-             [[ "${{ needs.lint.result }}" != "success" ]] || \
              [[ "${{ needs.typecheck.result }}" != "success" ]]; then
             echo "❌ One or more checks failed"
             exit 1

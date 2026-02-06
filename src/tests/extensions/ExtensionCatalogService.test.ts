@@ -10,7 +10,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ExtensionCatalogService } from "../../extensions/ExtensionCatalogService";
-import { CatalogManifest, MarketplaceExtension } from "../../extensions/types";
+import { RawCatalogResponse, RawCatalogExtension, CatalogManifest, transformRawCatalog } from "../../extensions/types";
 import * as http from "../../utils/http";
 
 // Mock the http module
@@ -26,51 +26,55 @@ describe("ExtensionCatalogService", () => {
 	let service: ExtensionCatalogService;
 	let mockApp: any;
 	
-	const mockExtension1: MarketplaceExtension = {
-		uniqueId: "test-agent-1",
-		displayTitle: "Test Agent 1",
-		kind: "agent",
-		semanticVersion: "1.0.0",
-		briefSummary: "A test agent for testing",
-		creator: { displayName: "Test Author" },
-		classificationTags: ["Productivity", "Testing"],
-		searchKeywords: ["test", "agent"],
-		publishTimestamp: "2026-01-01T00:00:00Z",
-		lastModifiedTimestamp: "2026-01-01T00:00:00Z",
-		totalSizeBytes: "1024",
-		requiredPluginVersion: "0.1.0",
-		webDetailPage: "https://example.com/test-agent-1",
-		packageContents: [],
-		requiredCapabilities: [],
-		dependsOnExtensions: [],
+	const mockRawExtension1: RawCatalogExtension = {
+		id: "test-agent-1",
+		name: "Test Agent 1",
+		type: "agent",
+		version: "1.0.0",
+		description: "A test agent for testing",
+		author: { name: "Test Author" },
+		categories: ["Productivity", "Testing"],
+		tags: ["test", "agent"],
+		publishedAt: "2026-01-01T00:00:00Z",
+		updatedAt: "2026-01-01T00:00:00Z",
+		size: "1024",
+		minVaultCopilotVersion: "0.1.0",
+		detailPageUrl: "https://example.com/test-agent-1",
+		files: [],
+		tools: [],
+		dependencies: [],
 	};
 	
-	const mockExtension2: MarketplaceExtension = {
-		uniqueId: "journal-prompt",
-		displayTitle: "Daily Journal Prompt",
-		kind: "prompt",
-		semanticVersion: "2.0.0",
-		briefSummary: "Journal prompts for daily reflection",
-		creator: { displayName: "Journal Author" },
-		classificationTags: ["Journaling", "Productivity"],
-		searchKeywords: ["journal", "daily", "reflection"],
-		publishTimestamp: "2026-01-15T00:00:00Z",
-		lastModifiedTimestamp: "2026-02-01T00:00:00Z",
-		totalSizeBytes: "512",
-		requiredPluginVersion: "0.1.0",
-		webDetailPage: "https://example.com/journal-prompt",
-		packageContents: [],
-		requiredCapabilities: [],
-		dependsOnExtensions: [],
+	const mockRawExtension2: RawCatalogExtension = {
+		id: "journal-prompt",
+		name: "Daily Journal Prompt",
+		type: "prompt",
+		version: "2.0.0",
+		description: "Journal prompts for daily reflection",
+		author: { name: "Journal Author" },
+		categories: ["Journaling", "Productivity"],
+		tags: ["journal", "daily", "reflection"],
+		publishedAt: "2026-01-15T00:00:00Z",
+		updatedAt: "2026-02-01T00:00:00Z",
+		size: "512",
+		minVaultCopilotVersion: "0.1.0",
+		detailPageUrl: "https://example.com/journal-prompt",
+		files: [],
+		tools: [],
+		dependencies: [],
 	};
 	
-	const mockCatalog: CatalogManifest = {
-		schemaVersion: "1.0",
-		buildTimestamp: "2026-02-05T20:00:00Z",
-		availableExtensions: [mockExtension1, mockExtension2],
-		knownCategories: ["Productivity", "Journaling", "Testing"],
-		highlightedExtensions: ["test-agent-1"],
+	const mockRawCatalog: RawCatalogResponse = {
+		version: "1.0",
+		generated: "2026-02-05T20:00:00Z",
+		totalExtensions: 2,
+		extensions: [mockRawExtension1, mockRawExtension2],
+		categories: ["Productivity", "Journaling", "Testing"],
+		featured: ["test-agent-1"],
 	};
+	
+	// Expected transformed catalog (what the service actually returns)
+	const mockTransformedCatalog: CatalogManifest = transformRawCatalog(mockRawCatalog);
 	
 	beforeEach(() => {
 		mockApp = {};
@@ -91,7 +95,7 @@ describe("ExtensionCatalogService", () => {
 		it("should fetch catalog from remote endpoint", async () => {
 			const mockHttpRequest = vi.spyOn(http, "httpRequest").mockResolvedValue({
 				status: 200,
-				data: mockCatalog,
+				data: mockRawCatalog,
 				headers: {},
 			});
 			
@@ -102,14 +106,15 @@ describe("ExtensionCatalogService", () => {
 				method: "GET",
 				timeout: 30000,
 			});
-			expect(result).toEqual(mockCatalog);
+			// Service returns transformed catalog, not raw
+			expect(result).toEqual(mockTransformedCatalog);
 			expect(result.availableExtensions).toHaveLength(2);
 		});
 		
 		it("should use cached data if fresh", async () => {
 			const mockHttpRequest = vi.spyOn(http, "httpRequest").mockResolvedValue({
 				status: 200,
-				data: mockCatalog,
+				data: mockRawCatalog,
 				headers: {},
 			});
 			
@@ -131,7 +136,7 @@ describe("ExtensionCatalogService", () => {
 			
 			const mockHttpRequest = vi.spyOn(http, "httpRequest").mockResolvedValue({
 				status: 200,
-				data: mockCatalog,
+				data: mockRawCatalog,
 				headers: {},
 			});
 			
@@ -151,27 +156,27 @@ describe("ExtensionCatalogService", () => {
 			const mockHttpRequest = vi.spyOn(http, "httpRequest")
 				.mockResolvedValueOnce({
 					status: 200,
-					data: mockCatalog,
+					data: mockRawCatalog,
 					headers: {},
 				})
 				.mockRejectedValueOnce(new Error("Network error"));
 			
 			// First fetch - successful
 			const firstResult = await service.fetchCatalog();
-			expect(firstResult).toEqual(mockCatalog);
+			expect(firstResult).toEqual(mockTransformedCatalog);
 			
 			// Clear cache to force refetch
 			service.clearCache();
 			
 			// Manually set stale cache for testing fallback
 			(service as any).cachedData = {
-				manifestData: mockCatalog,
+				manifestData: mockTransformedCatalog,
 				fetchedAtTimestamp: Date.now() - 400000, // Stale (beyond TTL)
 			};
 			
 			// Second fetch - network fails, should use stale cache
 			const secondResult = await service.fetchCatalog();
-			expect(secondResult).toEqual(mockCatalog);
+			expect(secondResult).toEqual(mockTransformedCatalog);
 		});
 		
 		it("should throw error if network fails and no cache available", async () => {
@@ -195,7 +200,7 @@ describe("ExtensionCatalogService", () => {
 		beforeEach(async () => {
 			vi.spyOn(http, "httpRequest").mockResolvedValue({
 				status: 200,
-				data: mockCatalog,
+				data: mockRawCatalog,
 				headers: {},
 			});
 			await service.fetchCatalog(); // Prime the cache
@@ -276,7 +281,7 @@ describe("ExtensionCatalogService", () => {
 		beforeEach(async () => {
 			vi.spyOn(http, "httpRequest").mockResolvedValue({
 				status: 200,
-				data: mockCatalog,
+				data: mockRawCatalog,
 				headers: {},
 			});
 			await service.fetchCatalog();
@@ -298,7 +303,7 @@ describe("ExtensionCatalogService", () => {
 		beforeEach(async () => {
 			vi.spyOn(http, "httpRequest").mockResolvedValue({
 				status: 200,
-				data: mockCatalog,
+				data: mockRawCatalog,
 				headers: {},
 			});
 			await service.fetchCatalog();
@@ -315,7 +320,7 @@ describe("ExtensionCatalogService", () => {
 		beforeEach(async () => {
 			vi.spyOn(http, "httpRequest").mockResolvedValue({
 				status: 200,
-				data: mockCatalog,
+				data: mockRawCatalog,
 				headers: {},
 			});
 			await service.fetchCatalog();
@@ -334,7 +339,7 @@ describe("ExtensionCatalogService", () => {
 		it("should clear cached data", async () => {
 			const mockHttpRequest = vi.spyOn(http, "httpRequest").mockResolvedValue({
 				status: 200,
-				data: mockCatalog,
+				data: mockRawCatalog,
 				headers: {},
 			});
 			
@@ -361,7 +366,7 @@ describe("ExtensionCatalogService", () => {
 		it("should return cache status when cache exists", async () => {
 			vi.spyOn(http, "httpRequest").mockResolvedValue({
 				status: 200,
-				data: mockCatalog,
+				data: mockRawCatalog,
 				headers: {},
 			});
 			
