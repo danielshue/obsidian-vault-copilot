@@ -82,7 +82,7 @@ For implementation details, TypeScript types, and code examples, see the [Develo
 Contributions are welcome! Please read our Contributing Guide for details on our code of conduct and the process for submitting pull requests.
 
 ## License
-This project is licensed under the [MIT](LICENSE) License - see the LICENSE file for details.
+This project is licensed under the [MIT](https://danielshue.github.io/obsidian-vault-copilot/LICENSE) License - see the LICENSE file for details.
 
 ## Acknowledgments
 Built with GitHub Copilot CLI and GitHub Copilot CLI SDK
