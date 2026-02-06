@@ -104,28 +104,39 @@ if (Test-GitHubCli) {
         Write-Host "⚙️  Configuring branch protection..." -ForegroundColor Yellow
         
         try {
-            # Build the gh api command
-            $statusChecks = ($ProtectionConfig.required_status_checks.contexts | ForEach-Object { 
-                "--field", "required_status_checks[contexts][]=$_" 
-            }) -join " "
+            # Convert PowerShell booleans to JSON lowercase strings
+            $strictBool = $ProtectionConfig.required_status_checks.strict.ToString().ToLower()
+            $enforceAdminsBool = $ProtectionConfig.enforce_admins.ToString().ToLower()
+            $dismissStaleBool = $ProtectionConfig.required_pull_request_reviews.dismiss_stale_reviews.ToString().ToLower()
+            $requireCodeOwnersBool = $ProtectionConfig.required_pull_request_reviews.require_code_owner_reviews.ToString().ToLower()
+            $requireConversationBool = $ProtectionConfig.required_conversation_resolution.ToString().ToLower()
+            $requireLinearHistoryBool = $ProtectionConfig.required_linear_history.ToString().ToLower()
+            $allowForcePushesBool = $ProtectionConfig.allow_force_pushes.ToString().ToLower()
+            $allowDeletionsBool = $ProtectionConfig.allow_deletions.ToString().ToLower()
             
-            $cmd = @"
-gh api repos/$Owner/$Repo/branches/$Branch/protection ``
-  --method PUT ``
-  --field required_status_checks[strict]=$($ProtectionConfig.required_status_checks.strict) ``
-  $statusChecks ``
-  --field enforce_admins=$($ProtectionConfig.enforce_admins) ``
-  --field required_pull_request_reviews[dismiss_stale_reviews]=$($ProtectionConfig.required_pull_request_reviews.dismiss_stale_reviews) ``
-  --field required_pull_request_reviews[required_approving_review_count]=$($ProtectionConfig.required_pull_request_reviews.required_approving_review_count) ``
-  --field required_pull_request_reviews[require_code_owner_reviews]=$($ProtectionConfig.required_pull_request_reviews.require_code_owner_reviews) ``
-  --field required_conversation_resolution=$($ProtectionConfig.required_conversation_resolution) ``
-  --field required_linear_history=$($ProtectionConfig.required_linear_history) ``
-  --field allow_force_pushes=$($ProtectionConfig.allow_force_pushes) ``
-  --field allow_deletions=$($ProtectionConfig.allow_deletions)
-"@
+            # Build the JSON payload
+            $payload = @{
+                required_status_checks = @{
+                    strict = $ProtectionConfig.required_status_checks.strict
+                    contexts = $ProtectionConfig.required_status_checks.contexts
+                }
+                enforce_admins = $ProtectionConfig.enforce_admins
+                required_pull_request_reviews = @{
+                    dismiss_stale_reviews = $ProtectionConfig.required_pull_request_reviews.dismiss_stale_reviews
+                    required_approving_review_count = $ProtectionConfig.required_pull_request_reviews.required_approving_review_count
+                    require_code_owner_reviews = $ProtectionConfig.required_pull_request_reviews.require_code_owner_reviews
+                }
+                required_conversation_resolution = $ProtectionConfig.required_conversation_resolution
+                required_linear_history = $ProtectionConfig.required_linear_history
+                allow_force_pushes = $ProtectionConfig.allow_force_pushes
+                allow_deletions = $ProtectionConfig.allow_deletions
+                restrictions = $null
+            } | ConvertTo-Json -Depth 10 -Compress
             
             Write-Host "Running: gh api repos/$Owner/$Repo/branches/$Branch/protection" -ForegroundColor Gray
-            Invoke-Expression $cmd
+            
+            # Use stdin to pass JSON payload
+            $payload | gh api "repos/$Owner/$Repo/branches/$Branch/protection" --method PUT --input -
             
             Write-Host ""
             Write-Host "✅ Branch protection configured successfully!" -ForegroundColor Green
