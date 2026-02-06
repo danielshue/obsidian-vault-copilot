@@ -1,4 +1,5 @@
 # Vault Copilot Extensions - Jekyll Configuration
+# Website configuration for GitHub Pages
 title: Vault Copilot
 description: Discover and install extensions for Vault Copilot
 baseurl: "/obsidian-vault-copilot"
