@@ -6962,3 +6962,27 @@ cursor: pointer;
 .navigation-buttons button {
 	min-width: 80px;
 }
+
+/* File Selection Info */
+.selected-file-info {
+	padding: 8px 12px;
+	margin-top: 8px;
+	background: var(--background-primary-alt);
+	border-radius: 4px;
+	font-size: 13px;
+	color: var(--text-muted);
+	border-left: 3px solid var(--interactive-accent);
+}
+
+/* Summary Description */
+.summary-description {
+	padding: 12px;
+	margin-top: 8px;
+	background: var(--background-primary-alt);
+	border-radius: 4px;
+	font-size: 13px;
+	color: var(--text-normal);
+	white-space: pre-wrap;
+	max-height: 200px;
+	overflow-y: auto;
+}

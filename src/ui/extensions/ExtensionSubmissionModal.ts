@@ -45,8 +45,14 @@ export class ExtensionSubmissionModal extends Modal {
 	
 	// Form elements
 	private extensionPathInput: TextComponent | null = null;
-	private githubUsernameInput: TextComponent | null = null;
-	private branchNameInput: TextComponent | null = null;
+	private authorNameInput: TextComponent | null = null;
+	private authorUrlInput: TextComponent | null = null;
+	private descriptionInput: HTMLTextAreaElement | null = null;
+	private readmeInput: HTMLTextAreaElement | null = null;
+	
+	// Image file paths
+	private iconImagePath: string | null = null;
+	private previewImagePath: string | null = null;
 	
 	/**
 	 * Creates a new extension submission modal
@@ -55,6 +61,52 @@ export class ExtensionSubmissionModal extends Modal {
 	 */
 	constructor(app: App) {
 		super(app);
+		// Pre-populate author info from Git config if available
+		this.loadAuthorInfo();
+	}
+	
+	/**
+	 * Loads author information from git config
+	 * 
+	 * @internal
+	 */
+	private async loadAuthorInfo(): Promise<void> {
+		try {
+			// Try to get git user name and email
+			const { exec } = require('child_process');
+			const { promisify } = require('util');
+			const execAsync = promisify(exec);
+			
+			try {
+				const { stdout: name } = await execAsync('git config user.name');
+				if (name && name.trim()) {
+					this.submissionData.authorName = name.trim();
+				}
+			} catch (e) {
+				// Ignore error, just won't pre-populate
+			}
+			
+			try {
+				const { stdout: email } = await execAsync('git config user.email');
+				if (email && email.trim()) {
+					// Try to construct GitHub URL from email
+					const emailStr = email.trim();
+					if (emailStr.includes('@users.noreply.github.com')) {
+						const username = emailStr.split('@')[0].split('+')[1] || emailStr.split('@')[0];
+						this.submissionData.authorUrl = `https://github.com/${username}`;
+						this.submissionData.githubUsername = username;
+					} else if (emailStr.includes('@')) {
+						// Just use a placeholder, user can edit
+						this.submissionData.authorUrl = '';
+					}
+				}
+			} catch (e) {
+				// Ignore error
+			}
+		} catch (error) {
+			// If require fails (mobile), just skip
+			console.log('Could not load git config:', error);
+		}
 	}
 	
 	/**
@@ -107,12 +159,9 @@ export class ExtensionSubmissionModal extends Modal {
 				this.renderExtensionSelectionStep(contentEl);
 				break;
 			case 1:
-				this.renderGitHubDetailsStep(contentEl);
+				this.renderExtensionDetailsStep(contentEl);
 				break;
 			case 2:
-				this.renderAuthorInformationStep(contentEl);
-				break;
-			case 3:
 				this.renderPreviewStep(contentEl);
 				break;
 		}
@@ -127,8 +176,7 @@ export class ExtensionSubmissionModal extends Modal {
 	private renderProgressIndicator(container: HTMLElement) {
 		const steps = [
 			"Select Extension",
-			"GitHub Details",
-			"Author Info",
+			"Extension Details",
 			"Preview & Submit"
 		];
 		
@@ -202,94 +250,23 @@ export class ExtensionSubmissionModal extends Modal {
 	}
 	
 	/**
-	 * Step 2: GitHub repository details
+	 * Step 2: Extension details (author info, description, images)
 	 * 
 	 * @param container - Container element
 	 * @internal
 	 */
-	private renderGitHubDetailsStep(container: HTMLElement) {
-		container.createEl("h2", { text: "GitHub Details" });
+	private renderExtensionDetailsStep(container: HTMLElement) {
+		container.createEl("h2", { text: "Extension Details" });
 		container.createEl("p", { 
-			text: "Provide your GitHub information for creating the pull request."
+			text: "Provide additional information and assets for your extension."
 		});
 		
-		// GitHub username
-		new Setting(container)
-			.setName("GitHub Username")
-			.setDesc("Your GitHub username (e.g., octocat)")
-			.addText(text => {
-				this.githubUsernameInput = text;
-				text
-					.setPlaceholder("octocat")
-					.setValue(this.submissionData.githubUsername || "")
-					.onChange(value => {
-						this.submissionData.githubUsername = value;
-						// Auto-generate branch name if not set
-						if (!this.submissionData.branchName && this.submissionData.extensionId) {
-							this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
-							if (this.branchNameInput) {
-								this.branchNameInput.setValue(this.submissionData.branchName);
-							}
-						}
-					});
-			});
-		
-		// Fork repository name (usually obsidian-vault-copilot)
-		new Setting(container)
-			.setName("Fork Repository Name")
-			.setDesc("Name of your forked repository")
-			.addText(text => {
-				text
-					.setPlaceholder("obsidian-vault-copilot")
-					.setValue(this.submissionData.forkRepoName || "obsidian-vault-copilot")
-					.onChange(value => {
-						this.submissionData.forkRepoName = value;
-					});
-			});
-		
-		// Branch name
-		new Setting(container)
-			.setName("Branch Name")
-			.setDesc("Branch name for your submission (will be auto-generated)")
-			.addText(text => {
-				this.branchNameInput = text;
-				text
-					.setPlaceholder("add-my-extension")
-					.setValue(this.submissionData.branchName || "")
-					.onChange(value => {
-						this.submissionData.branchName = value;
-					});
-			});
-		
-		// Info box
-		const infoContainer = container.createDiv({ cls: "github-info" });
-		infoContainer.createEl("h3", { text: "Before you continue:" });
-		const ul = infoContainer.createEl("ul");
-		ul.createEl("li", { text: "Make sure you have forked the obsidian-vault-copilot repository" });
-		ul.createEl("li", { text: "Ensure GitHub CLI (gh) is installed and authenticated" });
-		ul.createEl("li", { text: "Your fork should be up-to-date with the main repository" });
-		
-		// Navigation buttons
-		this.renderNavigationButtons(container, true, true);
-	}
-	
-	/**
-	 * Step 3: Author information
-	 * 
-	 * @param container - Container element
-	 * @internal
-	 */
-	private renderAuthorInformationStep(container: HTMLElement) {
-		container.createEl("h2", { text: "Author Information" });
-		container.createEl("p", { 
-			text: "Provide information about yourself as the extension author."
-		});
-		
-		// Author name
+		// Author name (pre-populated from git config)
 		new Setting(container)
 			.setName("Author Name")
-			.setDesc("Your full name or display name")
+			.setDesc("Your full name or display name (editable)")
 			.addText(text => {
+				this.authorNameInput = text;
 				text
 					.setPlaceholder("John Doe")
 					.setValue(this.submissionData.authorName || "")
@@ -298,11 +275,12 @@ export class ExtensionSubmissionModal extends Modal {
 					});
 			});
 		
-		// Author URL
+		// Author URL (pre-populated from git config)
 		new Setting(container)
 			.setName("Author URL")
-			.setDesc("Your GitHub profile or personal website URL")
+			.setDesc("Your GitHub profile or personal website URL (editable)")
 			.addText(text => {
+				this.authorUrlInput = text;
 				text
 					.setPlaceholder("https://github.com/yourusername")
 					.setValue(this.submissionData.authorUrl || "")
@@ -311,12 +289,107 @@ export class ExtensionSubmissionModal extends Modal {
 					});
 			});
 		
+		// Extension description
+		const descSetting = new Setting(container)
+			.setName("Extension Description")
+			.setDesc("Brief description of your extension (optional - can also be set in manifest.json)");
+		
+		this.descriptionInput = descSetting.controlEl.createEl("textarea", {
+			attr: {
+				placeholder: "A helpful extension that...",
+				rows: "3"
+			}
+		});
+		this.descriptionInput.style.width = "100%";
+		this.descriptionInput.style.marginTop = "8px";
+		
+		// Icon image upload
+		new Setting(container)
+			.setName("Extension Icon")
+			.setDesc("Upload an icon image (SVG or PNG, optional)")
+			.addButton(button => {
+				button
+					.setButtonText(this.iconImagePath ? "Change Icon" : "Choose Icon")
+					.onClick(async () => {
+						const input = document.createElement('input');
+						input.type = 'file';
+						input.accept = '.svg,.png';
+						input.onchange = (e: Event) => {
+							const target = e.target as HTMLInputElement;
+							if (target.files && target.files.length > 0) {
+								this.iconImagePath = target.files[0].path || target.files[0].name;
+								button.setButtonText("Change Icon");
+								new Notice(`Icon selected: ${target.files[0].name}`);
+							}
+						};
+						input.click();
+					});
+			});
+		
+		if (this.iconImagePath) {
+			container.createEl("div", { 
+				text: `📎 Selected: ${this.iconImagePath}`,
+				cls: "selected-file-info"
+			});
+		}
+		
+		// Preview image upload
+		new Setting(container)
+			.setName("Preview Image")
+			.setDesc("Upload a preview/screenshot image (PNG, 1280x720 recommended)")
+			.addButton(button => {
+				button
+					.setButtonText(this.previewImagePath ? "Change Preview" : "Choose Preview")
+					.onClick(async () => {
+						const input = document.createElement('input');
+						input.type = 'file';
+						input.accept = '.png,.jpg,.jpeg';
+						input.onchange = (e: Event) => {
+							const target = e.target as HTMLInputElement;
+							if (target.files && target.files.length > 0) {
+								this.previewImagePath = target.files[0].path || target.files[0].name;
+								button.setButtonText("Change Preview");
+								new Notice(`Preview image selected: ${target.files[0].name}`);
+							}
+						};
+						input.click();
+					});
+			});
+		
+		if (this.previewImagePath) {
+			container.createEl("div", { 
+				text: `📎 Selected: ${this.previewImagePath}`,
+				cls: "selected-file-info"
+			});
+		}
+		
+		// README content
+		const readmeSetting = new Setting(container)
+			.setName("README Content")
+			.setDesc("Additional documentation or usage instructions (optional)");
+		
+		this.readmeInput = readmeSetting.controlEl.createEl("textarea", {
+			attr: {
+				placeholder: "# My Extension\n\nUsage instructions...",
+				rows: "6"
+			}
+		});
+		this.readmeInput.style.width = "100%";
+		this.readmeInput.style.marginTop = "8px";
+		this.readmeInput.style.fontFamily = "monospace";
+		
+		// Info box
+		const infoContainer = container.createDiv({ cls: "validation-info" });
+		infoContainer.createEl("p", {
+			text: "💡 Author information has been pre-populated from your Git configuration. You can edit it if needed."
+		});
+		
 		// Navigation buttons
 		this.renderNavigationButtons(container, true, true);
 	}
 	
 	/**
-	 * Step 4: Preview and confirmation
+	 * Step 3: Preview and confirmation
 	 * 
 	 * @param container - Container element
 	 * @internal
@@ -337,23 +410,33 @@ export class ExtensionSubmissionModal extends Modal {
 		this.addSummaryItem(summaryContainer, "Name", this.submissionData.extensionName || "");
 		this.addSummaryItem(summaryContainer, "Version", this.submissionData.version || "");
 		
-		summaryContainer.createEl("h3", { text: "GitHub Details" });
-		this.addSummaryItem(summaryContainer, "Username", this.submissionData.githubUsername || "");
-		this.addSummaryItem(summaryContainer, "Repository", this.submissionData.forkRepoName || "");
-		this.addSummaryItem(summaryContainer, "Branch", this.submissionData.branchName || "");
-		
 		summaryContainer.createEl("h3", { text: "Author" });
 		this.addSummaryItem(summaryContainer, "Name", this.submissionData.authorName || "");
 		this.addSummaryItem(summaryContainer, "URL", this.submissionData.authorUrl || "");
+		
+		if (this.iconImagePath || this.previewImagePath) {
+			summaryContainer.createEl("h3", { text: "Assets" });
+			if (this.iconImagePath) {
+				this.addSummaryItem(summaryContainer, "Icon", this.iconImagePath);
+			}
+			if (this.previewImagePath) {
+				this.addSummaryItem(summaryContainer, "Preview Image", this.previewImagePath);
+			}
+		}
+		
+		if (this.descriptionInput && this.descriptionInput.value) {
+			summaryContainer.createEl("h3", { text: "Description" });
+			const descText = summaryContainer.createDiv({ cls: "summary-description" });
+			descText.setText(this.descriptionInput.value);
+		}
 		
 		// What will happen
 		const processContainer = container.createDiv({ cls: "submission-process" });
 		processContainer.createEl("h3", { text: "What will happen next:" });
 		const ol = processContainer.createEl("ol");
 		ol.createEl("li", { text: "Your extension will be validated" });
-		ol.createEl("li", { text: "A new branch will be created in your fork" });
-		ol.createEl("li", { text: "Extension files will be committed to the branch" });
-		ol.createEl("li", { text: "A pull request will be created to the main repository" });
+		ol.createEl("li", { text: "Assets (icons, images) will be prepared for submission" });
+		ol.createEl("li", { text: "A pull request will be created automatically" });
 		ol.createEl("li", { text: "Maintainers will review your submission" });
 		
 		// Navigation buttons
@@ -443,24 +526,24 @@ export class ExtensionSubmissionModal extends Modal {
 					return false;
 				}
 				// TODO: Validate extension exists and has valid manifest
-				// For now, just set dummy data
+				// For now, just set dummy data and auto-generate GitHub details
 				this.submissionData.extensionId = "my-extension";
 				this.submissionData.extensionName = "My Extension";
 				this.submissionData.version = "1.0.0";
+				
+				// Auto-generate GitHub details
+				if (this.submissionData.githubUsername) {
+					this.submissionData.forkRepoName = "obsidian-vault-copilot";
+					this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
+				} else {
+					// Try to get from git config
+					this.submissionData.githubUsername = "user";
+					this.submissionData.forkRepoName = "obsidian-vault-copilot";
+					this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
+				}
 				return true;
 				
-			case 1: // GitHub details
-				if (!this.submissionData.githubUsername) {
-					new Notice("Please provide your GitHub username");
-					return false;
-				}
-				if (!this.submissionData.branchName) {
-					new Notice("Please provide a branch name");
-					return false;
-				}
-				return true;
-				
-			case 2: // Author information
+			case 1: // Extension details (author info, images, description)
 				if (!this.submissionData.authorName) {
 					new Notice("Please provide your author name");
 					return false;
