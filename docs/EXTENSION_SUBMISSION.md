@@ -5,42 +5,60 @@ This document describes the automated extension submission workflow that helps e
 ## Overview
 
 The extension submission automation provides a user-friendly, step-by-step process for:
-1. Validating your extension
-2. Collecting GitHub repository details
-3. Gathering author information  
-4. Automating the fork, commit, and pull request workflow
+1. Selecting your extension (file or folder)
+2. AI-powered content generation (optional)
+3. Collecting author information with smart defaults
+4. Reviewing and submitting with automated GitHub workflow
 
 ## User Interface
 
 ### Multi-Step Modal
 
-The submission process is guided through a 4-step modal interface:
+The submission process is guided through a 3-step modal interface:
 
 #### Step 1: Select Extension
-![Extension Selection](https://github.com/user-attachments/assets/ae5fee80-f7fe-4e07-a0a8-4c7e557d3891)
 
 - Choose your extension type (Agent, Voice Agent, Prompt, Skill, or MCP Server)
-- Provide the path to your extension folder
-- Receive validation feedback before proceeding
+- Provide the path to your extension file or folder
+- Optional: Enable/disable automatic AI content generation (checkbox, enabled by default)
+- System auto-detects if path is file or folder
 
-#### Step 2: GitHub Details
+**Input Options:**
+- **File path**: `my-agent.agent.md` - System derives ID/name and generates manifest
+- **Folder with manifest**: `extensions/agents/my-agent/` - System uses existing manifest.json
+- **Folder without manifest**: `extensions/agents/my-agent/` - System derives from markdown and generates manifest
 
-- Enter your GitHub username
-- Specify your fork repository name (usually `obsidian-vault-copilot`)
-- Set a branch name for your submission (auto-generated based on extension ID)
-- Receive reminders about prerequisites (fork, GitHub CLI authentication)
+#### Progressive Loading Screen (if AI generation enabled)
 
-#### Step 3: Author Information
+Shows real-time progress for automated tasks:
+1. ✅ **Generating Description** - AI analyzes extension and creates concise description
+2. ◐ **Generating Image** - AI creates icon and preview image automatically
+3. ○ **Validating ID doesn't exist** - Checks catalog to prevent duplicate submissions
 
-- Provide your full name or display name
-- Enter your GitHub profile or personal website URL
+Visual indicators show task status with color coding and animations.
 
-#### Step 4: Preview & Confirm
-![Preview and Confirm](https://github.com/user-attachments/assets/fe71d4b9-74e7-4e45-a41f-cd2dc579af62)
+#### Step 2: Extension Details
 
-- Review all submission details
-- See exactly what will happen next
+- **Author information**: Pre-populated from git config (editable)
+  - Author Name (from `git config user.name`)
+  - Author URL (auto-generated as `https://github.com/{username}`)
+- **Extension description**: AI-generated and editable, with "Generate with AI" button for regeneration
+- **Extension image**: AI-generated automatically, with buttons to regenerate or manually upload
+- **README content**: AI-generated comprehensive documentation, editable with regeneration button
+
+All AI-generated content is fully editable. Manual regeneration buttons allow refining individual fields.
+
+#### Step 3: Preview & Confirm
+
+- Review all extension details (type, ID, name, version)
+- View author information
+- **Scrollable Description box** (150px max height) for comfortable review
+- **Scrollable README box** (400px max height) for comprehensive documentation review
+- View attached assets (icon, preview image)
+- See explanation of automated workflow steps
 - Confirm and submit
+
+**Note:** GitHub details (username, fork, branch) are auto-generated behind the scenes and not shown to the user.
 
 ## Using the Submission Workflow
 

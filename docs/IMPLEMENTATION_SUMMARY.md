@@ -25,33 +25,49 @@ A comprehensive multi-step modal component featuring:
 
 **Step 1: Extension Selection**
 - Extension type dropdown (Agent, Voice Agent, Prompt, Skill, MCP Server)
-- Extension folder path input
+- Extension path input (accepts file or folder paths)
+- Optional AI generation checkbox (checked by default)
 - Validation info box with helpful tips
 - Form validation before proceeding
 
-**Step 2: GitHub Details**
-- GitHub username input
-- Fork repository name (defaults to obsidian-vault-copilot)
-- Auto-generated branch name based on extension ID
-- Prerequisites checklist reminder
+**Progressive Loading Screen (if AI generation enabled)**
+- Real-time task visibility showing:
+  1. ✅ Generating Description - AI content creation
+  2. ◐ Generating Image - Automatic image generation
+  3. ○ Validating ID doesn't exist - Catalog duplicate check
+- Animated spinner and color-coded status indicators
+- Only shown once on first forward navigation
 
-**Step 3: Author Information**
-- Author name input
-- Author URL input (GitHub profile or personal website)
+**Step 2: Extension Details**
+- Author name input (pre-populated from git config, editable)
+- Author URL input (auto-generated as https://github.com/{username}, editable)
+- Extension description textarea (AI-generated, editable, with "Generate with AI" button)
+- Extension icon/preview image (AI-generated, with "Generate with AI" and "Choose Image" buttons)
+- README content textarea (AI-generated, editable, with "Generate with AI" button)
+- Info box explaining AI-generated content
 
-**Step 4: Preview & Confirmation**
-- Complete summary of all entered data
-- Extension details review
-- GitHub configuration review
+**Step 3: Preview & Confirmation**
+- Complete summary of all extension details
+- **Scrollable Description box** (80-150px height) for review
+- **Scrollable README box** (200-400px height, monospace font) for documentation review
+- Extension details review (type, ID, name, version)
 - Author information review
-- Clear explanation of what will happen next
-- Submit button to trigger the workflow
+- Uploaded/generated assets display
+- Clear explanation of automated GitHub workflow
+- Submit button to trigger the submission
 
 **Features:**
-- ✅ Progress indicator showing current step
+- ✅ Progress indicator showing current step (3 steps)
 - ✅ Navigation controls (Back, Next, Cancel)
-- ✅ Per-step validation
-- ✅ Auto-population of fields based on context
+- ✅ Smart one-time validation (no redundant loading on back navigation)
+- ✅ AI-powered content and image generation
+- ✅ Manual regeneration controls for fine-tuning
+- ✅ Auto-population of author fields from git config
+- ✅ Auto-generation of GitHub details (username, fork, branch)
+- ✅ Manifest generation from file/folder analysis
+- ✅ Dual catalog validation (initial + final before submit)
+- ✅ Enhanced scrollable preview boxes
+- ✅ Textarea state persistence across navigation
 - ✅ Helpful info boxes and tooltips
 - ✅ Promise-based API for easy integration
 
