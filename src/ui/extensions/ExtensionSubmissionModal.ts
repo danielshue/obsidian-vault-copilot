@@ -63,6 +63,8 @@ export class ExtensionSubmissionModal extends Modal {
 	private submissionData: Partial<ExtensionSubmissionData> = {};
 	private resolve: ((value: ExtensionSubmissionData | null) => void) | null = null;
 	private plugin: VaultCopilotPlugin | undefined;
+	private activeSubmissionService: GitHubSubmissionService | null = null;
+	private submissionCancelled = false;
 	
 	// Form elements
 	private extensionPathInput: TextComponent | null = null;
@@ -687,10 +689,16 @@ export class ExtensionSubmissionModal extends Modal {
 				}
 			})();
 
-			const description =
+			let description =
 				data.description ||
 				this.generatedDescription ||
 				`${data.extensionName} - An extension for Obsidian Vault Copilot.`;
+
+			// Enforce the 200-character manifest description limit at write time so
+			// newly created manifests always pass validation.
+			if (description.length > 200) {
+				description = `${description.slice(0, 197)}...`;
+			}
 
 			const manifest = {
 				id: data.extensionId,
@@ -780,6 +788,7 @@ export class ExtensionSubmissionModal extends Modal {
 	 * - Renders the success screen with the resulting PR URL
 	 */
 	private async submitExtension(): Promise<void> {
+		this.submissionCancelled = false;
 		const container = this.contentEl;
 		container.empty();
 		container.addClass("submission-progress-screen");
@@ -789,7 +798,8 @@ export class ExtensionSubmissionModal extends Modal {
 			text: "Submitting Extension...",
 			cls: "submission-progress-title",
 		});
-		progressContainer.createDiv({ cls: "loading-spinner" });
+		// Remove the large top-level spinner in favor of per-step status
+		// indicators in the runtime step list.
 		const messageContainer = progressContainer.createDiv({ cls: "step-message-container" });
 
 		// Define the high-level runtime steps so users can see
@@ -805,16 +815,22 @@ export class ExtensionSubmissionModal extends Modal {
 		const stepsContainer = progressContainer.createDiv({ cls: "submission-runtime-steps" });
 		const stepMap = new Map<
 			string,
-			{ row: HTMLDivElement; icon: HTMLSpanElement; label: HTMLSpanElement }
+			{ 
+				row: HTMLDivElement; 
+				icon: HTMLSpanElement; 
+				label: HTMLSpanElement;
+				subList: HTMLUListElement | null;
+			}
 		>();
 
 		for (const def of stepDefinitions) {
 			const row = stepsContainer.createDiv({ cls: "submission-runtime-step step-pending" });
-			const icon = row.createSpan({ cls: "step-icon" });
+			const header = row.createDiv({ cls: "step-header" });
+			const icon = header.createSpan({ cls: "step-icon" });
 			icon.setText("●");
-			const label = row.createSpan({ cls: "step-label" });
+			const label = header.createSpan({ cls: "step-label" });
 			label.setText(def.label);
-			stepMap.set(def.id, { row, icon, label });
+			stepMap.set(def.id, { row, icon, label, subList: null });
 		}
 
 		const setStepStatus = (
@@ -839,19 +855,59 @@ export class ExtensionSubmissionModal extends Modal {
 			}
 		};
 
-		// Helper to surface progress both in the UI and console for debugging.
-		// The pill-style steps retain their short, static labels ("Prepare temporary
-		// workspace", etc.), while this logger shows detailed messages (paths,
-		// timings) in a list above. The optional stepId is kept for potential
-		// future use but does not alter the step labels.
-		const logProgress = (message: string, _stepId?: string): void => {
+		// Helper to log progress sub-items nested inside their parent step pill.
+		// Each sub-item gets its own status icon that updates independently.
+		const logProgress = (message: string, stepId?: string, status: "pending" | "in-progress" | "complete" | "error" = "complete"): void => {
 			console.log("[Extension Submission]", message);
-			let list = messageContainer.querySelector(".submission-step-list");
-			if (!list) {
-				list = messageContainer.createEl("ul", { cls: "submission-step-list" });
+			if (!stepId) return;
+			
+			const step = stepMap.get(stepId);
+			if (!step) return;
+			
+			if (!step.subList) {
+				step.subList = step.row.createEl("ul", { cls: "step-sub-list" });
 			}
-			(list as HTMLUListElement).createEl("li", { text: message });
+			
+			const item = step.subList.createEl("li", { cls: `step-sub-item step-sub-${status}` });
+			const icon = item.createSpan({ cls: "step-sub-icon" });
+			if (status === "pending") icon.setText("●");
+			else if (status === "in-progress") icon.setText("⏳");
+			else if (status === "complete") icon.setText("✔");
+			else if (status === "error") icon.setText("✖");
+			item.createSpan({ cls: "step-sub-text", text: message });
 		};
+
+		// Helper to log GitHub CLI commands as nested sub-items under the
+		// "Run GitHub workflow" step. Each command is marked in-progress initially
+		// and can be updated to complete/error later if needed.
+		const logGhCommand = (command: string, _cwd?: string): void => {
+			console.log("[Extension Submission][gh]", command);
+			logProgress(command, "run-workflow", "in-progress");
+		};
+
+		// Action buttons (Cancel)
+		const actionsContainer = progressContainer.createDiv({ cls: "submission-actions" });
+		const cancelButton = new ButtonComponent(actionsContainer)
+			.setButtonText("Cancel")
+			.onClick(() => {
+				if (this.submissionCancelled) {
+					return;
+				}
+				this.submissionCancelled = true;
+				cancelButton.setDisabled(true).setButtonText("Cancelled");
+				showInlineMessage(
+					messageContainer,
+					"Submission cancelled. Any in-progress GitHub operations will finish in the background.",
+					"warning"
+				);
+				if (this.activeSubmissionService) {
+					void this.activeSubmissionService.abort().catch(() => {
+						// best-effort only
+					});
+				}
+				setStepStatus("run-workflow", "error");
+				setStepStatus("finalize", "error");
+			});
 
 		// Ensure we have a plugin instance and desktop vault path
 		if (!this.plugin) {
@@ -914,28 +970,32 @@ export class ExtensionSubmissionModal extends Modal {
 		const extensionPathFsFromVault = `${normalizedVaultBase}/${relativePath}`.replace(/\\/g, "/");
 		const extensionRootFs = this.tempExtensionPathFs || extensionPathFsFromVault;
 		setStepStatus("prepare-temp", "in-progress");
-		logProgress(`Using working folder: ${extensionRootFs}` , "prepare-temp");
+		logProgress(`Using working folder: ${extensionRootFs}`, "prepare-temp", "complete");
 
 		// Ensure manifest/README/preview exist in the temp folder so the backend
 		// validation logic has everything it needs to proceed.
+		if (this.submissionCancelled) {
+			return;
+		}
+
 		try {
 			if (this.tempExtensionPathFs) {
 				setStepStatus("prepare-temp", "complete");
 				setStepStatus("create-files", "in-progress");
 				logProgress(
-					"Ensuring manifest.json, README.md, and preview assets exist in the temporary folder...",
-					"create-files"
+					"Ensuring manifest.json exists",
+					"create-files",
+					"in-progress"
 				);
 				await this.ensureRequiredFilesInTempExtensionFolder(
 					extensionRootFs,
 					vaultBasePath,
 					data
 				);
+				logProgress("manifest.json ready", "create-files", "complete");
+				logProgress("README.md ready", "create-files", "complete");
+				logProgress("Preview assets ready", "create-files", "complete");
 				setStepStatus("create-files", "complete");
-				logProgress(
-					"Temporary extension folder is ready for validation and PR creation.",
-					"create-files"
-				);
 			}
 		} catch (materializeError) {
 			console.error("Failed to materialize extension files in temp folder:", materializeError);
@@ -949,24 +1009,61 @@ export class ExtensionSubmissionModal extends Modal {
 			return;
 		}
 
+		// Before invoking the GitHub workflow, validate that any existing
+		// manifest.json in the working folder also respects the 200-character
+		// description limit. This catches long descriptions authored directly
+		// in manifest.json so users see the problem in the UI instead of only
+		// via GitHub validation.
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const fs = require("fs") as typeof import("fs");
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const path = require("path") as typeof import("path");
+			const manifestPathFs = path.join(extensionRootFs, "manifest.json");
+			if (fs.existsSync(manifestPathFs)) {
+				const raw = fs.readFileSync(manifestPathFs, "utf-8");
+				const manifest = JSON.parse(raw) as { description?: unknown };
+				if (typeof manifest.description === "string" && manifest.description.length > 200) {
+					showInlineMessage(
+						messageContainer,
+						"Manifest description must be 200 characters or fewer. Please edit manifest.json before submitting.",
+						"error"
+					);
+					setStepStatus("prepare-temp", "error");
+					setStepStatus("finalize", "error");
+					return;
+				}
+			}
+		} catch (manifestCheckError) {
+			console.warn("Failed to inspect manifest description before submission:", manifestCheckError);
+		}
+
 		const service = new GitHubSubmissionService({
 			upstreamOwner: "danielshue",
 			upstreamRepo: "obsidian-vault-copilot",
 			targetBranch: "master",
 			forkOwner: data.githubUsername || undefined,
 		});
+		this.activeSubmissionService = service;
+		service.setCommandLogger(logGhCommand);
+
+		if (this.submissionCancelled) {
+			return;
+		}
 
 		try {
 			setStepStatus("init-service", "in-progress");
 			logProgress(
-				"Initializing GitHub submission service (Copilot client and tools)...",
-				"init-service"
+				"Initializing Copilot client and tools",
+				"init-service",
+				"in-progress"
 			);
 			await service.initialize();
+			logProgress("GitHub submission service initialized", "init-service", "complete");
 			setStepStatus("init-service", "complete");
-			logProgress("GitHub submission service initialized.", "init-service");
 
 			setStepStatus("run-workflow", "in-progress");
+			logProgress("Starting GitHub workflow", "run-workflow", "in-progress");
 			const result = await service.submitExtension({
 				extensionPath: extensionRootFs,
 				extensionId: data.extensionId,
@@ -976,17 +1073,14 @@ export class ExtensionSubmissionModal extends Modal {
 				commitMessage: undefined,
 				prTitle: data.prTitle,
 			});
+			logProgress("GitHub workflow completed", "run-workflow", "complete");
 			setStepStatus("run-workflow", "complete");
-			logProgress(
-				"GitHub submission workflow completed. Processing result...",
-				"run-workflow"
-			);
 
 			await service.cleanup();
 
 			if (result.success && result.pullRequestUrl) {
 				setStepStatus("finalize", "in-progress");
-				logProgress("Submission succeeded. Pull request created.", "finalize");
+				logProgress("Pull request created successfully", "finalize", "complete");
 				// Best-effort cleanup: remove generated preview assets from the vault so
 				// preview.svg/png only persist in the temporary PR repository.
 				try {

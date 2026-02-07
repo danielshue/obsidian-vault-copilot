@@ -184,6 +184,7 @@ export class GitHubSubmissionService {
 	private client: CopilotClient | null = null;
 	private session: CopilotSession | null = null;
 	private initialized = false;
+	private commandLogger: ((command: string, cwd?: string) => void) | null = null;
 
 	/**
 	 * Creates a new GitHub Submission Service instance.
@@ -504,6 +505,47 @@ Be precise and follow instructions carefully.
 		this.initialized = false;
 	}
 
+	/**
+	 * Attempts to abort any in-flight Copilot session work.
+	 *
+	 * This is a best-effort cancellation mechanism used when the user
+	 * cancels the submission workflow from the UI. It does not forcibly
+	 * terminate already-spawned git/gh processes, but it will stop
+	 * additional tool invocations and mark the Copilot session as aborted.
+	 *
+	 * @since 0.0.18
+	 */
+	async abort(): Promise<void> {
+		if (this.session && typeof this.session.abort === "function") {
+			await this.session.abort();
+		}
+	}
+
+	/**
+	 * Sets a callback used to report each GitHub CLI command that the
+	 * submission workflow executes.
+	 *
+	 * This is primarily intended for UI layers that want to surface a
+	 * human-readable log (for example, nested under a "Submitting" step
+	 * in a progress view). The callback is invoked before each `gh`
+	 * command is run, and is best-effort only – failures are still
+	 * reported via the normal error handling path.
+	 *
+	 * @param logger - Function that receives the full `gh` command and optional cwd
+	 *
+	 * @example
+	 * ```typescript
+	 * service.setCommandLogger((command, cwd) => {
+	 *   console.log("Running:", command, "in", cwd);
+	 * });
+	 * ```
+	 *
+	 * @since 0.0.19
+	 */
+	setCommandLogger(logger: (command: string, cwd?: string) => void): void {
+		this.commandLogger = logger;
+	}
+
 	// =========================================================================
 	// Private Helper Methods
 	// =========================================================================
@@ -762,7 +804,11 @@ Please execute these steps using the GitHub tools provided and report the pull r
 			cwd?: string
 		): Promise<{ stdout: string; stderr: string }> => {
 			try {
-				console.log("[GitHubSubmission] Running gh", { args: ["gh", ...args].join(" "), cwd });
+				const fullCommand = ["gh", ...args].join(" ");
+				if (this.commandLogger) {
+					this.commandLogger(fullCommand, cwd);
+				}
+				console.log("[GitHubSubmission] Running gh", { args: fullCommand, cwd });
 				const { stdout, stderr } = await execFileAsync("gh", args, {
 					cwd,
 				});

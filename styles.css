@@ -7198,6 +7198,13 @@ cursor: pointer;
 	text-align: left;
 }
 
+.submission-progress-screen .submission-actions {
+	margin-top: 20px;
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
 .submission-task-list {
 	width: 100%;
 	max-width: 500px;
@@ -7546,14 +7553,6 @@ max-width: 640px;
 text-align: left;
 }
 
-.submission-step-list {
-	margin: 0;
-	padding-left: 18px;
-	font-size: 12px;
-	color: var(--text-muted);
-	line-height: 1.5;
-}
-
 /* Runtime submission steps (fork/PR workflow) */
 .submission-runtime-steps {
 	margin: 24px auto 8px;
@@ -7565,24 +7564,31 @@ text-align: left;
 
 .submission-runtime-step {
 	display: flex;
-	align-items: center;
-	padding: 6px 10px;
-	border-radius: 999px;
+	flex-direction: column;
+	padding: 8px 12px;
+	border-radius: 12px;
 	background: var(--background-secondary);
 	color: var(--text-muted);
 	font-size: 13px;
 	transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
+.submission-runtime-step .step-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
 .submission-runtime-step .step-icon {
-	margin-right: 8px;
 	font-size: 14px;
 	width: 18px;
 	text-align: center;
+	flex-shrink: 0;
 }
 
 .submission-runtime-step .step-label {
 	flex: 1;
+	font-weight: 500;
 }
 
 .submission-runtime-step.step-pending {
@@ -7603,4 +7609,63 @@ text-align: left;
 .submission-runtime-step.step-error {
 	background: rgba(218, 54, 51, 0.16);
 	color: #da3633;
+}
+
+/* Nested sub-items within each step */
+.step-sub-list {
+	margin: 8px 0 0 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.step-sub-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+	padding: 4px 0 4px 26px;
+	color: var(--text-muted);
+}
+
+.step-sub-icon {
+	width: 14px;
+	flex-shrink: 0;
+	font-size: 11px;
+	text-align: center;
+}
+
+.step-sub-text {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.step-sub-item.step-sub-pending .step-sub-icon {
+	opacity: 0.5;
+}
+
+.step-sub-item.step-sub-in-progress .step-sub-icon {
+	opacity: 1;
+}
+
+.step-sub-item.step-sub-complete .step-sub-icon {
+	color: var(--text-success);
+}
+
+.step-sub-item.step-sub-error .step-sub-icon {
+	color: var(--text-error);
+}
+
+/* Style sub-items within in-progress steps */
+.submission-runtime-step.step-in-progress .step-sub-item {
+	color: var(--text-on-accent);
+	opacity: 0.9;
+}
+
+.submission-runtime-step.step-in-progress .step-sub-item .step-sub-icon {
+	color: var(--text-on-accent);
 }
