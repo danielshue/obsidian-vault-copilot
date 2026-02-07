@@ -12,7 +12,7 @@ If you discover a security vulnerability in an extension or in the catalog infra
 ### How to Report
 
 1. **DO NOT** open a public issue for security vulnerabilities
-2. Email security concerns to: extensions@vaultcopilot.com
+2. Contact the repository owner with security concerns
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
@@ -90,5 +90,5 @@ If a malicious extension is discovered:
 
 ## Contact
 
-- Security issues: extensions@vaultcopilot.com
+- Security issues: Contact the repository owner
 - General questions: Use GitHub Discussions
