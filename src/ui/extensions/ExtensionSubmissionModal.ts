@@ -1306,14 +1306,14 @@ This pull request was created using the Extension Submission workflow in Obsidia
 			
 			// Add a close button
 			new ButtonComponent(container)
-				.setButtonText("Close")
-				.onClick(() => {
-					if (this.resolve) {
-						this.resolve(null);
-						this.resolve = null;
-					}
-					this.close();
-				});
+					.setButtonText("Close")
+					.onClick(() => {
+						if (this.resolve) {
+							this.resolve(null);
+							this.resolve = null;
+						}
+						this.close();
+					});
 		}
 	}
 	
