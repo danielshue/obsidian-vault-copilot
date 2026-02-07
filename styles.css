@@ -7010,6 +7010,80 @@ cursor: pointer;
 	min-width: 80px;
 }
 
+/* Welcome Screen */
+.welcome-subtitle {
+	font-size: 15px;
+	color: var(--text-muted);
+	margin-bottom: 32px;
+}
+
+.welcome-section {
+	margin-bottom: 32px;
+}
+
+.welcome-section h3 {
+	font-size: 16px;
+	margin-bottom: 12px;
+	color: var(--text-normal);
+}
+
+.welcome-steps-list {
+	padding-left: 24px;
+	margin: 0;
+}
+
+.welcome-step-item {
+	margin-bottom: 16px;
+	line-height: 1.6;
+	font-size: 14px;
+	color: var(--text-normal);
+}
+
+.welcome-step-item strong {
+	color: var(--text-accent);
+}
+
+.welcome-benefits-list {
+	padding-left: 24px;
+	margin: 0;
+}
+
+.welcome-benefits-list li {
+	margin-bottom: 8px;
+	line-height: 1.6;
+	font-size: 14px;
+	color: var(--text-normal);
+}
+
+.welcome-privacy {
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.welcome-privacy h3 {
+	margin-top: 0;
+}
+
+.welcome-privacy ul {
+	padding-left: 24px;
+	margin: 8px 0;
+}
+
+.welcome-privacy li {
+	margin-bottom: 6px;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.privacy-note {
+	margin-top: 12px;
+	font-size: 13px;
+	color: var(--text-normal);
+	font-style: italic;
+}
+
 /* File Selection Info */
 .selected-file-info {
 	padding: 8px 12px;
