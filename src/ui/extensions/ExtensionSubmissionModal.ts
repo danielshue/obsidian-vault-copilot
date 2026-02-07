@@ -329,7 +329,7 @@ export class ExtensionSubmissionModal extends Modal {
 		// Validation info
 		const validationContainer = container.createDiv({ cls: "validation-info" });
 		validationContainer.createEl("p", {
-			text: "💡 Your extension will be validated before submission. Make sure your manifest.json is complete."
+			text: "💡 Your extension folder should contain the main markdown file (e.g., my-agent.agent.md). The manifest.json will be generated automatically."
 		});
 		
 		// Navigation buttons
@@ -621,29 +621,67 @@ export class ExtensionSubmissionModal extends Modal {
 	 * @returns Parsed manifest data or null if parsing fails
 	 * @internal
 	 */
-	private async parseExtensionManifest(): Promise<ExtensionManifest | null> {
+	/**
+	 * Derive extension ID and name from the markdown filename in the folder
+	 * For example: "my-agent.agent.md" → id: "my-agent", name: "My Agent"
+	 * The manifest.json will be GENERATED, not read from file
+	 */
+	private async deriveExtensionInfo(): Promise<ExtensionManifest | null> {
 		if (!this.submissionData.extensionPath) {
 			return null;
 		}
 		
+		const folderPath = this.submissionData.extensionPath;
+		console.log(`Deriving extension info from files in: ${folderPath}`);
+		
 		try {
-			const manifestPath = `${this.submissionData.extensionPath}/manifest.json`;
-			console.log(`Reading manifest from: ${manifestPath}`);
-			
-			const file = this.app.vault.getAbstractFileByPath(manifestPath);
-			if (!(file instanceof TFile)) {
-				console.error(`Manifest not found at: ${manifestPath}`);
+			const folder = this.app.vault.getAbstractFileByPath(folderPath);
+			if (!folder || !(folder as any).children) {
+				console.error("Could not read extension folder");
 				return null;
 			}
 			
-			const content = await this.app.vault.read(file);
-			const manifest = JSON.parse(content) as ExtensionManifest;
+			// Look for the main extension file based on type
+			const type = this.submissionData.extensionType;
+			const extensions = {
+				"agent": ".agent.md",
+				"voice-agent": ".voice-agent.md",
+				"prompt": ".prompt.md",
+				"skill": ".skill.md",
+				"mcp-server": ".mcp-server.md"
+			};
 			
-			console.log(`Parsed manifest: id=${manifest.id}, name=${manifest.name}, version=${manifest.version}`);
+			const targetExtension = extensions[type] || ".agent.md";
+			const files = (folder as any).children as TFile[];
+			const mainFile = files.find((f: TFile) => f.name.endsWith(targetExtension));
 			
-			return manifest;
+			if (!mainFile) {
+				console.error(`Could not find ${targetExtension} file in the folder`);
+				return null;
+			}
+			
+			// Extract ID from filename: "my-agent.agent.md" → "my-agent"
+			const id = mainFile.name.replace(targetExtension, "");
+			
+			// Generate name from ID: "my-agent" → "My Agent"
+			const name = id
+				.split("-")
+				.map(word => word.charAt(0).toUpperCase() + word.slice(1))
+				.join(" ");
+			
+			console.log(`Derived extension info: id=${id}, name=${name} from file ${mainFile.name}`);
+			
+			// Return manifest structure (will be generated, not read from file)
+			return {
+				id: id,
+				name: name,
+				version: "1.0.0", // Default version for new extensions
+				description: "", // Will be filled from generated content
+				author: "",
+				authorUrl: ""
+			};
 		} catch (error) {
-			console.error("Error parsing manifest:", error);
+			console.error("Failed to derive extension info:", error);
 			return null;
 		}
 	}
@@ -670,10 +708,10 @@ export class ExtensionSubmissionModal extends Modal {
 				// If user opted to skip AI generation, just do basic validation and advance
 				if (this.skipAIGeneration) {
 					try {
-						// Parse manifest to get extension details
-						const manifest = await this.parseExtensionManifest();
+						// Derive extension info from filename (manifest will be generated, not read)
+						const manifest = await this.deriveExtensionInfo();
 						if (!manifest) {
-							new Notice("Could not read manifest.json. Please check your extension path.");
+							new Notice("Could not derive extension info from folder. Please check your extension path.");
 							return false;
 						}
 						
@@ -713,10 +751,10 @@ export class ExtensionSubmissionModal extends Modal {
 				];
 				
 				try {
-					// Parse manifest to get extension details
-					const manifest = await this.parseExtensionManifest();
+					// Derive extension info from filename (manifest will be generated, not read)
+					const manifest = await this.deriveExtensionInfo();
 					if (!manifest) {
-						new Notice("Could not read manifest.json. Please check your extension path.");
+						new Notice("Could not derive extension info from folder. Please check your extension path.");
 						return false;
 					}
 					
