@@ -477,24 +477,34 @@ export class GitHubSubmissionService {
 
 			// Step 2: Check authentication and get username
 			console.log("[GitHubSubmission] Checking GitHub authentication");
-			const { stdout: authOutput } = await runGh(["auth", "status", "--hostname", "github.com"]);
-			
-			let authenticatedUsername: string | null = null;
-			for (const line of authOutput.split(/\r?\n/)) {
-				const match = line.match(/Logged in to [^ ]+ as ([^ ]+)/);
-				if (match && match[1]) {
-					authenticatedUsername = match[1];
-					break;
-				}
-			}
+		const { stdout: authOutput, stderr: authError } = await runGh(["auth", "status", "--hostname", "github.com"]);
+		
+	// Debug logging to see what we got
+	console.log("[GitHubSubmission] gh auth status stdout:", authOutput);
+	console.log("[GitHubSubmission] gh auth status stderr:", authError);
+	
+	// gh auth status outputs to stderr, not stdout, so check both
+	const authText = authError || authOutput;
+	console.log("[GitHubSubmission] Checking text:", authText);
+	
+	let authenticatedUsername: string | null = null;
+	for (const line of authText.split(/\r?\n/)) {
+		// Match format: "✓ Logged in to github.com account username (keyring)"
+		const match = line.match(/Logged in to [^ ]+ account ([^ ]+)/);
+		if (match && match[1]) {
+			authenticatedUsername = match[1];
+			break;
+		}
+	}
 
-			if (!authenticatedUsername) {
-				throw new Error("Could not determine authenticated GitHub username");
-			}
+		if (!authenticatedUsername) {
+			console.log("[GitHubSubmission] Failed to parse username from auth output");
+		throw new Error("Could not determine authenticated GitHub username");
+	}
 
-			console.log("[GitHubSubmission] Authenticated as:", authenticatedUsername);
+	console.log("[GitHubSubmission] Authenticated as:", authenticatedUsername);
 
-			// Step 3: Determine if we need to fork
+	// Step 3: Determine if we need to fork
 			const isOwner = authenticatedUsername === upstreamOwner;
 			const targetOwner = isOwner ? upstreamOwner : authenticatedUsername;
 			const repoFullName = `${targetOwner}/${upstreamRepo}`;
@@ -587,9 +597,31 @@ export class GitHubSubmissionService {
 
 			// Step 9: Push branch
 			console.log("[GitHubSubmission] Pushing branch:", params.branchName);
+		try {
 			await runGit(["push", "-u", "origin", params.branchName], repoDir);
-
-			// Step 10: Create pull request
+		} catch (pushError: any) {
+			// If push fails because remote has changes we don't have, fetch and rebase
+			if (pushError.message?.includes("fetch first") || pushError.message?.includes("rejected")) {
+				console.log("[GitHubSubmission] Push rejected, fetching remote changes and rebasing...");
+				try {
+					// Fetch the remote branch
+					await runGit(["fetch", "origin", params.branchName], repoDir);
+					// Rebase our changes on top of the remote branch
+					await runGit(["rebase", `origin/${params.branchName}`], repoDir);
+					// Try pushing again
+					await runGit(["push", "-u", "origin", params.branchName], repoDir);
+					console.log("[GitHubSubmission] Successfully pushed after rebase");
+				} catch (rebaseError: any) {
+					console.log("[GitHubSubmission] Rebase failed, using force push with lease");
+					// If rebase fails (conflicts), use force-with-lease to overwrite remote
+					// This is safer than --force as it won't overwrite unexpected changes
+					await runGit(["push", "--force-with-lease", "-u", "origin", params.branchName], repoDir);
+				}
+			} else {
+				// Re-throw if it's a different error
+				throw pushError;
+			}
+		}
 			const prTitle = params.prTitle || `[${this.capitalizeType(params.extensionType)}] ${params.extensionId} v${params.version}`;
 			const prDescription = params.prDescription || `## Extension Submission\n\n**Extension Name:** ${params.extensionId}\n**Type:** ${params.extensionType}\n**Version:** ${params.version}`;
 
@@ -599,32 +631,35 @@ export class GitHubSubmissionService {
 			const headRef = isOwner ? params.branchName : `${targetOwner}:${params.branchName}`;
 			console.log("[GitHubSubmission] Creating pull request", { head: headRef, base: targetBranch });
 
-			const { stdout: prOutput } = await runGh([
-				"pr", "create",
-				"--repo", `${upstreamOwner}/${upstreamRepo}`,
-				"--title", prTitle,
-				"--base", targetBranch || "master",
-				"--head", headRef,
-				"--body-file", prBodyFile,
-				"--json", "number,url"
-			], repoDir);
+		// Create the PR (returns the URL in stdout)
+		const { stdout: prUrl } = await runGh([
+			"pr", "create",
+			"--repo", `${upstreamOwner}/${upstreamRepo}`,
+			"--title", prTitle,
+			"--base", targetBranch || "master",
+			"--head", headRef,
+			"--body-file", prBodyFile
+		], repoDir);
 
-			const prData = JSON.parse(prOutput) as { number?: number; url?: string };
+		const prUrlTrimmed = prUrl.trim();
+		if (!prUrlTrimmed) {
+			throw new Error("Failed to get PR URL from gh pr create");
+		}
 
-			if (!prData.url) {
-				throw new Error("Failed to extract PR URL from gh response");
-			}
+		console.log("[GitHubSubmission] Pull request created:", prUrlTrimmed);
+		
+		// Extract PR number from URL (format: https://github.com/owner/repo/pull/123)
+		const prNumberMatch = prUrlTrimmed.match(/\/pull\/(\d+)$/);
+		const prNumber = prNumberMatch?.[1] ? parseInt(prNumberMatch[1], 10) : undefined;
 
-			console.log("[GitHubSubmission] Pull request created:", prData.url);
-
-			return {
-				success: true,
-				pullRequestUrl: prData.url,
-				pullRequestNumber: prData.number,
-				branchName: params.branchName,
-				validationErrors: [],
-			};
-		} catch (error) {
+		return {
+			success: true,
+			pullRequestUrl: prUrlTrimmed,
+			pullRequestNumber: prNumber,
+			branchName: params.branchName,
+			validationErrors: [],
+		};
+	} catch (error) {
 			console.error("[GitHubSubmission] Submission failed:", error);
 			return {
 				success: false,
