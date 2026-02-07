@@ -26,7 +26,7 @@
  * @since 0.1.0
  */
 
-import { App, Modal, ButtonComponent, Setting, Notice, TextComponent } from "obsidian";
+import { App, Modal, ButtonComponent, Setting, Notice, TextComponent, TFile } from "obsidian";
 import type {
 	ExtensionSubmissionData,
 	ExtensionType,
@@ -349,7 +349,16 @@ export class ExtensionSubmissionModal extends Modal {
 		const descWrapper = container.createDiv({ cls: "setting-item-stacked" });
 		new Setting(descWrapper)
 			.setName("Extension Description")
-			.setDesc(this.generatedDescription ? "AI-generated description (editable)" : "Brief description of your extension (optional)");
+			.setDesc(this.generatedDescription ? "AI-generated description (editable)" : "Brief description of your extension (optional)")
+			.addButton(button => {
+				button
+					.setButtonText(this.isGeneratingContent ? "Generating..." : "Generate with AI")
+					.setClass("btn-ai")
+					.setDisabled(this.isGeneratingContent)
+					.onClick(async () => {
+						await this.generateDescriptionWithAI();
+					});
+			});
 		
 		this.descriptionInput = descWrapper.createEl("textarea", {
 			cls: "stacked-textarea",
@@ -390,6 +399,7 @@ export class ExtensionSubmissionModal extends Modal {
 			.addButton(button => {
 				button
 					.setButtonText(this.isGeneratingImage ? "Generating..." : "Generate with AI")
+					.setClass("btn-ai")
 					.setDisabled(this.isGeneratingImage)
 					.onClick(async () => {
 						await this.generateExtensionImage(button);
@@ -408,7 +418,16 @@ export class ExtensionSubmissionModal extends Modal {
 		const readmeWrapper = container.createDiv({ cls: "setting-item-stacked" });
 		new Setting(readmeWrapper)
 			.setName("README Content")
-			.setDesc(this.generatedReadme ? "AI-generated README (editable)" : "Additional documentation or usage instructions (optional)");
+			.setDesc(this.generatedReadme ? "AI-generated README (editable)" : "Additional documentation or usage instructions (optional)")
+			.addButton(button => {
+				button
+					.setButtonText(this.isGeneratingContent ? "Generating..." : "Generate with AI")
+					.setClass("btn-ai")
+					.setDisabled(this.isGeneratingContent)
+					.onClick(async () => {
+						await this.generateReadmeWithAI();
+					});
+			});
 		
 		this.readmeInput = readmeWrapper.createEl("textarea", {
 			cls: "stacked-textarea stacked-textarea-tall",
@@ -889,6 +908,156 @@ README.md:`;
 			}
 			console.warn("Catalog validation failed:", error);
 			// Don't fail the whole process if we can't validate
+		}
+	}
+	
+	/**
+	 * Generates description content using AI (manual button click)
+	 * 
+	 * @internal
+	 */
+	private async generateDescriptionWithAI(): Promise<void> {
+		if (!this.plugin || this.isGeneratingContent) {
+			return;
+		}
+		
+		this.isGeneratingContent = true;
+		this.renderCurrentStep(); // Update button state
+		
+		try {
+			const aiProvider = this.plugin.getAIProvider?.();
+			
+			if (!aiProvider) {
+				throw new Error("AI provider not available");
+			}
+			
+			// Read extension files
+			let extensionContent = "";
+			const extensionPath = this.submissionData.extensionPath;
+			const extensionId = this.submissionData.extensionId || "extension";
+			
+			// Try to read extension file
+			const possibleFiles = [
+				`${extensionPath}/${extensionId}.agent.md`,
+				`${extensionPath}/${extensionId}.prompt.md`,
+				`${extensionPath}/${extensionId}.voice-agent.md`,
+				`${extensionPath}/README.md`
+			];
+			
+			for (const filePath of possibleFiles) {
+				try {
+					const file = this.app.vault.getAbstractFileByPath(filePath);
+					if (file instanceof TFile) {
+						extensionContent = await this.app.vault.read(file);
+						break;
+					}
+				} catch (e) {
+					// File doesn't exist, try next
+				}
+			}
+			
+			// Generate description
+			const descPrompt = `Based on this extension content, write a brief 1-2 sentence description suitable for a catalog listing:\n\n${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExtension ID: ${this.submissionData.extensionId}`}\n\nDescription:`;
+			
+			const descResponse = await aiProvider.sendMessage(descPrompt);
+			this.generatedDescription = descResponse.trim();
+			
+			// Update textarea
+			if (this.descriptionInput) {
+				this.descriptionInput.value = this.generatedDescription;
+			}
+			
+			new Notice("Description generated successfully!");
+			
+		} catch (error) {
+			console.error("AI description generation error:", error);
+			this.generatedDescription = `${this.submissionData.extensionName} - A helpful extension for Obsidian Vault Copilot.`;
+			if (this.descriptionInput) {
+				this.descriptionInput.value = this.generatedDescription;
+			}
+			new Notice("Description generation failed. Using fallback content.");
+		} finally {
+			this.isGeneratingContent = false;
+			this.renderCurrentStep(); // Update button state
+		}
+	}
+	
+	/**
+	 * Generates README content using AI (manual button click)
+	 * 
+	 * @internal
+	 */
+	private async generateReadmeWithAI(): Promise<void> {
+		if (!this.plugin || this.isGeneratingContent) {
+			return;
+		}
+		
+		this.isGeneratingContent = true;
+		this.renderCurrentStep(); // Update button state
+		
+		try {
+			const aiProvider = this.plugin.getAIProvider?.();
+			
+			if (!aiProvider) {
+				throw new Error("AI provider not available");
+			}
+			
+			// Read extension files
+			let extensionContent = "";
+			const extensionPath = this.submissionData.extensionPath;
+			const extensionId = this.submissionData.extensionId || "extension";
+			
+			// Try to read extension file
+			const possibleFiles = [
+				`${extensionPath}/${extensionId}.agent.md`,
+				`${extensionPath}/${extensionId}.prompt.md`,
+				`${extensionPath}/${extensionId}.voice-agent.md`,
+				`${extensionPath}/README.md`
+			];
+			
+			for (const filePath of possibleFiles) {
+				try {
+					const file = this.app.vault.getAbstractFileByPath(filePath);
+					if (file instanceof TFile) {
+						extensionContent = await this.app.vault.read(file);
+						break;
+					}
+				} catch (e) {
+					// File doesn't exist, try next
+				}
+			}
+			
+			// Generate README
+			const readmePrompt = `Based on this extension content, write a comprehensive README.md with:
+- Brief overview
+- Features
+- Usage instructions
+- Examples (if applicable)
+
+${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExtension ID: ${this.submissionData.extensionId}`}
+
+README.md:`;
+			
+			const readmeResponse = await aiProvider.sendMessage(readmePrompt);
+			this.generatedReadme = readmeResponse.trim();
+			
+			// Update textarea
+			if (this.readmeInput) {
+				this.readmeInput.value = this.generatedReadme;
+			}
+			
+			new Notice("README generated successfully!");
+			
+		} catch (error) {
+			console.error("AI README generation error:", error);
+			this.generatedReadme = `# ${this.submissionData.extensionName}\n\n## Overview\n\nThis extension enhances your Obsidian experience.\n\n## Usage\n\nUse the command palette to access extension features.`;
+			if (this.readmeInput) {
+				this.readmeInput.value = this.generatedReadme;
+			}
+			new Notice("README generation failed. Using fallback content.");
+		} finally {
+			this.isGeneratingContent = false;
+			this.renderCurrentStep(); // Update button state
 		}
 	}
 }
