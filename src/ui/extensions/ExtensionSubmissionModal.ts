@@ -400,8 +400,12 @@ export class ExtensionSubmissionModal extends Modal {
 				rows: "3"
 			}
 		});
-		// Pre-populate with AI-generated content
-		this.descriptionInput.value = this.generatedDescription || "";
+		// Pre-populate with AI-generated content or previously entered value
+		this.descriptionInput.value = this.submissionData.description || this.generatedDescription || "";
+		// Persist user changes to submissionData
+		this.descriptionInput.addEventListener("input", () => {
+			this.submissionData.description = this.descriptionInput.value;
+		});
 		
 		// Icon image upload with AI generation option
 		new Setting(container)
@@ -469,8 +473,12 @@ export class ExtensionSubmissionModal extends Modal {
 				rows: "6"
 			}
 		});
-		// Pre-populate with AI-generated content
-		this.readmeInput.value = this.generatedReadme || "";
+		// Pre-populate with AI-generated content or previously entered value
+		this.readmeInput.value = this.submissionData.readme || this.generatedReadme || "";
+		// Persist user changes to submissionData
+		this.readmeInput.addEventListener("input", () => {
+			this.submissionData.readme = this.readmeInput.value;
+		});
 		
 		// Info box
 		const infoContainer = container.createDiv({ cls: "validation-info" });
@@ -1049,6 +1057,31 @@ README.md:`;
 				return;
 			}
 		}
+		
+		// Populate PR title and description before returning
+		this.submissionData.prTitle = `Add ${this.submissionData.extensionType}: ${this.submissionData.extensionName}`;
+		this.submissionData.prDescription = `## Extension Submission
+
+**Type:** ${this.submissionData.extensionType}
+**ID:** ${this.submissionData.extensionId}
+**Name:** ${this.submissionData.extensionName}
+**Version:** ${this.submissionData.version}
+
+### Description
+${this.submissionData.description || this.generatedDescription || "No description provided"}
+
+### Author
+- **Name:** ${this.submissionData.authorName}
+- **URL:** ${this.submissionData.authorUrl}
+
+### Files
+- Main extension file
+${this.submissionData.description ? '- Extension description' : ''}
+${this.submissionData.readme ? '- README.md' : ''}
+${this.iconImagePath || this.generatedImagePath ? '- Extension icon/preview image' : ''}
+- manifest.json (will be generated)
+
+This pull request was created using the Extension Submission workflow in Obsidian Vault Copilot.`;
 		
 		// Close modal and return data
 		if (this.resolve) {

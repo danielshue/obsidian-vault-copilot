@@ -46,11 +46,17 @@ export interface ExtensionSubmissionData {
 	/** Branch name for the submission */
 	branchName: string;
 	
-	/** Pull request title */
-	prTitle: string;
+	/** Pull request title (optional, generated from extension info) */
+	prTitle?: string;
 	
-	/** Pull request description */
-	prDescription: string;
+	/** Pull request description (optional, generated from submission data) */
+	prDescription?: string;
+	
+	/** Extension description (user-editable, may be AI-generated) */
+	description?: string;
+	
+	/** Extension README content (user-editable, may be AI-generated) */
+	readme?: string;
 	
 	/** Author name */
 	authorName: string;
