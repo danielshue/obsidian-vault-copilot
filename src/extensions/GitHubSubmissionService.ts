@@ -659,11 +659,7 @@ Please execute these steps using the GitHub tools provided and report the pull r
 			return {
 				success: true,
 				pullRequestUrl: urlMatch[0],
-<<<<<<< HEAD
 				pullRequestNumber: parseInt(prNumberString, 10),
-=======
-				pullRequestNumber: parseInt(urlMatch[1] ?? "0", 10),
->>>>>>> 38d8586e3293ad63090aad305c99f7223a073303
 				validationErrors: [],
 			};
 		}
