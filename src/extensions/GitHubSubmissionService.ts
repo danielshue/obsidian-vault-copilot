@@ -654,11 +654,12 @@ Please execute these steps using the GitHub tools provided and report the pull r
 			/https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/(\d+)/
 		);
 
-		if (urlMatch) {
+		if (urlMatch && urlMatch[1]) {
+			const prNumberString = urlMatch[1];
 			return {
 				success: true,
 				pullRequestUrl: urlMatch[0],
-				pullRequestNumber: parseInt(urlMatch[1], 10),
+				pullRequestNumber: parseInt(prNumberString, 10),
 				validationErrors: [],
 			};
 		}
@@ -732,144 +733,172 @@ Please execute these steps using the GitHub tools provided and report the pull r
 	private createGitHubTools() {
 		return [
 			// Tool: Check GitHub authentication
-			defineTool({
-				name: "check_github_auth",
-				description: "Check if GitHub CLI is authenticated and ready to use",
-				parameters: z.object({}),
-				handler: async () => {
-					// In a real implementation, this would check `gh auth status`
-					// For now, we'll assume it's authenticated
-					return {
-						authenticated: true,
-						username: "authenticated-user",
-					};
-				},
-			}),
+			defineTool(
+				"check_github_auth",
+				{
+					description:
+						"Check if GitHub CLI is authenticated and ready to use",
+					parameters: z.object({}),
+					handler: async () => {
+						// In a real implementation, this would check `gh auth status`
+						// For now, we'll assume it's authenticated
+						return {
+							authenticated: true,
+							username: "authenticated-user",
+						};
+					},
+				}
+			),
 
 			// Tool: Check if fork exists
-			defineTool({
-				name: "check_fork_exists",
-				description: "Check if a fork of the repository exists for the authenticated user",
-				parameters: z.object({
-					owner: z.string().describe("Repository owner"),
-					repo: z.string().describe("Repository name"),
-				}),
-				handler: async (args) => {
-					// In a real implementation, this would use GitHub API
-					// For now, we'll return a placeholder
-					return {
-						exists: false,
-						forkUrl: null,
-					};
-				},
-			}),
+			defineTool(
+				"check_fork_exists",
+				{
+					description:
+						"Check if a fork of the repository exists for the authenticated user",
+					parameters: z.object({
+						owner: z.string().describe("Repository owner"),
+						repo: z.string().describe("Repository name"),
+					}),
+					handler: async (args: { owner: string; repo: string }) => {
+						// In a real implementation, this would use GitHub API
+						// For now, we'll return a placeholder
+						return {
+							exists: false,
+							forkUrl: null,
+						};
+					},
+				}
+			),
 
 			// Tool: Create fork
-			defineTool({
-				name: "create_fork",
-				description: "Create a fork of a GitHub repository",
-				parameters: z.object({
-					owner: z.string().describe("Repository owner"),
-					repo: z.string().describe("Repository name"),
-				}),
-				handler: async (args) => {
-					// In a real implementation, this would use `gh repo fork`
-					return {
-						success: true,
-						forkUrl: `https://github.com/authenticated-user/${args.repo}`,
-					};
-				},
-			}),
+			defineTool(
+				"create_fork",
+				{
+					description: "Create a fork of a GitHub repository",
+					parameters: z.object({
+						owner: z.string().describe("Repository owner"),
+						repo: z.string().describe("Repository name"),
+					}),
+					handler: async (args: { owner: string; repo: string }) => {
+						// In a real implementation, this would use `gh repo fork`
+						return {
+							success: true,
+							forkUrl: `https://github.com/authenticated-user/${args.repo}`,
+						};
+					},
+				}
+			),
 
 			// Tool: Create branch
-			defineTool({
-				name: "create_branch",
-				description: "Create a new branch in the repository",
-				parameters: z.object({
-					branchName: z.string().describe("Name of the new branch"),
-					baseBranch: z.string().describe("Base branch to branch from"),
-				}),
-				handler: async (args) => {
-					// In a real implementation, this would use git commands
-					return {
-						success: true,
-						branchName: args.branchName,
-					};
-				},
-			}),
+			defineTool(
+				"create_branch",
+				{
+					description: "Create a new branch in the repository",
+					parameters: z.object({
+						branchName: z.string().describe("Name of the new branch"),
+						baseBranch: z.string().describe("Base branch to branch from"),
+					}),
+					handler: async (args: { branchName: string; baseBranch: string }) => {
+						// In a real implementation, this would use git commands
+						return {
+							success: true,
+							branchName: args.branchName,
+						};
+					},
+				}
+			),
 
 			// Tool: Copy files
-			defineTool({
-				name: "copy_files",
-				description: "Copy files from source to destination in the repository",
-				parameters: z.object({
-					sourcePath: z.string().describe("Source directory path"),
-					targetPath: z.string().describe("Target directory path in repo"),
-				}),
-				handler: async (args) => {
-					// In a real implementation, this would copy files
-					return {
-						success: true,
-						filesCopied: 3,
-					};
-				},
-			}),
+			defineTool(
+				"copy_files",
+				{
+					description:
+						"Copy files from source to destination in the repository",
+					parameters: z.object({
+						sourcePath: z.string().describe("Source directory path"),
+						targetPath: z.string().describe("Target directory path in repo"),
+					}),
+					handler: async (args: {
+						sourcePath: string;
+						targetPath: string;
+					}) => {
+						// In a real implementation, this would copy files
+						return {
+							success: true,
+							filesCopied: 3,
+						};
+					},
+				}
+			),
 
 			// Tool: Commit changes
-			defineTool({
-				name: "commit_changes",
-				description: "Commit changes to the repository",
-				parameters: z.object({
-					message: z.string().describe("Commit message"),
-				}),
-				handler: async (args) => {
-					// In a real implementation, this would use `git commit`
-					return {
-						success: true,
-						commitSha: "abc123def456",
-					};
-				},
-			}),
+			defineTool(
+				"commit_changes",
+				{
+					description: "Commit changes to the repository",
+					parameters: z.object({
+						message: z.string().describe("Commit message"),
+					}),
+					handler: async (args: { message: string }) => {
+						// In a real implementation, this would use `git commit`
+						return {
+							success: true,
+							commitSha: "abc123def456",
+						};
+					},
+				}
+			),
 
 			// Tool: Push branch
-			defineTool({
-				name: "push_branch",
-				description: "Push a branch to the remote repository",
-				parameters: z.object({
-					branchName: z.string().describe("Branch name to push"),
-				}),
-				handler: async (args) => {
-					// In a real implementation, this would use `git push`
-					return {
-						success: true,
-						branchName: args.branchName,
-					};
-				},
-			}),
+			defineTool(
+				"push_branch",
+				{
+					description: "Push a branch to the remote repository",
+					parameters: z.object({
+						branchName: z.string().describe("Branch name to push"),
+					}),
+					handler: async (args: { branchName: string }) => {
+						// In a real implementation, this would use `git push`
+						return {
+							success: true,
+							branchName: args.branchName,
+						};
+					},
+				}
+			),
 
 			// Tool: Create pull request
-			defineTool({
-				name: "create_pull_request",
-				description: "Create a pull request on GitHub",
-				parameters: z.object({
-					title: z.string().describe("PR title"),
-					body: z.string().describe("PR description"),
-					head: z.string().describe("Head branch (fork:branch)"),
-					base: z.string().describe("Base branch to merge into"),
-					repo: z.string().describe("Repository (owner/repo)"),
-				}),
-				handler: async (args) => {
-					// In a real implementation, this would use `gh pr create`
-					const prNumber = Math.floor(Math.random() * 1000) + 1;
-					const [owner, repoName] = args.repo.split("/");
+			defineTool(
+				"create_pull_request",
+				{
+					description: "Create a pull request on GitHub",
+					parameters: z.object({
+						title: z.string().describe("PR title"),
+						body: z.string().describe("PR description"),
+						head: z.string().describe("Head branch (fork:branch)"),
+						base: z.string().describe("Base branch to merge into"),
+						repo: z.string().describe("Repository (owner/repo)"),
+					}),
+					handler: async (args: {
+						title: string;
+						body: string;
+						head: string;
+						base: string;
+						repo: string;
+					}) => {
+						// In a real implementation, this would use `gh pr create`
+						const prNumber = Math.floor(Math.random() * 1000) + 1;
+						const [owner, repoName] = args.repo.split("/");
 
-					return {
-						success: true,
-						pullRequestUrl: `https://github.com/${owner}/${repoName}/pull/${prNumber}`,
-						pullRequestNumber: prNumber,
-					};
-				},
-			}),
+						return {
+							success: true,
+							pullRequestUrl: `https://github.com/${owner}/${repoName}/pull/${prNumber}`,
+							pullRequestNumber: prNumber,
+						};
+					},
+				}
+			),
 		];
 	}
 }
