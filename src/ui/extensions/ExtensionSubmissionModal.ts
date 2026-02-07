@@ -258,27 +258,27 @@ export class ExtensionSubmissionModal extends Modal {
 				this.renderWelcomeStep(contentEl);
 				break;
 			case 0:
-				// Step 1: Select Extension (Type + Path)
+				// Step 0: Select Extension (Type + Path)
 				this.renderProgressIndicator(contentEl);
 				this.renderExtensionSelectionStep(contentEl);
 				break;
 			case 1:
-				// Step 2: Author Details (Name + URL)
+				// Step 1: Author Details (Name + URL)
 				this.renderProgressIndicator(contentEl);
 				this.renderAuthorDetailsStep(contentEl);
 				break;
 			case 2:
-				// Step 3: Description (Image + Description)
+				// Step 2: Description (Image + Description)
 				this.renderProgressIndicator(contentEl);
 				this.renderDescriptionStep(contentEl);
 				break;
 			case 3:
-				// Step 4: README
+				// Step 3: README
 				this.renderProgressIndicator(contentEl);
 				this.renderReadmeStep(contentEl);
 				break;
 			case 4:
-				// Step 5: Preview & Submit
+				// Step 4: Preview & Submit
 				this.renderProgressIndicator(contentEl);
 				this.renderPreviewStep(contentEl);
 				break;
