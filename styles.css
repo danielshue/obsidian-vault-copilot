@@ -6766,7 +6766,54 @@ cursor: pointer;
 /* Extension Submission Modal */
 .extension-submission-modal {
 	padding: 20px;
-	max-width: 600px;
+	display: block !important;
+}
+
+/* Force the modal dialog to be wider */
+.modal:has(.extension-submission-modal) {
+	width: 800px;
+	max-width: 90vw;
+}
+
+.modal:has(.extension-submission-modal) .modal-content {
+	display: block !important;
+}
+
+/* Make all settings in the modal display as vertical stacks */
+.extension-submission-modal .setting-item {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.extension-submission-modal .setting-item .setting-item-info {
+	max-width: 100%;
+	width: 100%;
+}
+
+.extension-submission-modal .setting-item .setting-item-control {
+	width: 100%;
+	justify-content: flex-start;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.extension-submission-modal .stacked-textarea {
+	width: 100%;
+	min-width: 100%;
+	box-sizing: border-box;
+	margin-top: 4px;
+	padding: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 14px;
+	resize: vertical;
+}
+
+.extension-submission-modal .stacked-textarea-tall {
+	font-family: monospace;
 }
 
 .extension-submission-modal h2 {

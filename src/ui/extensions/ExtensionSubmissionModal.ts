@@ -143,6 +143,7 @@ export class ExtensionSubmissionModal extends Modal {
 	}
 	
 	onOpen() {
+		this.modalEl.style.width = "800px";
 		this.renderCurrentStep();
 	}
 	
@@ -345,25 +346,25 @@ export class ExtensionSubmissionModal extends Modal {
 			});
 		
 		// Extension description (AI-generated and pre-populated)
-		const descSetting = new Setting(container)
+		const descWrapper = container.createDiv({ cls: "setting-item-stacked" });
+		new Setting(descWrapper)
 			.setName("Extension Description")
 			.setDesc(this.generatedDescription ? "AI-generated description (editable)" : "Brief description of your extension (optional)");
 		
-		this.descriptionInput = descSetting.controlEl.createEl("textarea", {
+		this.descriptionInput = descWrapper.createEl("textarea", {
+			cls: "stacked-textarea",
 			attr: {
 				placeholder: "A helpful extension that...",
 				rows: "3"
 			}
 		});
-		this.descriptionInput.style.width = "100%";
-		this.descriptionInput.style.marginTop = "8px";
 		// Pre-populate with AI-generated content
 		this.descriptionInput.value = this.generatedDescription || "";
 		
 		// Icon image upload with AI generation option
-		const iconSetting = new Setting(container)
+		new Setting(container)
 			.setName("Extension Icon & Preview Image")
-			.setDesc("Upload or generate images (same image used for both icon and preview)")
+			.setDesc("Upload or generate an image for your extension (used as both icon and preview)")
 			.addButton(button => {
 				button
 					.setButtonText(this.iconImagePath || this.generatedImagePath ? "Change Image" : "Choose Image")
@@ -404,19 +405,18 @@ export class ExtensionSubmissionModal extends Modal {
 		}
 		
 		// README content (AI-generated and pre-populated)
-		const readmeSetting = new Setting(container)
+		const readmeWrapper = container.createDiv({ cls: "setting-item-stacked" });
+		new Setting(readmeWrapper)
 			.setName("README Content")
 			.setDesc(this.generatedReadme ? "AI-generated README (editable)" : "Additional documentation or usage instructions (optional)");
 		
-		this.readmeInput = readmeSetting.controlEl.createEl("textarea", {
+		this.readmeInput = readmeWrapper.createEl("textarea", {
+			cls: "stacked-textarea stacked-textarea-tall",
 			attr: {
 				placeholder: "# My Extension\n\nUsage instructions...",
 				rows: "6"
 			}
 		});
-		this.readmeInput.style.width = "100%";
-		this.readmeInput.style.marginTop = "8px";
-		this.readmeInput.style.fontFamily = "monospace";
 		// Pre-populate with AI-generated content
 		this.readmeInput.value = this.generatedReadme || "";
 		
