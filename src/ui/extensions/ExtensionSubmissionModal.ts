@@ -645,7 +645,7 @@ export class ExtensionSubmissionModal extends Modal {
 			
 			// Look for the main extension file based on type
 			const type = this.submissionData.extensionType;
-			const extensions = {
+			const extensions: Record<string, string> = {
 				"agent": ".agent.md",
 				"voice-agent": ".voice-agent.md",
 				"prompt": ".prompt.md",
@@ -653,7 +653,7 @@ export class ExtensionSubmissionModal extends Modal {
 				"mcp-server": ".mcp-server.md"
 			};
 			
-			const targetExtension = extensions[type] || ".agent.md";
+			const targetExtension = (type ? extensions[type] : undefined) || ".agent.md";
 			const files = (folder as any).children as TFile[];
 			const mainFile = files.find((f: TFile) => f.name.endsWith(targetExtension));
 			
@@ -679,8 +679,12 @@ export class ExtensionSubmissionModal extends Modal {
 				name: name,
 				version: "1.0.0", // Default version for new extensions
 				description: "", // Will be filled from generated content
-				author: "",
-				authorUrl: ""
+				author: { name: "", url: "" },
+				type: (type as any) || "agent",
+				minVaultCopilotVersion: "0.0.1",
+				categories: [],
+				tags: [],
+				files: []
 			};
 		} catch (error) {
 			console.error("Failed to derive extension info:", error);
