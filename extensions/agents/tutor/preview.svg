@@ -1,0 +1,288 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Tutor extension preview">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="0.55" stop-color="#0a1224"/>
+      <stop offset="1" stop-color="#080b14"/>
+    </linearGradient>
+
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+
+    <linearGradient id="panel2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111b33"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7c3aed"/>
+      <stop offset="0.55" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feColorMatrix in="b" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 0.55 0" result="c"/>
+      <feMerge>
+        <feMergeNode in="c"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="thinGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feColorMatrix in="b" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 0.45 0" result="c"/>
+      <feMerge>
+        <feMergeNode in="c"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#1f2a44" stroke-opacity="0.25" stroke-width="1"/>
+    </pattern>
+
+    <style>
+      .ui { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect width="1280" height="720" fill="url(#grid)"/>
+
+  <!-- Ambient accent glows -->
+  <circle cx="260" cy="140" r="210" fill="#7c3aed" opacity="0.10" filter="url(#softGlow)"/>
+  <circle cx="1010" cy="220" r="240" fill="#22d3ee" opacity="0.09" filter="url(#softGlow)"/>
+  <circle cx="930" cy="610" r="260" fill="#34d399" opacity="0.06" filter="url(#softGlow)"/>
+
+  <!-- Top title block -->
+  <g class="ui" filter="url(#thinGlow)">
+    <text x="92" y="112" font-size="54" font-weight="800" fill="#e5e7eb" letter-spacing="0.3">Tutor</text>
+    <text x="92" y="146" font-size="18" font-weight="500" fill="#a8b3cf">
+      Graduate-level Socratic learning sessions • Vault-aware study workflow • Optional web references
+    </text>
+
+    <!-- Accent underline -->
+    <rect x="92" y="162" width="420" height="6" rx="3" fill="url(#accent)" opacity="0.9"/>
+  </g>
+
+  <!-- Main editor window -->
+  <g filter="url(#shadow)">
+    <rect x="72" y="196" width="1136" height="468" rx="16" fill="url(#panel)" stroke="#1f2a44" stroke-width="1.2"/>
+    <!-- Window header -->
+    <rect x="72" y="196" width="1136" height="52" rx="16" fill="#0a1222"/>
+    <rect x="72" y="232" width="1136" height="16" fill="#0a1222"/>
+
+    <!-- Traffic lights -->
+    <g transform="translate(96 222)">
+      <circle cx="0" cy="0" r="7" fill="#ef4444"/>
+      <circle cx="22" cy="0" r="7" fill="#f59e0b"/>
+      <circle cx="44" cy="0" r="7" fill="#22c55e"/>
+    </g>
+
+    <!-- Header title -->
+    <g class="ui" transform="translate(170 224)">
+      <text x="0" y="6" font-size="14" font-weight="600" fill="#c7d2fe">Tutor Agent</text>
+      <text x="98" y="6" font-size="12" font-weight="500" fill="#6b7280">/ learning workspace</text>
+    </g>
+
+    <!-- Right header pills -->
+    <g class="ui" transform="translate(720 208)">
+      <g transform="translate(0 0)">
+        <rect x="0" y="0" width="126" height="32" rx="16" fill="#0b1730" stroke="#24324f" stroke-width="1"/>
+        <text x="16" y="21" font-size="12" font-weight="650" fill="#a5b4fc">Socratic</text>
+        <path d="M104 10c-6 0-10 4-10 9 0 4 2 7 6 8v3h4v-6c2-1 4-3 4-6 0-5-4-8-10-8Zm0 4c3 0 5 1 5 4 0 2-1 3-3 4l-2 1v2h-1v-1c0-1 0-1 1-2l2-1c2-1 3-3 3-5 0-4-3-6-5-6Z" fill="#a5b4fc" opacity="0.9"/>
+      </g>
+
+      <g transform="translate(140 0)">
+        <rect x="0" y="0" width="162" height="32" rx="16" fill="#0b1730" stroke="#24324f" stroke-width="1"/>
+        <text x="16" y="21" font-size="12" font-weight="650" fill="#7dd3fc">Active learning</text>
+        <path d="M136 10h16v4h-16v-4Zm0 8h16v4h-16v-4Z" fill="#7dd3fc" opacity="0.9"/>
+      </g>
+
+      <g transform="translate(322 0)">
+        <rect x="0" y="0" width="160" height="32" rx="16" fill="#0b1730" stroke="#24324f" stroke-width="1"/>
+        <text x="16" y="21" font-size="12" font-weight="650" fill="#86efac">Vault-aware</text>
+        <path d="M132 9l10 10 10-10v16h-20V9Z" fill="#86efac" opacity="0.9"/>
+      </g>
+    </g>
+
+    <!-- Sidebar -->
+    <g>
+      <rect x="72" y="248" width="312" height="416" rx="0" fill="#081126" stroke="#1f2a44" stroke-width="1.2"/>
+      <rect x="72" y="248" width="312" height="416" rx="16" fill="none" stroke="#1f2a44" stroke-width="1.2"/>
+      <rect x="96" y="274" width="264" height="40" rx="10" fill="#0b1730" stroke="#24324f" stroke-width="1"/>
+      <g class="ui" transform="translate(112 302)">
+        <text x="0" y="0" font-size="12" font-weight="700" fill="#cbd5e1">Learning folder</text>
+        <text x="0" y="18" font-size="12" font-weight="500" fill="#93a4c7">Learning/Machine-Learning</text>
+      </g>
+
+      <!-- Notes list -->
+      <g class="ui" transform="translate(96 336)">
+        <text x="0" y="0" font-size="12" font-weight="700" fill="#a8b3cf">Vault notes</text>
+
+        <g transform="translate(0 16)">
+          <rect x="0" y="0" width="264" height="44" rx="10" fill="#0a152d" stroke="#1f2a44" stroke-width="1"/>
+          <path d="M16 14h16v16H16V14Zm4 4h8v1h-8v-1Zm0 3h8v1h-8v-1Zm0 3h6v1h-6v-1Z" fill="#7dd3fc" opacity="0.9"/>
+          <text x="42" y="22" font-size="12" font-weight="650" fill="#e5e7eb">Bias-variance tradeoff</text>
+          <text x="42" y="38" font-size="11" font-weight="500" fill="#93a4c7">concepts • examples • pitfalls</text>
+        </g>
+
+        <g transform="translate(0 68)">
+          <rect x="0" y="0" width="264" height="44" rx="10" fill="#0a152d" stroke="#1f2a44" stroke-width="1"/>
+          <path d="M16 14h16v16H16V14Zm4 4h8v1h-8v-1Zm0 3h8v1h-8v-1Zm0 3h6v1h-6v-1Z" fill="#a5b4fc" opacity="0.9"/>
+          <text x="42" y="22" font-size="12" font-weight="650" fill="#e5e7eb">Variational inference</text>
+          <text x="42" y="38" font-size="11" font-weight="500" fill="#93a4c7">ELBO • KL • mean-field</text>
+        </g>
+
+        <g transform="translate(0 120)">
+          <rect x="0" y="0" width="264" height="44" rx="10" fill="#0a152d" stroke="#1f2a44" stroke-width="1"/>
+          <path d="M16 14h16v16H16V14Zm4 4h8v1h-8v-1Zm0 3h8v1h-8v-1Zm0 3h6v1h-6v-1Z" fill="#86efac" opacity="0.9"/>
+          <text x="42" y="22" font-size="12" font-weight="650" fill="#e5e7eb">Optimizers &amp; stability</text>
+          <text x="42" y="38" font-size="11" font-weight="500" fill="#93a4c7">AdamW • clipping • schedules</text>
+        </g>
+
+        <g transform="translate(0 184)">
+          <rect x="0" y="0" width="264" height="38" rx="10" fill="#0b1730" stroke="#24324f" stroke-width="1"/>
+          <path d="M18 19a7 7 0 1 1 14 0 7 7 0 0 1-14 0Zm12.5 6.5 6.5 6.5" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"/>
+          <text x="46" y="24" font-size="12" font-weight="600" fill="#a8b3cf">Search notes…</text>
+        </g>
+
+        <!-- Tools section -->
+        <g transform="translate(0 248)">
+          <text x="0" y="0" font-size="12" font-weight="700" fill="#a8b3cf">Tools</text>
+
+          <g transform="translate(0 14)">
+            <rect x="0" y="0" width="264" height="36" rx="10" fill="#071022" stroke="#1f2a44" stroke-width="1"/>
+            <text x="14" y="23" font-size="12" font-weight="650" fill="#c7d2fe">list_notes_recursively</text>
+            <circle cx="244" cy="18" r="6" fill="#7c3aed" opacity="0.9"/>
+          </g>
+
+          <g transform="translate(0 56)">
+            <rect x="0" y="0" width="264" height="36" rx="10" fill="#071022" stroke="#1f2a44" stroke-width="1"/>
+            <text x="14" y="23" font-size="12" font-weight="650" fill="#cbd5e1">read_note</text>
+            <circle cx="244" cy="18" r="6" fill="#22d3ee" opacity="0.9"/>
+          </g>
+
+          <g transform="translate(0 98)">
+            <rect x="0" y="0" width="264" height="36" rx="10" fill="#071022" stroke="#1f2a44" stroke-width="1"/>
+            <text x="14" y="23" font-size="12" font-weight="650" fill="#cbd5e1">search_note</text>
+            <circle cx="244" cy="18" r="6" fill="#34d399" opacity="0.9"/>
+          </g>
+
+          <g transform="translate(0 140)">
+            <rect x="0" y="0" width="264" height="36" rx="10" fill="#071022" stroke="#1f2a44" stroke-width="1"/>
+            <text x="14" y="23" font-size="12" font-weight="650" fill="#cbd5e1">web_fetch</text>
+            <circle cx="244" cy="18" r="6" fill="#f59e0b" opacity="0.9"/>
+          </g>
+        </g>
+      </g>
+    </g>
+
+    <!-- Main chat/content area -->
+    <g>
+      <rect x="384" y="248" width="824" height="416" fill="url(#panel2)" stroke="#1f2a44" stroke-width="1.2"/>
+      <rect x="384" y="248" width="824" height="416" rx="16" fill="none" stroke="#1f2a44" stroke-width="1.2"/>
+
+      <!-- Chat header row -->
+      <g class="ui" transform="translate(408 276)">
+        <text x="0" y="0" font-size="12" font-weight="700" fill="#a8b3cf">Session</text>
+        <text x="64" y="0" font-size="12" font-weight="550" fill="#93a4c7">Baseline → Guided questions → Practice → Synthesis</text>
+
+        <!-- Mini mastery meter -->
+        <g transform="translate(560 -12)">
+          <rect x="0" y="0" width="220" height="28" rx="14" fill="#0b1730" stroke="#24324f" stroke-width="1"/>
+          <rect x="6" y="6" width="140" height="16" rx="8" fill="url(#accent)" opacity="0.85"/>
+          <text x="160" y="19" font-size="11" font-weight="700" fill="#d1fae5">Mastery</text>
+        </g>
+      </g>
+
+      <!-- Conversation bubbles -->
+      <g class="ui" transform="translate(408 310)">
+        <!-- User bubble -->
+        <g transform="translate(0 0)">
+          <rect x="0" y="0" width="744" height="84" rx="14" fill="#071022" stroke="#1f2a44" stroke-width="1"/>
+          <text x="18" y="26" font-size="12" font-weight="800" fill="#93a4c7">You</text>
+          <text x="18" y="48" font-size="14" font-weight="600" fill="#e5e7eb">
+            I want master’s-level understanding of variational inference. Quiz me first.
+          </text>
+          <text x="18" y="70" font-size="12" font-weight="500" fill="#93a4c7">
+            Use my Learning/Machine-Learning folder for continuity.
+          </text>
+        </g>
+
+        <!-- Tutor bubble -->
+        <g transform="translate(0 100)">
+          <rect x="0" y="0" width="744" height="168" rx="14" fill="#0a152d" stroke="#24324f" stroke-width="1"/>
+          <g transform="translate(18 26)">
+            <g transform="translate(0 -12)">
+              <!-- Graduation cap icon -->
+              <path d="M22 10 0 18l22 8 18-6v10c0 7-9 12-18 12S4 37 4 30V20l-4-2 22-8Zm18 9-18 6-18-6v11c0 5 8 9 18 9s18-4 18-9V19Z" fill="url(#accent)" opacity="0.95" filter="url(#thinGlow)"/>
+              <text x="56" y="18" font-size="12" font-weight="800" fill="#c7d2fe">Tutor</text>
+              <text x="104" y="18" font-size="12" font-weight="600" fill="#93a4c7">Socratic check-in</text>
+            </g>
+
+            <text x="0" y="44" font-size="14" font-weight="650" fill="#e5e7eb">
+              Let’s assess your baseline with 3 questions:
+            </text>
+
+            <g class="mono" transform="translate(0 62)">
+              <text x="0" y="18" font-size="13" fill="#dbeafe">
+                1) What quantity does the ELBO lower-bound, and why is it useful?
+              </text>
+              <text x="0" y="40" font-size="13" fill="#dbeafe">
+                2) In mean-field VI, what independence assumption do we make?
+              </text>
+              <text x="0" y="62" font-size="13" fill="#dbeafe">
+                3) When would you prefer VI over MCMC in practice?
+              </text>
+            </g>
+
+            <g transform="translate(0 136)">
+              <rect x="0" y="0" width="312" height="34" rx="10" fill="#071022" stroke="#1f2a44" stroke-width="1"/>
+              <path d="M14 11h16v12H14V11Zm20 2h14v2H34v-2Zm0 5h14v2H34v-2Z" fill="#22d3ee" opacity="0.9"/>
+              <text x="44" y="22" font-size="12" font-weight="650" fill="#a8b3cf">Pull relevant notes</text>
+
+              <rect x="330" y="0" width="220" height="34" rx="10" fill="#071022" stroke="#1f2a44" stroke-width="1"/>
+              <path d="M344 17a7 7 0 1 1 14 0 7 7 0 0 1-14 0Zm12.5 6.5 6.5 6.5" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"/>
+              <text x="372" y="22" font-size="12" font-weight="650" fill="#a8b3cf">Search: “ELBO”</text>
+            </g>
+          </g>
+        </g>
+
+        <!-- Footer input -->
+        <g transform="translate(0 286)">
+          <rect x="0" y="0" width="744" height="62" rx="14" fill="#071022" stroke="#1f2a44" stroke-width="1"/>
+          <text x="18" y="26" font-size="12" font-weight="650" fill="#93a4c7">Reply with your reasoning…</text>
+          <rect x="600" y="16" width="128" height="32" rx="16" fill="url(#accent)" opacity="0.9" filter="url(#thinGlow)"/>
+          <text x="632" y="37" font-size="12" font-weight="800" fill="#06101f">Send</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- Bottom right badge -->
+  <g class="ui" transform="translate(948 676)" filter="url(#thinGlow)">
+    <rect x="0" y="-38" width="260" height="44" rx="14" fill="#0b1730" stroke="#24324f" stroke-width="1"/>
+    <text x="16" y="-11" font-size="12" font-weight="750" fill="#cbd5e1">Extension preview</text>
+    <text x="140" y="-11" font-size="12" font-weight="700" fill="#a5b4fc">Tutor</text>
+    <rect x="206" y="-28" width="40" height="24" rx="12" fill="#071022" stroke="#1f2a44" stroke-width="1"/>
+    <text x="218" y="-11" font-size="11" font-weight="800" fill="#93a4c7">AI</text>
+  </g>
+</svg>
