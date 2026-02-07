@@ -312,6 +312,8 @@ export class ExtensionSubmissionModal extends Modal {
 						this.generatedReadme = "";
 						this.generatedImagePath = null;
 					});
+				// Make the input field longer
+				text.inputEl.style.width = "100%";
 			});
 		
 		// AI generation option (checkbox)
