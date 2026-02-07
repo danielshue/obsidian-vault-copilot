@@ -7159,3 +7159,41 @@ cursor: pointer;
 		opacity: 0.5;
 	}
 }
+
+/* AI Button Styling */
+.btn-ai {
+background-color: #6f42c1;
+color: white;
+border: none;
+padding: 8px 16px;
+border-radius: 4px;
+cursor: pointer;
+font-weight: 500;
+transition: all 0.2s ease;
+}
+
+.btn-ai:hover {
+background-color: #5a32a3;
+transform: translateY(-1px);
+box-shadow: 0 2px 8px rgba(111, 66, 193, 0.3);
+}
+
+.btn-ai:active {
+background-color: #4a2884;
+transform: translateY(0);
+box-shadow: 0 1px 4px rgba(111, 66, 193, 0.2);
+}
+
+.btn-ai:disabled {
+background-color: #9e8ab8;
+cursor: not-allowed;
+opacity: 0.6;
+transform: none;
+box-shadow: none;
+}
+
+.btn-ai:disabled:hover {
+background-color: #9e8ab8;
+transform: none;
+box-shadow: none;
+}

@@ -33,7 +33,7 @@ import type {
 	ValidationResult,
 	ExtensionManifest,
 } from "../../types/extension-submission";
-import { FileSuggest } from "../FileSuggest";
+import type VaultCopilotPlugin from "../../main";
 
 /**
  * Multi-step modal for extension submission workflow
@@ -42,7 +42,7 @@ export class ExtensionSubmissionModal extends Modal {
 	private currentStep = 0;
 	private submissionData: Partial<ExtensionSubmissionData> = {};
 	private resolve: ((value: ExtensionSubmissionData | null) => void) | null = null;
-	private plugin: any; // Reference to the plugin for AI service access
+	private plugin: VaultCopilotPlugin | undefined; // Reference to the plugin for AI service access
 	
 	// Form elements
 	private extensionPathInput: TextComponent | null = null;
@@ -74,7 +74,7 @@ export class ExtensionSubmissionModal extends Modal {
 	 * @param app - Obsidian app instance
 	 * @param plugin - Plugin instance for accessing AI service
 	 */
-	constructor(app: App, plugin?: any) {
+	constructor(app: App, plugin?: VaultCopilotPlugin) {
 		super(app);
 		this.plugin = plugin;
 		// Pre-populate author info from Git config if available
@@ -173,7 +173,7 @@ export class ExtensionSubmissionModal extends Modal {
 		const loadingContainer = contentEl.createDiv({ cls: "loading-container" });
 		
 		// Spinner
-		const spinner = loadingContainer.createDiv({ cls: "loading-spinner" });
+		loadingContainer.createDiv({ cls: "loading-spinner" });
 		
 		// Message
 		loadingContainer.createEl("h2", { text: "Reviewing information...", cls: "loading-message" });
@@ -207,6 +207,7 @@ export class ExtensionSubmissionModal extends Modal {
 	private renderCurrentStep() {
 		const { contentEl } = this;
 		contentEl.empty();
+		contentEl.removeClass("loading-screen"); // Remove loading screen class if present
 		contentEl.addClass("extension-submission-modal");
 		
 		// Progress indicator
@@ -730,19 +731,24 @@ export class ExtensionSubmissionModal extends Modal {
 	 */
 	private async generateExtensionContent(): Promise<void> {
 		if (!this.plugin || !this.submissionData.extensionPath) {
+			console.log("No plugin or extension path, skipping content generation");
 			return;
 		}
 		
 		this.isGeneratingContent = true;
 		
 		try {
-			// Get AI provider (GitHub Copilot CLI or OpenAI)
-			const aiProvider = this.plugin.getAIProvider?.();
+			// Get AI provider (GitHub Copilot CLI service)
+			const aiService = this.plugin.getActiveService?.();
 			
-			if (!aiProvider || !aiProvider.isReady()) {
-				console.log("AI provider not available, skipping content generation");
+			if (!aiService) {
+				console.log("AI service not available, using fallback content");
+				this.generatedDescription = `${this.submissionData.extensionName || "Extension"} - A helpful extension for Obsidian Vault Copilot.`;
+				this.generatedReadme = `# ${this.submissionData.extensionName || "Extension"}\n\n## Overview\n\nThis extension enhances your Obsidian experience.\n\n## Usage\n\nUse the command palette to access extension features.`;
 				return;
 			}
+			
+			console.log("AI service available, generating content...");
 			
 			// Read extension files to understand what it does
 			const extensionPath = this.submissionData.extensionPath;
@@ -780,8 +786,10 @@ ${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExt
 
 Description:`;
 			
-			const descriptionResponse = await aiProvider.sendMessage(descriptionPrompt);
+			console.log("Sending description generation prompt...");
+			const descriptionResponse = await aiService.sendMessage(descriptionPrompt);
 			this.generatedDescription = descriptionResponse.trim();
+			console.log("Generated description:", this.generatedDescription);
 			
 			// Generate README (detailed)
 			const readmePrompt = `Based on this extension content, write a comprehensive README.md file with the following sections:
@@ -794,14 +802,17 @@ ${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExt
 
 README.md:`;
 			
-			const readmeResponse = await aiProvider.sendMessage(readmePrompt);
+			console.log("Sending README generation prompt...");
+			const readmeResponse = await aiService.sendMessage(readmePrompt);
 			this.generatedReadme = readmeResponse.trim();
+			console.log("Generated README length:", this.generatedReadme.length);
 			
 		} catch (error) {
 			console.error("AI content generation error:", error);
 			// Set fallback content
 			this.generatedDescription = `${this.submissionData.extensionName} - A helpful extension for Obsidian Vault Copilot.`;
 			this.generatedReadme = `# ${this.submissionData.extensionName}\n\n## Overview\n\nThis extension enhances your Obsidian experience.\n\n## Usage\n\nUse the command palette to access extension features.`;
+			console.log("Using fallback content");
 		} finally {
 			this.isGeneratingContent = false;
 		}
@@ -973,11 +984,13 @@ README.md:`;
 		this.renderCurrentStep(); // Update button state
 		
 		try {
-			const aiProvider = this.plugin.getAIProvider?.();
+			const aiService = this.plugin.getActiveService?.();
 			
-			if (!aiProvider) {
-				throw new Error("AI provider not available");
+			if (!aiService) {
+				throw new Error("AI service not available");
 			}
+			
+			console.log("Starting AI description generation...");
 			
 			// Read extension files
 			let extensionContent = "";
@@ -997,6 +1010,7 @@ README.md:`;
 					const file = this.app.vault.getAbstractFileByPath(filePath);
 					if (file instanceof TFile) {
 						extensionContent = await this.app.vault.read(file);
+						console.log(`Read extension content from: ${filePath}`);
 						break;
 					}
 				} catch (e) {
@@ -1007,7 +1021,9 @@ README.md:`;
 			// Generate description
 			const descPrompt = `Based on this extension content, write a brief 1-2 sentence description suitable for a catalog listing:\n\n${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExtension ID: ${this.submissionData.extensionId}`}\n\nDescription:`;
 			
-			const descResponse = await aiProvider.sendMessage(descPrompt);
+			console.log("Sending prompt to AI service for description...");
+			const descResponse = await aiService.sendMessage(descPrompt);
+			console.log("AI description generated successfully");
 			this.generatedDescription = descResponse.trim();
 			
 			// Update textarea
@@ -1044,11 +1060,13 @@ README.md:`;
 		this.renderCurrentStep(); // Update button state
 		
 		try {
-			const aiProvider = this.plugin.getAIProvider?.();
+			const aiService = this.plugin.getActiveService?.();
 			
-			if (!aiProvider) {
-				throw new Error("AI provider not available");
+			if (!aiService) {
+				throw new Error("AI service not available");
 			}
+			
+			console.log("Starting AI README generation...");
 			
 			// Read extension files
 			let extensionContent = "";
@@ -1068,6 +1086,7 @@ README.md:`;
 					const file = this.app.vault.getAbstractFileByPath(filePath);
 					if (file instanceof TFile) {
 						extensionContent = await this.app.vault.read(file);
+						console.log(`Read extension content from: ${filePath}`);
 						break;
 					}
 				} catch (e) {
@@ -1086,7 +1105,9 @@ ${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExt
 
 README.md:`;
 			
-			const readmeResponse = await aiProvider.sendMessage(readmePrompt);
+			console.log("Sending prompt to AI service for README...");
+			const readmeResponse = await aiService.sendMessage(readmePrompt);
+			console.log("AI README generated successfully");
 			this.generatedReadme = readmeResponse.trim();
 			
 			// Update textarea

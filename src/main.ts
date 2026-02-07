@@ -53,7 +53,7 @@ import { CopilotChatView, COPILOT_VIEW_TYPE, ConversationHistoryView, TracingVie
 import { ExtensionBrowserView, EXTENSION_BROWSER_VIEW_TYPE } from "./ui/extensions/ExtensionBrowserView";
 import { ExtensionWebView, EXTENSION_WEB_VIEW_TYPE } from "./ui/extensions/ExtensionWebView";
 import { ExtensionSubmissionModal } from "./ui/extensions/ExtensionSubmissionModal";
-import type { ExtensionSubmissionData } from "./types/extension-submission";
+
 import { GitHubCopilotCliManager } from "./copilot/providers/GitHubCopilotCliManager";
 import { 
 	SkillRegistry, 
