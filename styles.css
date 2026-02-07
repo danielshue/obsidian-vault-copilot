@@ -7352,3 +7352,100 @@ background-color: #9e8ab8;
 transform: none;
 box-shadow: none;
 }
+
+/* Inline Message Styling */
+.inline-message {
+display: flex;
+align-items: center;
+gap: 12px;
+padding: 12px 16px;
+margin: 16px 0;
+border-radius: 6px;
+border: 1px solid;
+position: relative;
+animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+from {
+opacity: 0;
+transform: translateY(-10px);
+}
+to {
+opacity: 1;
+transform: translateY(0);
+}
+}
+
+.inline-message-icon {
+font-size: 18px;
+flex-shrink: 0;
+}
+
+.inline-message-text {
+flex: 1;
+font-size: 14px;
+line-height: 1.5;
+}
+
+.inline-message-close {
+background: none;
+border: none;
+color: inherit;
+font-size: 20px;
+line-height: 1;
+padding: 0 4px;
+cursor: pointer;
+opacity: 0.6;
+transition: opacity 0.2s ease;
+flex-shrink: 0;
+}
+
+.inline-message-close:hover {
+opacity: 1;
+}
+
+.inline-message-error {
+background-color: rgba(218, 54, 51, 0.1);
+border-color: #da3633;
+color: #da3633;
+}
+
+.inline-message-error .inline-message-icon {
+color: #da3633;
+}
+
+.inline-message-warning {
+background-color: rgba(240, 173, 78, 0.1);
+border-color: #f0ad4e;
+color: #8a6d3b;
+}
+
+.inline-message-warning .inline-message-icon {
+color: #f0ad4e;
+}
+
+.inline-message-success {
+background-color: rgba(35, 134, 54, 0.1);
+border-color: #238636;
+color: #238636;
+}
+
+.inline-message-success .inline-message-icon {
+color: #238636;
+}
+
+.inline-message-info {
+background-color: rgba(9, 105, 218, 0.1);
+border-color: #0969da;
+color: #0969da;
+}
+
+.inline-message-info .inline-message-icon {
+color: #0969da;
+}
+
+.step-message-container {
+margin: 16px 0;
+min-height: 20px;
+}

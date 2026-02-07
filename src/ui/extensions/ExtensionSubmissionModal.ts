@@ -26,7 +26,7 @@
  * @since 0.1.0
  */
 
-import { App, Modal, ButtonComponent, Setting, Notice, TextComponent, TFile } from "obsidian";
+import { App, Modal, ButtonComponent, Setting, TextComponent, TFile } from "obsidian";
 import type {
 	ExtensionSubmissionData,
 	ExtensionType,
@@ -165,6 +165,37 @@ export class ExtensionSubmissionModal extends Modal {
 			this.resolve(null);
 			this.resolve = null;
 		}
+	}
+	
+	/**
+	 * Shows an inline message within the modal
+	 * 
+	 * @param container - Container element to append message to
+	 * @param message - Message text to display
+	 * @param type - Message type (error, warning, success, info)
+	 * @internal
+	 */
+	private showInlineMessage(container: HTMLElement, message: string, type: 'error' | 'warning' | 'success' | 'info') {
+		// Remove any existing messages in this container
+		const existingMessages = container.querySelectorAll('.inline-message');
+		existingMessages.forEach(msg => msg.remove());
+		
+		const messageEl = container.createDiv({ cls: `inline-message inline-message-${type}` });
+		
+		// Icon based on type
+		const icons = {
+			error: '❌',
+			warning: '⚠️',
+			success: '✅',
+			info: 'ℹ️'
+		};
+		
+		const iconEl = messageEl.createSpan({ cls: 'inline-message-icon', text: icons[type] });
+		const textEl = messageEl.createSpan({ cls: 'inline-message-text', text: message });
+		
+		// Close button
+		const closeBtn = messageEl.createEl('button', { cls: 'inline-message-close', text: '×' });
+		closeBtn.addEventListener('click', () => messageEl.remove());
 	}
 	
 	/**
@@ -334,6 +365,9 @@ export class ExtensionSubmissionModal extends Modal {
 			text: "💡 Provide either a file path (my-agent.agent.md) or folder path. If folder has manifest.json, it will be used; otherwise, manifest will be generated automatically."
 		});
 		
+		// Message container for validation feedback
+		const messageContainer = container.createDiv({ cls: "step-message-container" });
+		
 		// Navigation buttons
 		this.renderNavigationButtons(container, false, true);
 	}
@@ -426,7 +460,6 @@ export class ExtensionSubmissionModal extends Modal {
 							this.previewImagePath = this.iconImagePath; // Use same for both
 							this.generatedImagePath = null; // Clear generated if user uploads
 							button.setButtonText("Change Image");
-							new Notice(`Image selected: ${selectedFile.name}`);
 								this.renderCurrentStep(); // Re-render to update display
 							}
 						};
@@ -503,6 +536,9 @@ export class ExtensionSubmissionModal extends Modal {
 				? "💡 Author information has been pre-populated from your Git configuration. Description and README have been AI-generated based on your extension. You can edit all fields as needed."
 				: "💡 Author information has been pre-populated from your Git configuration. You can edit it if needed."
 		});
+		
+		// Message container for validation feedback
+		const messageContainer = container.createDiv({ cls: "step-message-container" });
 		
 		// Navigation buttons
 		this.renderNavigationButtons(container, true, true);
@@ -587,6 +623,9 @@ export class ExtensionSubmissionModal extends Modal {
 		ol.createEl("li", { text: "Assets (icons, images) will be prepared for submission" });
 		ol.createEl("li", { text: "A pull request will be created automatically" });
 		ol.createEl("li", { text: "Maintainers will review your submission" });
+		
+		// Message container for validation feedback
+		const messageContainer = container.createDiv({ cls: "step-message-container" });
 		
 		// Navigation buttons
 		this.renderNavigationButtons(container, true, false, true);
@@ -840,10 +879,14 @@ export class ExtensionSubmissionModal extends Modal {
 	 * @internal
 	 */
 	private async validateCurrentStep(): Promise<boolean> {
+		const messageContainer = this.contentEl.querySelector('.step-message-container') as HTMLElement;
+		
 		switch (this.currentStep) {
 			case 0: // Extension selection
 				if (!this.submissionData.extensionPath) {
-					new Notice("Please provide an extension folder path");
+					if (messageContainer) {
+						this.showInlineMessage(messageContainer, "Please provide an extension folder path", 'error');
+					}
 					return false;
 				}
 				
@@ -858,7 +901,9 @@ export class ExtensionSubmissionModal extends Modal {
 						// Parse or derive extension info (file/folder, with/without manifest)
 						const manifest = await this.parseOrDeriveExtensionInfo();
 						if (!manifest) {
-							new Notice("Could not read extension info. Please check your path points to a valid extension file or folder.");
+							if (messageContainer) {
+								this.showInlineMessage(messageContainer, "Could not read extension info. Please check your path points to a valid extension file or folder.", 'error');
+							}
 							return false;
 						}
 						
@@ -885,7 +930,9 @@ export class ExtensionSubmissionModal extends Modal {
 						
 					} catch (error) {
 						console.error("Basic validation failed:", error);
-						new Notice("Validation failed. Please check your extension path and manifest.json.");
+						if (messageContainer) {
+							this.showInlineMessage(messageContainer, "Validation failed. Please check your extension path and manifest.json.", 'error');
+						}
 						return false;
 					}
 				}
@@ -901,7 +948,9 @@ export class ExtensionSubmissionModal extends Modal {
 					// Parse or derive extension info (file/folder, with/without manifest)
 					const manifest = await this.parseOrDeriveExtensionInfo();
 					if (!manifest) {
-						new Notice("Could not read extension info. Please check your path points to a valid extension file or folder.");
+						if (messageContainer) {
+							this.showInlineMessage(messageContainer, "Could not read extension info. Please check your path points to a valid extension file or folder.", 'error');
+						}
 						return false;
 					}
 					
@@ -946,7 +995,9 @@ export class ExtensionSubmissionModal extends Modal {
 					
 				} catch (error) {
 					console.error("Validation/generation failed:", error);
-					new Notice("Some automated tasks failed. You can still proceed and enter details manually.");
+					if (messageContainer) {
+						this.showInlineMessage(messageContainer, "Some automated tasks failed. You can still proceed and enter details manually.", 'warning');
+					}
 					// Mark as completed even if some tasks failed
 					this.hasCompletedInitialValidation = true;
 					return true; // Still proceed even if generation fails
@@ -954,11 +1005,15 @@ export class ExtensionSubmissionModal extends Modal {
 				
 			case 1: // Extension details (author info, images, description)
 				if (!this.submissionData.authorName) {
-					new Notice("Please provide your author name");
+					if (messageContainer) {
+						this.showInlineMessage(messageContainer, "Please provide your author name", 'error');
+					}
 					return false;
 				}
 				if (!this.submissionData.authorUrl) {
-					new Notice("Please provide your author URL");
+					if (messageContainer) {
+						this.showInlineMessage(messageContainer, "Please provide your author URL", 'error');
+					}
 					return false;
 				}
 				return true;
@@ -1101,13 +1156,17 @@ README.md content:`;
 	 * @internal
 	 */
 	private async submitExtension() {
+		const messageContainer = this.contentEl.querySelector('.step-message-container') as HTMLElement;
+		
 		// Validate all required fields
 		if (!this.submissionData.extensionPath ||
 			!this.submissionData.githubUsername ||
 			!this.submissionData.branchName ||
 			!this.submissionData.authorName ||
 			!this.submissionData.authorUrl) {
-			new Notice("Please fill in all required fields");
+			if (messageContainer) {
+				this.showInlineMessage(messageContainer, "Please fill in all required fields", 'error');
+			}
 			return;
 		}
 		
@@ -1117,7 +1176,9 @@ README.md content:`;
 		} catch (error) {
 			// If validation fails (duplicate ID), show error and don't submit
 			if (error instanceof Error) {
-				new Notice(error.message);
+				if (messageContainer) {
+					this.showInlineMessage(messageContainer, error.message, 'error');
+				}
 				return;
 			}
 		}
@@ -1234,14 +1295,26 @@ This pull request was created using the Extension Submission workflow in Obsidia
 			
 		} catch (error) {
 			console.error("Submission error:", error);
-			new Notice("Extension submission failed. Please try again or submit manually.");
 			
-			// Close modal on error
-			if (this.resolve) {
-				this.resolve(null);
-				this.resolve = null;
-			}
-			this.close();
+			// Show error in modal instead of Notice
+			const { contentEl } = this;
+			contentEl.empty();
+			contentEl.removeClass("submission-progress-screen");
+			
+			const container = contentEl.createDiv({ cls: "submission-progress-screen" });
+			const messageContainer = container.createDiv({ cls: "step-message-container" });
+			this.showInlineMessage(messageContainer, "Extension submission failed. Please try again or submit manually.", 'error');
+			
+			// Add a close button
+			new ButtonComponent(container)
+				.setButtonText("Close")
+				.onClick(() => {
+					if (this.resolve) {
+						this.resolve(null);
+						this.resolve = null;
+					}
+					this.close();
+				});
 		}
 	}
 	
@@ -1339,14 +1412,23 @@ This pull request was created using the Extension Submission workflow in Obsidia
 			this.iconImagePath = null; // Clear manual selection
 			this.previewImagePath = null;
 			
-			new Notice("Image generated successfully! Same image will be used for both icon and preview.");
-			
 			// Re-render to show the generated image
 			this.renderCurrentStep();
 			
+			// Show success message in the step message container
+			const messageContainer = this.contentEl.querySelector('.step-message-container') as HTMLElement;
+			if (messageContainer) {
+				this.showInlineMessage(messageContainer, "Image generated successfully! Same image will be used for both icon and preview.", 'success');
+			}
+			
 		} catch (error) {
 			console.error("Image generation failed:", error);
-			new Notice("Image generation failed. Please upload an image manually.");
+			
+			// Show error message in the step message container
+			const messageContainer = this.contentEl.querySelector('.step-message-container') as HTMLElement;
+			if (messageContainer) {
+				this.showInlineMessage(messageContainer, "Image generation failed. Please upload an image manually.", 'error');
+			}
 		} finally {
 			this.isGeneratingImage = false;
 			button.setButtonText("Generate with AI");
@@ -1498,7 +1580,11 @@ This pull request was created using the Extension Submission workflow in Obsidia
 				this.descriptionInput.value = this.generatedDescription;
 			}
 			
-			new Notice("Description generated successfully!");
+			// Show success message in the step message container
+			const messageContainer = this.contentEl.querySelector('.step-message-container') as HTMLElement;
+			if (messageContainer) {
+				this.showInlineMessage(messageContainer, "Description generated successfully!", 'success');
+			}
 			
 		} catch (error) {
 			console.error("AI description generation error:", error);
@@ -1506,7 +1592,12 @@ This pull request was created using the Extension Submission workflow in Obsidia
 			if (this.descriptionInput) {
 				this.descriptionInput.value = this.generatedDescription;
 			}
-			new Notice("Description generation failed. Using fallback content.");
+			
+			// Show error message in the step message container
+			const messageContainer = this.contentEl.querySelector('.step-message-container') as HTMLElement;
+			if (messageContainer) {
+				this.showInlineMessage(messageContainer, "Description generation failed. Using fallback content.", 'warning');
+			}
 		} finally {
 			this.isGeneratingContent = false;
 			this.renderCurrentStep(); // Update button state
@@ -1599,7 +1690,11 @@ README.md content:`;
 				this.readmeInput.value = this.generatedReadme;
 			}
 			
-			new Notice("README generated successfully!");
+			// Show success message in the step message container
+			const messageContainer = this.contentEl.querySelector('.step-message-container') as HTMLElement;
+			if (messageContainer) {
+				this.showInlineMessage(messageContainer, "README generated successfully!", 'success');
+			}
 			
 		} catch (error) {
 			console.error("AI README generation error:", error);
@@ -1607,7 +1702,12 @@ README.md content:`;
 			if (this.readmeInput) {
 				this.readmeInput.value = this.generatedReadme;
 			}
-			new Notice("README generation failed. Using fallback content.");
+			
+			// Show error message in the step message container
+			const messageContainer = this.contentEl.querySelector('.step-message-container') as HTMLElement;
+			if (messageContainer) {
+				this.showInlineMessage(messageContainer, "README generation failed. Using fallback content.", 'warning');
+			}
 		} finally {
 			this.isGeneratingContent = false;
 			this.renderCurrentStep(); // Update button state
