@@ -1193,9 +1193,9 @@ export class ExtensionSubmissionModal extends Modal {
 				}
 				return true;
 			
-			case 2: // Description (Image + Description) - Optional
-			case 3: // README - Optional
-				// No validation required - both fields are optional
+			// Step 2 (Description) and Step 3 (README): Both optional, no validation required
+			case 2:
+			case 3:
 				return true;
 		}
 		
