@@ -840,9 +840,9 @@ export class ExtensionSubmissionModal extends Modal {
 			
 			// Check if AI service requires session creation
 			let aiSession = null;
-			if (typeof aiService.createSession === 'function') {
+			if ('createSession' in aiService && typeof (aiService as any).createSession === 'function') {
 				console.log("AI service requires session creation");
-				aiSession = await aiService.createSession();
+				aiSession = await (aiService as any).createSession();
 			}
 			
 			// Generate description (concise)
@@ -1111,9 +1111,9 @@ README.md:`;
 			
 			// Check if AI service requires session creation
 			let descResponse;
-			if (typeof aiService.createSession === 'function') {
+			if ('createSession' in aiService && typeof (aiService as any).createSession === 'function') {
 				console.log("AI service requires session creation");
-				const aiSession = await aiService.createSession();
+				const aiSession = await (aiService as any).createSession();
 				descResponse = await aiSession.sendMessage(descPrompt);
 			} else if (typeof aiService.sendMessage === 'function') {
 				descResponse = await aiService.sendMessage(descPrompt);
@@ -1207,9 +1207,9 @@ README.md:`;
 			
 			// Check if AI service requires session creation
 			let readmeResponse;
-			if (typeof aiService.createSession === 'function') {
+			if ('createSession' in aiService && typeof (aiService as any).createSession === 'function') {
 				console.log("AI service requires session creation");
-				const aiSession = await aiService.createSession();
+				const aiSession = await (aiService as any).createSession();
 				readmeResponse = await aiSession.sendMessage(readmePrompt);
 			} else if (typeof aiService.sendMessage === 'function') {
 				readmeResponse = await aiService.sendMessage(readmePrompt);
