@@ -455,11 +455,11 @@ export class ExtensionSubmissionModal extends Modal {
 						input.onchange = (e: Event) => {
 							const target = e.target as HTMLInputElement;
 							if (target.files && target.files.length > 0) {
-							const selectedFile = target.files[0]!;
-							this.iconImagePath = (selectedFile as unknown as {path?: string}).path || selectedFile.name;
-							this.previewImagePath = this.iconImagePath; // Use same for both
-							this.generatedImagePath = null; // Clear generated if user uploads
-							button.setButtonText("Change Image");
+								const selectedFile = target.files[0]!;
+								this.iconImagePath = (selectedFile as unknown as {path?: string}).path || selectedFile.name;
+								this.previewImagePath = this.iconImagePath; // Use same for both
+								this.generatedImagePath = null; // Clear generated if user uploads
+								button.setButtonText("Change Image");
 								this.renderCurrentStep(); // Re-render to update display
 							}
 						};
