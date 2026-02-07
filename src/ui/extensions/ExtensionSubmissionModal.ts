@@ -374,11 +374,12 @@ export class ExtensionSubmissionModal extends Modal {
 						input.onchange = (e: Event) => {
 							const target = e.target as HTMLInputElement;
 							if (target.files && target.files.length > 0) {
-								this.iconImagePath = target.files[0].path || target.files[0].name;
-								this.previewImagePath = this.iconImagePath; // Use same for both
-								this.generatedImagePath = null; // Clear generated if user uploads
-								button.setButtonText("Change Image");
-								new Notice(`Image selected: ${target.files[0].name}`);
+							const selectedFile = target.files[0]!;
+							this.iconImagePath = (selectedFile as unknown as {path?: string}).path || selectedFile.name;
+							this.previewImagePath = this.iconImagePath; // Use same for both
+							this.generatedImagePath = null; // Clear generated if user uploads
+							button.setButtonText("Change Image");
+							new Notice(`Image selected: ${selectedFile.name}`);
 								this.renderCurrentStep(); // Re-render to update display
 							}
 						};
@@ -584,10 +585,10 @@ export class ExtensionSubmissionModal extends Modal {
 				}
 				
 				// Run all validation and generation tasks with progress tracking
-				const tasks = [
-					{ name: "Generating Description", status: 'pending' as const },
-					{ name: "Generating Image", status: 'pending' as const },
-					{ name: "Validating ID doesn't exist", status: 'pending' as const }
+				const tasks: Array<{name: string, status: 'pending' | 'in-progress' | 'complete'}> = [
+					{ name: "Generating Description", status: 'pending' },
+					{ name: "Generating Image", status: 'pending' },
+					{ name: "Validating ID doesn't exist", status: 'pending' }
 				];
 				
 				try {
@@ -609,22 +610,22 @@ export class ExtensionSubmissionModal extends Modal {
 					}
 					
 					// Task 1: Generate description and README
-					tasks[0].status = 'in-progress';
+					tasks[0]!.status = 'in-progress';
 					this.renderLoadingScreenWithProgress("Generating description and README...", tasks);
 					await this.generateExtensionContent();
-					tasks[0].status = 'complete';
+					tasks[0]!.status = 'complete';
 					
 					// Task 2: Generate image
-					tasks[1].status = 'in-progress';
+					tasks[1]!.status = 'in-progress';
 					this.renderLoadingScreenWithProgress("Generating extension image...", tasks);
 					await this.generateExtensionImageAuto();
-					tasks[1].status = 'complete';
+					tasks[1]!.status = 'complete';
 					
 					// Task 3: Validate ID
-					tasks[2].status = 'in-progress';
+					tasks[2]!.status = 'in-progress';
 					this.renderLoadingScreenWithProgress("Validating extension ID...", tasks);
 					await this.validateExtensionId();
-					tasks[2].status = 'complete';
+					tasks[2]!.status = 'complete';
 					
 					// Mark validation as completed
 					this.hasCompletedInitialValidation = true;
