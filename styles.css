@@ -7138,21 +7138,29 @@ cursor: pointer;
 /* Image Preview Box */
 .image-preview-box {
 	margin-top: 12px;
-	padding: 32px;
+	padding: 8px;
 	border: 2px solid var(--background-modifier-border);
 	border-radius: 6px;
 	background-color: var(--background-secondary);
 	text-align: center;
-	min-height: 200px;
+	min-height: 80px;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 }
 
+.image-preview-img {
+	max-width: 50%;
+	max-height: 120px;
+	margin-bottom: 8px;
+	border-radius: 4px;
+	box-shadow: 0 0 0 1px var(--background-modifier-border);
+}
+
 .image-preview-placeholder {
-	font-size: 96px;
-	margin-bottom: 16px;
+	font-size: 32px;
+	margin-bottom: 8px;
 	color: var(--text-accent);
 }
 

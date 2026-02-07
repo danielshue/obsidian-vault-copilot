@@ -26,6 +26,31 @@ export function renderSelectExtensionScreen(
 	});
 	
 	// Extension type selection
+	const getExampleFileName = (type: ExtensionType | undefined): string => {
+		switch (type) {
+			case "voice-agent":
+				return "my-voice-agent.voice-agent.md";
+			case "prompt":
+				return "my-prompt.prompt.md";
+			case "skill":
+				return "my-skill.skill.md";
+			case "mcp-server":
+				return "my-mcp-server.mcp-server.md";
+			case "agent":
+		default:
+				return "my-agent.agent.md";
+		}
+	};
+
+	const validationContainer = container.createDiv({ cls: "validation-info" });
+	const validationHint = validationContainer.createEl("p");
+	const updateValidationHint = (type: ExtensionType | undefined): void => {
+		const example = getExampleFileName(type);
+		validationHint.setText(
+			`💡 Provide either a file path (${example}) or folder path. If the folder has manifest.json, it will be used; otherwise, manifest will be generated automatically.`,
+		);
+	};
+
 	new Setting(container)
 		.setName("Extension Type")
 		.setDesc("What type of extension are you submitting?")
@@ -39,6 +64,7 @@ export function renderSelectExtensionScreen(
 				.setValue(context.submissionData.extensionType || "agent")
 				.onChange(value => {
 					context.submissionData.extensionType = value as ExtensionType;
+					updateValidationHint(context.submissionData.extensionType);
 				});
 		});
 	
@@ -75,11 +101,8 @@ export function renderSelectExtensionScreen(
 				});
 		});
 	
-	// Validation info
-	const validationContainer = container.createDiv({ cls: "validation-info" });
-	validationContainer.createEl("p", {
-		text: "💡 Provide either a file path (my-agent.agent.md) or folder path. If folder has manifest.json, it will be used; otherwise, manifest will be generated automatically."
-	});
+	// Validation info (initial hint based on current type)
+	updateValidationHint(context.submissionData.extensionType || "agent");
 	
 	// Message container for validation feedback
 	container.createDiv({ cls: "step-message-container" });

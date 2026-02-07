@@ -1042,9 +1042,6 @@ export default class CopilotPlugin extends Plugin {
 				return;
 			}
 			
-			// Show success message with the data collected
-			new Notice(`Extension "${submissionData.extensionName}" ready for submission!`);
-			
 			// TODO: Implement the actual GitHub submission workflow
 			// This would involve:
 			// 1. Validating the extension files and manifest

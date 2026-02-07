@@ -8,6 +8,7 @@
  * @description Preview and confirmation screen before submission
  */
 
+import { TFile } from "obsidian";
 import type { ScreenContext } from "./types";
 import { addSummaryItem } from "./utils";
 
@@ -44,25 +45,45 @@ export function renderPreviewScreen(
 	
 	if (context.iconImagePath || context.previewImagePath || context.generatedImagePath) {
 		summaryContainer.createEl("h3", { text: "Assets" });
-		const imagePath = context.iconImagePath || context.generatedImagePath;
-		const imageLabel = context.generatedImagePath ? "Image (AI-Generated)" : "Image";
+		// Prefer user-selected preview image, then icon, then AI-generated
+		const imagePath = context.previewImagePath || context.iconImagePath || context.generatedImagePath;
+		const imageLabel = context.generatedImagePath && !context.iconImagePath && !context.previewImagePath
+			? "Image (AI-Generated)"
+			: "Image";
 		if (imagePath) {
 			addSummaryItem(summaryContainer, imageLabel, imagePath);
 			
-			// Show image preview for AI-generated images
-			if (context.generatedImagePath) {
-				const previewBox = summaryContainer.createEl("div", {
-					cls: "image-preview-box"
-				});
-				previewBox.createEl("div", {
-					text: "🖼️ AI-Generated Image Preview",
-					cls: "image-preview-placeholder"
-				});
-				previewBox.createEl("div", {
-					text: "Image will be generated and included in the PR submission",
-					cls: "image-preview-note"
-				});
+			// Show actual image preview (selected or AI-generated)
+			const previewBox = summaryContainer.createEl("div", {
+				cls: "image-preview-box"
+			});
+			previewBox.createEl("div", {
+				text: context.generatedImagePath && imagePath === context.generatedImagePath
+					? "🖼️ AI-Generated Image Preview"
+					: "🖼️ Selected Image Preview",
+				cls: "image-preview-placeholder"
+			});
+			
+			try {
+				const file = context.app.vault.getAbstractFileByPath(imagePath);
+				if (file instanceof TFile) {
+					const imgSrc = context.app.vault.getResourcePath(file);
+					const imgEl = previewBox.createEl("img", {
+						cls: "image-preview-img"
+					});
+					imgEl.src = imgSrc;
+				}
+			} catch (e) {
+				// If anything goes wrong, silently fall back to text-only preview
+				console.warn("Could not render preview image on Preview screen", e);
 			}
+			
+			previewBox.createEl("div", {
+				text: context.generatedImagePath && imagePath === context.generatedImagePath
+					? "Image was generated during the loading step and will be included in the PR submission."
+					: "Selected image will be included in the PR submission.",
+				cls: "image-preview-note"
+			});
 			
 			summaryContainer.createEl("div", { 
 				text: "Note: Same image will be used for both icon and preview",

@@ -8,7 +8,7 @@
  * @description Extension description and image upload/generation screen
  */
 
-import { Setting, ButtonComponent } from "obsidian";
+import { Setting, ButtonComponent, TFile } from "obsidian";
 import type { ScreenContext, ScreenCallbacks } from "./types";
 import { generateDescriptionWithAI } from "./utils";
 
@@ -79,7 +79,7 @@ export function renderDescriptionScreen(
 		.setDesc("Upload or generate an image for your extension (used as both icon and preview)")
 		.addButton(button => {
 			button
-				.setButtonText(context.iconImagePath || context.generatedImagePath ? "Change Image" : "Choose Image")
+				.setButtonText(context.iconImagePath || context.generatedImagePath ? "Attach Image" : "Attach Image")
 				.onClick(async () => {
 					const input = document.createElement('input');
 					input.type = 'file';
@@ -92,7 +92,7 @@ export function renderDescriptionScreen(
 							context.iconImagePath = (selectedFile as unknown as {path?: string}).path || selectedFile.name;
 							context.previewImagePath = context.iconImagePath;
 							context.generatedImagePath = null;
-							button.setButtonText("Change Image");
+							button.setButtonText("Attach Image");
 							callbacks.onRender();
 						}
 					};
@@ -122,6 +122,23 @@ export function renderDescriptionScreen(
 			text: isAIGenerated ? "🖼️ AI-Generated Image" : "🖼️ Selected Image",
 			cls: "image-preview-placeholder"
 		});
+		
+		// Render actual image preview when possible
+		if (imagePath) {
+			try {
+				const file = context.app.vault.getAbstractFileByPath(imagePath);
+				if (file instanceof TFile) {
+					const imgSrc = context.app.vault.getResourcePath(file);
+					const imgEl = previewBox.createEl("img", {
+						cls: "image-preview-img"
+					});
+					imgEl.src = imgSrc;
+				}
+			} catch (e) {
+				// If anything goes wrong, silently fall back to text-only placeholder
+				console.warn("Could not render image preview", e);
+			}
+		}
 		previewBox.createEl("div", {
 			text: isAIGenerated 
 				? "✓ Generated during loading phase - will be included in PR submission" 

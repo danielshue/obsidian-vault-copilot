@@ -278,6 +278,66 @@ export async function validateExtensionId(extensionId: string): Promise<void> {
 }
 
 /**
+ * Reads the primary content for an extension based on the user-attached path.
+ *
+ * Supports both file and folder inputs:
+ * - If the path points to a file, that file is read directly.
+ * - If the path points to a folder, common extension files are probed using the
+ *   derived extension ID (agent/prompt/voice-agent) and finally README.md.
+ */
+async function readExtensionContent(
+	app: App,
+	extensionPath: string,
+	extensionId: string | undefined
+): Promise<string> {
+	if (!extensionPath) {
+		return "";
+	}
+
+	try {
+		const abstractFile = app.vault.getAbstractFileByPath(extensionPath);
+		if (!abstractFile) {
+			console.warn(`Could not resolve extension path for content: ${extensionPath}`);
+			return "";
+		}
+
+		// If the user attached a specific file, read it directly
+		if (abstractFile instanceof TFile) {
+			console.log("Reading extension content from attached file:", abstractFile.path);
+			return await app.vault.read(abstractFile);
+		}
+
+		// Otherwise treat the path as a folder and probe common files
+		const adapter = app.vault.adapter;
+		const basePath = extensionPath;
+		const possibleFiles: string[] = [];
+		if (extensionId) {
+			possibleFiles.push(
+				`${basePath}/${extensionId}.agent.md`,
+				`${basePath}/${extensionId}.prompt.md`,
+				`${basePath}/${extensionId}.voice-agent.md`
+			);
+		}
+		possibleFiles.push(`${basePath}/README.md`);
+
+		for (const filePath of possibleFiles) {
+			try {
+				if (await adapter.exists(filePath)) {
+					console.log("Read extension content from:", filePath);
+					return await adapter.read(filePath);
+				}
+			} catch (e) {
+				// Continue to next file
+			}
+		}
+	} catch (error) {
+		console.error("Error reading extension content:", error);
+	}
+
+	return "";
+}
+
+/**
  * Generates extension content (description and README) using AI
  */
 export async function generateExtensionContent(
@@ -308,33 +368,8 @@ export async function generateExtensionContent(
 		
 		console.log("AI service available, generating content...");
 		
-		// Read extension files
-		let extensionContent = "";
-		
-		try {
-			const adapter = app.vault.adapter;
-			
-			const possibleFiles = [
-				`${extensionPath}/${extensionId}.agent.md`,
-				`${extensionPath}/${extensionId}.prompt.md`,
-				`${extensionPath}/${extensionId}.voice-agent.md`,
-				`${extensionPath}/README.md`
-			];
-			
-			for (const filePath of possibleFiles) {
-				try {
-					if (await adapter.exists(filePath)) {
-						extensionContent += await adapter.read(filePath);
-						console.log(`Read extension content from: ${filePath}`);
-						break;
-					}
-				} catch (e) {
-					// Continue to next file
-				}
-			}
-		} catch (error) {
-			console.error("Error reading extension files:", error);
-		}
+		// Read extension files (supports both file and folder paths)
+		const extensionContent = await readExtensionContent(app, extensionPath, extensionId);
 		
 		// Check if AI service requires session creation
 		let aiSession = null;
@@ -408,14 +443,171 @@ README.md content:`;
 }
 
 /**
- * Generates extension image automatically (no button interaction)
+ * Generates a preview image for the extension automatically.
+ *
+ * This helper is intentionally file-system based (no direct external image API).
+ * It will:
+ * - Resolve the target folder for the extension (file → parent folder, folder → itself)
+ * - Re-use an existing preview asset if one already exists (preview.svg / preview.png)
+ * - Otherwise, ask the active AI provider to generate an SVG image based on the README
+ *   (or fall back to a static banner if AI is unavailable)
+ *
+ * The returned string is the vault-relative path to the generated or existing asset,
+ * which is then surfaced in the wizard as the AI-generated image placeholder.
+ *
+ * @param app - The Obsidian app instance used for vault access
+ * @param plugin - The Vault Copilot plugin instance (used to access the active AI service)
+ * @param extensionPath - The path provided by the user for the extension (file or folder)
+ * @param extensionId - The derived extension ID (used for logging only)
+ * @param extensionName - Human-friendly extension name used in the SVG banner
+ * @param readmeContent - README content used as the basis for the generated image
+ * @returns The vault-relative image path, or null if generation fails
  */
-export async function generateExtensionImageAuto(extensionId: string | undefined): Promise<string | null> {
+export async function generateExtensionImageAuto(
+	app: App,
+	plugin: VaultCopilotPlugin | undefined,
+	extensionPath: string,
+	extensionId: string | undefined,
+	extensionName: string | undefined,
+	readmeContent?: string
+): Promise<string | null> {
 	try {
-		// TODO: Implement actual AI image generation
-		await new Promise(resolve => setTimeout(resolve, 1500));
+		if (!extensionPath) {
+			console.warn("No extension path provided, skipping auto image generation");
+			return null;
+		}
 		
-		return `generated-${extensionId}-icon.png`;
+		// Resolve the target folder for assets based on the provided path
+		const abstractFile = app.vault.getAbstractFileByPath(extensionPath);
+		let folderPath: string | null = null;
+		
+		if (abstractFile instanceof TFile) {
+			// Use parent folder for files
+			folderPath = abstractFile.parent ? abstractFile.parent.path : null;
+		} else {
+			// Path already points to a folder
+			folderPath = extensionPath;
+		}
+		
+		if (!folderPath) {
+			console.warn("Could not resolve folder for auto image generation", { extensionPath });
+			return null;
+		}
+		
+		const adapter = app.vault.adapter;
+		const svgPath = `${folderPath}/preview.svg`;
+		const pngPath = `${folderPath}/preview.png`;
+		
+		// If a preview already exists, just reuse it
+		if (await adapter.exists(svgPath)) {
+			console.log("Reusing existing preview.svg for auto image generation:", svgPath);
+			return svgPath;
+		}
+		if (await adapter.exists(pngPath)) {
+			console.log("Reusing existing preview.png for auto image generation:", pngPath);
+			return pngPath;
+		}
+		
+		// Build a safe display name used in prompts and fallbacks
+		const safeName = (extensionName || extensionId || "Vault Copilot Extension").trim();
+		const titleText = safeName.length > 40 ? `${safeName.slice(0, 37)}...` : safeName;
+		
+		// Helper: static SVG banner used as a fallback when AI is unavailable or returns invalid output
+		const buildFallbackSvg = (): string => {
+			return `<?xml version="1.0" encoding="UTF-8"?>\n` +
+				`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">\n` +
+				`  <defs>\n` +
+				`    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">\n` +
+				`      <stop offset="0%" style="stop-color:#1e1e2e"/>\n` +
+				`      <stop offset="100%" style="stop-color:#313244"/>\n` +
+				`    </linearGradient>\n` +
+				`  </defs>\n` +
+				`  <rect width="1280" height="720" fill="url(#bg)"/>\n` +
+				`  <rect x="80" y="60" width="1120" height="600" rx="12" fill="#45475a" stroke="#585b70" stroke-width="2"/>\n` +
+				`  <circle cx="110" cy="85" r="8" fill="#f38ba8"/>\n` +
+				`  <circle cx="135" cy="85" r="8" fill="#f9e2af"/>\n` +
+				`  <circle cx="160" cy="85" r="8" fill="#a6e3a1"/>\n` +
+				`  <rect x="100" y="110" width="1080" height="530" fill="#1e1e2e"/>\n` +
+				`  <text x="640" y="320" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="56" fill="#cdd6f4" text-anchor="middle" font-weight="600">${titleText}</text>\n` +
+				`  <text x="640" y="390" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" fill="#a6adc8" text-anchor="middle">AI-generated preview placeholder</text>\n` +
+				`</svg>\n`;
+		};
+		
+		// If no plugin or AI service is available, fall back to the static SVG
+		if (!plugin) {
+			const svgContent = buildFallbackSvg();
+			await adapter.write(svgPath, svgContent);
+			console.log("Auto-generated static preview.svg (no plugin available)", { extensionId, svgPath });
+			return svgPath;
+		}
+		
+		const aiService = plugin.getActiveService?.();
+		if (!aiService) {
+			const svgContent = buildFallbackSvg();
+			await adapter.write(svgPath, svgContent);
+			console.log("Auto-generated static preview.svg (no AI service available)", { extensionId, svgPath });
+			return svgPath;
+		}
+		
+		// Prefer README content passed from the caller; fall back to README.md in the folder
+		let effectiveReadme = (readmeContent || "").trim();
+		if (!effectiveReadme) {
+			try {
+				const readmePath = `${folderPath}/README.md`;
+				if (await adapter.exists(readmePath)) {
+					effectiveReadme = await adapter.read(readmePath);
+					console.log("Loaded README.md for image generation:", readmePath);
+				}
+			} catch (readError) {
+				console.warn("Failed to read README.md for image generation", readError);
+			}
+		}
+		
+		// Ask the AI provider to generate standalone SVG markup for the preview image
+		let svgResponse: string;
+		try {
+			const prompt = `You are a UI designer generating SVG preview images for the Obsidian Vault Copilot extensions catalog. Based on the following README content, generate a rich, dark-theme-friendly SVG preview image that visually represents the extension.\n\nRequirements:\n- Output a single, valid standalone SVG element.\n- Size must be 1280x720.\n- Use a modern dark UI style similar to code editors.\n- Include the extension name as prominent title text: "${titleText}".\n- You may include subtle icons, panels, or tags that match the extension's purpose.\n- Do NOT wrap the SVG in Markdown or code fences.\n- Do NOT include any explanations, comments, or backticks.\n- Return only the <svg>...</svg> markup.\n\nREADME content:\n\n${effectiveReadme || "(No README content provided; design a generic but professional preview for the extension.)"}`;
+			
+			let aiSession: any = null;
+			if ("createSession" in aiService && typeof (aiService as any).createSession === "function") {
+				console.log("AI service requires session creation for image generation");
+				aiSession = await (aiService as any).createSession();
+			}
+			
+			if (aiSession && typeof aiSession.sendMessage === "function") {
+				svgResponse = await aiSession.sendMessage(prompt);
+			} else if (typeof (aiService as any).sendMessage === "function") {
+				svgResponse = await (aiService as any).sendMessage(prompt);
+			} else {
+				throw new Error("AI service does not support sendMessage for image generation");
+			}
+		} catch (aiError) {
+			console.error("AI image generation failed, falling back to static SVG:", aiError);
+			const svgContent = buildFallbackSvg();
+			await adapter.write(svgPath, svgContent);
+			return svgPath;
+		}
+		
+		// Clean up any accidental code fences and extract the SVG element if needed
+		let cleanedSvg = cleanMarkdownCodeBlocks(svgResponse || "");
+		const startIdx = cleanedSvg.indexOf("<svg");
+		const endIdx = cleanedSvg.lastIndexOf("</svg>");
+		if (startIdx !== -1 && endIdx !== -1) {
+			cleanedSvg = cleanedSvg.slice(startIdx, endIdx + "</svg>".length);
+		}
+		cleanedSvg = cleanedSvg.trim();
+		
+		if (!cleanedSvg.toLowerCase().includes("<svg")) {
+			console.warn("AI did not return valid SVG, using static fallback preview");
+			const svgContent = buildFallbackSvg();
+			await adapter.write(svgPath, svgContent);
+			return svgPath;
+		}
+		
+		await adapter.write(svgPath, cleanedSvg);
+		console.log("AI-generated preview.svg for extension:", { extensionId, svgPath });
+		
+		return svgPath;
 	} catch (error) {
 		console.error("Auto image generation failed:", error);
 		return null;
@@ -491,28 +683,8 @@ export async function generateDescriptionWithAI(
 		
 		console.log("Starting AI description generation...");
 		
-		// Read extension files
-		let extensionContent = "";
-		
-		const possibleFiles = [
-			`${extensionPath}/${extensionId}.agent.md`,
-			`${extensionPath}/${extensionId}.prompt.md`,
-			`${extensionPath}/${extensionId}.voice-agent.md`,
-			`${extensionPath}/README.md`
-		];
-		
-		for (const filePath of possibleFiles) {
-			try {
-				const file = app.vault.getAbstractFileByPath(filePath);
-				if (file instanceof TFile) {
-					extensionContent = await app.vault.read(file);
-					console.log(`Read extension content from: ${filePath}`);
-					break;
-				}
-			} catch (e) {
-				// File doesn't exist, try next
-			}
-		}
+		// Read extension files (supports both file and folder paths)
+		const extensionContent = await readExtensionContent(app, extensionPath, extensionId);
 		
 		const descPrompt = `Based on this extension content, write a brief 1-2 sentence description suitable for a catalog listing:\n\n${extensionContent || `Extension Name: ${extensionName}\nExtension ID: ${extensionId}`}\n\nDescription:`;
 		
@@ -584,28 +756,8 @@ export async function generateReadmeWithAI(
 		
 		console.log("Starting AI README generation...");
 		
-		// Read extension files
-		let extensionContent = "";
-		
-		const possibleFiles = [
-			`${extensionPath}/${extensionId}.agent.md`,
-			`${extensionPath}/${extensionId}.prompt.md`,
-			`${extensionPath}/${extensionId}.voice-agent.md`,
-			`${extensionPath}/README.md`
-		];
-		
-		for (const filePath of possibleFiles) {
-			try {
-				const file = app.vault.getAbstractFileByPath(filePath);
-				if (file instanceof TFile) {
-					extensionContent = await app.vault.read(file);
-					console.log(`Read extension content from: ${filePath}`);
-					break;
-				}
-			} catch (e) {
-				// File doesn't exist, try next
-			}
-		}
+		// Read extension files (supports both file and folder paths)
+		const extensionContent = await readExtensionContent(app, extensionPath, extensionId);
 		
 		const readmePrompt = `Based on this extension content, write a comprehensive README.md with:
 - Brief overview

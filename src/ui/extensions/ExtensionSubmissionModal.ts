@@ -434,7 +434,14 @@ export class ExtensionSubmissionModal extends Modal {
 					// Task 2: Generate image
 					tasks[1]!.status = 'in-progress';
 					renderGeneratingContentScreen(this.contentEl, "Generating extension image...", tasks);
-					const imagePath = await generateExtensionImageAuto(this.submissionData.extensionId);
+					const imagePath = await generateExtensionImageAuto(
+						this.app,
+						this.plugin,
+						this.submissionData.extensionPath!,
+						this.submissionData.extensionId,
+						this.submissionData.extensionName,
+						this.generatedReadme
+					);
 					if (imagePath) {
 						this.generatedImagePath = imagePath;
 					}
