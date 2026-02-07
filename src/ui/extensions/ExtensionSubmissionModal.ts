@@ -257,14 +257,18 @@ export class ExtensionSubmissionModal extends Modal {
 				this.renderWelcomeStep(contentEl);
 				break;
 			case 0:
-				// Progress indicator (only show after welcome screen)
+				// Progress indicator (show after welcome screen)
 				this.renderProgressIndicator(contentEl);
 				this.renderExtensionSelectionStep(contentEl);
 				break;
 			case 1:
+				// Progress indicator
+				this.renderProgressIndicator(contentEl);
 				this.renderExtensionDetailsStep(contentEl);
 				break;
 			case 2:
+				// Progress indicator
+				this.renderProgressIndicator(contentEl);
 				this.renderPreviewStep(contentEl);
 				break;
 		}
@@ -380,7 +384,9 @@ export class ExtensionSubmissionModal extends Modal {
 		privacyList.createEl("li", { text: "Use your GitHub credentials to create a fork and pull request" });
 		privacyList.createEl("li", { text: "Read extension files from your vault to generate content (if AI enabled)" });
 		privacyList.createEl("li", { text: "Access git config for author information (name and email)" });
-		privacyList.createEl("p", { 
+		
+		// Add privacy note to privacySection, not privacyList
+		privacySection.createEl("p", { 
 			text: "All operations require your confirmation. You'll review everything before submission.",
 			cls: "privacy-note"
 		});
