@@ -7619,6 +7619,7 @@ text-align: left;
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+	width: 100%;
 }
 
 .step-sub-item {
@@ -7628,6 +7629,8 @@ text-align: left;
 	font-size: 12px;
 	padding: 4px 0 4px 26px;
 	color: var(--text-muted);
+	width: 100%;
+	min-width: 0;
 }
 
 .step-sub-icon {
@@ -7639,6 +7642,7 @@ text-align: left;
 
 .step-sub-text {
 	flex: 1;
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
