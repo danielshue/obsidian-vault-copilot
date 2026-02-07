@@ -44,6 +44,18 @@ vi.mock("@github/copilot-sdk", () => ({
 	defineTool: vi.fn((_name, config) => config),
 }));
 
+// Mock child_process to avoid requiring gh CLI in tests
+vi.mock("child_process", () => ({
+	execFile: vi.fn((cmd, args, callback) => {
+		// Mock successful gh auth status
+		if (cmd === "gh" && args[0] === "auth") {
+			callback(null, { stdout: "✓ Logged in to github.com account test-user (keyring)\n", stderr: "" });
+		} else {
+			callback(null, { stdout: "", stderr: "" });
+		}
+	}),
+}));
+
 // Mock fs module
 vi.mock("fs", () => ({
 	existsSync: vi.fn(),

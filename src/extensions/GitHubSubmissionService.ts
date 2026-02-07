@@ -41,8 +41,13 @@
  */
 
 // No longer using Copilot SDK for orchestration
+import { execFile } from "child_process";
+import { promisify } from "util";
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
+
+const execFileAsync = promisify(execFile);
 
 /**
  * Configuration options for the GitHub Submission Service.
@@ -222,9 +227,6 @@ export class GitHubSubmissionService {
 
 		try {
 			// Verify GitHub CLI is authenticated
-			const { execFile } = require("child_process");
-			const { promisify } = require("util");
-			const execFileAsync = promisify(execFile);
 
 			await execFileAsync("gh", ["auth", "status", "--hostname", "github.com"]);
 			this.initialized = true;
@@ -445,15 +447,7 @@ export class GitHubSubmissionService {
 		}
 
 		try {
-			// Load Node.js modules
-			const { execFile } = require("child_process");
-			const { promisify } = require("util");
-			const fs = require("fs");
-			const path = require("path");
-			const os = require("os");
-			const execFileAsync = promisify(execFile);
-
-			const { upstreamOwner, upstreamRepo, targetBranch } = this.config;
+		const { upstreamOwner, upstreamRepo, targetBranch } = this.config;
 
 			// Helper: run gh command
 			const runGh = async (args: string[], cwd?: string): Promise<{ stdout: string; stderr: string }> => {
