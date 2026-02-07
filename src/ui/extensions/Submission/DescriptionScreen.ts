@@ -109,27 +109,25 @@ export function renderDescriptionScreen(
 				});
 		});
 	
+	// Always show image preview box if image was generated or selected
 	if (context.iconImagePath || context.generatedImagePath) {
 		const imagePath = context.iconImagePath || context.generatedImagePath;
-		container.createEl("div", { 
-			text: context.generatedImagePath ? `🤖 AI-Generated Image` : `📎 Selected: ${imagePath}`,
-			cls: "selected-file-info"
-		});
+		const isAIGenerated = !!context.generatedImagePath;
 		
-		// Show actual image preview if it exists
-		if (context.generatedImagePath) {
-			const previewBox = container.createEl("div", {
-				cls: "image-preview-box"
-			});
-			previewBox.createEl("div", {
-				text: "🖼️ AI-Generated Image Preview",
-				cls: "image-preview-placeholder"
-			});
-			previewBox.createEl("div", {
-				text: "Note: Image will be generated and included in the PR submission",
-				cls: "image-preview-note"
-			});
-		}
+		// Show visual preview box
+		const previewBox = container.createEl("div", {
+			cls: "image-preview-box"
+		});
+		previewBox.createEl("div", {
+			text: isAIGenerated ? "🖼️ AI-Generated Image" : "🖼️ Selected Image",
+			cls: "image-preview-placeholder"
+		});
+		previewBox.createEl("div", {
+			text: isAIGenerated 
+				? "✓ Generated during loading phase - will be included in PR submission" 
+				: `📎 Selected: ${imagePath}`,
+			cls: "image-preview-note"
+		});
 	}
 	
 	// Info box

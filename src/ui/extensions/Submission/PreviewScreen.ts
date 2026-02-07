@@ -31,7 +31,7 @@ export function renderPreviewScreen(
 	// Capitalize extension type for display
 	const displayType = context.submissionData.extensionType 
 		? context.submissionData.extensionType.charAt(0).toUpperCase() + context.submissionData.extensionType.slice(1)
-		: "";
+		: "Agent"; // Default to Agent if not set
 	addSummaryItem(summaryContainer, "Type", displayType);
 	addSummaryItem(summaryContainer, "Path", context.submissionData.extensionPath || "");
 	addSummaryItem(summaryContainer, "ID", context.submissionData.extensionId || "");

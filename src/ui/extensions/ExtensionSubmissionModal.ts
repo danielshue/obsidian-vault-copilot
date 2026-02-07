@@ -127,10 +127,9 @@ export class ExtensionSubmissionModal extends Modal {
 	}
 	
 	public onClose(): void {
-		if (this.resolve) {
-			this.resolve(null);
-			this.resolve = null;
-		}
+		// Don't resolve or show notice - user explicitly closed modal
+		// Clear resolve to prevent double resolution
+		this.resolve = null;
 	}
 	
 	/**
