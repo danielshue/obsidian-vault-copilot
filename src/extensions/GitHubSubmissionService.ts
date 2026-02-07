@@ -514,7 +514,7 @@ export class GitHubSubmissionService {
 				}
 			}
 
-			// Step 5: Clone repository
+			// Step 5: Clone repository with sparse checkout (only extensions/ directory)
 			const baseDir = path.join(os.tmpdir(), "obsidian-vault-copilot-submissions");
 			if (!fs.existsSync(baseDir)) {
 				fs.mkdirSync(baseDir, { recursive: true });
@@ -523,13 +523,30 @@ export class GitHubSubmissionService {
 			const repoDirName = `${upstreamRepo}-${Date.now()}`;
 			const repoDir = path.join(baseDir, repoDirName);
 
-			console.log("[GitHubSubmission] Cloning repository", { repoFullName, repoDir });
+			console.log("[GitHubSubmission] Setting up sparse checkout", { repoFullName, repoDir });
 			fs.mkdirSync(repoDir, { recursive: true });
-			await runGh(["repo", "clone", repoFullName, repoDir, "--", "--depth=1"]);
-
+			
+			// Initialize empty repo
+			await runGit(["init"], repoDir);
+			
+			// Add remote
+			const repoUrl = `https://github.com/${repoFullName}.git`;
+			await runGit(["remote", "add", "origin", repoUrl], repoDir);
+			
+			// Enable sparse checkout and configure to only fetch extensions/
+			await runGit(["config", "core.sparseCheckout", "true"], repoDir);
+			const sparseCheckoutFile = path.join(repoDir, ".git", "info", "sparse-checkout");
+			const sparseCheckoutDir = path.dirname(sparseCheckoutFile);
+			if (!fs.existsSync(sparseCheckoutDir)) {
+				fs.mkdirSync(sparseCheckoutDir, { recursive: true });
+			}
+			fs.writeFileSync(sparseCheckoutFile, "extensions/\n", "utf-8");
+			
+			// Fetch only the target branch with depth 1
+			await runGit(["fetch", "--depth=1", "origin", targetBranch || "master"], repoDir);
+			
 			// Step 6: Create branch
 			console.log("[GitHubSubmission] Creating branch:", params.branchName);
-			await runGit(["fetch", "origin", targetBranch || "master"], repoDir);
 			await runGit(["checkout", "-B", params.branchName, `origin/${targetBranch || "master"}`], repoDir);
 
 			// Step 7: Copy files
