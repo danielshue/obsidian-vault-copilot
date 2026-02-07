@@ -444,6 +444,12 @@ export class ExtensionSubmissionModal extends Modal {
 			descText.setText(this.descriptionInput.value);
 		}
 		
+		if (this.readmeInput && this.readmeInput.value) {
+			summaryContainer.createEl("h3", { text: "README" });
+			const readmeText = summaryContainer.createDiv({ cls: "summary-readme" });
+			readmeText.setText(this.readmeInput.value);
+		}
+		
 		// What will happen
 		const processContainer = container.createDiv({ cls: "submission-process" });
 		processContainer.createEl("h3", { text: "What will happen next:" });

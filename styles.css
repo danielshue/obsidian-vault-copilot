@@ -6983,6 +6983,24 @@ cursor: pointer;
 	font-size: 13px;
 	color: var(--text-normal);
 	white-space: pre-wrap;
-	max-height: 200px;
+	min-height: 80px;
+	max-height: 150px;
 	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+}
+
+/* Summary README */
+.summary-readme {
+	padding: 12px;
+	margin-top: 8px;
+	background: var(--background-primary-alt);
+	border-radius: 4px;
+	font-size: 13px;
+	color: var(--text-normal);
+	white-space: pre-wrap;
+	font-family: monospace;
+	min-height: 200px;
+	max-height: 400px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
 }
