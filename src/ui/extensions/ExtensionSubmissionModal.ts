@@ -840,18 +840,12 @@ export class ExtensionSubmissionModal extends Modal {
 		};
 
 		// Helper to surface progress both in the UI and console for debugging.
-		// When a stepId is provided, we also update that step's label so that
-		// the detailed runtime messages and the pill-style steps stay in sync.
-		const logProgress = (message: string, stepId?: string): void => {
+		// The pill-style steps retain their short, static labels ("Prepare temporary
+		// workspace", etc.), while this logger shows detailed messages (paths,
+		// timings) in a list above. The optional stepId is kept for potential
+		// future use but does not alter the step labels.
+		const logProgress = (message: string, _stepId?: string): void => {
 			console.log("[Extension Submission]", message);
-			if (stepId) {
-				const step = stepMap.get(stepId);
-				if (step) {
-					step.label.setText(message);
-				}
-				return;
-			}
-
 			let list = messageContainer.querySelector(".submission-step-list");
 			if (!list) {
 				list = messageContainer.createEl("ul", { cls: "submission-step-list" });
