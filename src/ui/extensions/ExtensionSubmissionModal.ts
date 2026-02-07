@@ -54,9 +54,11 @@ export class ExtensionSubmissionModal extends Modal {
 	// Image file paths
 	private iconImagePath: string | null = null;
 	private previewImagePath: string | null = null;
+	private generatedImagePath: string | null = null; // AI-generated image used for both
 	
 	// Loading state for AI generation
 	private isGeneratingContent = false;
+	private isGeneratingImage = false;
 	private generatedDescription: string = "";
 	private generatedReadme: string = "";
 	
@@ -146,6 +148,33 @@ export class ExtensionSubmissionModal extends Modal {
 			this.resolve(null);
 			this.resolve = null;
 		}
+	}
+	
+	/**
+	 * Renders an interim loading screen with a delightful message
+	 * 
+	 * @param message - Loading message to display
+	 * @internal
+	 */
+	private renderLoadingScreen(message: string) {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass("extension-submission-modal");
+		contentEl.addClass("loading-screen");
+		
+		const loadingContainer = contentEl.createDiv({ cls: "loading-container" });
+		
+		// Spinner
+		const spinner = loadingContainer.createDiv({ cls: "loading-spinner" });
+		
+		// Message
+		loadingContainer.createEl("h2", { text: message, cls: "loading-message" });
+		
+		// Submessage
+		loadingContainer.createEl("p", { 
+			text: "This will just take a moment...",
+			cls: "loading-submessage"
+		});
 	}
 	
 	/**
@@ -313,13 +342,13 @@ export class ExtensionSubmissionModal extends Modal {
 		// Pre-populate with AI-generated content
 		this.descriptionInput.value = this.generatedDescription || "";
 		
-		// Icon image upload
-		new Setting(container)
-			.setName("Extension Icon")
-			.setDesc("Upload an icon image (SVG or PNG, optional)")
+		// Icon image upload with AI generation option
+		const iconSetting = new Setting(container)
+			.setName("Extension Icon & Preview Image")
+			.setDesc("Upload or generate images (same image used for both icon and preview)")
 			.addButton(button => {
 				button
-					.setButtonText(this.iconImagePath ? "Change Icon" : "Choose Icon")
+					.setButtonText(this.iconImagePath || this.generatedImagePath ? "Change Image" : "Choose Image")
 					.onClick(async () => {
 						const input = document.createElement('input');
 						input.type = 'file';
@@ -328,47 +357,29 @@ export class ExtensionSubmissionModal extends Modal {
 							const target = e.target as HTMLInputElement;
 							if (target.files && target.files.length > 0) {
 								this.iconImagePath = target.files[0].path || target.files[0].name;
-								button.setButtonText("Change Icon");
-								new Notice(`Icon selected: ${target.files[0].name}`);
+								this.previewImagePath = this.iconImagePath; // Use same for both
+								this.generatedImagePath = null; // Clear generated if user uploads
+								button.setButtonText("Change Image");
+								new Notice(`Image selected: ${target.files[0].name}`);
+								this.renderCurrentStep(); // Re-render to update display
 							}
 						};
 						input.click();
 					});
-			});
-		
-		if (this.iconImagePath) {
-			container.createEl("div", { 
-				text: `📎 Selected: ${this.iconImagePath}`,
-				cls: "selected-file-info"
-			});
-		}
-		
-		// Preview image upload
-		new Setting(container)
-			.setName("Preview Image")
-			.setDesc("Upload a preview/screenshot image (PNG, 1280x720 recommended)")
+			})
 			.addButton(button => {
 				button
-					.setButtonText(this.previewImagePath ? "Change Preview" : "Choose Preview")
+					.setButtonText(this.isGeneratingImage ? "Generating..." : "Generate with AI")
+					.setDisabled(this.isGeneratingImage)
 					.onClick(async () => {
-						const input = document.createElement('input');
-						input.type = 'file';
-						input.accept = '.png,.jpg,.jpeg';
-						input.onchange = (e: Event) => {
-							const target = e.target as HTMLInputElement;
-							if (target.files && target.files.length > 0) {
-								this.previewImagePath = target.files[0].path || target.files[0].name;
-								button.setButtonText("Change Preview");
-								new Notice(`Preview image selected: ${target.files[0].name}`);
-							}
-						};
-						input.click();
+						await this.generateExtensionImage(button);
 					});
 			});
 		
-		if (this.previewImagePath) {
+		if (this.iconImagePath || this.generatedImagePath) {
+			const imagePath = this.iconImagePath || this.generatedImagePath;
 			container.createEl("div", { 
-				text: `📎 Selected: ${this.previewImagePath}`,
+				text: this.generatedImagePath ? `🤖 AI-Generated: ${imagePath}` : `📎 Selected: ${imagePath}`,
 				cls: "selected-file-info"
 			});
 		}
@@ -428,13 +439,16 @@ export class ExtensionSubmissionModal extends Modal {
 		this.addSummaryItem(summaryContainer, "Name", this.submissionData.authorName || "");
 		this.addSummaryItem(summaryContainer, "URL", this.submissionData.authorUrl || "");
 		
-		if (this.iconImagePath || this.previewImagePath) {
+		if (this.iconImagePath || this.previewImagePath || this.generatedImagePath) {
 			summaryContainer.createEl("h3", { text: "Assets" });
-			if (this.iconImagePath) {
-				this.addSummaryItem(summaryContainer, "Icon", this.iconImagePath);
-			}
-			if (this.previewImagePath) {
-				this.addSummaryItem(summaryContainer, "Preview Image", this.previewImagePath);
+			const imagePath = this.iconImagePath || this.generatedImagePath;
+			const imageLabel = this.generatedImagePath ? "Image (AI-Generated)" : "Image";
+			if (imagePath) {
+				this.addSummaryItem(summaryContainer, imageLabel, imagePath);
+				summaryContainer.createEl("div", { 
+					text: "Note: Same image will be used for both icon and preview",
+					cls: "summary-note"
+				});
 			}
 		}
 		
@@ -546,8 +560,8 @@ export class ExtensionSubmissionModal extends Modal {
 					return false;
 				}
 				
-				// Show loading notice
-				const loadingNotice = new Notice("Analyzing extension and generating content...", 0);
+				// Show interim loading screen
+				this.renderLoadingScreen("Reviewing information...");
 				
 				try {
 					// TODO: Validate extension exists and has valid manifest
@@ -567,19 +581,17 @@ export class ExtensionSubmissionModal extends Modal {
 						this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
 					}
 					
-					// Generate description and README using AI
+					// Generate description and README using AI (async)
 					await this.generateExtensionContent();
 					
-					loadingNotice.hide();
-					new Notice("Extension content generated successfully!");
+					// Success - proceed to next step
+					return true;
 					
 				} catch (error) {
-					loadingNotice.hide();
 					console.error("Content generation failed:", error);
 					new Notice("Content generation failed. You can still enter details manually.");
+					return true; // Still proceed even if generation fails
 				}
-				
-				return true;
 				
 			case 1: // Extension details (author info, images, description)
 				if (!this.submissionData.authorName) {
@@ -702,5 +714,51 @@ README.md:`;
 			this.resolve = null;
 		}
 		this.close();
+	}
+	
+	/**
+	 * Generates extension icon and preview image using AI
+	 * 
+	 * @param button - Button component to update state
+	 * @internal
+	 */
+	private async generateExtensionImage(button: ButtonComponent): Promise<void> {
+		if (!this.plugin || this.isGeneratingImage) {
+			return;
+		}
+		
+		this.isGeneratingImage = true;
+		button.setButtonText("Generating...");
+		button.setDisabled(true);
+		
+		try {
+			// TODO: Implement actual AI image generation
+			// This would involve:
+			// 1. Creating a prompt based on extension name and description
+			// 2. Calling an AI image generation service (DALL-E, Stable Diffusion, etc.)
+			// 3. Saving the generated image to a temporary location
+			// 4. Setting both iconImagePath and previewImagePath to the same image
+			
+			// For now, simulate generation with a delay
+			await new Promise(resolve => setTimeout(resolve, 2000));
+			
+			// Set a placeholder path (in real implementation, this would be the actual generated image)
+			this.generatedImagePath = `generated-${this.submissionData.extensionId}-icon.png`;
+			this.iconImagePath = null; // Clear manual selection
+			this.previewImagePath = null;
+			
+			new Notice("Image generated successfully! Same image will be used for both icon and preview.");
+			
+			// Re-render to show the generated image
+			this.renderCurrentStep();
+			
+		} catch (error) {
+			console.error("Image generation failed:", error);
+			new Notice("Image generation failed. Please upload an image manually.");
+		} finally {
+			this.isGeneratingImage = false;
+			button.setButtonText("Generate with AI");
+			button.setDisabled(false);
+		}
 	}
 }

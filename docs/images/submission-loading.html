@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Submission - Loading Screen</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 40px;
+            background: #1e1e1e;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .modal {
+            background: #2d2d30;
+            border-radius: 8px;
+            padding: 32px;
+            max-width: 600px;
+            width: 100%;
+            min-height: 400px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading-container {
+            text-align: center;
+            padding: 40px;
+        }
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 24px;
+            border: 4px solid #3e3e42;
+            border-top-color: #007acc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-message {
+            margin: 0 0 12px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #cccccc;
+        }
+        .loading-submessage {
+            margin: 0;
+            font-size: 14px;
+            color: #858585;
+        }
+    </style>
+</head>
+<body>
+    <div class="modal">
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <h2 class="loading-message">Reviewing information...</h2>
+            <p class="loading-submessage">This will just take a moment...</p>
+        </div>
+    </div>
+</body>
+</html>
