@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Welcome to Extension Submission</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 40px;
+			background-color: #1e1e1e;
+			color: #cccccc;
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			min-height: 100vh;
+		}
+		
+		.modal {
+			background-color: #2d2d2d;
+			border-radius: 8px;
+			width: 800px;
+			max-width: 95vw;
+			padding: 32px;
+			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+		}
+		
+		h1 {
+			margin: 0 0 8px 0;
+			font-size: 28px;
+			color: #ffffff;
+		}
+		
+		.welcome-subtitle {
+			font-size: 15px;
+			color: #999999;
+			margin-bottom: 32px;
+		}
+		
+		.welcome-section {
+			margin-bottom: 32px;
+		}
+		
+		.welcome-section h3 {
+			font-size: 16px;
+			margin-bottom: 12px;
+			color: #ffffff;
+		}
+		
+		.welcome-steps-list {
+			padding-left: 24px;
+			margin: 0;
+		}
+		
+		.welcome-step-item {
+			margin-bottom: 16px;
+			line-height: 1.6;
+			font-size: 14px;
+			color: #cccccc;
+		}
+		
+		.welcome-step-item strong {
+			color: #007acc;
+		}
+		
+		.welcome-benefits-list {
+			padding-left: 24px;
+			margin: 0;
+		}
+		
+		.welcome-benefits-list li {
+			margin-bottom: 8px;
+			line-height: 1.6;
+			font-size: 14px;
+			color: #cccccc;
+		}
+		
+		.welcome-privacy {
+			padding: 16px;
+			background: #252525;
+			border-radius: 6px;
+			border: 1px solid #3d3d3d;
+		}
+		
+		.welcome-privacy h3 {
+			margin-top: 0;
+		}
+		
+		.welcome-privacy ul {
+			padding-left: 24px;
+			margin: 8px 0;
+		}
+		
+		.welcome-privacy li {
+			margin-bottom: 6px;
+			font-size: 13px;
+			color: #999999;
+		}
+		
+		.privacy-note {
+			margin-top: 12px;
+			font-size: 13px;
+			color: #cccccc;
+			font-style: italic;
+		}
+		
+		.modal-button-container {
+			display: flex;
+			gap: 8px;
+			justify-content: flex-end;
+			margin-top: 32px;
+			padding-top: 20px;
+			border-top: 1px solid #3d3d3d;
+		}
+		
+		button {
+			padding: 8px 20px;
+			font-size: 14px;
+			border-radius: 4px;
+			cursor: pointer;
+			border: 1px solid #3d3d3d;
+			background: #3d3d3d;
+			color: #ffffff;
+			min-width: 120px;
+			transition: all 0.2s ease;
+		}
+		
+		button:hover {
+			background: #4d4d4d;
+			border-color: #5d5d5d;
+		}
+		
+		button.mod-cta {
+			background-color: #007acc;
+			border-color: #007acc;
+			color: #ffffff;
+		}
+		
+		button.mod-cta:hover {
+			background-color: #0098ff;
+			border-color: #0098ff;
+			transform: translateY(-1px);
+			box-shadow: 0 4px 8px rgba(0, 122, 204, 0.3);
+		}
+	</style>
+</head>
+<body>
+	<div class="modal">
+		<h1>Welcome to Extension Submission</h1>
+		<p class="welcome-subtitle">This wizard will guide you through submitting your extension to the Vault Copilot catalog.</p>
+		
+		<div class="welcome-section">
+			<h3>📋 What This Wizard Will Do:</h3>
+			<ol class="welcome-steps-list">
+				<li class="welcome-step-item">
+					<strong>Gather Extension Information</strong>: Collect details about your extension from the markdown file or folder
+				</li>
+				<li class="welcome-step-item">
+					<strong>Generate Required Content (Optional)</strong>: Use AI to automatically create description, README, and image—or provide your own
+				</li>
+				<li class="welcome-step-item">
+					<strong>Collect Author Information</strong>: Auto-populate your name and GitHub profile from git config (editable)
+				</li>
+				<li class="welcome-step-item">
+					<strong>Review & Edit</strong>: Review all generated content in large preview boxes and make any changes
+				</li>
+				<li class="welcome-step-item">
+					<strong>Package Files Together</strong>: Prepare extension files, manifest.json, README, and images for submission
+				</li>
+				<li class="welcome-step-item">
+					<strong>Create Pull Request on GitHub</strong>: Automatically fork the repository, create a branch, commit files, and submit a PR
+				</li>
+			</ol>
+		</div>
+		
+		<div class="welcome-section">
+			<h3>✨ Key Benefits:</h3>
+			<ul class="welcome-benefits-list">
+				<li>Complete automation from extension to pull request in 2-3 minutes</li>
+				<li>Optional AI-powered content generation saves manual work</li>
+				<li>Smart defaults from git config—minimal data entry required</li>
+				<li>Transparent progress tracking at every step</li>
+				<li>Full control—all generated content is editable</li>
+				<li>Duplicate prevention to avoid wasted effort</li>
+			</ul>
+		</div>
+		
+		<div class="welcome-section welcome-privacy">
+			<h3>🔒 Privacy & Permissions:</h3>
+			<p>This wizard will:</p>
+			<ul>
+				<li>Use your GitHub credentials to create a fork and pull request</li>
+				<li>Read extension files from your vault to generate content (if AI enabled)</li>
+				<li>Access git config for author information (name and email)</li>
+			</ul>
+			<p class="privacy-note">All operations require your confirmation. You'll review everything before submission.</p>
+		</div>
+		
+		<div class="modal-button-container">
+			<button class="mod-cta">Get Started →</button>
+			<button>Cancel</button>
+		</div>
+	</div>
+</body>
+</html>

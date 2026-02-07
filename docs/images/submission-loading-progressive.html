@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Submission - Progressive Loading</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 40px;
+            background: #1e1e1e;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .modal {
+            background: #2d2d30;
+            border-radius: 8px;
+            padding: 32px;
+            max-width: 600px;
+            width: 100%;
+            min-height: 400px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading-container {
+            text-align: center;
+            padding: 40px;
+        }
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 24px;
+            border: 4px solid #3e3e42;
+            border-top-color: #007acc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-message {
+            margin: 0 0 12px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #cccccc;
+        }
+        .loading-current-task {
+            margin: 0 0 24px 0;
+            font-size: 15px;
+            color: #007acc;
+            font-weight: 500;
+        }
+        .loading-task-list {
+            margin-top: 32px;
+            text-align: left;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .loading-task {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            font-size: 14px;
+            color: #858585;
+        }
+        .loading-task.in-progress {
+            color: #007acc;
+            font-weight: 500;
+        }
+        .loading-task.complete {
+            color: #4ec9b0;
+        }
+        .task-icon {
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+        .loading-task.complete .task-icon {
+            color: #4ec9b0;
+        }
+        .loading-task.in-progress .task-icon {
+            color: #007acc;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="modal">
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <h2 class="loading-message">Reviewing information...</h2>
+            <p class="loading-current-task">Generating extension image...</p>
+            
+            <div class="loading-task-list">
+                <div class="loading-task complete">
+                    <span class="task-icon">✓</span>
+                    <span class="task-name">Generating Description</span>
+                </div>
+                <div class="loading-task in-progress">
+                    <span class="task-icon">◐</span>
+                    <span class="task-name">Generating Image</span>
+                </div>
+                <div class="loading-task pending">
+                    <span class="task-icon">○</span>
+                    <span class="task-name">Validating ID doesn't exist</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

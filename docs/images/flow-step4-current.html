@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Submission - Step 3: Preview & Submit</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 40px;
+            background-color: #1e1e1e;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #dcddde;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .modal {
+            background-color: #2b2b2b;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            width: 700px;
+            padding: 30px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .progress-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .progress-indicator::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 40px;
+            right: 40px;
+            height: 2px;
+            background-color: #404040;
+            z-index: 0;
+        }
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+            flex: 1;
+        }
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #404040;
+            color: #808080;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        .step.active .step-number {
+            background-color: #2d7ff9;
+            color: white;
+        }
+        .step.complete .step-number {
+            background-color: #28a745;
+            color: white;
+        }
+        .step-label {
+            font-size: 12px;
+            color: #808080;
+            text-align: center;
+        }
+        .step.active .step-label {
+            color: #dcddde;
+        }
+        h2 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .subtitle {
+            color: #808080;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .summary-section {
+            margin-bottom: 25px;
+        }
+        .summary-section h3 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #5ba8ff;
+        }
+        .summary-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #404040;
+        }
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+        .summary-label {
+            flex: 0 0 120px;
+            color: #808080;
+            font-size: 13px;
+        }
+        .summary-value {
+            flex: 1;
+            color: #dcddde;
+            font-size: 13px;
+        }
+        .summary-description, .summary-readme {
+            margin-top: 8px;
+            padding: 12px;
+            background-color: #1a1a1a;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-y: auto;
+        }
+        .summary-description {
+            min-height: 80px;
+            max-height: 150px;
+        }
+        .summary-readme {
+            min-height: 200px;
+            max-height: 400px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            white-space: pre-wrap;
+        }
+        .info-box {
+            background-color: #1a3a5a;
+            border-left: 4px solid #2d7ff9;
+            padding: 12px 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .info-box .icon {
+            margin-right: 8px;
+        }
+        .info-box ol {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+        }
+        .info-box li {
+            margin-bottom: 4px;
+        }
+        .button-container {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        button {
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+        .btn-primary {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #218838;
+        }
+        .btn-secondary {
+            background-color: transparent;
+            color: #dcddde;
+            border: 1px solid #404040;
+        }
+        .btn-secondary:hover {
+            background-color: #404040;
+        }
+    </style>
+</head>
+<body>
+    <div class="modal">
+        <!-- Progress Indicator -->
+        <div class="progress-indicator">
+            <div class="step complete">
+                <div class="step-number">1</div>
+                <div class="step-label">Select Extension</div>
+            </div>
+            <div class="step complete">
+                <div class="step-number">2</div>
+                <div class="step-label">Extension Details</div>
+            </div>
+            <div class="step active">
+                <div class="step-number">3</div>
+                <div class="step-label">Preview & Submit</div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <h2>Preview & Confirm</h2>
+        <p class="subtitle">Review your submission details before proceeding.</p>
+
+        <!-- Extension Details Section -->
+        <div class="summary-section">
+            <h3>Extension Details</h3>
+            <div class="summary-row">
+                <div class="summary-label">Type:</div>
+                <div class="summary-value">Agent</div>
+            </div>
+            <div class="summary-row">
+                <div class="summary-label">Path:</div>
+                <div class="summary-value">extensions/agents/study-buddy/study-buddy.agent.md</div>
+            </div>
+            <div class="summary-row">
+                <div class="summary-label">ID:</div>
+                <div class="summary-value">study-buddy</div>
+            </div>
+            <div class="summary-row">
+                <div class="summary-label">Name:</div>
+                <div class="summary-value">Study Buddy</div>
+            </div>
+            <div class="summary-row">
+                <div class="summary-label">Version:</div>
+                <div class="summary-value">1.0.0</div>
+            </div>
+        </div>
+
+        <!-- Author Section -->
+        <div class="summary-section">
+            <h3>Author</h3>
+            <div class="summary-row">
+                <div class="summary-label">Name:</div>
+                <div class="summary-value">John Developer</div>
+            </div>
+            <div class="summary-row">
+                <div class="summary-label">URL:</div>
+                <div class="summary-value">https://github.com/johndeveloper</div>
+            </div>
+        </div>
+
+        <!-- Assets Section -->
+        <div class="summary-section">
+            <h3>Assets</h3>
+            <div class="summary-row">
+                <div class="summary-label">Image:</div>
+                <div class="summary-value">🤖 study-buddy-image.png (AI-generated - same for icon and preview)</div>
+            </div>
+        </div>
+
+        <!-- Description Section -->
+        <div class="summary-section">
+            <h3>Description</h3>
+            <div class="summary-description">A study companion that helps users organize their learning materials, set study goals, and track progress efficiently.</div>
+        </div>
+
+        <!-- README Section -->
+        <div class="summary-section">
+            <h3>README</h3>
+            <div class="summary-readme"># Study Buddy Agent
+
+## Features
+- Track study sessions and progress
+- Set personalized learning goals  
+- Review and organize study materials
+- Get AI-powered study recommendations
+
+## Usage
+1. Invoke the Study Buddy agent from the command palette
+2. Select your study task or goal
+3. The agent will guide you through organizing materials
+4. Track your progress over time
+
+## Examples
+- "Help me organize my biology notes"
+- "Create a study plan for my exam next week"
+- "Review my progress on learning JavaScript"</div>
+        </div>
+
+        <div class="info-box">
+            <span class="icon">📋</span>
+            <strong>What will happen next:</strong>
+            <ol>
+                <li>Your extension will be validated</li>
+                <li>A new branch will be created in your fork</li>
+                <li>Extension files (markdown, manifest.json, images, README) will be committed to the branch</li>
+                <li>A pull request will be created to the main repository</li>
+                <li>Maintainers will review your submission</li>
+            </ol>
+        </div>
+
+        <!-- Buttons -->
+        <div class="button-container">
+            <button class="btn-secondary">← Back</button>
+            <button class="btn-primary">Submit Extension</button>
+            <button class="btn-secondary">Cancel</button>
+        </div>
+    </div>
+</body>
+</html>

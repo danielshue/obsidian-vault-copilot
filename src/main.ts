@@ -52,6 +52,8 @@ import { GitHubCopilotCliService, GitHubCopilotCliConfig, ChatMessage, ModelInfo
 import { CopilotChatView, COPILOT_VIEW_TYPE, ConversationHistoryView, TracingView, TRACING_VIEW_TYPE, VOICE_HISTORY_VIEW_TYPE } from "./ui/ChatView";
 import { ExtensionBrowserView, EXTENSION_BROWSER_VIEW_TYPE } from "./ui/extensions/ExtensionBrowserView";
 import { ExtensionWebView, EXTENSION_WEB_VIEW_TYPE } from "./ui/extensions/ExtensionWebView";
+import { ExtensionSubmissionModal } from "./ui/extensions/ExtensionSubmissionModal";
+
 import { GitHubCopilotCliManager } from "./copilot/providers/GitHubCopilotCliManager";
 import { 
 	SkillRegistry, 
@@ -721,6 +723,14 @@ export default class CopilotPlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "submit-extension",
+			name: "Submit Extension to Catalog",
+			callback: async () => {
+				await this.openExtensionSubmissionModal();
+			},
+		});
+
 		// Add settings tab
 		this.addSettingTab(new CopilotSettingTab(this.app, this));
 
@@ -1013,6 +1023,39 @@ export default class CopilotPlugin extends Plugin {
 
 		if (leaf) {
 			workspace.revealLeaf(leaf);
+		}
+	}
+
+	/**
+	 * Opens the extension submission modal and handles the submission workflow
+	 * 
+	 * @internal
+	 */
+	async openExtensionSubmissionModal(): Promise<void> {
+		const modal = new ExtensionSubmissionModal(this.app, this);
+		
+		try {
+			const submissionData = await modal.show();
+			
+			if (!submissionData) {
+				// User cancelled
+				return;
+			}
+			
+			// TODO: Implement the actual GitHub submission workflow
+			// This would involve:
+			// 1. Validating the extension files and manifest
+			// 2. Checking GitHub setup (CLI auth, fork exists)
+			// 3. Creating a new branch in the fork
+			// 4. Copying extension files
+			// 5. Committing and pushing changes
+			// 6. Creating a pull request
+			
+			console.log("Extension submission data:", submissionData);
+			
+		} catch (error) {
+			console.error("Extension submission failed:", error);
+			new Notice(`Extension submission failed: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 
