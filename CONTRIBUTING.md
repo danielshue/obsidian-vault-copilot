@@ -491,7 +491,7 @@ Stuck or have questions? Here's how to get support:
 | 📖 [Extension Authoring Guide](docs/AUTHORING.md) | Step-by-step tutorial for creating extensions |
 | 💬 [GitHub Discussions](https://github.com/danielshue/obsidian-vault-copilot/discussions) | Ask questions, share ideas, get community help |
 | 🐛 [GitHub Issues](https://github.com/danielshue/obsidian-vault-copilot/issues) | Report bugs or request features |
-| 📧 [Email](mailto:extensions@vaultcopilot.dev) | Contact maintainers directly |
+| 📧 Contact | Contact the repository owner |
 
 ---
 

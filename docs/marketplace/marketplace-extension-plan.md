@@ -1876,7 +1876,7 @@ All PRs are scanned for:
 - 📖 [Extension Authoring Guide](docs/AUTHORING.md) — Detailed tutorial
 - 💬 [Discussions](https://github.com/danielshue/vault-copilot-extensions/discussions) — Ask questions
 - 🐛 [Issues](https://github.com/danielshue/vault-copilot-extensions/issues) — Report bugs
-- 📧 Email: [extensions@vaultcopilot.com](mailto:extensions@vaultcopilot.com)
+- 📧 Email: Contact the repository owner
 
 ---
 
@@ -2662,7 +2662,7 @@ If you can no longer maintain your extension:
 - 📖 [Schema Reference](../schema/manifest.schema.json)
 - 🛠️ [Tool Catalog](TOOLS.md)
 - 💬 [Community Discussions](https://github.com/danielshue/vault-copilot-extensions/discussions)
-- 📧 [Email Support](mailto:extensions@vaultcopilot.com)
+- 📧 Support: Contact the repository owner
 
 ---
 
@@ -2682,7 +2682,7 @@ If you can no longer maintain your extension:
 
 Instead, report them privately:
 
-📧 **Email:** security@vaultcopilot.com  
+📧 **Contact:** Contact the repository owner  
 🔒 **Subject:** `[Security] Vulnerability in [extension-name]`
 
 ### What to Include
@@ -2919,7 +2919,7 @@ Interested in helping with security reviews?
 - Help authors fix vulnerabilities
 - Contribute to validation scripts
 
-Contact: security@vaultcopilot.com
+Contact: Contact the repository owner
 
 ---
 
