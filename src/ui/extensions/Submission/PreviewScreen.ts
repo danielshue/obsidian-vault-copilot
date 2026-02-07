@@ -51,7 +51,10 @@ export function renderPreviewScreen(
 			? "Image (AI-Generated)"
 			: "Image";
 		if (imagePath) {
-			addSummaryItem(summaryContainer, imageLabel, imagePath);
+			const displayValue = imagePath.startsWith("data:")
+				? "AI-generated inline preview image"
+				: imagePath;
+			addSummaryItem(summaryContainer, imageLabel, displayValue);
 			
 			// Show actual image preview (selected or AI-generated)
 			const previewBox = summaryContainer.createEl("div", {
@@ -65,13 +68,20 @@ export function renderPreviewScreen(
 			});
 			
 			try {
-				const file = context.app.vault.getAbstractFileByPath(imagePath);
-				if (file instanceof TFile) {
-					const imgSrc = context.app.vault.getResourcePath(file);
+				if (imagePath.startsWith("data:")) {
 					const imgEl = previewBox.createEl("img", {
 						cls: "image-preview-img"
 					});
-					imgEl.src = imgSrc;
+					imgEl.src = imagePath;
+				} else {
+					const file = context.app.vault.getAbstractFileByPath(imagePath);
+					if (file instanceof TFile) {
+						const imgSrc = context.app.vault.getResourcePath(file);
+						const imgEl = previewBox.createEl("img", {
+							cls: "image-preview-img"
+						});
+						imgEl.src = imgSrc;
+					}
 				}
 			} catch (e) {
 				// If anything goes wrong, silently fall back to text-only preview

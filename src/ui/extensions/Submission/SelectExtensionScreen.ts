@@ -51,6 +51,9 @@ export function renderSelectExtensionScreen(
 		);
 	};
 
+	const initialType = (context.submissionData.extensionType || "agent") as ExtensionType;
+	context.submissionData.extensionType = context.submissionData.extensionType || initialType;
+
 	new Setting(container)
 		.setName("Extension Type")
 		.setDesc("What type of extension are you submitting?")
@@ -61,7 +64,7 @@ export function renderSelectExtensionScreen(
 				.addOption("prompt", "Prompt")
 				.addOption("skill", "Skill")
 				.addOption("mcp-server", "MCP Server")
-				.setValue(context.submissionData.extensionType || "agent")
+				.setValue(initialType)
 				.onChange(value => {
 					context.submissionData.extensionType = value as ExtensionType;
 					updateValidationHint(context.submissionData.extensionType);

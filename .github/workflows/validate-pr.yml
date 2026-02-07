@@ -49,42 +49,50 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const outcome = '${{ steps.validate.outcome }}';
-            const icon = outcome === 'success' ? '✅' : '❌';
-            const status = outcome === 'success' ? 'passed' : 'failed';
-            
-            const body = `${icon} Extension validation ${status}
-            
-            ${outcome === 'failure' ? 'Please check the workflow annotations for details.' : 'All extensions are valid!'}
-            
-            View full details in the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}).`;
-            
-            // Only comment if there were failures or if it's a new PR
-            if (outcome === 'failure') {
-              const comments = await github.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number
-              });
-              
-              // Find and update existing validation comment
-              const botComment = comments.data.find(c => 
-                c.user.type === 'Bot' && c.body.includes('Extension validation')
-              );
-              
-              if (botComment) {
-                await github.rest.issues.updateComment({
+            try {
+              const outcome = '${{ steps.validate.outcome }}';
+              const icon = outcome === 'success' ? '✅' : '❌';
+              const status = outcome === 'success' ? 'passed' : 'failed';
+
+              const body = `${icon} Extension validation ${status}
+
+              ${outcome === 'failure' ? 'Please check the workflow annotations for details.' : 'All extensions are valid!'}
+
+              View full details in the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}).`;
+
+              // Only comment if there were failures or if it's a new PR
+              if (outcome === 'failure') {
+                const comments = await github.rest.issues.listComments({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  comment_id: botComment.id,
-                  body
+                  issue_number: context.issue.number
                 });
-              } else {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: context.issue.number,
-                  body
-                });
+
+                // Find and update existing validation comment
+                const botComment = comments.data.find(c =>
+                  c.user.type === 'Bot' && c.body.includes('Extension validation')
+                );
+
+                if (botComment) {
+                  await github.rest.issues.updateComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: botComment.id,
+                    body
+                  });
+                } else {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: context.issue.number,
+                    body
+                  });
+                }
               }
+            } catch (error) {
+              // In some contexts (for example, PRs coming from forks or
+              // restricted integrations), the GitHub token may not be able to
+              // comment on the PR. Treat this as a non-fatal warning so the
+              // validation result still shows up via annotations.
+              core.warning(`Failed to post validation summary comment: ${error.message || error}`);
             }

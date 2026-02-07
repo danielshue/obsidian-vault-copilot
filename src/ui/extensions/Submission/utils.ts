@@ -246,12 +246,13 @@ export async function validateExtensionId(extensionId: string): Promise<void> {
 	}
 	
 	try {
-		const catalogUrl = "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/catalog.json";
+		const catalogUrl = "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/catalog/catalog.json";
 		
 		const response = await fetch(catalogUrl);
 		if (!response.ok) {
-			console.warn("Could not fetch catalog for validation");
-			return;
+			throw new Error(
+				`Could not fetch extension catalog from GitHub (HTTP ${response.status}). ID uniqueness could not be validated, but you may still continue.`
+			);
 		}
 		
 		const catalog = await response.json();
@@ -270,8 +271,14 @@ export async function validateExtensionId(extensionId: string): Promise<void> {
 			throw new Error(`Extension ID "${extensionId}" already exists in the catalog. Please choose a different ID.`);
 		}
 	} catch (error) {
-		if (error instanceof Error && error.message.includes("already exists")) {
-			throw error;
+		if (error instanceof Error) {
+			// Surface known validation issues to the caller so the UI can show them.
+			if (
+				error.message.includes("already exists") ||
+				error.message.includes("Could not fetch extension catalog")
+			) {
+				throw error;
+			}
 		}
 		console.warn("Catalog validation failed:", error);
 	}
@@ -498,7 +505,7 @@ export async function generateExtensionImageAuto(
 		const svgPath = `${folderPath}/preview.svg`;
 		const pngPath = `${folderPath}/preview.png`;
 		
-		// If a preview already exists, just reuse it
+		// If a preview already exists on disk (user-provided asset), just reuse it
 		if (await adapter.exists(svgPath)) {
 			console.log("Reusing existing preview.svg for auto image generation:", svgPath);
 			return svgPath;
@@ -532,21 +539,29 @@ export async function generateExtensionImageAuto(
 				`  <text x="640" y="390" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" fill="#a6adc8" text-anchor="middle">AI-generated preview placeholder</text>\n` +
 				`</svg>\n`;
 		};
+
+		// Helper: wrap SVG markup in a data URL so the image can be rendered
+		// in the UI without writing files into the vault or repo.
+		const toDataUrl = (svgContent: string): string => {
+			return `data:image/svg+xml;utf8,${encodeURIComponent(svgContent)}`;
+		};
 		
-		// If no plugin or AI service is available, fall back to the static SVG
+		// If no plugin or AI service is available, fall back to a static SVG
+		// returned as a data URL. This avoids creating on-disk assets inside the
+		// plugin repo or test vault.
 		if (!plugin) {
 			const svgContent = buildFallbackSvg();
-			await adapter.write(svgPath, svgContent);
-			console.log("Auto-generated static preview.svg (no plugin available)", { extensionId, svgPath });
-			return svgPath;
+			const dataUrl = toDataUrl(svgContent);
+			console.log("Auto-generated static preview image (no plugin available)", { extensionId });
+			return dataUrl;
 		}
 		
 		const aiService = plugin.getActiveService?.();
 		if (!aiService) {
 			const svgContent = buildFallbackSvg();
-			await adapter.write(svgPath, svgContent);
-			console.log("Auto-generated static preview.svg (no AI service available)", { extensionId, svgPath });
-			return svgPath;
+			const dataUrl = toDataUrl(svgContent);
+			console.log("Auto-generated static preview image (no AI service available)", { extensionId });
+			return dataUrl;
 		}
 		
 		// Prefer README content passed from the caller; fall back to README.md in the folder
@@ -584,8 +599,7 @@ export async function generateExtensionImageAuto(
 		} catch (aiError) {
 			console.error("AI image generation failed, falling back to static SVG:", aiError);
 			const svgContent = buildFallbackSvg();
-			await adapter.write(svgPath, svgContent);
-			return svgPath;
+			return toDataUrl(svgContent);
 		}
 		
 		// Clean up any accidental code fences and extract the SVG element if needed
@@ -600,14 +614,13 @@ export async function generateExtensionImageAuto(
 		if (!cleanedSvg.toLowerCase().includes("<svg")) {
 			console.warn("AI did not return valid SVG, using static fallback preview");
 			const svgContent = buildFallbackSvg();
-			await adapter.write(svgPath, svgContent);
-			return svgPath;
+			return toDataUrl(svgContent);
 		}
 		
-		await adapter.write(svgPath, cleanedSvg);
-		console.log("AI-generated preview.svg for extension:", { extensionId, svgPath });
+		const dataUrl = toDataUrl(cleanedSvg);
+		console.log("AI-generated preview image for extension (data URL)", { extensionId });
 		
-		return svgPath;
+		return dataUrl;
 	} catch (error) {
 		console.error("Auto image generation failed:", error);
 		return null;
@@ -686,7 +699,15 @@ export async function generateDescriptionWithAI(
 		// Read extension files (supports both file and folder paths)
 		const extensionContent = await readExtensionContent(app, extensionPath, extensionId);
 		
-		const descPrompt = `Based on this extension content, write a brief 1-2 sentence description suitable for a catalog listing:\n\n${extensionContent || `Extension Name: ${extensionName}\nExtension ID: ${extensionId}`}\n\nDescription:`;
+		const descPrompt = `You are helping generate a short catalog listing for an Obsidian Vault Copilot extension.
+
+Write a single, concise description of this extension that is at most 200 characters long (including spaces).
+- Focus on what it does and why it's useful.
+- Do not include quotes or markdown formatting.
+- Answer with the description text only.
+
+Extension context:
+${extensionContent || `Extension Name: ${extensionName}\nExtension ID: ${extensionId}`}\n\nDescription (<= 200 characters):`;
 		
 		console.log("Sending prompt to AI service for description...");
 		
@@ -702,7 +723,10 @@ export async function generateDescriptionWithAI(
 		}
 		
 		console.log("AI description generated successfully");
-		const description = descResponse.trim();
+		let description = descResponse.trim();
+		if (description.length > 200) {
+			description = `${description.slice(0, 197)}...`;
+		}
 		
 		if (descriptionInput) {
 			descriptionInput.value = description;

@@ -77,6 +77,10 @@ export class ExtensionSubmissionModal extends Modal {
 	private generatedImagePath: string | null = null;
 	
 	// Loading state for AI generation
+	private tempExtensionPathFs: string | null = null; // Temporary filesystem path where the selected extension is copied for
+	// the duration of the wizard and used as the working directory for the
+	// GitHub submission workflow.
+
 	private isGeneratingContent = false;
 	private isGeneratingImage = false;
 	private generatedDescription = "";
@@ -372,8 +376,19 @@ export class ExtensionSubmissionModal extends Modal {
 							this.submissionData.branchName = `add-${manifest.id}`;
 						}
 						
-						this.hasCompletedInitialValidation = true;
-						return true;
+													this.hasCompletedInitialValidation = true; 
+													const prepared = await this.prepareTempExtensionFolder();
+													if (!prepared) {
+														if (messageContainer) {
+															showInlineMessage(
+																messageContainer,
+																"Failed to prepare temporary folder for submission. Please ensure you are using a local desktop vault.",
+																"error"
+															);
+														}
+														return false;
+													}
+													return true;
 						
 					} catch (error) {
 						console.error("Basic validation failed:", error);
@@ -454,16 +469,42 @@ export class ExtensionSubmissionModal extends Modal {
 					await validateExtensionId(this.submissionData.extensionId);
 					tasks[2]!.status = 'complete';
 					
-					this.hasCompletedInitialValidation = true;
-					return true;
+											this.hasCompletedInitialValidation = true; 
+											const prepared = await this.prepareTempExtensionFolder();
+											if (!prepared) {
+												if (messageContainer) {
+													showInlineMessage(
+														messageContainer,
+														"Failed to prepare temporary folder for submission. Please ensure you are using a local desktop vault.",
+														"error"
+													);
+												}
+												return false;
+											}
+											return true;
 					
 				} catch (error) {
 					console.error("Validation/generation failed:", error);
 					if (messageContainer) {
-						showInlineMessage(messageContainer, "Some automated tasks failed. You can still proceed and enter details manually.", 'warning');
+						const message =
+							error instanceof Error && error.message
+								? error.message
+								: "Some automated tasks failed. You can still proceed and enter details manually.";
+						showInlineMessage(messageContainer, message, 'warning');
 					}
-					this.hasCompletedInitialValidation = true;
-					return true;
+											this.hasCompletedInitialValidation = true; 
+											const prepared = await this.prepareTempExtensionFolder();
+											if (!prepared) {
+												if (messageContainer) {
+													showInlineMessage(
+														messageContainer,
+														"Failed to prepare temporary folder for submission. Please ensure you are using a local desktop vault.",
+														"error"
+													);
+												}
+												return false;
+											}
+											return true;
 				}
 				
 			case 1: // Author Details
@@ -482,11 +523,251 @@ export class ExtensionSubmissionModal extends Modal {
 				return true;
 			
 			case 2:
+				// Description step: enforce manifest constraints so validation does not
+				// fail later in CI. Description is optional, but when provided it must
+				// respect the 200-character catalog limit.
+				if (this.submissionData.description && this.submissionData.description.length > 200) {
+					if (messageContainer) {
+						showInlineMessage(
+							messageContainer,
+							"Description must be 200 characters or fewer. Please shorten it before continuing.",
+							"error"
+						);
+					}
+					return false;
+				}
+				return true;
 			case 3:
 				return true;
 		}
 		
 		return true;
+	}
+
+	/**
+	 * Prepares a temporary filesystem folder that mirrors the selected extension
+	 * contents. This folder is used as the working directory for the GitHub
+	 * submission workflow so that we never mutate the user's vault or the
+	 * plugin repository directly.
+	 *
+	 * @returns Promise resolving to true if the temp folder is ready
+	 * @internal
+	 */
+	private async prepareTempExtensionFolder(): Promise<boolean> {
+		try {
+			if (this.tempExtensionPathFs) {
+				return true;
+			}
+
+			if (!this.submissionData.extensionPath) {
+				console.warn("No extension path set; cannot prepare temp folder.");
+				return false;
+			}
+
+			const adapter: any = this.app.vault.adapter;
+			const vaultBasePath: string | undefined =
+				typeof adapter.getBasePath === "function"
+					? adapter.getBasePath()
+					: typeof adapter.basePath === "string"
+						? adapter.basePath
+						: undefined;
+
+			if (!vaultBasePath) {
+				console.warn("Vault base path not available; temp folder requires a local desktop vault.");
+				return false;
+			}
+
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const fs = require("fs") as typeof import("fs");
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const path = require("path") as typeof import("path");
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const os = require("os") as typeof import("os");
+
+			const normalizedVaultBase = vaultBasePath.replace(/\\/g, "/");
+			const relativePath = this.submissionData.extensionPath.replace(/^\/+/, "");
+			const sourcePathFs = `${normalizedVaultBase}/${relativePath}`.replace(/\\/g, "/");
+
+			let stat: import("fs").Stats;
+			try {
+				stat = fs.statSync(sourcePathFs);
+			} catch (error) {
+				console.error("Failed to stat source extension path for temp copy:", error);
+				return false;
+			}
+
+			const baseTempDir = path.join(os.tmpdir(), "obsidian-vault-copilot-extensions");
+			if (!fs.existsSync(baseTempDir)) {
+				fs.mkdirSync(baseTempDir, { recursive: true });
+			}
+
+			const safeId = (this.submissionData.extensionId || "extension")
+				.replace(/[^a-zA-Z0-9_-]/g, "-");
+			const destDir = path.join(baseTempDir, `${safeId}-${Date.now()}`);
+			fs.mkdirSync(destDir, { recursive: true });
+
+			const copyRecursive = (source: string, target: string): void => {
+				const sourceStat = fs.statSync(source);
+				if (sourceStat.isDirectory()) {
+					if (!fs.existsSync(target)) {
+						fs.mkdirSync(target, { recursive: true });
+					}
+					for (const entry of fs.readdirSync(source)) {
+						const srcEntry = path.join(source, entry);
+						const dstEntry = path.join(target, entry);
+						copyRecursive(srcEntry, dstEntry);
+					}
+				} else {
+					const parentDir = path.dirname(target);
+					if (!fs.existsSync(parentDir)) {
+						fs.mkdirSync(parentDir, { recursive: true });
+					}
+					fs.copyFileSync(source, target);
+				}
+			};
+
+			if (stat.isDirectory()) {
+				copyRecursive(sourcePathFs, destDir);
+			} else {
+				const fileName = path.basename(sourcePathFs);
+				copyRecursive(sourcePathFs, path.join(destDir, fileName));
+			}
+
+			this.tempExtensionPathFs = destDir;
+			console.log("Prepared temporary extension folder for submission:", destDir);
+			return true;
+		} catch (error) {
+			console.error("Failed to prepare temporary extension folder:", error);
+			return false;
+		}
+	}
+
+	/**
+	 * Ensures that required files (manifest.json, README.md, and preview image)
+	 * exist in the temporary extension folder before invoking the GitHub
+	 * submission service. This uses the data collected in the wizard so that
+	 * users are not required to hand-author these files.
+	 *
+	 * @param extensionRootFs - Absolute path to the temporary extension folder
+	 * @param vaultBasePath - Base filesystem path of the current vault
+	 * @param data - Normalized submission data for the extension
+	 * @internal
+	 */
+	private async ensureRequiredFilesInTempExtensionFolder(
+		extensionRootFs: string,
+		vaultBasePath: string,
+		data: ExtensionSubmissionData
+	): Promise<void> {
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const fs = require("fs") as typeof import("fs");
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const path = require("path") as typeof import("path");
+
+		if (!fs.existsSync(extensionRootFs)) {
+			fs.mkdirSync(extensionRootFs, { recursive: true });
+		}
+
+		// 1) manifest.json
+		const manifestPath = path.join(extensionRootFs, "manifest.json");
+		if (!fs.existsSync(manifestPath)) {
+			const extensionFileName = (() => {
+				switch (data.extensionType) {
+					case "agent":
+						return `${data.extensionId}.agent.md`;
+					case "voice-agent":
+						return `${data.extensionId}.voice-agent.md`;
+					case "prompt":
+						return `${data.extensionId}.prompt.md`;
+					case "skill":
+						return "skill.md";
+					case "mcp-server":
+						return "mcp-config.json";
+					default:
+						return `${data.extensionId}.md`;
+				}
+			})();
+
+			const description =
+				data.description ||
+				this.generatedDescription ||
+				`${data.extensionName} - An extension for Obsidian Vault Copilot.`;
+
+			const manifest = {
+				id: data.extensionId,
+				name: data.extensionName,
+				version: data.version,
+				type: data.extensionType,
+				description,
+				author: {
+					name: data.authorName,
+					url: data.authorUrl,
+				},
+				minVaultCopilotVersion: "0.0.1",
+				categories: [] as string[],
+				tags: [] as string[],
+				files: [
+					{
+						source: extensionFileName,
+						installPath: `extensions/${data.extensionType}s/${data.extensionId}/${extensionFileName}`,
+					},
+				],
+			};
+
+			fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf-8");
+		}
+
+		// 2) README.md
+		const readmePath = path.join(extensionRootFs, "README.md");
+		if (!fs.existsSync(readmePath)) {
+			const readmeContent =
+				data.readme ||
+				this.generatedReadme ||
+				`# ${data.extensionName}\n\nA helpful extension for Obsidian Vault Copilot.`;
+			fs.writeFileSync(readmePath, readmeContent, "utf-8");
+		}
+
+		// 3) Preview image (optional but nice-to-have)
+		const imageSource =
+			this.previewImagePath || this.iconImagePath || this.generatedImagePath;
+		if (!imageSource) {
+			return;
+		}
+
+		const previewSvgPath = path.join(extensionRootFs, "preview.svg");
+		if (fs.existsSync(previewSvgPath)) {
+			return;
+		}
+
+		try {
+			if (imageSource.startsWith("data:")) {
+				const commaIndex = imageSource.indexOf(",");
+				const payload = commaIndex >= 0 ? imageSource.substring(commaIndex + 1) : imageSource;
+				let svgContent = "";
+				try {
+					svgContent = decodeURIComponent(payload);
+				} catch {
+					svgContent = payload;
+				}
+				fs.writeFileSync(previewSvgPath, svgContent, "utf-8");
+				return;
+			}
+
+			// Otherwise attempt to copy a file from disk. Try the path as-is first,
+			// then fall back to treating it as vault-relative.
+			const normalizedVaultBase = vaultBasePath.replace(/\\/g, "/");
+			const candidates: string[] = [imageSource];
+			const relative = imageSource.replace(/^\/+/, "");
+			candidates.push(`${normalizedVaultBase}/${relative}`.replace(/\\/g, "/"));
+
+			for (const candidate of candidates) {
+				if (fs.existsSync(candidate)) {
+					fs.copyFileSync(candidate, previewSvgPath);
+					return;
+				}
+			}
+		} catch (error) {
+			console.warn("Failed to materialize preview image in temp folder:", error);
+		}
 	}
 	
 	/**
@@ -510,6 +791,73 @@ export class ExtensionSubmissionModal extends Modal {
 		});
 		progressContainer.createDiv({ cls: "loading-spinner" });
 		const messageContainer = progressContainer.createDiv({ cls: "step-message-container" });
+
+		// Define the high-level runtime steps so users can see
+		// everything that will happen before submission starts.
+		const stepDefinitions: { id: string; label: string }[] = [
+			{ id: "prepare-temp", label: "Prepare temporary workspace" },
+			{ id: "create-files", label: "Create manifest, README, and assets" },
+			{ id: "init-service", label: "Initialize GitHub services" },
+			{ id: "run-workflow", label: "Run GitHub workflow (fork, branch, PR)" },
+			{ id: "finalize", label: "Finalize and clean up" },
+		];
+
+		const stepsContainer = progressContainer.createDiv({ cls: "submission-runtime-steps" });
+		const stepMap = new Map<
+			string,
+			{ row: HTMLDivElement; icon: HTMLSpanElement; label: HTMLSpanElement }
+		>();
+
+		for (const def of stepDefinitions) {
+			const row = stepsContainer.createDiv({ cls: "submission-runtime-step step-pending" });
+			const icon = row.createSpan({ cls: "step-icon" });
+			icon.setText("●");
+			const label = row.createSpan({ cls: "step-label" });
+			label.setText(def.label);
+			stepMap.set(def.id, { row, icon, label });
+		}
+
+		const setStepStatus = (
+			id: string,
+			status: "pending" | "in-progress" | "complete" | "error"
+		): void => {
+			const step = stepMap.get(id);
+			if (!step) return;
+			step.row.removeClass("step-pending");
+			step.row.removeClass("step-in-progress");
+			step.row.removeClass("step-complete");
+			step.row.removeClass("step-error");
+			step.row.addClass(`step-${status}`);
+			if (status === "in-progress") {
+				step.icon.setText("⏳");
+			} else if (status === "complete") {
+				step.icon.setText("✔");
+			} else if (status === "error") {
+				step.icon.setText("✖");
+			} else {
+				step.icon.setText("●");
+			}
+		};
+
+		// Helper to surface progress both in the UI and console for debugging.
+		// When a stepId is provided, we also update that step's label so that
+		// the detailed runtime messages and the pill-style steps stay in sync.
+		const logProgress = (message: string, stepId?: string): void => {
+			console.log("[Extension Submission]", message);
+			if (stepId) {
+				const step = stepMap.get(stepId);
+				if (step) {
+					step.label.setText(message);
+				}
+				return;
+			}
+
+			let list = messageContainer.querySelector(".submission-step-list");
+			if (!list) {
+				list = messageContainer.createEl("ul", { cls: "submission-step-list" });
+			}
+			(list as HTMLUListElement).createEl("li", { text: message });
+		};
 
 		// Ensure we have a plugin instance and desktop vault path
 		if (!this.plugin) {
@@ -539,19 +887,73 @@ export class ExtensionSubmissionModal extends Modal {
 		}
 
 		const data = this.submissionData as ExtensionSubmissionData;
-		if (!data.extensionPath || !data.extensionId || !data.version || !data.extensionType) {
+		const missingFields: string[] = [];
+		if (!data.extensionPath) missingFields.push("Extension path");
+		if (!data.extensionId) missingFields.push("Extension ID");
+		if (!data.version) missingFields.push("Version");
+		if (!data.extensionType) missingFields.push("Extension type");
+
+		if (missingFields.length > 0) {
+			const details = missingFields.join(", ");
 			showInlineMessage(
 				messageContainer,
-				"Missing required extension details. Please complete all steps before submitting.",
+				`Missing required extension details: ${details}. Please go back and complete all steps before submitting.`,
 				"error"
 			);
+			console.warn("Extension submission blocked due to missing fields:", {
+				missingFields,
+				dataSnapshot: {
+					extensionPath: data.extensionPath,
+					extensionId: data.extensionId,
+					version: data.version,
+					extensionType: data.extensionType,
+				},
+			});
 			return;
 		}
 
-		// Build absolute path to the extension directory on disk
+		// Build absolute path to the extension directory on disk. Prefer the
+		// temporary working folder created after the first screen, falling back
+		// to the vault path only if for some reason the temp folder is missing.
 		const normalizedVaultBase = vaultBasePath.replace(/\\/g, "/");
 		const relativePath = data.extensionPath.replace(/^\/+/, "");
-		const extensionPathFs = `${normalizedVaultBase}/${relativePath}`.replace(/\\/g, "/");
+		const extensionPathFsFromVault = `${normalizedVaultBase}/${relativePath}`.replace(/\\/g, "/");
+		const extensionRootFs = this.tempExtensionPathFs || extensionPathFsFromVault;
+		setStepStatus("prepare-temp", "in-progress");
+		logProgress(`Using working folder: ${extensionRootFs}` , "prepare-temp");
+
+		// Ensure manifest/README/preview exist in the temp folder so the backend
+		// validation logic has everything it needs to proceed.
+		try {
+			if (this.tempExtensionPathFs) {
+				setStepStatus("prepare-temp", "complete");
+				setStepStatus("create-files", "in-progress");
+				logProgress(
+					"Ensuring manifest.json, README.md, and preview assets exist in the temporary folder...",
+					"create-files"
+				);
+				await this.ensureRequiredFilesInTempExtensionFolder(
+					extensionRootFs,
+					vaultBasePath,
+					data
+				);
+				setStepStatus("create-files", "complete");
+				logProgress(
+					"Temporary extension folder is ready for validation and PR creation.",
+					"create-files"
+				);
+			}
+		} catch (materializeError) {
+			console.error("Failed to materialize extension files in temp folder:", materializeError);
+			showInlineMessage(
+				messageContainer,
+				"Failed to prepare extension files in the temporary folder. See console for details.",
+				"error"
+			);
+			setStepStatus("create-files", "error");
+			setStepStatus("finalize", "error");
+			return;
+		}
 
 		const service = new GitHubSubmissionService({
 			upstreamOwner: "danielshue",
@@ -561,22 +963,64 @@ export class ExtensionSubmissionModal extends Modal {
 		});
 
 		try {
+			setStepStatus("init-service", "in-progress");
+			logProgress(
+				"Initializing GitHub submission service (Copilot client and tools)...",
+				"init-service"
+			);
 			await service.initialize();
+			setStepStatus("init-service", "complete");
+			logProgress("GitHub submission service initialized.", "init-service");
 
+			setStepStatus("run-workflow", "in-progress");
 			const result = await service.submitExtension({
-				extensionPath: extensionPathFs,
+				extensionPath: extensionRootFs,
 				extensionId: data.extensionId,
 				extensionType: data.extensionType,
 				version: data.version,
 				branchName: data.branchName,
 				commitMessage: undefined,
 				prTitle: data.prTitle,
-				prDescription: data.prDescription,
 			});
+			setStepStatus("run-workflow", "complete");
+			logProgress(
+				"GitHub submission workflow completed. Processing result...",
+				"run-workflow"
+			);
 
 			await service.cleanup();
 
 			if (result.success && result.pullRequestUrl) {
+				setStepStatus("finalize", "in-progress");
+				logProgress("Submission succeeded. Pull request created.", "finalize");
+				// Best-effort cleanup: remove generated preview assets from the vault so
+				// preview.svg/png only persist in the temporary PR repository.
+				try {
+					const abstractFile = this.app.vault.getAbstractFileByPath(data.extensionPath);
+					let folderPath: string | null = null;
+
+					if (abstractFile && (abstractFile as any).parent) {
+						folderPath = (abstractFile as any).parent.path ?? null;
+					} else {
+						folderPath = data.extensionPath;
+					}
+
+					if (folderPath) {
+						const adapter = this.app.vault.adapter;
+						const svgPath = `${folderPath}/preview.svg`;
+						const pngPath = `${folderPath}/preview.png`;
+
+						if (await adapter.exists(svgPath)) {
+							await adapter.remove(svgPath);
+						}
+						if (await adapter.exists(pngPath)) {
+							await adapter.remove(pngPath);
+						}
+					}
+				} catch (cleanupError) {
+					console.warn("Failed to clean up preview assets from vault:", cleanupError);
+				}
+
 				// Show success screen with actual PR URL from the service
 				renderSuccessScreen(this.contentEl, result.pullRequestUrl, () => {
 					if (this.resolve) {
@@ -585,24 +1029,73 @@ export class ExtensionSubmissionModal extends Modal {
 					}
 					this.close();
 				});
+				setStepStatus("finalize", "complete");
 			} else {
 				console.error("Extension submission failed:", result);
+				const parts: string[] = [];
+				if (result.error) {
+					parts.push(result.error);
+				}
+				if (result.validationErrors && result.validationErrors.length) {
+					parts.push(result.validationErrors.join("; "));
+				}
+				// For details, avoid dumping the full AI plan text into the UI.
+				// Instead, detect common environment/CLI issues and provide a concise,
+				// actionable summary while keeping the full object in the console.
+				if (result.details) {
+					try {
+						const rawDetails =
+							typeof result.details === "string"
+								? result.details
+								: JSON.stringify(result.details);
+
+						let summarizedDetails: string | undefined;
+						if (/environment restrictions|cannot run github operations|can't run github operations/i.test(rawDetails)) {
+							summarizedDetails =
+								"The automated GitHub workflow could not run in this environment (likely due to GitHub CLI or network restrictions). You can still submit the extension by using your normal git/GitHub workflow.";
+						} else if (rawDetails.length <= 300) {
+							summarizedDetails = rawDetails;
+						} else {
+							summarizedDetails = `${rawDetails.slice(0, 300)}…`;
+						}
+
+						if (summarizedDetails) {
+							parts.push(summarizedDetails);
+						}
+					} catch {
+						// ignore JSON stringify errors
+					}
+				}
+
 				const errorMessage =
-					result.error ||
-					(result.validationErrors && result.validationErrors.length
-							? result.validationErrors.join("; ")
-							: "Extension submission failed. Check the console for details.");
+					parts.length > 0
+						? `Extension submission failed: ${parts.join(" | ")}`
+						: "Extension submission failed. Check the console for details.";
 				showInlineMessage(messageContainer, errorMessage, "error");
+				setStepStatus("run-workflow", "error");
+				setStepStatus("finalize", "error");
 			}
 		} catch (error) {
-			console.error("Extension submission failed:", error);
+			console.error("Extension submission threw:", error);
+			let details: string;
+			if (error instanceof Error) {
+				details = error.message;
+			} else if (typeof error === "string") {
+				details = error;
+			} else {
+				try {
+					details = JSON.stringify(error);
+				} catch {
+					details = String(error);
+				}
+			}
 			showInlineMessage(
 				messageContainer,
-				`Extension submission failed: ${
-					error instanceof Error ? error.message : String(error)
-				}`,
+				`Extension submission failed: ${details}`,
 				"error"
 			);
+			setStepStatus("run-workflow", "error");
+			setStepStatus("finalize", "error");
 		} finally {
 			// Best-effort cleanup if initialization partially succeeded
 			try {

@@ -31,7 +31,11 @@ export function renderDescriptionScreen(
 	const descWrapper = container.createDiv({ cls: "setting-item-stacked" });
 	new Setting(descWrapper)
 		.setName("Extension Description")
-		.setDesc(context.generatedDescription ? "AI-generated description (editable)" : "Brief description of your extension (optional)")
+		.setDesc(
+			context.generatedDescription
+				? "AI-generated description (editable, max 200 characters). Use the README for longer details."
+				: "Brief description of your extension (optional, max 200 characters). Use the README for longer details."
+		)
 		.addButton(button => {
 			button
 				.setButtonText(context.isGeneratingContent ? "Generating..." : "Generate with AI")
@@ -123,16 +127,24 @@ export function renderDescriptionScreen(
 			cls: "image-preview-placeholder"
 		});
 		
-		// Render actual image preview when possible
+		// Render actual image preview when possible. Support both vault paths
+		// and in-memory data URLs (for auto-generated previews).
 		if (imagePath) {
 			try {
-				const file = context.app.vault.getAbstractFileByPath(imagePath);
-				if (file instanceof TFile) {
-					const imgSrc = context.app.vault.getResourcePath(file);
+				if (imagePath.startsWith("data:")) {
 					const imgEl = previewBox.createEl("img", {
 						cls: "image-preview-img"
 					});
-					imgEl.src = imgSrc;
+					imgEl.src = imagePath;
+				} else {
+					const file = context.app.vault.getAbstractFileByPath(imagePath);
+					if (file instanceof TFile) {
+						const imgSrc = context.app.vault.getResourcePath(file);
+						const imgEl = previewBox.createEl("img", {
+							cls: "image-preview-img"
+						});
+						imgEl.src = imgSrc;
+					}
 				}
 			} catch (e) {
 				// If anything goes wrong, silently fall back to text-only placeholder
