@@ -254,20 +254,31 @@ export class ExtensionSubmissionModal extends Modal {
 		// Render step-specific content
 		switch (this.currentStep) {
 			case -1:
+				// Step -1: Welcome/Wizard Information
 				this.renderWelcomeStep(contentEl);
 				break;
 			case 0:
-				// Progress indicator (show after welcome screen)
+				// Step 1: Select Extension (Type + Path)
 				this.renderProgressIndicator(contentEl);
 				this.renderExtensionSelectionStep(contentEl);
 				break;
 			case 1:
-				// Progress indicator
+				// Step 2: Author Details (Name + URL)
 				this.renderProgressIndicator(contentEl);
-				this.renderExtensionDetailsStep(contentEl);
+				this.renderAuthorDetailsStep(contentEl);
 				break;
 			case 2:
-				// Progress indicator
+				// Step 3: Description (Image + Description)
+				this.renderProgressIndicator(contentEl);
+				this.renderDescriptionStep(contentEl);
+				break;
+			case 3:
+				// Step 4: README
+				this.renderProgressIndicator(contentEl);
+				this.renderReadmeStep(contentEl);
+				break;
+			case 4:
+				// Step 5: Preview & Submit
 				this.renderProgressIndicator(contentEl);
 				this.renderPreviewStep(contentEl);
 				break;
@@ -283,7 +294,9 @@ export class ExtensionSubmissionModal extends Modal {
 	private renderProgressIndicator(container: HTMLElement) {
 		const steps = [
 			"Select Extension",
-			"Extension Details",
+			"Author Details",
+			"Description",
+			"README",
 			"Preview & Submit"
 		];
 		
@@ -483,15 +496,15 @@ export class ExtensionSubmissionModal extends Modal {
 	}
 	
 	/**
-	 * Step 2: Extension details (author info, description, images)
+	 * Step 1: Author Details (Name + URL only)
 	 * 
 	 * @param container - Container element
 	 * @internal
 	 */
-	private renderExtensionDetailsStep(container: HTMLElement) {
-		container.createEl("h2", { text: "Extension Details" });
+	private renderAuthorDetailsStep(container: HTMLElement) {
+		container.createEl("h2", { text: "Author Details" });
 		container.createEl("p", { 
-			text: "Provide additional information and assets for your extension."
+			text: "Provide your author information for the extension."
 		});
 		
 		// Author name (pre-populated from git config)
@@ -521,6 +534,31 @@ export class ExtensionSubmissionModal extends Modal {
 						this.submissionData.authorUrl = value;
 					});
 			});
+		
+		// Info box
+		const infoContainer = container.createDiv({ cls: "validation-info" });
+		infoContainer.createEl("p", {
+			text: "💡 Author information has been pre-populated from your Git configuration. You can edit it if needed."
+		});
+		
+		// Message container for validation feedback
+		const messageContainer = container.createDiv({ cls: "step-message-container" });
+		
+		// Navigation buttons
+		this.renderNavigationButtons(container, true, true);
+	}
+	
+	/**
+	 * Step 2: Description (Image upload/generation + Description textarea)
+	 * 
+	 * @param container - Container element
+	 * @internal
+	 */
+	private renderDescriptionStep(container: HTMLElement) {
+		container.createEl("h2", { text: "Extension Description" });
+		container.createEl("p", { 
+			text: "Provide a description and image for your extension."
+		});
 		
 		// Extension description (AI-generated and pre-populated)
 		const descWrapper = container.createDiv({ cls: "setting-item-stacked" });
@@ -610,6 +648,33 @@ export class ExtensionSubmissionModal extends Modal {
 			}
 		}
 		
+		// Info box
+		const infoContainer = container.createDiv({ cls: "validation-info" });
+		infoContainer.createEl("p", {
+			text: this.generatedDescription 
+				? "💡 Description has been AI-generated based on your extension. You can edit it as needed."
+				: "💡 Provide a brief description of your extension to help users understand its purpose."
+		});
+		
+		// Message container for validation feedback
+		const messageContainer = container.createDiv({ cls: "step-message-container" });
+		
+		// Navigation buttons
+		this.renderNavigationButtons(container, true, true);
+	}
+	
+	/**
+	 * Step 3: README (README textarea only)
+	 * 
+	 * @param container - Container element
+	 * @internal
+	 */
+	private renderReadmeStep(container: HTMLElement) {
+		container.createEl("h2", { text: "Extension README" });
+		container.createEl("p", { 
+			text: "Provide detailed documentation for your extension."
+		});
+		
 		// README content (AI-generated and pre-populated)
 		const readmeWrapper = container.createDiv({ cls: "setting-item-stacked" });
 		new Setting(readmeWrapper)
@@ -642,9 +707,9 @@ export class ExtensionSubmissionModal extends Modal {
 		// Info box
 		const infoContainer = container.createDiv({ cls: "validation-info" });
 		infoContainer.createEl("p", {
-			text: this.generatedDescription || this.generatedReadme
-				? "💡 Author information has been pre-populated from your Git configuration. Description and README have been AI-generated based on your extension. You can edit all fields as needed."
-				: "💡 Author information has been pre-populated from your Git configuration. You can edit it if needed."
+			text: this.generatedReadme
+				? "💡 README has been AI-generated based on your extension. You can edit it as needed."
+				: "💡 Provide a comprehensive README to help users understand how to use your extension."
 		});
 		
 		// Message container for validation feedback
@@ -1113,7 +1178,7 @@ export class ExtensionSubmissionModal extends Modal {
 					return true; // Still proceed even if generation fails
 				}
 				
-			case 1: // Extension details (author info, images, description)
+			case 1: // Author Details (Name + URL)
 				if (!this.submissionData.authorName) {
 					if (messageContainer) {
 						this.showInlineMessage(messageContainer, "Please provide your author name", 'error');
@@ -1126,6 +1191,11 @@ export class ExtensionSubmissionModal extends Modal {
 					}
 					return false;
 				}
+				return true;
+			
+			case 2: // Description (Image + Description)
+			case 3: // README
+				// Optional fields - no validation required
 				return true;
 		}
 		
