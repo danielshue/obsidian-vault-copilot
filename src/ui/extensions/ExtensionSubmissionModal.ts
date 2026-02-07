@@ -404,7 +404,7 @@ export class ExtensionSubmissionModal extends Modal {
 		this.descriptionInput.value = this.submissionData.description || this.generatedDescription || "";
 		// Persist user changes to submissionData
 		this.descriptionInput.addEventListener("input", () => {
-			this.submissionData.description = this.descriptionInput.value;
+			this.submissionData.description = this.descriptionInput?.value ?? "";
 		});
 		
 		// Icon image upload with AI generation option
@@ -477,7 +477,7 @@ export class ExtensionSubmissionModal extends Modal {
 		this.readmeInput.value = this.submissionData.readme || this.generatedReadme || "";
 		// Persist user changes to submissionData
 		this.readmeInput.addEventListener("input", () => {
-			this.submissionData.readme = this.readmeInput.value;
+			this.submissionData.readme = this.readmeInput?.value ?? "";
 		});
 		
 		// Info box
