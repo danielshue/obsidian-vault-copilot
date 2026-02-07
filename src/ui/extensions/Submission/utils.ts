@@ -13,7 +13,10 @@ import type { ExtensionManifest, ExtensionType } from "./types";
 import type VaultCopilotPlugin from "../../../main";
 
 /**
- * Loads author information from git config
+ * Loads author information from GitHub CLI or git config
+ * 
+ * Tries GitHub CLI first (gh api user) to get authenticated user info,
+ * falls back to git config if gh is not available or not authenticated.
  * 
  * Note: Uses require() for Node.js modules (child_process, util) as they are only available
  * in desktop environments and need to be loaded dynamically to avoid build errors.
@@ -28,6 +31,27 @@ export async function loadAuthorInfo(): Promise<{ authorName?: string; authorUrl
 		
 		const result: { authorName?: string; authorUrl?: string; githubUsername?: string } = {};
 		
+		// Try GitHub CLI first for most reliable info
+		try {
+			const { stdout: ghUser } = await execAsync('gh api user');
+			if (ghUser && ghUser.trim()) {
+				const user = JSON.parse(ghUser.trim());
+				if (user.login) {
+					result.githubUsername = user.login;
+					result.authorUrl = user.html_url || `https://github.com/${user.login}`;
+				}
+				if (user.name) {
+					result.authorName = user.name;
+				}
+				console.log('Loaded author info from GitHub CLI:', result);
+				return result;
+			}
+		} catch (e) {
+			// gh not available or not authenticated, fall back to git config
+			console.log('GitHub CLI not available, falling back to git config');
+		}
+		
+		// Fallback: use git config
 		try {
 			const { stdout: name } = await execAsync('git config user.name');
 			if (name && name.trim()) {
@@ -54,7 +78,7 @@ export async function loadAuthorInfo(): Promise<{ authorName?: string; authorUrl
 				
 				if (username) {
 					result.authorUrl = `https://github.com/${username}`;
-					console.log(`Auto-populated author URL: https://github.com/${username}`);
+					console.log(`Auto-populated author URL from git config: https://github.com/${username}`);
 				}
 			}
 		} catch (e) {
@@ -63,7 +87,7 @@ export async function loadAuthorInfo(): Promise<{ authorName?: string; authorUrl
 		
 		return result;
 	} catch (error) {
-		console.log('Could not load git config:', error);
+		console.log('Could not load author info:', error);
 		return {};
 	}
 }
