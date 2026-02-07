@@ -812,6 +812,24 @@ export class ExtensionSubmissionModal extends Modal {
 	}
 	
 	/**
+	 * Cleans up markdown code blocks from AI-generated content
+	 * 
+	 * @param content - Raw AI response
+	 * @returns Cleaned content without markdown wrappers
+	 * @internal
+	 */
+	private cleanMarkdownCodeBlocks(content: string): string {
+		let cleaned = content.trim();
+		// Remove ```markdown wrapper if AI added it
+		if (cleaned.startsWith('```markdown')) {
+			cleaned = cleaned.replace(/^```markdown\n/, '').replace(/\n```$/, '');
+		} else if (cleaned.startsWith('```')) {
+			cleaned = cleaned.replace(/^```\n/, '').replace(/\n```$/, '');
+		}
+		return cleaned.trim();
+	}
+	
+	/**
 	 * Validates the current step before proceeding
 	 * 
 	 * @returns True if validation passed
@@ -1057,15 +1075,7 @@ README.md content:`;
 			}
 			
 			// Clean up the response - remove markdown code blocks if present
-			let cleanedReadme = readmeResponse.trim();
-			// Remove ```markdown wrapper if AI added it
-			if (cleanedReadme.startsWith('```markdown')) {
-				cleanedReadme = cleanedReadme.replace(/^```markdown\n/, '').replace(/\n```$/, '');
-			} else if (cleanedReadme.startsWith('```')) {
-				cleanedReadme = cleanedReadme.replace(/^```\n/, '').replace(/\n```$/, '');
-			}
-			
-			this.generatedReadme = cleanedReadme.trim();
+			this.generatedReadme = this.cleanMarkdownCodeBlocks(readmeResponse);
 			console.log("AI README generated successfully");
 			console.log("Generated description:", this.generatedDescription);
 			console.log("Generated README length:", this.generatedReadme.length);
@@ -1422,17 +1432,7 @@ README.md content:`;
 			}
 			
 			console.log("AI README generated successfully");
-			
-			// Clean up the response - remove markdown code blocks if present
-			let cleanedReadme = readmeResponse.trim();
-			// Remove ```markdown wrapper if AI added it
-			if (cleanedReadme.startsWith('```markdown')) {
-				cleanedReadme = cleanedReadme.replace(/^```markdown\n/, '').replace(/\n```$/, '');
-			} else if (cleanedReadme.startsWith('```')) {
-				cleanedReadme = cleanedReadme.replace(/^```\n/, '').replace(/\n```$/, '');
-			}
-			
-			this.generatedReadme = cleanedReadme.trim();
+			this.generatedReadme = this.cleanMarkdownCodeBlocks(readmeResponse);
 			
 			// Update textarea
 			if (this.readmeInput) {
