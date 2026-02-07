@@ -41,7 +41,7 @@ vi.mock("@github/copilot-sdk", () => ({
 			};
 		}
 	},
-	defineTool: vi.fn((config) => config),
+	defineTool: vi.fn((_name, config) => config),
 }));
 
 // Mock fs module
