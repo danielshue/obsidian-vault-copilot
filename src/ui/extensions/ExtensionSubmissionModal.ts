@@ -445,10 +445,26 @@ export class ExtensionSubmissionModal extends Modal {
 		
 		if (this.iconImagePath || this.generatedImagePath) {
 			const imagePath = this.iconImagePath || this.generatedImagePath;
-			container.createEl("div", { 
-				text: this.generatedImagePath ? `🤖 AI-Generated: ${imagePath}` : `📎 Selected: ${imagePath}`,
+			const infoDiv = container.createEl("div", { 
+				text: this.generatedImagePath ? `🤖 AI-Generated Image` : `📎 Selected: ${imagePath}`,
 				cls: "selected-file-info"
 			});
+			
+			// Show actual image preview if it exists
+			if (this.generatedImagePath) {
+				// For AI-generated images, show a placeholder preview box
+				const previewBox = container.createEl("div", {
+					cls: "image-preview-box"
+				});
+				previewBox.createEl("div", {
+					text: "🖼️ AI-Generated Image Preview",
+					cls: "image-preview-placeholder"
+				});
+				previewBox.createEl("div", {
+					text: "Note: Image will be generated and included in the PR submission",
+					cls: "image-preview-note"
+				});
+			}
 		}
 		
 		// README content (AI-generated and pre-populated)
@@ -524,6 +540,22 @@ export class ExtensionSubmissionModal extends Modal {
 			const imageLabel = this.generatedImagePath ? "Image (AI-Generated)" : "Image";
 			if (imagePath) {
 				this.addSummaryItem(summaryContainer, imageLabel, imagePath);
+				
+				// Show image preview for AI-generated images
+				if (this.generatedImagePath) {
+					const previewBox = summaryContainer.createEl("div", {
+						cls: "image-preview-box"
+					});
+					previewBox.createEl("div", {
+						text: "🖼️ AI-Generated Image Preview",
+						cls: "image-preview-placeholder"
+					});
+					previewBox.createEl("div", {
+						text: "Image will be generated and included in the PR submission",
+						cls: "image-preview-note"
+					});
+				}
+				
 				summaryContainer.createEl("div", { 
 					text: "Note: Same image will be used for both icon and preview",
 					cls: "summary-note"
@@ -1005,9 +1037,14 @@ Description:`;
 - Usage instructions
 - Examples (if applicable)
 
+IMPORTANT:
+- Do NOT wrap the output in markdown code blocks (no \`\`\`markdown)
+- If the extension file has frontmatter (--- at the top), preserve it exactly
+- Return the README content directly without any wrapper
+
 ${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExtension ID: ${this.submissionData.extensionId}`}
 
-README.md:`;
+README.md content:`;
 			
 			console.log("Sending prompt to AI service for README...");
 			let readmeResponse;
@@ -1019,7 +1056,16 @@ README.md:`;
 				throw new Error("AI service does not support sendMessage");
 			}
 			
-			this.generatedReadme = readmeResponse.trim();
+			// Clean up the response - remove markdown code blocks if present
+			let cleanedReadme = readmeResponse.trim();
+			// Remove ```markdown wrapper if AI added it
+			if (cleanedReadme.startsWith('```markdown')) {
+				cleanedReadme = cleanedReadme.replace(/^```markdown\n/, '').replace(/\n```$/, '');
+			} else if (cleanedReadme.startsWith('```')) {
+				cleanedReadme = cleanedReadme.replace(/^```\n/, '').replace(/\n```$/, '');
+			}
+			
+			this.generatedReadme = cleanedReadme.trim();
 			console.log("AI README generated successfully");
 			console.log("Generated description:", this.generatedDescription);
 			console.log("Generated README length:", this.generatedReadme.length);
@@ -1352,9 +1398,14 @@ This pull request was created using the Extension Submission workflow in Obsidia
 - Usage instructions
 - Examples (if applicable)
 
+IMPORTANT:
+- Do NOT wrap the output in markdown code blocks (no \`\`\`markdown)
+- If the extension file has frontmatter (--- at the top), preserve it exactly
+- Return the README content directly without any wrapper
+
 ${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExtension ID: ${this.submissionData.extensionId}`}
 
-README.md:`;
+README.md content:`;
 			
 			console.log("Sending prompt to AI service for README...");
 			
@@ -1371,7 +1422,17 @@ README.md:`;
 			}
 			
 			console.log("AI README generated successfully");
-			this.generatedReadme = readmeResponse.trim();
+			
+			// Clean up the response - remove markdown code blocks if present
+			let cleanedReadme = readmeResponse.trim();
+			// Remove ```markdown wrapper if AI added it
+			if (cleanedReadme.startsWith('```markdown')) {
+				cleanedReadme = cleanedReadme.replace(/^```markdown\n/, '').replace(/\n```$/, '');
+			} else if (cleanedReadme.startsWith('```')) {
+				cleanedReadme = cleanedReadme.replace(/^```\n/, '').replace(/\n```$/, '');
+			}
+			
+			this.generatedReadme = cleanedReadme.trim();
 			
 			// Update textarea
 			if (this.readmeInput) {
