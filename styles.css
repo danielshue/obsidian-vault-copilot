@@ -6762,3 +6762,203 @@ cursor: pointer;
 	margin-top: 4px;
 	color: var(--text-normal);
 }
+
+/* Extension Submission Modal */
+.extension-submission-modal {
+	padding: 20px;
+	max-width: 600px;
+}
+
+.extension-submission-modal h2 {
+	margin-top: 0;
+	margin-bottom: 16px;
+	font-size: 20px;
+	font-weight: 600;
+}
+
+.extension-submission-modal p {
+	margin-bottom: 20px;
+	color: var(--text-muted);
+}
+
+/* Progress Indicator */
+.submission-progress {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 32px;
+	padding-bottom: 20px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.progress-step {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	position: relative;
+}
+
+.progress-step:not(:last-child)::after {
+	content: '';
+	position: absolute;
+	top: 15px;
+	left: 50%;
+	width: 100%;
+	height: 2px;
+	background: var(--background-modifier-border);
+	z-index: 0;
+}
+
+.progress-step.complete:not(:last-child)::after {
+	background: var(--interactive-accent);
+}
+
+.step-number {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--background-secondary);
+	border: 2px solid var(--background-modifier-border);
+	font-weight: 600;
+	color: var(--text-muted);
+	z-index: 1;
+}
+
+.progress-step.active .step-number {
+	border-color: var(--interactive-accent);
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.progress-step.complete .step-number {
+	border-color: var(--interactive-accent);
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.step-label {
+	font-size: 12px;
+	color: var(--text-muted);
+	text-align: center;
+	max-width: 100px;
+}
+
+.progress-step.active .step-label {
+	color: var(--text-normal);
+	font-weight: 500;
+}
+
+/* Validation Info */
+.validation-info {
+	margin-top: 20px;
+	padding: 12px 16px;
+	background: var(--background-primary-alt);
+	border-radius: 6px;
+	border-left: 3px solid var(--interactive-accent);
+}
+
+.validation-info p {
+	margin: 0;
+	font-size: 13px;
+	color: var(--text-normal);
+}
+
+/* GitHub Info */
+.github-info {
+	margin-top: 20px;
+	padding: 16px;
+	background: var(--background-primary-alt);
+	border-radius: 6px;
+}
+
+.github-info h3 {
+	margin-top: 0;
+	margin-bottom: 12px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.github-info ul {
+	margin: 0;
+	padding-left: 20px;
+}
+
+.github-info li {
+	margin-bottom: 8px;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+/* Summary */
+.submission-summary {
+	margin-bottom: 24px;
+}
+
+.submission-summary h3 {
+	margin-top: 20px;
+	margin-bottom: 12px;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.summary-item {
+	display: flex;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.summary-label {
+	flex: 0 0 120px;
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.summary-value {
+	flex: 1;
+	color: var(--text-normal);
+}
+
+/* Process Info */
+.submission-process {
+	margin-top: 24px;
+	padding: 16px;
+	background: var(--background-primary-alt);
+	border-radius: 6px;
+}
+
+.submission-process h3 {
+	margin-top: 0;
+	margin-bottom: 12px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.submission-process ol {
+	margin: 0;
+	padding-left: 20px;
+}
+
+.submission-process li {
+	margin-bottom: 8px;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+/* Navigation Buttons */
+.navigation-buttons {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+	margin-top: 32px;
+	padding-top: 20px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.navigation-buttons button {
+	min-width: 80px;
+}
