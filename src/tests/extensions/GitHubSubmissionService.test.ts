@@ -41,7 +41,7 @@ vi.mock("@github/copilot-sdk", () => ({
 			};
 		}
 	},
-	defineTool: vi.fn((config) => config),
+	defineTool: vi.fn((_name, config) => config),
 }));
 
 // Mock fs module
@@ -59,8 +59,8 @@ describe("GitHubSubmissionService", () => {
 	beforeEach(() => {
 		config = {
 			upstreamOwner: "danielshue",
-			upstreamRepo: "vault-copilot-extensions",
-			targetBranch: "main",
+			upstreamRepo: "obsidian-vault-copilot",
+			targetBranch: "master",
 		};
 
 		service = new GitHubSubmissionService(config);
