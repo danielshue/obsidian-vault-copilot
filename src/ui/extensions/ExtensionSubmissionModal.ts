@@ -1297,11 +1297,10 @@ This pull request was created using the Extension Submission workflow in Obsidia
 			console.error("Submission error:", error);
 			
 			// Show error in modal instead of Notice
-			const { contentEl } = this;
-			contentEl.empty();
-			contentEl.removeClass("submission-progress-screen");
+			this.contentEl.empty();
+			this.contentEl.removeClass("submission-progress-screen");
 			
-			const container = contentEl.createDiv({ cls: "submission-progress-screen" });
+			const container = this.contentEl.createDiv({ cls: "submission-progress-screen" });
 			const messageContainer = container.createDiv({ cls: "step-message-container" });
 			this.showInlineMessage(messageContainer, "Extension submission failed. Please try again or submit manually.", 'error');
 			
