@@ -190,8 +190,8 @@ export class ExtensionSubmissionModal extends Modal {
 			info: 'ℹ️'
 		};
 		
-		const iconEl = messageEl.createSpan({ cls: 'inline-message-icon', text: icons[type] });
-		const textEl = messageEl.createSpan({ cls: 'inline-message-text', text: message });
+		messageEl.createSpan({ cls: 'inline-message-icon', text: icons[type] });
+		messageEl.createSpan({ cls: 'inline-message-text', text: message });
 		
 		// Close button
 		const closeBtn = messageEl.createEl('button', { cls: 'inline-message-close', text: '×' });
