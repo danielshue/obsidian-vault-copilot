@@ -1,197 +1,315 @@
-# Extension Submission Automation
+# Extension Submission Guide
 
-This document describes the automated extension submission workflow that helps extension authors submit their work to the Vault Copilot Extensions catalog directly from within Obsidian.
+This guide explains how to submit extensions to the Vault Copilot marketplace using the `GitHubSubmissionService`.
 
 ## Overview
 
-The extension submission automation provides a user-friendly, step-by-step process for:
-1. Selecting your extension (file or folder)
-2. AI-powered content generation (optional)
-3. Collecting author information with smart defaults
-4. Reviewing and submitting with automated GitHub workflow
-
-## User Interface
-
-### Multi-Step Modal
-
-The submission process is guided through a 3-step modal interface:
-
-#### Step 1: Select Extension
-
-- Choose your extension type (Agent, Voice Agent, Prompt, Skill, or MCP Server)
-- Provide the path to your extension file or folder
-- Optional: Enable/disable automatic AI content generation (checkbox, enabled by default)
-- System auto-detects if path is file or folder
-
-**Input Options:**
-- **File path**: `my-agent.agent.md` - System derives ID/name and generates manifest
-- **Folder with manifest**: `extensions/agents/my-agent/` - System uses existing manifest.json
-- **Folder without manifest**: `extensions/agents/my-agent/` - System derives from markdown and generates manifest
-
-#### Progressive Loading Screen (if AI generation enabled)
-
-Shows real-time progress for automated tasks:
-1. ✅ **Generating Description** - AI analyzes extension and creates concise description
-2. ◐ **Generating Image** - AI creates icon and preview image automatically
-3. ○ **Validating ID doesn't exist** - Checks catalog to prevent duplicate submissions
-
-Visual indicators show task status with color coding and animations.
-
-#### Step 2: Extension Details
-
-- **Author information**: Pre-populated from git config (editable)
-  - Author Name (from `git config user.name`)
-  - Author URL (auto-generated as `https://github.com/{username}`)
-- **Extension description**: AI-generated and editable, with "Generate with AI" button for regeneration
-- **Extension image**: AI-generated automatically, with buttons to regenerate or manually upload
-- **README content**: AI-generated comprehensive documentation, editable with regeneration button
-
-All AI-generated content is fully editable. Manual regeneration buttons allow refining individual fields.
-
-#### Step 3: Preview & Confirm
-
-- Review all extension details (type, ID, name, version)
-- View author information
-- **Scrollable Description box** (150px max height) for comfortable review
-- **Scrollable README box** (400px max height) for comprehensive documentation review
-- View attached assets (icon, preview image)
-- See explanation of automated workflow steps
-- Confirm and submit
-
-**Note:** GitHub details (username, fork, branch) are auto-generated behind the scenes and not shown to the user.
-
-## Using the Submission Workflow
-
-### From Within Obsidian
-
-1. Open the command palette (`Ctrl/Cmd + P`)
-2. Search for "Submit Extension" (when command is registered)
-3. Follow the modal steps
-4. Click "Submit Extension" to complete the process
-
-### Using the Prompt
-
-You can also use the prompt-based workflow:
-
-1. Navigate to `Reference/Prompts/Submit Extension.prompt.md` in your vault
-2. Trigger the prompt through the Vault Copilot interface
-3. Provide your extension path and GitHub username
-4. The AI agent will guide you through validation, GitHub setup, and PR creation
+The `GitHubSubmissionService` provides an automated workflow for submitting extensions to the official [obsidian-vault-copilot](https://github.com/danielshue/obsidian-vault-copilot) repository. It handles validation, GitHub operations, and pull request creation using the GitHub Copilot CLI SDK.
 
 ## Prerequisites
 
-Before submitting an extension, ensure you have:
+1. **GitHub Copilot CLI**: Must be installed and authenticated
+   ```bash
+   gh auth login
+   ```
 
-- [ ] Forked the [obsidian-vault-copilot](https://github.com/danielshue/obsidian-vault-copilot) repository
-- [ ] Installed and authenticated with GitHub CLI (`gh`)
-- [ ] Created a complete extension with all required files:
-  - `manifest.json` with all required fields
-  - Main extension file (`.agent.md`, `.prompt.md`, etc.)
-  - `README.md` with usage documentation
-  - `preview.png` or `preview.svg` (1280x720, < 500 KB)
-  - `icon.svg` (optional)
-- [ ] Tested your extension locally in Obsidian
+2. **Extension Files**: Your extension must include:
+   - `manifest.json` - Extension metadata
+   - `README.md` - Documentation
+   - Extension file(s) - Based on type (e.g., `my-agent.agent.md`)
 
-## What Happens After Submission
+## Workflow Steps
 
-1. **Validation**: Your extension is validated against the schema
-2. **Branch Creation**: A new branch is created in your fork
-3. **File Commit**: Extension files are committed to the branch
-4. **Pull Request**: A PR is created to the main repository
-5. **Review**: Maintainers review your submission
-6. **Merge**: Once approved, your extension is merged
-7. **Catalog Update**: The catalog rebuilds automatically
-8. **Installation**: Users can now install your extension!
+The submission service executes the following workflow:
 
-## Submission Data Structure
+1. **Validation** - Validates extension files and manifest
+2. **GitHub Setup** - Checks CLI authentication and fork existence
+3. **Branch Creation** - Creates a new branch in your fork
+4. **File Copy** - Copies extension files to the appropriate directory
+5. **Commit & Push** - Commits and pushes changes to your fork
+6. **Pull Request** - Creates a PR to the upstream repository
 
-The modal collects the following information:
+## Usage Example
+
+### Basic Submission
 
 ```typescript
-interface ExtensionSubmissionData {
-  extensionType: "agent" | "voice-agent" | "prompt" | "skill" | "mcp-server";
-  extensionPath: string;
-  extensionId: string;
-  extensionName: string;
-  version: string;
-  githubUsername: string;
-  forkRepoName: string;
-  branchName: string;
-  prTitle: string;
-  prDescription: string;
-  authorName: string;
-  authorUrl: string;
+import { GitHubSubmissionService } from "./extensions/GitHubSubmissionService";
+
+// Initialize the service
+const service = new GitHubSubmissionService({
+  upstreamOwner: "danielshue",
+  upstreamRepo: "obsidian-vault-copilot",
+  targetBranch: "master"
+});
+
+await service.initialize();
+
+// Submit your extension
+const result = await service.submitExtension({
+  extensionPath: "/path/to/my-agent",
+  extensionId: "my-agent",
+  extensionType: "agent",
+  version: "1.0.0",
+  branchName: "add-my-agent-v1.0.0"
+});
+
+// Check the result
+if (result.success) {
+  console.log(`✅ PR created: ${result.pullRequestUrl}`);
+  console.log(`PR #${result.pullRequestNumber}`);
+} else {
+  console.error("❌ Submission failed:", result.error);
+  console.error("Validation errors:", result.validationErrors);
+}
+
+// Clean up
+await service.cleanup();
+```
+
+### With Custom Messages
+
+```typescript
+const result = await service.submitExtension({
+  extensionPath: "/vault/Reference/Agents/daily-journal",
+  extensionId: "daily-journal",
+  extensionType: "agent",
+  version: "2.0.0",
+  branchName: "update-daily-journal-2.0.0",
+  
+  // Custom commit message
+  commitMessage: "Update Daily Journal Agent to v2.0.0 with new features",
+  
+  // Custom PR title
+  prTitle: "[Agent] Daily Journal v2.0.0 - Enhanced journaling features",
+  
+  // Custom PR description
+  prDescription: `
+## Extension Update
+
+**Extension:** Daily Journal Agent
+**Version:** 2.0.0
+**Type:** agent
+
+### Changes
+- Added mood tracking
+- Improved template generation
+- Enhanced date handling
+
+### Testing
+Tested on Obsidian 1.5.0 with Vault Copilot 0.0.18
+
+### Checklist
+- [x] All files validated
+- [x] No breaking changes
+- [x] Documentation updated
+`
+});
+```
+
+### Validation Only
+
+You can validate your extension without submitting:
+
+```typescript
+const validation = await service.validateExtension({
+  extensionPath: "/path/to/my-extension",
+  extensionId: "my-extension",
+  extensionType: "agent",
+  version: "1.0.0",
+  branchName: "test-branch"
+});
+
+if (!validation.valid) {
+  console.error("Validation errors:");
+  validation.errors.forEach(error => console.error(`  - ${error}`));
+}
+
+if (validation.warnings.length > 0) {
+  console.warn("Validation warnings:");
+  validation.warnings.forEach(warning => console.warn(`  - ${warning}`));
 }
 ```
 
-## Technical Details
+## Extension Structure
 
-### TypeScript Types
+### Directory Layout
 
-Extension submission types are defined in `src/types/extension-submission.ts`:
-- `ExtensionSubmissionData` - Form data structure
-- `ExtensionManifest` - Extension manifest schema
-- `ValidationResult` - Validation feedback
-- `SubmissionWorkflowState` - Workflow state tracking
+Your extension directory should follow this structure:
 
-### UI Components
+```
+my-agent/
+├── manifest.json          # Required
+├── README.md              # Required
+├── my-agent.agent.md      # Extension file (type-specific)
+└── preview.png            # Optional (recommended)
+```
 
-The modal is implemented in `src/ui/extensions/ExtensionSubmissionModal.ts`:
-- Multi-step form with progress indicator
-- Input validation at each step
-- Preview summary before submission
-- Consistent styling with Obsidian theme
+### manifest.json Example
 
-### Styling
+```json
+{
+  "id": "my-agent",
+  "name": "My Agent",
+  "version": "1.0.0",
+  "type": "agent",
+  "description": "A helpful agent for task automation",
+  "author": {
+    "name": "Your Name",
+    "url": "https://github.com/yourusername"
+  },
+  "categories": ["Productivity", "Utility"],
+  "tags": ["automation", "tasks"],
+  "minVaultCopilotVersion": "0.0.18",
+  "files": [
+    {
+      "source": "my-agent.agent.md",
+      "installPath": "Reference/Agents/my-agent.agent.md"
+    }
+  ]
+}
+```
 
-Custom CSS classes in `styles.css`:
-- `.extension-submission-modal` - Modal container
-- `.submission-progress` - Progress indicator
-- `.validation-info` - Validation feedback box
-- `.summary-item` - Preview summary items
-- `.navigation-buttons` - Step navigation controls
+## Validation Rules
 
-## Prompts
+The service validates:
 
-Two prompts are available for guiding the submission process:
+1. **Required Files**
+   - `manifest.json` must exist and be valid JSON
+   - `README.md` must exist
+   - Extension file must match the expected pattern for the type
 
-1. **`.github/prompts/submit-extension.prompt.md`** - Comprehensive AI-powered submission guide
-2. **`test-vault/Reference/Prompts/Submit Extension.prompt.md`** - User-facing prompt template
+2. **Manifest Fields**
+   - `id` must match the directory name
+   - `name` is required
+   - `version` must follow semantic versioning (x.y.z)
+   - `type` must match the submission type
 
-## Future Enhancements
+3. **File Sizes**
+   - Individual files should be under 500KB
+   - Total extension size must be under 2MB
+   - Warning if files exceed 100KB
 
-Potential improvements for future versions:
+4. **Extension Types**
+   - **agent**: Expects `{id}.agent.md`
+   - **voice-agent**: Expects `{id}.voice-agent.md`
+   - **prompt**: Expects `{id}.prompt.md`
+   - **skill**: Expects `skill.md`
+   - **mcp-server**: Expects `mcp-config.json`
 
-- [ ] Real-time manifest validation as user types
-- [ ] Automatic fork creation if not exists
-- [ ] File upload for preview images
-- [ ] Extension testing integration
-- [ ] Draft PR support for incremental submissions
-- [ ] Submission status tracking
-- [ ] In-app PR review notifications
+## Error Handling
+
+The service provides detailed error information:
+
+```typescript
+const result = await service.submitExtension(params);
+
+if (!result.success) {
+  if (result.validationErrors.length > 0) {
+    // Validation failed
+    console.error("Fix these validation errors:");
+    result.validationErrors.forEach(err => console.error(err));
+  } else if (result.error) {
+    // Submission error
+    console.error("Submission error:", result.error);
+    
+    // Additional details available
+    if (result.details) {
+      console.error("Details:", result.details);
+    }
+  }
+}
+```
+
+## GitHub Operations
+
+The service uses custom GitHub Copilot CLI SDK tools for:
+
+- **check_github_auth** - Verify CLI authentication
+- **check_fork_exists** - Check if fork exists
+- **create_fork** - Create a repository fork
+- **create_branch** - Create a new branch
+- **copy_files** - Copy files to repository
+- **commit_changes** - Commit changes
+- **push_branch** - Push branch to remote
+- **create_pull_request** - Create a pull request
+
+These tools are powered by the GitHub Copilot CLI SDK and are designed to wrap real GitHub operations.
+
+In the current implementation inside this plugin, the tool handlers in
+GitHubSubmissionService are lightweight stubs that simulate successful
+operations (for example, returning a fake PR number) so the workflow and
+UI can be exercised end-to-end without mutating live repositories. When
+you wire this service into your own automation or CLI scripts, you
+should replace these stubs with real GitHub CLI or API calls
+(`gh repo fork`, `gh pr create`, etc.).
+
+## Best Practices
+
+1. **Always validate first**
+   ```typescript
+   const validation = await service.validateExtension(params);
+   if (!validation.valid) return;
+   ```
+
+2. **Use descriptive branch names**
+   ```typescript
+   branchName: `add-${extensionId}-v${version}`
+   ```
+
+3. **Clean up after use**
+   ```typescript
+   try {
+     await service.initialize();
+     const result = await service.submitExtension(params);
+   } finally {
+     await service.cleanup();
+   }
+   ```
+
+4. **Handle errors gracefully**
+   ```typescript
+   if (!result.success) {
+     // Show user-friendly error message
+     // Log details for debugging
+   }
+   ```
+
+## Testing
+
+Run the test suite:
+
+```bash
+npm test
+
+# Once dedicated tests are added for GitHubSubmissionService, you can run:
+# npm test -- src/tests/extensions/GitHubSubmissionService.test.ts
+```
 
 ## Troubleshooting
 
-### Common Issues
+### "GitHub Copilot CLI not authenticated"
 
-**"GitHub CLI not found"**
-- Install GitHub CLI: `brew install gh` (macOS) or visit [cli.github.com](https://cli.github.com)
-- Authenticate: `gh auth login`
+Solution: Run `gh auth login` and authenticate with GitHub
 
-**"Repository not forked"**
-- Fork the repository: `gh repo fork danielshue/obsidian-vault-copilot`
+### "Validation failed: manifest.json is not valid JSON"
 
-**"Extension validation failed"**
-- Check `manifest.json` has all required fields
-- Verify extension files are in the correct location
-- Ensure version follows semantic versioning (X.Y.Z)
+Solution: Validate your JSON using a linter or `jsonlint`
 
-**"Branch already exists"**
-- Use a different branch name
-- Or delete the existing branch: `git branch -D branch-name`
+### "Extension file not found"
+
+Solution: Ensure the extension file matches the expected pattern for your type
+
+### "Total extension size exceeds 2MB limit"
+
+Solution: Reduce file sizes or split into multiple extensions
 
 ## Related Documentation
 
 - [Extension Authoring Guide](./AUTHORING.md)
-- [Contributing Guide](../CONTRIBUTING.md)
-- [Manifest Schema](../schema/manifest.schema.json)
+- [Marketplace Technical Design](./marketplace/marketplace-technical-design.md)
+- [GitHub Copilot CLI SDK Guide](../.github/instructions/copilot-sdk-nodejs.instructions.md)
+
+## API Reference
+
+See the [GitHubSubmissionService API documentation](../src/extensions/GitHubSubmissionService.ts) for complete type definitions and method signatures.
