@@ -107,13 +107,23 @@ export class ExtensionSubmissionModal extends Modal {
 				if (email && email.trim()) {
 					// Try to construct GitHub URL from email
 					const emailStr = email.trim();
+					let username = null;
+					
 					if (emailStr.includes('@users.noreply.github.com')) {
-						const username = emailStr.split('@')[0].split('+')[1] || emailStr.split('@')[0];
-						this.submissionData.authorUrl = `https://github.com/${username}`;
+						// Extract username from GitHub noreply email (handles formats like "123456+username@..." or "username@...")
+						const beforeAt = emailStr.split('@')[0];
+						username = beforeAt.includes('+') ? beforeAt.split('+')[1] : beforeAt;
 						this.submissionData.githubUsername = username;
 					} else if (emailStr.includes('@')) {
-						// Just use a placeholder, user can edit
-						this.submissionData.authorUrl = '';
+						// Fall back to using email username part
+						username = emailStr.split('@')[0];
+						this.submissionData.githubUsername = username;
+					}
+					
+					// Auto-populate Author URL with GitHub pattern
+					if (username) {
+						this.submissionData.authorUrl = `https://github.com/${username}`;
+						console.log(`Auto-populated author URL: https://github.com/${username}`);
 					}
 				}
 			} catch (e) {
@@ -296,6 +306,11 @@ export class ExtensionSubmissionModal extends Modal {
 					.setValue(this.submissionData.extensionPath || "")
 					.onChange(value => {
 						this.submissionData.extensionPath = value;
+						// Reset cached state when path changes
+						this.hasCompletedInitialValidation = false;
+						this.generatedDescription = "";
+						this.generatedReadme = "";
+						this.generatedImagePath = null;
 					});
 			});
 		
@@ -601,6 +616,39 @@ export class ExtensionSubmissionModal extends Modal {
 	}
 	
 	/**
+	 * Parses extension manifest.json to get ID, name, and version
+	 * 
+	 * @returns Parsed manifest data or null if parsing fails
+	 * @internal
+	 */
+	private async parseExtensionManifest(): Promise<ExtensionManifest | null> {
+		if (!this.submissionData.extensionPath) {
+			return null;
+		}
+		
+		try {
+			const manifestPath = `${this.submissionData.extensionPath}/manifest.json`;
+			console.log(`Reading manifest from: ${manifestPath}`);
+			
+			const file = this.app.vault.getAbstractFileByPath(manifestPath);
+			if (!(file instanceof TFile)) {
+				console.error(`Manifest not found at: ${manifestPath}`);
+				return null;
+			}
+			
+			const content = await this.app.vault.read(file);
+			const manifest = JSON.parse(content) as ExtensionManifest;
+			
+			console.log(`Parsed manifest: id=${manifest.id}, name=${manifest.name}, version=${manifest.version}`);
+			
+			return manifest;
+		} catch (error) {
+			console.error("Error parsing manifest:", error);
+			return null;
+		}
+	}
+	
+	/**
 	 * Validates the current step before proceeding
 	 * 
 	 * @returns True if validation passed
@@ -622,21 +670,26 @@ export class ExtensionSubmissionModal extends Modal {
 				// If user opted to skip AI generation, just do basic validation and advance
 				if (this.skipAIGeneration) {
 					try {
-						// TODO: Validate extension exists and has valid manifest
-						// For now, just set dummy data and auto-generate GitHub details
-						this.submissionData.extensionId = "my-extension";
-						this.submissionData.extensionName = "My Extension";
-						this.submissionData.version = "1.0.0";
+						// Parse manifest to get extension details
+						const manifest = await this.parseExtensionManifest();
+						if (!manifest) {
+							new Notice("Could not read manifest.json. Please check your extension path.");
+							return false;
+						}
+						
+						this.submissionData.extensionId = manifest.id;
+						this.submissionData.extensionName = manifest.name;
+						this.submissionData.version = manifest.version;
 						
 						// Auto-generate GitHub details
 						if (this.submissionData.githubUsername) {
 							this.submissionData.forkRepoName = "obsidian-vault-copilot";
-							this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
+							this.submissionData.branchName = `add-${manifest.id}`;
 						} else {
 							// Try to get from git config
 							this.submissionData.githubUsername = "user";
 							this.submissionData.forkRepoName = "obsidian-vault-copilot";
-							this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
+							this.submissionData.branchName = `add-${manifest.id}`;
 						}
 						
 						// Mark validation as completed (skip AI generation)
@@ -647,7 +700,7 @@ export class ExtensionSubmissionModal extends Modal {
 						
 					} catch (error) {
 						console.error("Basic validation failed:", error);
-						new Notice("Validation failed. Please check your extension path.");
+						new Notice("Validation failed. Please check your extension path and manifest.json.");
 						return false;
 					}
 				}
@@ -660,21 +713,26 @@ export class ExtensionSubmissionModal extends Modal {
 				];
 				
 				try {
-					// TODO: Validate extension exists and has valid manifest
-					// For now, just set dummy data and auto-generate GitHub details
-					this.submissionData.extensionId = "my-extension";
-					this.submissionData.extensionName = "My Extension";
-					this.submissionData.version = "1.0.0";
+					// Parse manifest to get extension details
+					const manifest = await this.parseExtensionManifest();
+					if (!manifest) {
+						new Notice("Could not read manifest.json. Please check your extension path.");
+						return false;
+					}
+					
+					this.submissionData.extensionId = manifest.id;
+					this.submissionData.extensionName = manifest.name;
+					this.submissionData.version = manifest.version;
 					
 					// Auto-generate GitHub details
 					if (this.submissionData.githubUsername) {
 						this.submissionData.forkRepoName = "obsidian-vault-copilot";
-						this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
+						this.submissionData.branchName = `add-${manifest.id}`;
 					} else {
 						// Try to get from git config
 						this.submissionData.githubUsername = "user";
 						this.submissionData.forkRepoName = "obsidian-vault-copilot";
-						this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
+						this.submissionData.branchName = `add-${manifest.id}`;
 					}
 					
 					// Task 1: Generate description and README
@@ -769,6 +827,7 @@ export class ExtensionSubmissionModal extends Modal {
 					try {
 						if (await adapter.exists(filePath)) {
 							extensionContent += await adapter.read(filePath);
+							console.log(`Read extension content from: ${filePath}`);
 							break;
 						}
 					} catch (e) {
@@ -779,19 +838,36 @@ export class ExtensionSubmissionModal extends Modal {
 				console.error("Error reading extension files:", error);
 			}
 			
+			// Check if AI service requires session creation
+			let aiSession = null;
+			if (typeof aiService.createSession === 'function') {
+				console.log("AI service requires session creation");
+				aiSession = await aiService.createSession();
+			}
+			
 			// Generate description (concise)
+			console.log("Starting AI description generation...");
 			const descriptionPrompt = `Based on this extension content, write a brief 1-2 sentence description suitable for a catalog listing:
 
 ${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExtension ID: ${this.submissionData.extensionId}`}
 
 Description:`;
 			
-			console.log("Sending description generation prompt...");
-			const descriptionResponse = await aiService.sendMessage(descriptionPrompt);
+			console.log("Sending prompt to AI service for description...");
+			let descriptionResponse;
+			if (aiSession && typeof aiSession.sendMessage === 'function') {
+				descriptionResponse = await aiSession.sendMessage(descriptionPrompt);
+			} else if (typeof aiService.sendMessage === 'function') {
+				descriptionResponse = await aiService.sendMessage(descriptionPrompt);
+			} else {
+				throw new Error("AI service does not support sendMessage");
+			}
+			
 			this.generatedDescription = descriptionResponse.trim();
-			console.log("Generated description:", this.generatedDescription);
+			console.log("AI description generated successfully");
 			
 			// Generate README (detailed)
+			console.log("Starting AI README generation...");
 			const readmePrompt = `Based on this extension content, write a comprehensive README.md file with the following sections:
 - Brief overview
 - Features
@@ -802,9 +878,19 @@ ${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExt
 
 README.md:`;
 			
-			console.log("Sending README generation prompt...");
-			const readmeResponse = await aiService.sendMessage(readmePrompt);
+			console.log("Sending prompt to AI service for README...");
+			let readmeResponse;
+			if (aiSession && typeof aiSession.sendMessage === 'function') {
+				readmeResponse = await aiSession.sendMessage(readmePrompt);
+			} else if (typeof aiService.sendMessage === 'function') {
+				readmeResponse = await aiService.sendMessage(readmePrompt);
+			} else {
+				throw new Error("AI service does not support sendMessage");
+			}
+			
 			this.generatedReadme = readmeResponse.trim();
+			console.log("AI README generated successfully");
+			console.log("Generated description:", this.generatedDescription);
 			console.log("Generated README length:", this.generatedReadme.length);
 			
 		} catch (error) {
@@ -1022,7 +1108,19 @@ README.md:`;
 			const descPrompt = `Based on this extension content, write a brief 1-2 sentence description suitable for a catalog listing:\n\n${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExtension ID: ${this.submissionData.extensionId}`}\n\nDescription:`;
 			
 			console.log("Sending prompt to AI service for description...");
-			const descResponse = await aiService.sendMessage(descPrompt);
+			
+			// Check if AI service requires session creation
+			let descResponse;
+			if (typeof aiService.createSession === 'function') {
+				console.log("AI service requires session creation");
+				const aiSession = await aiService.createSession();
+				descResponse = await aiSession.sendMessage(descPrompt);
+			} else if (typeof aiService.sendMessage === 'function') {
+				descResponse = await aiService.sendMessage(descPrompt);
+			} else {
+				throw new Error("AI service does not support sendMessage");
+			}
+			
 			console.log("AI description generated successfully");
 			this.generatedDescription = descResponse.trim();
 			
@@ -1106,7 +1204,19 @@ ${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExt
 README.md:`;
 			
 			console.log("Sending prompt to AI service for README...");
-			const readmeResponse = await aiService.sendMessage(readmePrompt);
+			
+			// Check if AI service requires session creation
+			let readmeResponse;
+			if (typeof aiService.createSession === 'function') {
+				console.log("AI service requires session creation");
+				const aiSession = await aiService.createSession();
+				readmeResponse = await aiSession.sendMessage(readmePrompt);
+			} else if (typeof aiService.sendMessage === 'function') {
+				readmeResponse = await aiService.sendMessage(readmePrompt);
+			} else {
+				throw new Error("AI service does not support sendMessage");
+			}
+			
 			console.log("AI README generated successfully");
 			this.generatedReadme = readmeResponse.trim();
 			
