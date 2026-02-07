@@ -1058,7 +1058,7 @@ export default class CopilotPlugin extends Plugin {
 			
 		} catch (error) {
 			console.error("Extension submission failed:", error);
-			new Notice(`Extension submission failed: ${error.message}`);
+			new Notice(`Extension submission failed: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 
