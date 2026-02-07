@@ -735,8 +735,12 @@ export class ExtensionSubmissionModal extends Modal {
 				};
 				
 				const targetExtension = (type ? extensions[type] : undefined) || ".agent.md";
-				const folder = abstractFile as any;
-				const files = (folder.children || []) as TFile[];
+				// Check if folder has children property before accessing
+				if (!('children' in abstractFile) || !Array.isArray((abstractFile as any).children)) {
+					console.error("Folder does not contain files");
+					return null;
+				}
+				const files = (abstractFile as any).children as TFile[];
 				const mainFile = files.find((f: TFile) => f.name.endsWith(targetExtension));
 				
 				if (!mainFile) {
@@ -1076,10 +1080,7 @@ ${this.submissionData.description || this.generatedDescription || "No descriptio
 
 ### Files
 - Main extension file
-${this.submissionData.description ? '- Extension description' : ''}
-${this.submissionData.readme ? '- README.md' : ''}
-${this.iconImagePath || this.generatedImagePath ? '- Extension icon/preview image' : ''}
-- manifest.json (will be generated)
+${this.submissionData.description ? '- Extension description\n' : ''}${this.submissionData.readme ? '- README.md\n' : ''}${this.iconImagePath || this.generatedImagePath ? '- Extension icon/preview image\n' : ''}- manifest.json (will be generated)
 
 This pull request was created using the Extension Submission workflow in Obsidian Vault Copilot.`;
 		
