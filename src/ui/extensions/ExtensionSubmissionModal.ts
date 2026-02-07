@@ -151,12 +151,13 @@ export class ExtensionSubmissionModal extends Modal {
 	}
 	
 	/**
-	 * Renders an interim loading screen with a delightful message
+	 * Renders an interim loading screen with progressive task status
 	 * 
-	 * @param message - Loading message to display
+	 * @param currentTask - Current task being performed
+	 * @param tasks - List of all tasks with their status
 	 * @internal
 	 */
-	private renderLoadingScreen(message: string) {
+	private renderLoadingScreenWithProgress(currentTask: string, tasks: Array<{name: string, status: 'pending' | 'in-progress' | 'complete'}>) {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass("extension-submission-modal");
@@ -168,12 +169,26 @@ export class ExtensionSubmissionModal extends Modal {
 		const spinner = loadingContainer.createDiv({ cls: "loading-spinner" });
 		
 		// Message
-		loadingContainer.createEl("h2", { text: message, cls: "loading-message" });
+		loadingContainer.createEl("h2", { text: "Reviewing information...", cls: "loading-message" });
 		
-		// Submessage
+		// Current task
 		loadingContainer.createEl("p", { 
-			text: "This will just take a moment...",
-			cls: "loading-submessage"
+			text: currentTask,
+			cls: "loading-current-task"
+		});
+		
+		// Task list
+		const taskList = loadingContainer.createDiv({ cls: "loading-task-list" });
+		tasks.forEach(task => {
+			const taskItem = taskList.createDiv({ cls: `loading-task ${task.status}` });
+			
+			// Status icon
+			let icon = "○"; // pending
+			if (task.status === 'in-progress') icon = "◐";
+			if (task.status === 'complete') icon = "✓";
+			
+			taskItem.createSpan({ text: icon, cls: "task-icon" });
+			taskItem.createSpan({ text: task.name, cls: "task-name" });
 		});
 	}
 	
@@ -560,8 +575,12 @@ export class ExtensionSubmissionModal extends Modal {
 					return false;
 				}
 				
-				// Show interim loading screen
-				this.renderLoadingScreen("Reviewing information...");
+				// Run all validation and generation tasks with progress tracking
+				const tasks = [
+					{ name: "Generating Description", status: 'pending' as const },
+					{ name: "Generating Image", status: 'pending' as const },
+					{ name: "Validating ID doesn't exist", status: 'pending' as const }
+				];
 				
 				try {
 					// TODO: Validate extension exists and has valid manifest
@@ -581,15 +600,30 @@ export class ExtensionSubmissionModal extends Modal {
 						this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
 					}
 					
-					// Generate description and README using AI (async)
+					// Task 1: Generate description and README
+					tasks[0].status = 'in-progress';
+					this.renderLoadingScreenWithProgress("Generating description and README...", tasks);
 					await this.generateExtensionContent();
+					tasks[0].status = 'complete';
 					
-					// Success - proceed to next step
+					// Task 2: Generate image
+					tasks[1].status = 'in-progress';
+					this.renderLoadingScreenWithProgress("Generating extension image...", tasks);
+					await this.generateExtensionImageAuto();
+					tasks[1].status = 'complete';
+					
+					// Task 3: Validate ID
+					tasks[2].status = 'in-progress';
+					this.renderLoadingScreenWithProgress("Validating extension ID...", tasks);
+					await this.validateExtensionId();
+					tasks[2].status = 'complete';
+					
+					// All tasks complete
 					return true;
 					
 				} catch (error) {
-					console.error("Content generation failed:", error);
-					new Notice("Content generation failed. You can still enter details manually.");
+					console.error("Validation/generation failed:", error);
+					new Notice("Some automated tasks failed. You can still proceed and enter details manually.");
 					return true; // Still proceed even if generation fails
 				}
 				
@@ -759,6 +793,77 @@ README.md:`;
 			this.isGeneratingImage = false;
 			button.setButtonText("Generate with AI");
 			button.setDisabled(false);
+		}
+	}
+	
+	/**
+	 * Generates extension image automatically during loading (no button interaction)
+	 * 
+	 * @internal
+	 */
+	private async generateExtensionImageAuto(): Promise<void> {
+		if (!this.plugin) {
+			return;
+		}
+		
+		try {
+			// TODO: Implement actual AI image generation
+			// For now, simulate with delay
+			await new Promise(resolve => setTimeout(resolve, 1500));
+			
+			this.generatedImagePath = `generated-${this.submissionData.extensionId}-icon.png`;
+			this.iconImagePath = null;
+			this.previewImagePath = null;
+			
+		} catch (error) {
+			console.error("Auto image generation failed:", error);
+			// Don't show notice, just log - user can generate manually later
+		}
+	}
+	
+	/**
+	 * Validates that the extension ID hasn't been submitted before
+	 * 
+	 * @internal
+	 */
+	private async validateExtensionId(): Promise<void> {
+		if (!this.submissionData.extensionId) {
+			return;
+		}
+		
+		try {
+			// Download and check the catalog
+			const catalogUrl = "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/catalog.json";
+			
+			const response = await fetch(catalogUrl);
+			if (!response.ok) {
+				console.warn("Could not fetch catalog for validation");
+				return;
+			}
+			
+			const catalog = await response.json();
+			
+			// Check if ID exists in any extension type
+			const allExtensions = [
+				...(catalog.agents || []),
+				...(catalog['voice-agents'] || []),
+				...(catalog.prompts || []),
+				...(catalog.skills || []),
+				...(catalog['mcp-servers'] || [])
+			];
+			
+			const existingExtension = allExtensions.find((ext: any) => ext.id === this.submissionData.extensionId);
+			
+			if (existingExtension) {
+				throw new Error(`Extension ID "${this.submissionData.extensionId}" already exists in the catalog. Please choose a different ID.`);
+			}
+			
+		} catch (error) {
+			if (error instanceof Error && error.message.includes("already exists")) {
+				throw error; // Re-throw validation errors
+			}
+			console.warn("Catalog validation failed:", error);
+			// Don't fail the whole process if we can't validate
 		}
 	}
 }

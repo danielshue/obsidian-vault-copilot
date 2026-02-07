@@ -7050,8 +7050,65 @@ cursor: pointer;
 	color: var(--text-normal);
 }
 
+.loading-current-task {
+	margin: 0 0 24px 0;
+	font-size: 15px;
+	color: var(--interactive-accent);
+	font-weight: 500;
+}
+
 .loading-submessage {
 	margin: 0;
 	font-size: 14px;
 	color: var(--text-muted);
+}
+
+.loading-task-list {
+	margin-top: 32px;
+	text-align: left;
+	max-width: 300px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.loading-task {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 0;
+	font-size: 14px;
+	color: var(--text-muted);
+}
+
+.loading-task.in-progress {
+	color: var(--interactive-accent);
+	font-weight: 500;
+}
+
+.loading-task.complete {
+	color: var(--text-success);
+}
+
+.loading-task .task-icon {
+	font-size: 16px;
+	width: 20px;
+	text-align: center;
+}
+
+.loading-task.complete .task-icon {
+	color: var(--text-success);
+}
+
+.loading-task.in-progress .task-icon {
+	color: var(--interactive-accent);
+	animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
 }
