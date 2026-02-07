@@ -295,14 +295,14 @@ export class ExtensionSubmissionModal extends Modal {
 					});
 			});
 		
-		// Extension path
+		// Extension path (file or folder)
 		new Setting(container)
-			.setName("Extension Folder Path")
-			.setDesc("Path to your extension folder (e.g., extensions/agents/my-agent)")
+			.setName("Extension Path")
+			.setDesc("Path to extension file (my-agent.agent.md) or folder")
 			.addText(text => {
 				this.extensionPathInput = text;
 				text
-					.setPlaceholder("extensions/agents/my-agent")
+					.setPlaceholder("extensions/agents/my-agent.agent.md or extensions/agents/my-agent/")
 					.setValue(this.submissionData.extensionPath || "")
 					.onChange(value => {
 						this.submissionData.extensionPath = value;
@@ -331,7 +331,7 @@ export class ExtensionSubmissionModal extends Modal {
 		// Validation info
 		const validationContainer = container.createDiv({ cls: "validation-info" });
 		validationContainer.createEl("p", {
-			text: "💡 Your extension folder should contain the main markdown file (e.g., my-agent.agent.md). The manifest.json will be generated automatically."
+			text: "💡 Provide either a file path (my-agent.agent.md) or folder path. If folder has manifest.json, it will be used; otherwise, manifest will be generated automatically."
 		});
 		
 		// Navigation buttons
@@ -624,70 +624,145 @@ export class ExtensionSubmissionModal extends Modal {
 	 * @internal
 	 */
 	/**
-	 * Derive extension ID and name from the markdown filename in the folder
-	 * For example: "my-agent.agent.md" → id: "my-agent", name: "My Agent"
-	 * The manifest.json will be GENERATED, not read from file
+	 * Parse or derive extension info from path (file or folder)
+	 * Handles 3 scenarios:
+	 * 1. File path → Derive from filename
+	 * 2. Folder with manifest.json → Parse manifest
+	 * 3. Folder without manifest → Derive from markdown file
+	 * 
+	 * @returns Extension manifest info or null if failed
+	 * @internal
 	 */
-	private async deriveExtensionInfo(): Promise<ExtensionManifest | null> {
-		if (!this.submissionData.extensionPath) {
+	private async parseOrDeriveExtensionInfo(): Promise<ExtensionManifest | null> {
+		const path = this.submissionData.extensionPath;
+		if (!path) {
+			console.error("No extension path provided");
 			return null;
 		}
 		
-		const folderPath = this.submissionData.extensionPath;
-		console.log(`Deriving extension info from files in: ${folderPath}`);
-		
 		try {
-			const folder = this.app.vault.getAbstractFileByPath(folderPath);
-			if (!folder || !(folder as any).children) {
-				console.error("Could not read extension folder");
+			// Get the file/folder from vault
+			const abstractFile = this.app.vault.getAbstractFileByPath(path);
+			if (!abstractFile) {
+				console.error(`Could not find file or folder at path: ${path}`);
 				return null;
 			}
 			
-			// Look for the main extension file based on type
-			const type = this.submissionData.extensionType;
-			const extensions: Record<string, string> = {
-				"agent": ".agent.md",
-				"voice-agent": ".voice-agent.md",
-				"prompt": ".prompt.md",
-				"skill": ".skill.md",
-				"mcp-server": ".mcp-server.md"
-			};
-			
-			const targetExtension = (type ? extensions[type] : undefined) || ".agent.md";
-			const files = (folder as any).children as TFile[];
-			const mainFile = files.find((f: TFile) => f.name.endsWith(targetExtension));
-			
-			if (!mainFile) {
-				console.error(`Could not find ${targetExtension} file in the folder`);
-				return null;
+			// Check if it's a file or folder
+			if (abstractFile instanceof TFile) {
+				// Scenario 1: User provided a file path (e.g., my-agent.agent.md)
+				console.log(`Input is a file: ${abstractFile.name}, deriving extension info...`);
+				
+				// Determine extension type from file suffix
+				const type = this.submissionData.extensionType;
+				const extensions: Record<string, string> = {
+					"agent": ".agent.md",
+					"voice-agent": ".voice-agent.md",
+					"prompt": ".prompt.md",
+					"skill": ".skill.md",
+					"mcp-server": ".mcp-server.md"
+				};
+				
+				const targetExtension = (type ? extensions[type] : undefined) || ".agent.md";
+				
+				// Extract ID from filename: "my-agent.agent.md" → "my-agent"
+				const id = abstractFile.name.replace(targetExtension, "");
+				
+				// Generate name from ID: "my-agent" → "My Agent"
+				const name = id
+					.split("-")
+					.map(word => word.charAt(0).toUpperCase() + word.slice(1))
+					.join(" ");
+				
+				console.log(`Derived from file: id=${id}, name=${name}`);
+				
+				// Return manifest structure (will be generated)
+				return {
+					id: id,
+					name: name,
+					version: "1.0.0",
+					description: "",
+					author: { name: "", url: "" },
+					type: (type as any) || "agent",
+					minVaultCopilotVersion: "0.0.1",
+					categories: [],
+					tags: [],
+					files: []
+				};
+			} else {
+				// It's a folder - check for manifest.json
+				console.log(`Input is a folder, checking for manifest.json...`);
+				
+				const manifestPath = `${path}/manifest.json`;
+				const manifestFile = this.app.vault.getAbstractFileByPath(manifestPath);
+				
+				if (manifestFile && manifestFile instanceof TFile) {
+					// Scenario 2: Folder with manifest.json - parse it
+					console.log(`Found manifest.json, parsing...`);
+					
+					try {
+						const manifestContent = await this.app.vault.read(manifestFile);
+						const manifest = JSON.parse(manifestContent) as ExtensionManifest;
+						
+						console.log(`Parsed manifest: id=${manifest.id}, name=${manifest.name}, version=${manifest.version}`);
+						
+						return manifest;
+					} catch (error) {
+						console.error("Failed to parse manifest.json, will derive from markdown file:", error);
+						// Fall through to scenario 3
+					}
+				}
+				
+				// Scenario 3: Folder without manifest - derive from markdown file
+				console.log(`No valid manifest.json, deriving from markdown file...`);
+				
+				// Look for the main extension file based on type
+				const type = this.submissionData.extensionType;
+				const extensions: Record<string, string> = {
+					"agent": ".agent.md",
+					"voice-agent": ".voice-agent.md",
+					"prompt": ".prompt.md",
+					"skill": ".skill.md",
+					"mcp-server": ".mcp-server.md"
+				};
+				
+				const targetExtension = (type ? extensions[type] : undefined) || ".agent.md";
+				const folder = abstractFile as any;
+				const files = (folder.children || []) as TFile[];
+				const mainFile = files.find((f: TFile) => f.name.endsWith(targetExtension));
+				
+				if (!mainFile) {
+					console.error(`Could not find ${targetExtension} file in the folder`);
+					return null;
+				}
+				
+				// Extract ID from filename
+				const id = mainFile.name.replace(targetExtension, "");
+				
+				// Generate name from ID
+				const name = id
+					.split("-")
+					.map(word => word.charAt(0).toUpperCase() + word.slice(1))
+					.join(" ");
+				
+				console.log(`Derived from markdown file: id=${id}, name=${name}`);
+				
+				// Return manifest structure (will be generated)
+				return {
+					id: id,
+					name: name,
+					version: "1.0.0",
+					description: "",
+					author: { name: "", url: "" },
+					type: (type as any) || "agent",
+					minVaultCopilotVersion: "0.0.1",
+					categories: [],
+					tags: [],
+					files: []
+				};
 			}
-			
-			// Extract ID from filename: "my-agent.agent.md" → "my-agent"
-			const id = mainFile.name.replace(targetExtension, "");
-			
-			// Generate name from ID: "my-agent" → "My Agent"
-			const name = id
-				.split("-")
-				.map(word => word.charAt(0).toUpperCase() + word.slice(1))
-				.join(" ");
-			
-			console.log(`Derived extension info: id=${id}, name=${name} from file ${mainFile.name}`);
-			
-			// Return manifest structure (will be generated, not read from file)
-			return {
-				id: id,
-				name: name,
-				version: "1.0.0", // Default version for new extensions
-				description: "", // Will be filled from generated content
-				author: { name: "", url: "" },
-				type: (type as any) || "agent",
-				minVaultCopilotVersion: "0.0.1",
-				categories: [],
-				tags: [],
-				files: []
-			};
 		} catch (error) {
-			console.error("Failed to derive extension info:", error);
+			console.error("Failed to parse or derive extension info:", error);
 			return null;
 		}
 	}
@@ -714,10 +789,10 @@ export class ExtensionSubmissionModal extends Modal {
 				// If user opted to skip AI generation, just do basic validation and advance
 				if (this.skipAIGeneration) {
 					try {
-						// Derive extension info from filename (manifest will be generated, not read)
-						const manifest = await this.deriveExtensionInfo();
+						// Parse or derive extension info (file/folder, with/without manifest)
+						const manifest = await this.parseOrDeriveExtensionInfo();
 						if (!manifest) {
-							new Notice("Could not derive extension info from folder. Please check your extension path.");
+							new Notice("Could not read extension info. Please check your path points to a valid extension file or folder.");
 							return false;
 						}
 						
@@ -757,10 +832,10 @@ export class ExtensionSubmissionModal extends Modal {
 				];
 				
 				try {
-					// Derive extension info from filename (manifest will be generated, not read)
-					const manifest = await this.deriveExtensionInfo();
+					// Parse or derive extension info (file/folder, with/without manifest)
+					const manifest = await this.parseOrDeriveExtensionInfo();
 					if (!manifest) {
-						new Notice("Could not derive extension info from folder. Please check your extension path.");
+						new Notice("Could not read extension info. Please check your path points to a valid extension file or folder.");
 						return false;
 					}
 					
