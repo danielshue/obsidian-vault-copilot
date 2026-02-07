@@ -1209,6 +1209,7 @@ This pull request was created using the Extension Submission workflow in Obsidia
 		
 		// Execute tasks sequentially (placeholder for actual GitHub automation)
 		// TODO: Replace with actual GitHub CLI automation from .github/prompts/submit-extension.prompt.md
+		// Each task should execute real gh CLI commands: gh fork, gh api, git checkout, git commit, git push, gh pr create
 		try {
 			for (const task of tasks) {
 				// Update to in-progress
@@ -1216,7 +1217,9 @@ This pull request was created using the Extension Submission workflow in Obsidia
 				taskElements[task.id].addClass("in-progress");
 				taskElements[`${task.id}-icon`].setText("◐");
 				
-				// Simulate task execution (replace with actual GitHub operations)
+				// Simulate task execution
+				// TODO: Replace this delay with actual GitHub CLI operations
+				// This placeholder will be removed when real automation is implemented
 				await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
 				
 				// Update to complete
@@ -1226,6 +1229,7 @@ This pull request was created using the Extension Submission workflow in Obsidia
 			}
 			
 			// Show success screen
+			// TODO: Replace placeholder URL with actual PR URL from gh pr create command
 			await this.renderSubmissionSuccess("https://github.com/danielshue/obsidian-vault-copilot/pull/123");
 			
 		} catch (error) {
