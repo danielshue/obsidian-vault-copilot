@@ -65,6 +65,9 @@ export class ExtensionSubmissionModal extends Modal {
 	// Track whether initial validation has been completed
 	private hasCompletedInitialValidation = false;
 	
+	// Track whether user wants AI generation
+	private skipAIGeneration = false;
+	
 	/**
 	 * Creates a new extension submission modal
 	 * 
@@ -292,6 +295,18 @@ export class ExtensionSubmissionModal extends Modal {
 					.setValue(this.submissionData.extensionPath || "")
 					.onChange(value => {
 						this.submissionData.extensionPath = value;
+					});
+			});
+		
+		// AI generation option (checkbox)
+		new Setting(container)
+			.setName("Generate content and image automatically")
+			.setDesc("Use AI to generate description, README, and image. Uncheck if you already have these prepared.")
+			.addToggle(toggle => {
+				toggle
+					.setValue(!this.skipAIGeneration) // Default to checked (generate by default)
+					.onChange(value => {
+						this.skipAIGeneration = !value; // Invert because toggle is "generate" but field is "skip"
 					});
 			});
 		
@@ -601,6 +616,39 @@ export class ExtensionSubmissionModal extends Modal {
 				// Skip initial validation if already completed (user navigated back)
 				if (this.hasCompletedInitialValidation) {
 					return true;
+				}
+				
+				// If user opted to skip AI generation, just do basic validation and advance
+				if (this.skipAIGeneration) {
+					try {
+						// TODO: Validate extension exists and has valid manifest
+						// For now, just set dummy data and auto-generate GitHub details
+						this.submissionData.extensionId = "my-extension";
+						this.submissionData.extensionName = "My Extension";
+						this.submissionData.version = "1.0.0";
+						
+						// Auto-generate GitHub details
+						if (this.submissionData.githubUsername) {
+							this.submissionData.forkRepoName = "obsidian-vault-copilot";
+							this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
+						} else {
+							// Try to get from git config
+							this.submissionData.githubUsername = "user";
+							this.submissionData.forkRepoName = "obsidian-vault-copilot";
+							this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
+						}
+						
+						// Mark validation as completed (skip AI generation)
+						this.hasCompletedInitialValidation = true;
+						
+						// Advance immediately without loading screen
+						return true;
+						
+					} catch (error) {
+						console.error("Basic validation failed:", error);
+						new Notice("Validation failed. Please check your extension path.");
+						return false;
+					}
 				}
 				
 				// Run all validation and generation tasks with progress tracking
