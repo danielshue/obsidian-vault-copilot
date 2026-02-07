@@ -62,6 +62,9 @@ export class ExtensionSubmissionModal extends Modal {
 	private generatedDescription: string = "";
 	private generatedReadme: string = "";
 	
+	// Track whether initial validation has been completed
+	private hasCompletedInitialValidation = false;
+	
 	/**
 	 * Creates a new extension submission modal
 	 * 
@@ -575,6 +578,11 @@ export class ExtensionSubmissionModal extends Modal {
 					return false;
 				}
 				
+				// Skip initial validation if already completed (user navigated back)
+				if (this.hasCompletedInitialValidation) {
+					return true;
+				}
+				
 				// Run all validation and generation tasks with progress tracking
 				const tasks = [
 					{ name: "Generating Description", status: 'pending' as const },
@@ -618,12 +626,17 @@ export class ExtensionSubmissionModal extends Modal {
 					await this.validateExtensionId();
 					tasks[2].status = 'complete';
 					
+					// Mark validation as completed
+					this.hasCompletedInitialValidation = true;
+					
 					// All tasks complete
 					return true;
 					
 				} catch (error) {
 					console.error("Validation/generation failed:", error);
 					new Notice("Some automated tasks failed. You can still proceed and enter details manually.");
+					// Mark as completed even if some tasks failed
+					this.hasCompletedInitialValidation = true;
 					return true; // Still proceed even if generation fails
 				}
 				
@@ -740,6 +753,17 @@ README.md:`;
 			!this.submissionData.authorUrl) {
 			new Notice("Please fill in all required fields");
 			return;
+		}
+		
+		// Final validation before submission - check catalog one more time
+		try {
+			await this.validateExtensionId();
+		} catch (error) {
+			// If validation fails (duplicate ID), show error and don't submit
+			if (error instanceof Error) {
+				new Notice(error.message);
+				return;
+			}
 		}
 		
 		// Close modal and return data
