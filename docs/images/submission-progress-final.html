@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Submission - Final Progress</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1e1e1e;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .modal {
+            background: #2d2d2d;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            max-width: 700px;
+            width: 100%;
+            padding: 24px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #dcddde;
+            margin-bottom: 24px;
+        }
+
+        .progress-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .spinner-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .spinner {
+            border: 3px solid #3a3a3a;
+            border-top: 3px solid #0969da;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .current-task-highlight {
+            background: rgba(9, 105, 218, 0.1);
+            border: 1px solid #0969da;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .current-task-label {
+            font-size: 12px;
+            color: #8b949e;
+            margin-bottom: 4px;
+        }
+
+        .current-task-name {
+            font-size: 14px;
+            color: #0969da;
+            font-weight: 500;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background: #1e1e1e;
+            border-radius: 6px;
+            border: 1px solid #3a3a3a;
+            transition: all 0.3s ease;
+        }
+
+        .task-item.pending {
+            opacity: 0.6;
+        }
+
+        .task-item.in-progress {
+            border-color: #0969da;
+            background: rgba(9, 105, 218, 0.05);
+        }
+
+        .task-item.complete {
+            border-color: #238636;
+            background: rgba(35, 134, 54, 0.05);
+        }
+
+        .task-item.error {
+            border-color: #da3633;
+            background: rgba(218, 54, 51, 0.05);
+        }
+
+        .task-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+            width: 20px;
+            text-align: center;
+        }
+
+        .task-item.pending .task-icon {
+            color: #8b949e;
+        }
+
+        .task-item.in-progress .task-icon {
+            color: #0969da;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .task-item.complete .task-icon {
+            color: #238636;
+        }
+
+        .task-item.error .task-icon {
+            color: #da3633;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .task-name {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .task-item.pending .task-name {
+            color: #8b949e;
+        }
+
+        .task-item.in-progress .task-name {
+            color: #dcddde;
+            font-weight: 500;
+        }
+
+        .task-item.complete .task-name {
+            color: #8b949e;
+        }
+
+        .task-item.error .task-name {
+            color: #dcddde;
+        }
+
+        .task-duration {
+            font-size: 12px;
+            color: #8b949e;
+            opacity: 0.7;
+        }
+
+        .task-item.complete .task-duration {
+            display: inline;
+        }
+
+        .task-item:not(.complete) .task-duration {
+            display: none;
+        }
+
+        .error-message-box {
+            background: rgba(218, 54, 51, 0.1);
+            border: 1px solid #da3633;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 8px;
+        }
+
+        .error-message-title {
+            color: #ff6b6b;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .error-message-text {
+            color: #f85149;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .progress-note {
+            text-align: center;
+            color: #8b949e;
+            font-size: 13px;
+            margin-top: 16px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="modal">
+        <h2 class="modal-title">Submitting Extension to Catalog</h2>
+
+        <div class="spinner-container">
+            <div class="spinner"></div>
+        </div>
+
+        <div class="current-task-highlight">
+            <div class="current-task-label">Current task</div>
+            <div class="current-task-name">Pushing changes to fork...</div>
+        </div>
+
+        <div class="progress-container">
+            <div class="task-list">
+                <div class="task-item complete">
+                    <span class="task-icon">✓</span>
+                    <span class="task-name">Validating extension files</span>
+                    <span class="task-duration">0.8s</span>
+                </div>
+
+                <div class="task-item complete">
+                    <span class="task-icon">✓</span>
+                    <span class="task-name">Forking repository</span>
+                    <span class="task-duration">2.1s</span>
+                </div>
+
+                <div class="task-item complete">
+                    <span class="task-icon">✓</span>
+                    <span class="task-name">Creating branch: add-study-buddy</span>
+                    <span class="task-duration">0.5s</span>
+                </div>
+
+                <div class="task-item complete">
+                    <span class="task-icon">✓</span>
+                    <span class="task-name">Preparing extension files</span>
+                    <span class="task-duration">0.3s</span>
+                </div>
+
+                <div class="task-item complete">
+                    <span class="task-icon">✓</span>
+                    <span class="task-name">Generating manifest.json</span>
+                    <span class="task-duration">0.2s</span>
+                </div>
+
+                <div class="task-item complete">
+                    <span class="task-icon">✓</span>
+                    <span class="task-name">Committing changes</span>
+                    <span class="task-duration">0.4s</span>
+                </div>
+
+                <div class="task-item in-progress">
+                    <span class="task-icon">◐</span>
+                    <span class="task-name">Pushing changes to fork</span>
+                </div>
+
+                <div class="task-item pending">
+                    <span class="task-icon">○</span>
+                    <span class="task-name">Creating pull request</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="progress-note">
+            Processing submission via GitHub Copilot CLI SDK...
+        </div>
+    </div>
+</body>
+</html>
