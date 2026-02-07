@@ -1032,7 +1032,7 @@ export default class CopilotPlugin extends Plugin {
 	 * @internal
 	 */
 	async openExtensionSubmissionModal(): Promise<void> {
-		const modal = new ExtensionSubmissionModal(this.app);
+		const modal = new ExtensionSubmissionModal(this.app, this);
 		
 		try {
 			const submissionData = await modal.show();

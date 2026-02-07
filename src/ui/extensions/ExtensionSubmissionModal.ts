@@ -42,6 +42,7 @@ export class ExtensionSubmissionModal extends Modal {
 	private currentStep = 0;
 	private submissionData: Partial<ExtensionSubmissionData> = {};
 	private resolve: ((value: ExtensionSubmissionData | null) => void) | null = null;
+	private plugin: any; // Reference to the plugin for AI service access
 	
 	// Form elements
 	private extensionPathInput: TextComponent | null = null;
@@ -54,13 +55,20 @@ export class ExtensionSubmissionModal extends Modal {
 	private iconImagePath: string | null = null;
 	private previewImagePath: string | null = null;
 	
+	// Loading state for AI generation
+	private isGeneratingContent = false;
+	private generatedDescription: string = "";
+	private generatedReadme: string = "";
+	
 	/**
 	 * Creates a new extension submission modal
 	 * 
 	 * @param app - Obsidian app instance
+	 * @param plugin - Plugin instance for accessing AI service
 	 */
-	constructor(app: App) {
+	constructor(app: App, plugin?: any) {
 		super(app);
+		this.plugin = plugin;
 		// Pre-populate author info from Git config if available
 		this.loadAuthorInfo();
 	}
@@ -289,10 +297,10 @@ export class ExtensionSubmissionModal extends Modal {
 					});
 			});
 		
-		// Extension description
+		// Extension description (AI-generated and pre-populated)
 		const descSetting = new Setting(container)
 			.setName("Extension Description")
-			.setDesc("Brief description of your extension (optional - can also be set in manifest.json)");
+			.setDesc(this.generatedDescription ? "AI-generated description (editable)" : "Brief description of your extension (optional)");
 		
 		this.descriptionInput = descSetting.controlEl.createEl("textarea", {
 			attr: {
@@ -302,6 +310,8 @@ export class ExtensionSubmissionModal extends Modal {
 		});
 		this.descriptionInput.style.width = "100%";
 		this.descriptionInput.style.marginTop = "8px";
+		// Pre-populate with AI-generated content
+		this.descriptionInput.value = this.generatedDescription || "";
 		
 		// Icon image upload
 		new Setting(container)
@@ -363,10 +373,10 @@ export class ExtensionSubmissionModal extends Modal {
 			});
 		}
 		
-		// README content
+		// README content (AI-generated and pre-populated)
 		const readmeSetting = new Setting(container)
 			.setName("README Content")
-			.setDesc("Additional documentation or usage instructions (optional)");
+			.setDesc(this.generatedReadme ? "AI-generated README (editable)" : "Additional documentation or usage instructions (optional)");
 		
 		this.readmeInput = readmeSetting.controlEl.createEl("textarea", {
 			attr: {
@@ -377,11 +387,15 @@ export class ExtensionSubmissionModal extends Modal {
 		this.readmeInput.style.width = "100%";
 		this.readmeInput.style.marginTop = "8px";
 		this.readmeInput.style.fontFamily = "monospace";
+		// Pre-populate with AI-generated content
+		this.readmeInput.value = this.generatedReadme || "";
 		
 		// Info box
 		const infoContainer = container.createDiv({ cls: "validation-info" });
 		infoContainer.createEl("p", {
-			text: "💡 Author information has been pre-populated from your Git configuration. You can edit it if needed."
+			text: this.generatedDescription || this.generatedReadme
+				? "💡 Author information has been pre-populated from your Git configuration. Description and README have been AI-generated based on your extension. You can edit all fields as needed."
+				: "💡 Author information has been pre-populated from your Git configuration. You can edit it if needed."
 		});
 		
 		// Navigation buttons
@@ -525,22 +539,40 @@ export class ExtensionSubmissionModal extends Modal {
 					new Notice("Please provide an extension folder path");
 					return false;
 				}
-				// TODO: Validate extension exists and has valid manifest
-				// For now, just set dummy data and auto-generate GitHub details
-				this.submissionData.extensionId = "my-extension";
-				this.submissionData.extensionName = "My Extension";
-				this.submissionData.version = "1.0.0";
 				
-				// Auto-generate GitHub details
-				if (this.submissionData.githubUsername) {
-					this.submissionData.forkRepoName = "obsidian-vault-copilot";
-					this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
-				} else {
-					// Try to get from git config
-					this.submissionData.githubUsername = "user";
-					this.submissionData.forkRepoName = "obsidian-vault-copilot";
-					this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
+				// Show loading notice
+				const loadingNotice = new Notice("Analyzing extension and generating content...", 0);
+				
+				try {
+					// TODO: Validate extension exists and has valid manifest
+					// For now, just set dummy data and auto-generate GitHub details
+					this.submissionData.extensionId = "my-extension";
+					this.submissionData.extensionName = "My Extension";
+					this.submissionData.version = "1.0.0";
+					
+					// Auto-generate GitHub details
+					if (this.submissionData.githubUsername) {
+						this.submissionData.forkRepoName = "obsidian-vault-copilot";
+						this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
+					} else {
+						// Try to get from git config
+						this.submissionData.githubUsername = "user";
+						this.submissionData.forkRepoName = "obsidian-vault-copilot";
+						this.submissionData.branchName = `add-${this.submissionData.extensionId}`;
+					}
+					
+					// Generate description and README using AI
+					await this.generateExtensionContent();
+					
+					loadingNotice.hide();
+					new Notice("Extension content generated successfully!");
+					
+				} catch (error) {
+					loadingNotice.hide();
+					console.error("Content generation failed:", error);
+					new Notice("Content generation failed. You can still enter details manually.");
 				}
+				
 				return true;
 				
 			case 1: // Extension details (author info, images, description)
@@ -556,6 +588,90 @@ export class ExtensionSubmissionModal extends Modal {
 		}
 		
 		return true;
+	}
+	
+	/**
+	 * Generates description and README content using AI
+	 * 
+	 * @internal
+	 */
+	private async generateExtensionContent(): Promise<void> {
+		if (!this.plugin || !this.submissionData.extensionPath) {
+			return;
+		}
+		
+		this.isGeneratingContent = true;
+		
+		try {
+			// Get AI provider (GitHub Copilot CLI or OpenAI)
+			const aiProvider = this.plugin.getAIProvider?.();
+			
+			if (!aiProvider || !aiProvider.isReady()) {
+				console.log("AI provider not available, skipping content generation");
+				return;
+			}
+			
+			// Read extension files to understand what it does
+			const extensionPath = this.submissionData.extensionPath;
+			let extensionContent = "";
+			
+			try {
+				const adapter = this.app.vault.adapter;
+				
+				// Try to read the main extension file
+				const possibleFiles = [
+					`${extensionPath}/${this.submissionData.extensionId}.agent.md`,
+					`${extensionPath}/${this.submissionData.extensionId}.prompt.md`,
+					`${extensionPath}/${this.submissionData.extensionId}.voice-agent.md`,
+					`${extensionPath}/README.md`
+				];
+				
+				for (const filePath of possibleFiles) {
+					try {
+						if (await adapter.exists(filePath)) {
+							extensionContent += await adapter.read(filePath);
+							break;
+						}
+					} catch (e) {
+						// Continue to next file
+					}
+				}
+			} catch (error) {
+				console.error("Error reading extension files:", error);
+			}
+			
+			// Generate description (concise)
+			const descriptionPrompt = `Based on this extension content, write a brief 1-2 sentence description suitable for a catalog listing:
+
+${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExtension ID: ${this.submissionData.extensionId}`}
+
+Description:`;
+			
+			const descriptionResponse = await aiProvider.sendMessage(descriptionPrompt);
+			this.generatedDescription = descriptionResponse.trim();
+			
+			// Generate README (detailed)
+			const readmePrompt = `Based on this extension content, write a comprehensive README.md file with the following sections:
+- Brief overview
+- Features
+- Usage instructions
+- Examples (if applicable)
+
+${extensionContent || `Extension Name: ${this.submissionData.extensionName}\nExtension ID: ${this.submissionData.extensionId}`}
+
+README.md:`;
+			
+			const readmeResponse = await aiProvider.sendMessage(readmePrompt);
+			this.generatedReadme = readmeResponse.trim();
+			
+		} catch (error) {
+			console.error("AI content generation error:", error);
+			// Set fallback content
+			this.generatedDescription = `${this.submissionData.extensionName} - A helpful extension for Obsidian Vault Copilot.`;
+			this.generatedReadme = `# ${this.submissionData.extensionName}\n\n## Overview\n\nThis extension enhances your Obsidian experience.\n\n## Usage\n\nUse the command palette to access extension features.`;
+		} finally {
+			this.isGeneratingContent = false;
+		}
 	}
 	
 	/**
