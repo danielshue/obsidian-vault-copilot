@@ -1,0 +1,259 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="0.55" stop-color="#0a0f1a"/>
+      <stop offset="1" stop-color="#070b12"/>
+    </linearGradient>
+
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#111a2b"/>
+      <stop offset="1" stop-color="#0c1322"/>
+    </linearGradient>
+
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7c3aed"/>
+      <stop offset="0.5" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feColorMatrix in="b" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 0.35 0" result="g"/>
+      <feMerge>
+        <feMergeNode in="g"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M 48 0 H 0 V 48" fill="none" stroke="#1b2740" stroke-width="1" opacity="0.35"/>
+      <path d="M 24 0 V 48 M 0 24 H 48" fill="none" stroke="#142036" stroke-width="1" opacity="0.25"/>
+    </pattern>
+
+    <clipPath id="roundClip">
+      <rect x="60" y="56" width="1160" height="608" rx="26"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect width="1280" height="720" fill="url(#grid)" opacity="0.55"/>
+  <ellipse cx="220" cy="110" rx="280" ry="190" fill="#7c3aed" opacity="0.12" filter="url(#glow)"/>
+  <ellipse cx="1060" cy="600" rx="340" ry="240" fill="#22d3ee" opacity="0.10" filter="url(#glow)"/>
+  <ellipse cx="980" cy="140" rx="260" ry="180" fill="#a78bfa" opacity="0.08" filter="url(#glow)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="60" y="56" width="1160" height="608" rx="26" fill="url(#panel)" stroke="#223152" stroke-width="1.2"/>
+    <rect x="60" y="56" width="1160" height="56" rx="26" fill="#0b1220" opacity="0.9"/>
+    <path d="M 86 84 a 8 8 0 1 1 0.01 0" fill="#ff5f57"/>
+    <path d="M 110 84 a 8 8 0 1 1 0.01 0" fill="#febc2e"/>
+    <path d="M 134 84 a 8 8 0 1 1 0.01 0" fill="#28c840"/>
+
+    <rect x="210" y="72" width="770" height="28" rx="10" fill="#0f1a2c" stroke="#1f2b46" stroke-width="1"/>
+    <text x="232" y="91" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="13" fill="#9fb2d0">
+      vault://extensions/agents/tutor.agent
+    </text>
+
+    <rect x="60" y="112" width="270" height="552" rx="0" fill="#0a1222" opacity="0.85"/>
+    <path d="M 330 112 V 664" stroke="#203055" stroke-width="1"/>
+
+    <g opacity="0.95">
+      <text x="92" y="154" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="12" fill="#7f95b8" letter-spacing="0.08em">
+        LEARNING WORKSPACE
+      </text>
+
+      <g transform="translate(88,172)">
+        <rect x="0" y="0" width="224" height="44" rx="12" fill="#0f1a2c" stroke="#2a3b64" stroke-width="1"/>
+        <rect x="0" y="0" width="4" height="44" rx="2" fill="url(#accent)"/>
+        <text x="16" y="18" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="13" fill="#e6eefc">Learning/</text>
+        <text x="16" y="34" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#9fb2d0">Machine-Learning</text>
+      </g>
+
+      <g transform="translate(88,232)">
+        <rect x="0" y="0" width="224" height="34" rx="10" fill="#0b1628" stroke="#1f2b46" stroke-width="1"/>
+        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#9fb2d0">[[Optimization]]</text>
+      </g>
+      <g transform="translate(88,276)">
+        <rect x="0" y="0" width="224" height="34" rx="10" fill="#0b1628" stroke="#1f2b46" stroke-width="1"/>
+        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#9fb2d0">[[Generalization]]</text>
+      </g>
+      <g transform="translate(88,320)">
+        <rect x="0" y="0" width="224" height="34" rx="10" fill="#0b1628" stroke="#1f2b46" stroke-width="1"/>
+        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#9fb2d0">[[Causal Inference]]</text>
+      </g>
+      <g transform="translate(88,364)">
+        <rect x="0" y="0" width="224" height="34" rx="10" fill="#0b1628" stroke="#1f2b46" stroke-width="1"/>
+        <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#9fb2d0">[[Valuation]]</text>
+      </g>
+
+      <text x="92" y="438" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="12" fill="#7f95b8" letter-spacing="0.08em">
+        TOOLS
+      </text>
+
+      <g transform="translate(88,454)">
+        <rect x="0" y="0" width="224" height="132" rx="14" fill="#0b1628" stroke="#1f2b46" stroke-width="1"/>
+        <g transform="translate(14,18)">
+          <circle cx="8" cy="8" r="6" fill="#22d3ee" opacity="0.9"/>
+          <text x="22" y="12" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">list_notes_recursively</text>
+        </g>
+        <g transform="translate(14,44)">
+          <circle cx="8" cy="8" r="6" fill="#a78bfa" opacity="0.9"/>
+          <text x="22" y="12" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">read_note</text>
+        </g>
+        <g transform="translate(14,70)">
+          <circle cx="8" cy="8" r="6" fill="#7c3aed" opacity="0.9"/>
+          <text x="22" y="12" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">search_note</text>
+        </g>
+        <g transform="translate(14,96)">
+          <circle cx="8" cy="8" r="6" fill="#34d399" opacity="0.9"/>
+          <text x="22" y="12" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">web_fetch</text>
+        </g>
+      </g>
+    </g>
+
+    <g clip-path="url(#roundClip)">
+      <g transform="translate(370,150)">
+        <text x="0" y="0" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="56" font-weight="750" fill="#eef4ff" letter-spacing="-0.02em">
+          Tutor
+        </text>
+        <rect x="0" y="18" width="210" height="6" rx="3" fill="url(#accent)" opacity="0.95"/>
+        <text x="0" y="46" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="18" fill="#b7c7e6">
+          Graduate-level learning via Socratic questioning, active practice, and vault-aware context.
+        </text>
+
+        <g transform="translate(0,78)">
+          <rect x="0" y="0" width="164" height="32" rx="999" fill="#0f1a2c" stroke="#2a3b64" stroke-width="1"/>
+          <text x="16" y="21" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">Socratic</text>
+
+          <rect x="178" y="0" width="196" height="32" rx="999" fill="#0f1a2c" stroke="#2a3b64" stroke-width="1"/>
+          <text x="194" y="21" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">Progressive depth</text>
+
+          <rect x="388" y="0" width="168" height="32" rx="999" fill="#0f1a2c" stroke="#2a3b64" stroke-width="1"/>
+          <text x="404" y="21" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">Teach-back</text>
+
+          <rect x="570" y="0" width="172" height="32" rx="999" fill="#0f1a2c" stroke="#2a3b64" stroke-width="1"/>
+          <text x="586" y="21" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">Research links</text>
+        </g>
+
+        <g transform="translate(0,140)">
+          <rect x="0" y="0" width="790" height="258" rx="18" fill="#0a1222" stroke="#223152" stroke-width="1.2"/>
+          <rect x="0" y="0" width="790" height="44" rx="18" fill="#0b1220" opacity="0.9"/>
+          <text x="18" y="28" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#9fb2d0">
+            Session · Question-first tutoring
+          </text>
+
+          <g transform="translate(18,64)">
+            <rect x="0" y="0" width="754" height="62" rx="14" fill="#0f1a2c" stroke="#263659" stroke-width="1"/>
+            <text x="16" y="22" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="14" fill="#e6eefc">
+              You:
+            </text>
+            <text x="52" y="22" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="14" fill="#cfe0ff">
+              Help me master optimization &amp; generalization. Use <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" fill="#9fb2d0">Learning/Machine-Learning</tspan>.
+            </text>
+            <text x="52" y="44" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="14" fill="#cfe0ff">
+              I get stuck on why some models overfit even with regularization.
+            </text>
+          </g>
+
+          <g transform="translate(18,136)">
+            <rect x="0" y="0" width="754" height="96" rx="14" fill="#0b1628" stroke="#1f2b46" stroke-width="1"/>
+            <g transform="translate(16,18)">
+              <circle cx="10" cy="10" r="10" fill="url(#accent)" opacity="0.95"/>
+              <path d="M 10 5.3 L 12.4 10.1 L 17.7 10.1 L 13.4 13.2 L 15.0 18.2 L 10 15.2 L 5.0 18.2 L 6.6 13.2 L 2.3 10.1 L 7.6 10.1 Z" fill="#0b1220" opacity="0.9"/>
+            </g>
+            <text x="52" y="28" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="14" fill="#eef4ff">
+              Tutor:
+            </text>
+            <text x="104" y="28" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="14" fill="#cfe0ff">
+              Let’s diagnose your mental model with a few precise questions.
+            </text>
+            <text x="52" y="54" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="14" fill="#cfe0ff">
+              1) What changes in train vs. test loss tell you “variance” is the main issue?
+            </text>
+            <text x="52" y="78" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="14" fill="#cfe0ff">
+              2) In your words, what does <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" fill="#9fb2d0">L2</tspan> penalize: weights, functions, or both?
+            </text>
+          </g>
+        </g>
+
+        <g transform="translate(820,140)">
+          <rect x="0" y="0" width="290" height="258" rx="18" fill="#0a1222" stroke="#223152" stroke-width="1.2"/>
+          <text x="18" y="34" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="14" fill="#eef4ff">
+            Learning Loop
+          </text>
+
+          <g transform="translate(18,56)">
+            <rect x="0" y="0" width="254" height="54" rx="14" fill="#0f1a2c" stroke="#263659" stroke-width="1"/>
+            <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">
+              Assess baseline
+            </text>
+            <text x="14" y="40" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="12" fill="#9fb2d0">
+              targeted questions
+            </text>
+          </g>
+
+          <g transform="translate(18,118)">
+            <rect x="0" y="0" width="254" height="54" rx="14" fill="#0b1628" stroke="#1f2b46" stroke-width="1"/>
+            <text x="14" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">
+              Practice
+            </text>
+            <text x="14" y="40" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="12" fill="#9fb2d0">
+              problems &amp; cases
+            </text>
+          </g>
+
+          <g transform="translate(18,180)">
+            <rect x="0" y="0" width="254" height="60" rx="14" fill="#0f1a2c" stroke="#263659" stroke-width="1"/>
+            <text x="14" y="24" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">
+              Teach it back
+            </text>
+            <text x="14" y="44" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="12" fill="#9fb2d0">
+              explain in your words
+            </text>
+          </g>
+        </g>
+
+        <g transform="translate(0,430)">
+          <rect x="0" y="0" width="1110" height="110" rx="18" fill="#0a1222" stroke="#223152" stroke-width="1.2"/>
+          <g transform="translate(18,18)">
+            <path d="M 24 6 C 15 6 8 13 8 22 C 8 31 15 38 24 38 C 33 38 40 31 40 22 C 40 13 33 6 24 6 Z" fill="#0f1a2c" stroke="#2a3b64" stroke-width="1"/>
+            <path d="M 24 11.5 L 28.5 20.3 L 38.2 20.3 L 30.3 26.0 L 33.3 35.0 L 24 29.4 L 14.7 35.0 L 17.7 26.0 L 9.8 20.3 L 19.5 20.3 Z" fill="url(#accent)"/>
+            <rect x="52" y="10" width="330" height="28" rx="10" fill="#0f1a2c" stroke="#2a3b64" stroke-width="1"/>
+            <text x="66" y="29" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="12" fill="#cfe0ff">
+              Vault-aware · [[wikilinks]] · web_fetch
+            </text>
+
+            <text x="52" y="62" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="14" fill="#cfe0ff">
+              Build mastery by iterating: question → attempt → critique → refinement, grounded in your own notes.
+            </text>
+          </g>
+
+          <g transform="translate(860,22)" opacity="0.98">
+            <rect x="0" y="0" width="232" height="66" rx="16" fill="#0f1a2c" stroke="#2a3b64" stroke-width="1"/>
+            <text x="16" y="26" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="12" fill="#9fb2d0">
+              Mode
+            </text>
+            <text x="16" y="48" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="16" font-weight="650" fill="#eef4ff">
+              Rigorous &amp; iterative
+            </text>
+          </g>
+        </g>
+      </g>
+    </g>
+
+    <path d="M 60 112 H 1220" stroke="#1b2740" stroke-width="1" opacity="0.75"/>
+  </g>
+
+  <g opacity="0.55">
+    <path d="M 102 658 C 160 690 220 702 290 702" fill="none" stroke="url(#accent)" stroke-width="2"/>
+    <path d="M 1100 64 C 1170 88 1230 130 1268 190" fill="none" stroke="url(#accent)" stroke-width="2" opacity="0.55"/>
+  </g>
+</svg>
