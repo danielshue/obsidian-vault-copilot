@@ -119,7 +119,7 @@ export interface ExtensionSubmissionParams {
  * ```typescript
  * const result: ExtensionSubmissionResult = {
  *   success: true,
- *   pullRequestUrl: "https://github.com/danielshue/vault-copilot-extensions/pull/42",
+ *   pullRequestUrl: "https://github.com/danielshue/obsidian-vault-copilot/pull/42",
  *   pullRequestNumber: 42,
  *   branchName: "add-my-agent-1.0.0",
  *   validationErrors: []
@@ -171,7 +171,7 @@ interface ValidationResult {
  * ```typescript
  * const service = new GitHubSubmissionService({
  *   upstreamOwner: "danielshue",
- *   upstreamRepo: "vault-copilot-extensions"
+ *   upstreamRepo: "obsidian-vault-copilot"
  * });
  * 
  * await service.initialize();
@@ -194,7 +194,7 @@ export class GitHubSubmissionService {
 	 * ```typescript
 	 * const service = new GitHubSubmissionService({
 	 *   upstreamOwner: "danielshue",
-	 *   upstreamRepo: "vault-copilot-extensions",
+	 *   upstreamRepo: "obsidian-vault-copilot",
 	 *   targetBranch: "main"
 	 * });
 	 * ```
@@ -731,18 +731,206 @@ Please execute these steps using the GitHub tools provided and report the pull r
 	 * @internal
 	 */
 	private createGitHubTools() {
+		const { upstreamOwner, upstreamRepo } = this.config;
+		const targetBranch = this.config.targetBranch ?? "master";
+
+		// Shared state for a single submission workflow
+		let authenticatedUsername: string | null = null;
+		let currentForkOwner: string | null = this.config.forkOwner ?? null;
+		let localRepoPath: string | null = null;
+
+		// Lazily load Node.js modules to ensure compatibility with desktop-only features
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const { execFile } = require("child_process");
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const { promisify } = require("util");
+		const execFileAsync = promisify(execFile);
+
+		/**
+		 * Runs a GitHub CLI command.
+		 *
+		 * @param args - Arguments passed to the `gh` executable
+		 * @param cwd - Optional working directory
+		 * @returns Standard output and error from the command
+		 * 
+		 * @internal
+		 */
+		const runGh = async (
+			args: string[],
+			cwd?: string
+		): Promise<{ stdout: string; stderr: string }> => {
+			try {
+				const { stdout, stderr } = await execFileAsync("gh", args, {
+					cwd,
+				});
+				return {
+					stdout: stdout?.toString() ?? "",
+					stderr: stderr?.toString() ?? "",
+				};
+			} catch (error: unknown) {
+				const err = error as { stderr?: string; message?: string };
+				throw new Error(
+					`gh ${args.join(" ")} failed: ${err.stderr ?? err.message ?? String(error)}`
+				);
+			}
+		};
+
+		/**
+		 * Runs a git command in the local repository, optionally allowing failures.
+		 *
+		 * @param args - Arguments passed to the `git` executable
+		 * @param cwd - Working directory (local repository path)
+		 * @param allowFailure - Whether to treat failures as non-fatal
+		 * @returns Standard output and error from the command
+		 * 
+		 * @internal
+		 */
+		const runGit = async (
+			args: string[],
+			cwd: string,
+			allowFailure = false
+		): Promise<{ stdout: string; stderr: string }> => {
+			try {
+				const { stdout, stderr } = await execFileAsync("git", args, { cwd });
+				return {
+					stdout: stdout?.toString() ?? "",
+					stderr: stderr?.toString() ?? "",
+				};
+			} catch (error: unknown) {
+				if (allowFailure) {
+					const err = error as { stdout?: string; stderr?: string; message?: string };
+					return {
+						stdout: err.stdout?.toString() ?? "",
+						stderr: err.stderr?.toString() ?? err.message ?? String(error),
+					};
+				}
+
+				const err = error as { stderr?: string; message?: string };
+				throw new Error(
+					`git ${args.join(" ")} failed: ${err.stderr ?? err.message ?? String(error)}`
+				);
+			}
+		};
+
+		/**
+		 * Ensures a local clone of the fork (or upstream) repository exists for this workflow.
+		 * The repository is cloned into a dedicated submissions folder under the current
+		 * working directory.
+		 * 
+		 * @returns Absolute path to the local repository
+		 * 
+		 * @internal
+		 */
+		const ensureLocalRepo = async (): Promise<string> => {
+			if (localRepoPath) {
+				return localRepoPath;
+			}
+
+			const owner = currentForkOwner || authenticatedUsername || upstreamOwner;
+			const repoFullName = `${owner}/${upstreamRepo}`;
+			const baseDir = path.join(process.cwd(), ".obsidian-vault-copilot-submissions");
+
+			if (!fs.existsSync(baseDir)) {
+				fs.mkdirSync(baseDir, { recursive: true });
+			}
+
+			const repoDirName = `${upstreamRepo}-${Date.now()}`;
+			const repoDir = path.join(baseDir, repoDirName);
+
+			try {
+				fs.mkdirSync(repoDir, { recursive: true });
+				await runGh(["repo", "clone", repoFullName, repoDir, "--", "--depth=1"]);
+				localRepoPath = repoDir;
+				return repoDir;
+			} catch (error) {
+				throw new Error(
+					`Failed to clone repository ${repoFullName}: ${
+						error instanceof Error ? error.message : String(error)
+					}`
+				);
+			}
+		};
+
+		/**
+		 * Recursively copies files from source to destination within the local repository.
+		 *
+		 * @param sourcePath - Absolute source directory path
+		 * @param targetPath - Absolute destination directory path
+		 * @returns Number of files copied
+		 * 
+		 * @internal
+		 */
+		const copyDirectoryRecursive = (
+			sourcePath: string,
+			targetPath: string
+		): number => {
+			if (!fs.existsSync(sourcePath)) {
+				throw new Error(`Source path does not exist: ${sourcePath}`);
+			}
+
+			if (!fs.existsSync(targetPath)) {
+				fs.mkdirSync(targetPath, { recursive: true });
+			}
+
+			let filesCopied = 0;
+			const entries = fs.readdirSync(sourcePath, { withFileTypes: true });
+
+			for (const entry of entries) {
+				const sourceEntryPath = path.join(sourcePath, entry.name);
+				const targetEntryPath = path.join(targetPath, entry.name);
+
+				if (entry.isDirectory()) {
+					filesCopied += copyDirectoryRecursive(sourceEntryPath, targetEntryPath);
+				} else if (entry.isFile()) {
+					fs.copyFileSync(sourceEntryPath, targetEntryPath);
+					filesCopied += 1;
+				}
+			}
+
+			return filesCopied;
+		};
+
 		return [
 			// Tool: Check GitHub authentication
 			defineTool("check_github_auth", {
 				description: "Check if GitHub CLI is authenticated and ready to use",
 				parameters: z.object({}),
 				handler: async (_args: Record<string, never>) => {
-					// In a real implementation, this would check `gh auth status`
-					// For now, we'll assume it's authenticated
-					return {
-						authenticated: true,
-						username: "authenticated-user",
-					};
+					try {
+						const { stdout } = await runGh([
+							"auth",
+							"status",
+							"--hostname",
+							"github.com",
+						]);
+
+						let username: string | undefined;
+						for (const line of stdout.split(/\r?\n/)) {
+							const match = line.match(/Logged in to [^ ]+ as ([^ ]+)/);
+							if (match && match[1]) {
+								username = match[1];
+								break;
+							}
+						}
+
+						if (username) {
+							authenticatedUsername = username;
+						}
+
+						const effectiveUser = currentForkOwner || authenticatedUsername;
+
+						return {
+							authenticated: true,
+							username: effectiveUser ?? username ?? null,
+						};
+					} catch (error) {
+						return {
+							authenticated: false,
+							username: null,
+							error:
+								error instanceof Error ? error.message : String(error),
+						};
+					}
 				},
 			}),
 
@@ -754,12 +942,40 @@ Please execute these steps using the GitHub tools provided and report the pull r
 					repo: z.string().describe("Repository name"),
 				}),
 				handler: async (args: { owner: string; repo: string }) => {
-					// In a real implementation, this would use GitHub API
-					// For now, we'll return a placeholder
-					return {
-						exists: false,
-						forkUrl: null as string | null,
-					};
+					const forkFullName = `${args.owner}/${args.repo}`;
+					try {
+						const { stdout } = await execFileAsync("gh", [
+							"api",
+							`repos/${forkFullName}`,
+						]);
+						const data = JSON.parse(stdout?.toString() ?? "{}") as {
+							html_url?: string;
+							fork?: boolean;
+						};
+
+						if (data.fork) {
+							currentForkOwner = args.owner;
+						}
+
+						return {
+							exists: true,
+							forkUrl: data.html_url ?? `https://github.com/${forkFullName}`,
+						};
+					} catch (error: unknown) {
+						const err = error as { stderr?: string; message?: string };
+						const stderr = err.stderr ?? err.message ?? String(error);
+
+						if (stderr.includes("Not Found") || stderr.includes("404")) {
+							return {
+								exists: false,
+								forkUrl: null as string | null,
+							};
+						}
+
+						throw new Error(
+							`Failed to check fork ${forkFullName}: ${stderr}`
+						);
+					}
 				},
 			}),
 
@@ -771,11 +987,50 @@ Please execute these steps using the GitHub tools provided and report the pull r
 					repo: z.string().describe("Repository name"),
 				}),
 				handler: async (args: { owner: string; repo: string }) => {
-					// In a real implementation, this would use `gh repo fork`
-					return {
-						success: true,
-						forkUrl: `https://github.com/authenticated-user/${args.repo}`,
-					};
+					const upstreamFullName = `${args.owner}/${args.repo}`;
+
+					try {
+						// Fork the upstream repository into the authenticated user's account.
+						// We intentionally avoid cloning or adding remotes here; those are handled
+						// by subsequent tools.
+						await runGh([
+							"repo",
+							"fork",
+							upstreamFullName,
+							"--remote=false",
+							"--clone=false",
+						]);
+
+						const owner = currentForkOwner || authenticatedUsername;
+						if (owner) {
+							currentForkOwner = owner;
+						}
+
+						const effectiveOwner = currentForkOwner || upstreamOwner;
+						return {
+							success: true,
+							forkUrl: `https://github.com/${effectiveOwner}/${args.repo}`,
+						};
+					} catch (error: unknown) {
+						const err = error as { stderr?: string; message?: string };
+						const stderr = err.stderr ?? err.message ?? String(error);
+
+						// If the fork already exists, treat this as success
+						if (
+							stderr.includes("already exists") ||
+							stderr.includes("A repository with the same name already exists")
+						) {
+							const owner = currentForkOwner || authenticatedUsername || upstreamOwner;
+							return {
+								success: true,
+								forkUrl: `https://github.com/${owner}/${args.repo}`,
+							};
+						}
+
+						throw new Error(
+							`Failed to create fork for ${upstreamFullName}: ${stderr}`
+						);
+					}
 				},
 			}),
 
@@ -787,7 +1042,15 @@ Please execute these steps using the GitHub tools provided and report the pull r
 					baseBranch: z.string().describe("Base branch to branch from"),
 				}),
 				handler: async (args: { branchName: string; baseBranch: string }) => {
-					// In a real implementation, this would use git commands
+					const repoPath = await ensureLocalRepo();
+
+					// Fetch latest from origin and create/reset the branch from the specified base
+					await runGit(["fetch", "origin", args.baseBranch], repoPath);
+					await runGit(
+						["checkout", "-B", args.branchName, `origin/${args.baseBranch}`],
+						repoPath
+					);
+
 					return {
 						success: true,
 						branchName: args.branchName,
@@ -803,10 +1066,19 @@ Please execute these steps using the GitHub tools provided and report the pull r
 					targetPath: z.string().describe("Target directory path in repo"),
 				}),
 				handler: async (args: { sourcePath: string; targetPath: string }) => {
-					// In a real implementation, this would copy files
+					const repoPath = await ensureLocalRepo();
+					const absoluteTargetPath = path.isAbsolute(args.targetPath)
+						? args.targetPath
+						: path.join(repoPath, args.targetPath);
+
+					const filesCopied = copyDirectoryRecursive(
+						args.sourcePath,
+						absoluteTargetPath
+					);
+
 					return {
 						success: true,
-						filesCopied: 3,
+						filesCopied,
 					};
 				},
 			}),
@@ -818,10 +1090,33 @@ Please execute these steps using the GitHub tools provided and report the pull r
 					message: z.string().describe("Commit message"),
 				}),
 				handler: async (args: { message: string }) => {
-					// In a real implementation, this would use `git commit`
+					const repoPath = await ensureLocalRepo();
+
+					// Stage all changes
+					await runGit(["add", "."], repoPath);
+
+					// Commit changes; allow failure so we can handle "nothing to commit"
+					const { stdout, stderr } = await runGit(
+						["commit", "-m", args.message],
+						repoPath,
+						true
+					);
+
+					const combinedOutput = `${stdout}\n${stderr}`;
+					if (/nothing to commit/i.test(combinedOutput)) {
+						return {
+							success: true,
+							commitSha: null,
+						};
+					}
+
+					// Attempt to extract the commit SHA from the output
+					const shaMatch = combinedOutput.match(/[0-9a-f]{7,40}/i);
+					const commitSha = shaMatch ? shaMatch[0] : null;
+
 					return {
 						success: true,
-						commitSha: "abc123def456",
+						commitSha,
 					};
 				},
 			}),
@@ -833,7 +1128,12 @@ Please execute these steps using the GitHub tools provided and report the pull r
 					branchName: z.string().describe("Branch name to push"),
 				}),
 				handler: async (args: { branchName: string }) => {
-					// In a real implementation, this would use `git push`
+					const repoPath = await ensureLocalRepo();
+					await runGit(
+						["push", "-u", "origin", args.branchName],
+						repoPath
+					);
+
 					return {
 						success: true,
 						branchName: args.branchName,
@@ -858,15 +1158,53 @@ Please execute these steps using the GitHub tools provided and report the pull r
 					base: string; 
 					repo: string;
 				}) => {
-					// In a real implementation, this would use `gh pr create`
-					const prNumber = Math.floor(Math.random() * 1000) + 1;
-					const [owner, repoName] = args.repo.split("/");
+					// Always target the configured upstream repository to ensure submissions
+					// go to danielshue/obsidian-vault-copilot (or the configured upstream).
+					const repoFullName = `${upstreamOwner}/${upstreamRepo}`;
+					const repoPath = await ensureLocalRepo();
 
-					return {
-						success: true,
-						pullRequestUrl: `https://github.com/${owner}/${repoName ?? "unknown"}/pull/${prNumber}`,
-						pullRequestNumber: prNumber,
-					};
+					// Write the PR body to a temporary file to avoid shell escaping issues.
+					const bodyFilePath = path.join(repoPath, ".gh-pr-body.md");
+					fs.writeFileSync(bodyFilePath, args.body, "utf-8");
+
+					const { stdout } = await runGh(
+						[
+							"pr",
+							"create",
+							"--repo",
+							repoFullName,
+							"--title",
+							args.title,
+							"--base",
+							args.base || targetBranch,
+							"--head",
+							args.head,
+							"--body-file",
+							bodyFilePath,
+							"--json",
+							"number,url",
+						],
+						repoPath
+					);
+
+					try {
+						const data = JSON.parse(stdout) as {
+							number?: number;
+							url?: string;
+						};
+
+						return {
+							success: true,
+							pullRequestUrl: data.url,
+							pullRequestNumber: data.number,
+						};
+					} catch (error) {
+						throw new Error(
+							`Failed to create pull request for ${repoFullName}: ${
+								error instanceof Error ? error.message : String(error)
+							}`
+						);
+					}
 				},
 			}),
 		];
