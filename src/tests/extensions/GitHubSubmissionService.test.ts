@@ -59,8 +59,8 @@ describe("GitHubSubmissionService", () => {
 	beforeEach(() => {
 		config = {
 			upstreamOwner: "danielshue",
-			upstreamRepo: "vault-copilot-extensions",
-			targetBranch: "main",
+			upstreamRepo: "obsidian-vault-copilot",
+			targetBranch: "master",
 		};
 
 		service = new GitHubSubmissionService(config);

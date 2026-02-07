@@ -4,7 +4,7 @@ This guide explains how to submit extensions to the Vault Copilot marketplace us
 
 ## Overview
 
-The `GitHubSubmissionService` provides an automated workflow for submitting extensions to the official [vault-copilot-extensions](https://github.com/danielshue/vault-copilot-extensions) repository. It handles validation, GitHub operations, and pull request creation using the GitHub Copilot CLI SDK.
+The `GitHubSubmissionService` provides an automated workflow for submitting extensions to the official [obsidian-vault-copilot](https://github.com/danielshue/obsidian-vault-copilot) repository. It handles validation, GitHub operations, and pull request creation using the GitHub Copilot CLI SDK.
 
 ## Prerequisites
 
@@ -39,8 +39,8 @@ import { GitHubSubmissionService } from "./extensions/GitHubSubmissionService";
 // Initialize the service
 const service = new GitHubSubmissionService({
   upstreamOwner: "danielshue",
-  upstreamRepo: "vault-copilot-extensions",
-  targetBranch: "main"
+  upstreamRepo: "obsidian-vault-copilot",
+  targetBranch: "master"
 });
 
 await service.initialize();

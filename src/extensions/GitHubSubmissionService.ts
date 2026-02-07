@@ -5,7 +5,7 @@
 
 /**
  * @module extensions/GitHubSubmissionService
- * @description Service for submitting extensions to the vault-copilot-extensions repository via GitHub.
+ * @description Service for submitting extensions to the obsidian-vault-copilot repository via GitHub.
  * 
  * This service orchestrates the complete workflow for submitting an extension to the
  * official marketplace catalog, including validation, GitHub setup, branch creation,
@@ -53,8 +53,8 @@ import * as path from "path";
  * ```typescript
  * const config: GitHubSubmissionConfig = {
  *   upstreamOwner: "danielshue",
- *   upstreamRepo: "vault-copilot-extensions",
- *   targetBranch: "main"
+ *   upstreamRepo: "obsidian-vault-copilot",
+ *   targetBranch: "master"
  * };
  * ```
  */
@@ -65,7 +65,7 @@ export interface GitHubSubmissionConfig {
 	/** Name of the upstream repository */
 	upstreamRepo: string;
 	
-	/** Target branch to create PR against (default: "main") */
+	/** Target branch to create PR against (default: "master") */
 	targetBranch?: string;
 	
 	/** Custom fork owner (if different from authenticated user) */
@@ -201,7 +201,7 @@ export class GitHubSubmissionService {
 	 */
 	constructor(config: GitHubSubmissionConfig) {
 		this.config = {
-			targetBranch: "main",
+			targetBranch: "master",
 			...config,
 		};
 	}
