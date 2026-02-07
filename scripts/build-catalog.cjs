@@ -454,7 +454,6 @@ function scanExtension(typeDir, type, extName) {
   // Build catalog entry
   const entry = {
     id: manifest.id,
-    guid: manifest.guid || null,
     name: manifest.name,
     type: manifest.type,
     version: manifest.version,

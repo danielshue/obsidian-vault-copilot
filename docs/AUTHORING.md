@@ -81,7 +81,6 @@ cd extensions/agents/my-agent-name
 ```json
 {
   "$schema": "../../../schema/manifest.schema.json",
-  "guid": "YOUR-GUID-HERE",
   "id": "my-agent-name",
   "name": "My Agent Name",
   "version": "1.0.0",
@@ -108,34 +107,6 @@ cd extensions/agents/my-agent-name
   "featured": false
 }
 ```
-
-#### Understanding the GUID Field
-
-The `guid` field is an optional but recommended globally unique identifier (UUID v4) for your extension. It provides:
-
-- **Stable tracking** across different versions and installations
-- **Global uniqueness** even if extension IDs collide across repositories
-- **Installation management** to detect updates and prevent duplicates
-
-To generate a GUID, use one of these methods:
-
-**Online:**
-- [uuidgenerator.net](https://www.uuidgenerator.net/)
-- Run: `https://www.uuidgenerator.net/version4` in your browser
-
-**Command line:**
-```bash
-# Linux/Mac
-uuidgen | tr '[:upper:]' '[:lower:]'
-
-# Node.js
-node -e "console.log(require('crypto').randomUUID())"
-
-# Python
-python -c "import uuid; print(uuid.uuid4())"
-```
-
-**Important:** Once you set a GUID for your extension, never change it. It's like a permanent fingerprint.
 
 #### Including Related Files
 

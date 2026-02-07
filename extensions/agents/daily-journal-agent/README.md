@@ -37,7 +37,6 @@ versions:
   - version: "1.1.0"
     date: "2026-02-06"
     changes:
-      - Added GUID for unique extension tracking
       - Included related prompt files (Create and Update Daily Journal)
       - Extended tool list to include task management and question asking capabilities
       - All related files now installed together as a bundle
@@ -143,7 +142,6 @@ All files reference each other and work together to provide a complete journalin
 ## Changelog
 
 ### v1.1.0 (2026-02-06)
-- Added GUID for unique extension tracking across installations
 - Bundled related prompt files with the agent
 - Extended tool capabilities for task management
 - Enhanced documentation about related files

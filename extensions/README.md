@@ -47,29 +47,7 @@
 
 ---
 
-## 🆔 Extension Identification & Tracking
-
-### GUID (Globally Unique Identifier)
-
-Starting with v1.1.0, extensions can include an optional **GUID** field in their manifest. This provides:
-
-- **Global uniqueness** - Guaranteed unique across all repositories and forks
-- **Stable tracking** - Remains constant across version updates and migrations
-- **Installation management** - Helps detect duplicates and manage updates across vaults
-
-**Example:**
-```json
-{
-  "guid": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789",
-  "id": "my-extension",
-  "name": "My Extension",
-  ...
-}
-```
-
-The GUID is a UUID v4 format identifier that should never change once set. It's optional but highly recommended for production extensions.
-
-### Related Files Bundling
+## 📦 Related Files Bundling
 
 Extensions can bundle multiple related files that are installed together automatically. This ensures all dependencies are available when a user installs an extension.
 

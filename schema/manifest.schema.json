@@ -10,12 +10,6 @@
       "type": "string",
       "description": "Reference to the JSON Schema for validation. Should point to manifest.schema.json."
     },
-    "guid": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-      "description": "Globally unique identifier (GUID/UUID v4) for the extension. This provides a stable, globally unique reference for tracking extension installations across vaults and versions. Once set, this GUID should never change for the extension's lifetime.",
-      "examples": ["550e8400-e29b-41d4-a716-446655440000", "6ba7b810-9dad-11d1-80b4-00c04fd430c8"]
-    },
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9-]+$",

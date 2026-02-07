@@ -127,7 +127,6 @@ The manifest defines your extension's metadata and configuration:
 ```json
 {
   "$schema": "../../../schema/manifest.schema.json",
-  "guid": "YOUR-GUID-HERE",
   "id": "my-extension-name",
   "name": "My Extension Name",
   "version": "1.0.0",
@@ -162,7 +161,6 @@ The manifest defines your extension's metadata and configuration:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `guid` | No (recommended) | Globally unique identifier (UUID v4) for tracking installations |
 | `id` | Yes | Unique identifier (lowercase, hyphens only) |
 | `name` | Yes | Display name (max 50 characters) |
 | `version` | Yes | Semantic version (x.y.z) |
@@ -174,20 +172,6 @@ The manifest defines your extension's metadata and configuration:
 | `tags` | No | Free-form tags for search |
 | `tools` | No | Vault Copilot tools used |
 | `preview` | No | Preview image filename |
-
-**Using GUIDs for Extension Tracking:**
-
-The optional `guid` field provides a globally unique identifier for your extension that remains stable across versions and repository changes. Generate one using:
-
-```bash
-# Online: https://www.uuidgenerator.net/version4
-# Command line:
-uuidgen | tr '[:upper:]' '[:lower:]'  # Linux/Mac
-node -e "console.log(require('crypto').randomUUID())"  # Node.js
-python -c "import uuid; print(uuid.uuid4())"  # Python
-```
-
-**Important:** Never change the GUID after setting it. It's a permanent identifier for your extension.
 
 **Bundling Related Files:**
 

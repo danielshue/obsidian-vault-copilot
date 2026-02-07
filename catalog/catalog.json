@@ -1,11 +1,10 @@
 {
   "version": "1.0.0",
-  "generated": "2026-02-06T23:16:24.824Z",
+  "generated": "2026-02-07T00:21:50.409Z",
   "totalExtensions": 5,
   "extensions": [
     {
       "id": "daily-journal-agent",
-      "guid": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789",
       "name": "Daily Journal Agent",
       "type": "agent",
       "version": "1.1.0",
@@ -30,7 +29,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T23:13:01.345Z",
+      "updatedAt": "2026-02-07T00:20:21.296Z",
       "size": "4.7 KB",
       "sizeBytes": 4785,
       "minVaultCopilotVersion": "0.1.0",
@@ -80,7 +79,6 @@
           "version": "1.1.0",
           "date": "2026-02-06",
           "changes": [
-            "Added GUID for unique extension tracking",
             "Included related prompt files (Create and Update Daily Journal)",
             "Extended tool list to include task management and question asking capabilities",
             "All related files now installed together as a bundle"
@@ -100,7 +98,6 @@
     },
     {
       "id": "meeting-notes-agent",
-      "guid": null,
       "name": "Meeting Notes Agent",
       "type": "agent",
       "version": "1.0.0",
@@ -125,7 +122,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T23:11:44.660Z",
+      "updatedAt": "2026-02-07T00:19:17.853Z",
       "size": "2.4 KB",
       "sizeBytes": 2481,
       "minVaultCopilotVersion": "0.1.0",
@@ -167,7 +164,6 @@
     },
     {
       "id": "task-management-prompt",
-      "guid": null,
       "name": "Task Management Prompt",
       "type": "prompt",
       "version": "1.0.0",
@@ -192,7 +188,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T23:11:44.662Z",
+      "updatedAt": "2026-02-07T00:19:17.855Z",
       "size": "1.4 KB",
       "sizeBytes": 1467,
       "minVaultCopilotVersion": "0.1.0",
@@ -233,7 +229,6 @@
     },
     {
       "id": "example-weather-mcp",
-      "guid": null,
       "name": "Weather MCP Server",
       "type": "mcp-server",
       "version": "1.0.0",
@@ -258,7 +253,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T23:11:44.661Z",
+      "updatedAt": "2026-02-07T00:19:17.854Z",
       "size": "0.2 KB",
       "sizeBytes": 238,
       "minVaultCopilotVersion": "0.1.0",
@@ -297,7 +292,6 @@
     },
     {
       "id": "weekly-review-agent",
-      "guid": null,
       "name": "Weekly Review Agent",
       "type": "agent",
       "version": "1.0.0",
@@ -322,7 +316,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T23:11:44.660Z",
+      "updatedAt": "2026-02-07T00:19:17.854Z",
       "size": "3.4 KB",
       "sizeBytes": 3458,
       "minVaultCopilotVersion": "0.1.0",

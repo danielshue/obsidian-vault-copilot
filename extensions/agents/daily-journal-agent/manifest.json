@@ -1,6 +1,5 @@
 {
   "$schema": "../../../schema/manifest.schema.json",
-  "guid": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789",
   "id": "daily-journal-agent",
   "name": "Daily Journal Agent",
   "version": "1.1.0",
@@ -39,7 +38,6 @@
       "version": "1.1.0",
       "date": "2026-02-06",
       "changes": [
-        "Added GUID for unique extension tracking",
         "Included related prompt files (Create and Update Daily Journal)",
         "Extended tool list to include task management and question asking capabilities",
         "All related files now installed together as a bundle"
