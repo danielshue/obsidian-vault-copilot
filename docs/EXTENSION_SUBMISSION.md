@@ -234,7 +234,15 @@ The service uses custom GitHub Copilot CLI SDK tools for:
 - **push_branch** - Push branch to remote
 - **create_pull_request** - Create a pull request
 
-These tools are powered by the GitHub Copilot CLI SDK and execute actual GitHub operations.
+These tools are powered by the GitHub Copilot CLI SDK and are designed to wrap real GitHub operations.
+
+In the current implementation inside this plugin, the tool handlers in
+GitHubSubmissionService are lightweight stubs that simulate successful
+operations (for example, returning a fake PR number) so the workflow and
+UI can be exercised end-to-end without mutating live repositories. When
+you wire this service into your own automation or CLI scripts, you
+should replace these stubs with real GitHub CLI or API calls
+(`gh repo fork`, `gh pr create`, etc.).
 
 ## Best Practices
 
@@ -272,7 +280,10 @@ These tools are powered by the GitHub Copilot CLI SDK and execute actual GitHub 
 Run the test suite:
 
 ```bash
-npm test -- src/tests/extensions/GitHubSubmissionService.test.ts
+npm test
+
+# Once dedicated tests are added for GitHubSubmissionService, you can run:
+# npm test -- src/tests/extensions/GitHubSubmissionService.test.ts
 ```
 
 ## Troubleshooting
