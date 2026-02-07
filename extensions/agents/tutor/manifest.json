@@ -1,0 +1,20 @@
+{
+  "id": "tutor",
+  "name": "Tutor",
+  "version": "1.0.0",
+  "type": "agent",
+  "description": "A graduate-level tutor agent that helps you master any topic through Socratic questioning, active learning, and progressively deeper practice. It can reference and organize your Obsidian notes (and pull current examples via web search) to build a structured learning path with rigorous, real-world applications.",
+  "author": {
+    "name": "Dan Shue",
+    "url": "https://github.com/danielshue"
+  },
+  "minVaultCopilotVersion": "0.0.1",
+  "categories": [],
+  "tags": [],
+  "files": [
+    {
+      "source": "tutor.agent.md",
+      "installPath": "extensions/agents/tutor/tutor.agent.md"
+    }
+  ]
+}
