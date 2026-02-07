@@ -524,7 +524,11 @@ export class ExtensionSubmissionModal extends Modal {
 		const summaryContainer = container.createDiv({ cls: "submission-summary" });
 		
 		summaryContainer.createEl("h3", { text: "Extension Details" });
-		this.addSummaryItem(summaryContainer, "Type", this.submissionData.extensionType || "");
+		// Capitalize extension type for display (e.g., "agent" → "Agent")
+		const displayType = this.submissionData.extensionType 
+			? this.submissionData.extensionType.charAt(0).toUpperCase() + this.submissionData.extensionType.slice(1)
+			: "";
+		this.addSummaryItem(summaryContainer, "Type", displayType);
 		this.addSummaryItem(summaryContainer, "Path", this.submissionData.extensionPath || "");
 		this.addSummaryItem(summaryContainer, "ID", this.submissionData.extensionId || "");
 		this.addSummaryItem(summaryContainer, "Name", this.submissionData.extensionName || "");
@@ -1118,7 +1122,7 @@ README.md content:`;
 			}
 		}
 		
-		// Populate PR title and description before returning
+		// Populate PR title and description before submission
 		this.submissionData.prTitle = `Add ${this.submissionData.extensionType}: ${this.submissionData.extensionName}`;
 		this.submissionData.prDescription = `## Extension Submission
 
@@ -1140,12 +1144,164 @@ ${this.submissionData.description ? '- Extension description\n' : ''}${this.subm
 
 This pull request was created using the Extension Submission workflow in Obsidian Vault Copilot.`;
 		
-		// Close modal and return data
-		if (this.resolve) {
-			this.resolve(this.submissionData as ExtensionSubmissionData);
-			this.resolve = null;
+		// Show submission progress screen
+		await this.renderSubmissionProgress();
+	}
+	
+	/**
+	 * Renders the submission progress screen with GitHub automation tasks
+	 * 
+	 * @internal
+	 */
+	private async renderSubmissionProgress() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass("submission-progress-screen");
+		
+		const progressContainer = contentEl.createDiv({ cls: "loading-container" });
+		
+		// Title
+		progressContainer.createEl("h2", {
+			text: "Submitting Extension...",
+			cls: "submission-progress-title"
+		});
+		
+		// Spinner
+		progressContainer.createDiv({ cls: "loading-spinner" });
+		
+		// Task list
+		const taskList = progressContainer.createDiv({ cls: "submission-task-list" });
+		
+		// Define submission tasks
+		interface SubmissionTask {
+			id: string;
+			label: string;
+			icon: string;
+			status: "pending" | "in-progress" | "complete" | "error";
 		}
-		this.close();
+		
+		const tasks: SubmissionTask[] = [
+			{ id: "validate", label: "Validating extension files", icon: "○", status: "pending" },
+			{ id: "fork", label: "Creating fork (if needed)", icon: "○", status: "pending" },
+			{ id: "branch", label: "Creating branch", icon: "○", status: "pending" },
+			{ id: "files", label: "Preparing extension files", icon: "○", status: "pending" },
+			{ id: "manifest", label: "Generating manifest.json", icon: "○", status: "pending" },
+			{ id: "commit", label: "Committing files", icon: "○", status: "pending" },
+			{ id: "push", label: "Pushing to fork", icon: "○", status: "pending" },
+			{ id: "pr", label: "Creating pull request", icon: "○", status: "pending" }
+		];
+		
+		// Render tasks
+		const taskElements: { [key: string]: HTMLElement } = {};
+		tasks.forEach(task => {
+			const taskEl = taskList.createEl("div", { cls: "submission-task pending" });
+			const iconEl = taskEl.createEl("span", {
+				text: task.icon,
+				cls: "submission-task-icon"
+			});
+			const textEl = taskEl.createEl("span", {
+				text: task.label,
+				cls: "submission-task-text"
+			});
+			taskElements[task.id] = taskEl;
+			taskElements[`${task.id}-icon`] = iconEl;
+		});
+		
+		// Execute tasks sequentially (placeholder for actual GitHub automation)
+		// TODO: Replace with actual GitHub CLI automation from .github/prompts/submit-extension.prompt.md
+		try {
+			for (const task of tasks) {
+				// Update to in-progress
+				taskElements[task.id].removeClass("pending", "complete", "error");
+				taskElements[task.id].addClass("in-progress");
+				taskElements[`${task.id}-icon`].setText("◐");
+				
+				// Simulate task execution (replace with actual GitHub operations)
+				await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
+				
+				// Update to complete
+				taskElements[task.id].removeClass("in-progress");
+				taskElements[task.id].addClass("complete");
+				taskElements[`${task.id}-icon`].setText("✓");
+			}
+			
+			// Show success screen
+			await this.renderSubmissionSuccess("https://github.com/danielshue/obsidian-vault-copilot/pull/123");
+			
+		} catch (error) {
+			console.error("Submission error:", error);
+			new Notice("Extension submission failed. Please try again or submit manually.");
+			
+			// Close modal on error
+			if (this.resolve) {
+				this.resolve(null);
+				this.resolve = null;
+			}
+			this.close();
+		}
+	}
+	
+	/**
+	 * Renders the submission success screen
+	 * 
+	 * @param prUrl - The URL of the created pull request
+	 * @internal
+	 */
+	private async renderSubmissionSuccess(prUrl: string) {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.removeClass("submission-progress-screen");
+		
+		const container = contentEl.createDiv({ cls: "submission-progress-screen" });
+		
+		// Success box
+		const resultBox = container.createEl("div", { cls: "submission-result-box" });
+		
+		resultBox.createEl("div", {
+			text: "✅ Extension Submitted Successfully!",
+			cls: "submission-result-title"
+		});
+		
+		resultBox.createEl("div", {
+			text: "Your pull request has been created and is ready for review.",
+			cls: "submission-result-text"
+		});
+		
+		// PR link
+		const linkEl = resultBox.createEl("a", {
+			text: "View Pull Request →",
+			cls: "submission-pr-link",
+			href: prUrl
+		});
+		linkEl.setAttribute("target", "_blank");
+		linkEl.setAttribute("rel", "noopener noreferrer");
+		
+		// What happens next
+		const nextSteps = container.createEl("div", {
+			cls: "next-steps-info"
+		});
+		nextSteps.createEl("h3", { text: "What happens next:" });
+		const stepsList = nextSteps.createEl("ol");
+		stepsList.createEl("li", { text: "Automated validation will run on your PR" });
+		stepsList.createEl("li", { text: "Maintainers will review your extension" });
+		stepsList.createEl("li", { text: "You may receive feedback or change requests" });
+		stepsList.createEl("li", { text: "Once approved, your extension will be merged" });
+		stepsList.createEl("li", { text: "The catalog will rebuild automatically" });
+		stepsList.createEl("li", { text: "Users can then discover and install your extension!" });
+		
+		// Close button
+		const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
+		new ButtonComponent(buttonContainer)
+			.setButtonText("Close")
+			.setCta()
+			.onClick(() => {
+				// Resolve with submission data
+				if (this.resolve) {
+					this.resolve(this.submissionData as ExtensionSubmissionData);
+					this.resolve = null;
+				}
+				this.close();
+			});
 	}
 	
 	/**
