@@ -57,6 +57,7 @@ import {
 	generateExtensionImageAuto,
 	generateExtensionImage
 } from "./Submission/utils";
+import type { CatalogEntryMetadata } from "./Submission/utils";
 
 import type { ScreenContext, ScreenCallbacks, LoadingTask } from "./Submission/types";
 
@@ -104,6 +105,10 @@ export class ExtensionSubmissionModal extends Modal {
 	private isUpdate = false;
 	private catalogVersion: string | null = null;
 	private catalogExtensionId: string | null = null;
+	private catalogMetadata: CatalogEntryMetadata | null = null;
+	
+	/** Original derived ID before it was overridden with the catalog ID (for file rename) */
+	private originalDerivedId: string | null = null;
 	
 	// Changelog state (for updates)
 	private isGeneratingChangelog = false;
@@ -181,6 +186,7 @@ export class ExtensionSubmissionModal extends Modal {
 			isUpdate: this.isUpdate,
 			catalogVersion: this.catalogVersion,
 			catalogExtensionId: this.catalogExtensionId,
+			catalogMetadata: this.catalogMetadata,
 			generatedChangelog: this.generatedChangelog,
 			isGeneratingChangelog: this.isGeneratingChangelog,
 			changelogInput: this.changelogInput
@@ -475,6 +481,19 @@ export class ExtensionSubmissionModal extends Modal {
 							this.isUpdate = idResult.exists;
 							this.catalogVersion = idResult.catalogVersion;
 							this.catalogExtensionId = idResult.catalogExtensionId;
+							this.catalogMetadata = idResult.catalogMetadata;
+							
+							// When updating and the catalog ID differs from the derived ID,
+							// override the submission ID/name to match the catalog entry so
+							// the PR targets the correct existing folder.
+							if (this.isUpdate && this.catalogExtensionId && this.catalogExtensionId !== this.submissionData.extensionId) {
+								console.log(`[Extension Submission] Overriding derived ID "${this.submissionData.extensionId}" with catalog ID "${this.catalogExtensionId}"`);
+								this.originalDerivedId = this.submissionData.extensionId ?? null;
+								this.submissionData.extensionId = this.catalogExtensionId;
+								if (this.catalogMetadata?.name) {
+									this.submissionData.extensionName = this.catalogMetadata.name;
+								}
+							}
 						} catch {
 							// Catalog check is best-effort
 						}
@@ -482,11 +501,11 @@ export class ExtensionSubmissionModal extends Modal {
 						const branchPrefix = this.isUpdate ? "update" : "add";
 						if (this.submissionData.githubUsername) {
 							this.submissionData.forkRepoName = "obsidian-vault-copilot";
-							this.submissionData.branchName = `${branchPrefix}-${manifest.id}`;
+							this.submissionData.branchName = `${branchPrefix}-${this.submissionData.extensionId}`;
 						} else {
 							this.submissionData.githubUsername = "user";
 							this.submissionData.forkRepoName = "obsidian-vault-copilot";
-							this.submissionData.branchName = `${branchPrefix}-${manifest.id}`;
+							this.submissionData.branchName = `${branchPrefix}-${this.submissionData.extensionId}`;
 						}
 						
 						this.hasCompletedInitialValidation = true; 
@@ -581,6 +600,19 @@ export class ExtensionSubmissionModal extends Modal {
 					this.isUpdate = idResult.exists;
 					this.catalogVersion = idResult.catalogVersion;
 					this.catalogExtensionId = idResult.catalogExtensionId;
+					this.catalogMetadata = idResult.catalogMetadata;
+					
+					// When updating and the catalog ID differs from the derived ID,
+					// override the submission ID/name to match the catalog entry so
+					// the PR targets the correct existing folder.
+					if (this.isUpdate && this.catalogExtensionId && this.catalogExtensionId !== this.submissionData.extensionId) {
+						console.log(`[Extension Submission] Overriding derived ID "${this.submissionData.extensionId}" with catalog ID "${this.catalogExtensionId}"`);
+						this.originalDerivedId = this.submissionData.extensionId ?? null;
+						this.submissionData.extensionId = this.catalogExtensionId;
+						if (this.catalogMetadata?.name) {
+							this.submissionData.extensionName = this.catalogMetadata.name;
+						}
+					}
 					tasks[2]!.status = 'complete';
 					
 					const branchPrefix = this.isUpdate ? "update" : "add";
@@ -815,6 +847,28 @@ export class ExtensionSubmissionModal extends Modal {
 			fs.mkdirSync(extensionRootFs, { recursive: true });
 		}
 
+		// 0) Rename the main extension file if the ID was overridden (e.g.
+		//    derived "daily-journal" → catalog "daily-journal-agent")
+		if (this.originalDerivedId && this.originalDerivedId !== data.extensionId) {
+			const suffixes: Record<string, string> = {
+				"agent": ".agent.md",
+				"voice-agent": ".voice-agent.md",
+				"prompt": ".prompt.md",
+				"skill": ".skill.md",
+				"mcp-server": ".mcp-server.md"
+			};
+			const suffix = suffixes[data.extensionType] || ".md";
+			const oldFileName = `${this.originalDerivedId}${suffix}`;
+			const newFileName = `${data.extensionId}${suffix}`;
+			const oldFilePath = path.join(extensionRootFs, oldFileName);
+			const newFilePath = path.join(extensionRootFs, newFileName);
+
+			if (fs.existsSync(oldFilePath) && !fs.existsSync(newFilePath)) {
+				fs.renameSync(oldFilePath, newFilePath);
+				console.log(`[Extension Submission] Renamed ${oldFileName} → ${newFileName} to match catalog ID`);
+			}
+		}
+
 		// 1) manifest.json
 		const manifestPath = path.join(extensionRootFs, "manifest.json");
 		if (!fs.existsSync(manifestPath)) {
@@ -857,8 +911,14 @@ export class ExtensionSubmissionModal extends Modal {
 					url: data.authorUrl,
 				},
 				minVaultCopilotVersion: "0.0.1",
-				categories: [] as string[],
-				tags: [] as string[],
+				// For updates, carry over categories/tags/tools from the catalog entry;
+				// for new submissions, start with empty arrays.
+				categories: (this.isUpdate && this.catalogMetadata?.categories?.length)
+					? this.catalogMetadata.categories
+					: [] as string[],
+				tags: (this.isUpdate && this.catalogMetadata?.tags?.length)
+					? this.catalogMetadata.tags
+					: [] as string[],
 				files: [
 					{
 						source: extensionFileName,
@@ -866,6 +926,19 @@ export class ExtensionSubmissionModal extends Modal {
 					},
 				],
 			};
+
+			// For updates, also carry over tools, repository, and featured status
+			if (this.isUpdate && this.catalogMetadata) {
+				if (this.catalogMetadata.tools?.length) {
+					manifest.tools = this.catalogMetadata.tools;
+				}
+				if (this.catalogMetadata.repository) {
+					manifest.repository = this.catalogMetadata.repository;
+				}
+				if (this.catalogMetadata.featured) {
+					manifest.featured = true;
+				}
+			}
 
 			// Include changelog reference and version history when available (updates)
 			if (data.changelog) {
@@ -914,6 +987,26 @@ export class ExtensionSubmissionModal extends Modal {
 		const imageSource =
 			this.previewImagePath || this.iconImagePath || this.generatedImagePath;
 		if (!imageSource) {
+			// For updates with no new image, download the existing preview from the catalog
+			if (this.isUpdate && this.catalogMetadata) {
+				const existingImageUrl = this.catalogMetadata.previewUrl || this.catalogMetadata.iconUrl;
+				if (existingImageUrl) {
+					const previewSvgPath = path.join(extensionRootFs, "preview.svg");
+					if (!fs.existsSync(previewSvgPath)) {
+						try {
+							console.log(`[Extension Submission] Downloading existing preview from catalog: ${existingImageUrl}`);
+							const response = await fetch(existingImageUrl);
+							if (response.ok) {
+								const content = await response.text();
+								fs.writeFileSync(previewSvgPath, content, "utf-8");
+								console.log(`[Extension Submission] Preserved existing preview image`);
+							}
+						} catch (downloadError) {
+							console.warn("Failed to download existing preview image from catalog:", downloadError);
+						}
+					}
+				}
+			}
 			return;
 		}
 

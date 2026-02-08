@@ -262,6 +262,29 @@ export function cleanMarkdownCodeBlocks(content: string): string {
 }
 
 /**
+ * Metadata carried over from an existing catalog entry during updates.
+ * Used to preserve categories, tags, and other fields the user shouldn't need to re-enter.
+ */
+export interface CatalogEntryMetadata {
+	/** Extension display name as published in the catalog */
+	name: string;
+	/** Published categories */
+	categories: string[];
+	/** Published tags */
+	tags: string[];
+	/** Tools declared by the extension */
+	tools: string[];
+	/** Repository URL */
+	repository: string | null;
+	/** Whether the extension is featured */
+	featured: boolean;
+	/** Preview image URL from the catalog (raw GitHub URL) */
+	previewUrl: string | null;
+	/** Icon URL from the catalog (raw GitHub URL) */
+	iconUrl: string | null;
+}
+
+/**
  * Result of validating an extension ID against the catalog
  */
 export interface ExtensionIdValidationResult {
@@ -271,6 +294,8 @@ export interface ExtensionIdValidationResult {
 	catalogVersion: string | null;
 	/** The actual extension ID as it appears in the catalog (may differ from derived ID) */
 	catalogExtensionId: string | null;
+	/** Metadata from the existing catalog entry (only when exists is true) */
+	catalogMetadata: CatalogEntryMetadata | null;
 }
 
 /**
@@ -292,8 +317,9 @@ export interface ExtensionIdValidationResult {
  * ```
  */
 export async function validateExtensionId(extensionId: string): Promise<ExtensionIdValidationResult> {
+	const defaultResult: ExtensionIdValidationResult = { exists: false, catalogVersion: null, catalogExtensionId: null, catalogMetadata: null };
 	if (!extensionId) {
-		return { exists: false, catalogVersion: null, catalogExtensionId: null };
+		return defaultResult;
 	}
 	
 	try {
@@ -327,11 +353,21 @@ export async function validateExtensionId(extensionId: string): Promise<Extensio
 			return {
 				exists: true,
 				catalogVersion: existingExtension.version || null,
-				catalogExtensionId: existingExtension.id || null
+				catalogExtensionId: existingExtension.id || null,
+				catalogMetadata: {
+					name: existingExtension.name || "",
+					categories: existingExtension.categories || [],
+					tags: existingExtension.tags || [],
+					tools: existingExtension.tools || [],
+					repository: existingExtension.repository || null,
+					featured: existingExtension.featured || false,
+					previewUrl: existingExtension.preview || null,
+					iconUrl: existingExtension.icon || null,
+				}
 			};
 		}
 		
-		return { exists: false, catalogVersion: null, catalogExtensionId: null };
+		return defaultResult;
 	} catch (error) {
 		if (error instanceof Error) {
 			if (error.message.includes("Could not fetch extension catalog")) {
@@ -339,7 +375,7 @@ export async function validateExtensionId(extensionId: string): Promise<Extensio
 			}
 		}
 		console.warn("Catalog validation failed:", error);
-		return { exists: false, catalogVersion: null, catalogExtensionId: null };
+		return defaultResult;
 	}
 }
 

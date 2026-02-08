@@ -16,6 +16,7 @@ import type {
 } from "../../../types/extension-submission";
 import type VaultCopilotPlugin from "../../../main";
 import type { App, TextComponent } from "obsidian";
+import type { CatalogEntryMetadata } from "./utils";
 
 /**
  * Submission task status for progress tracking
@@ -73,6 +74,8 @@ export interface ScreenContext {
 	catalogVersion: string | null;
 	/** The actual extension ID in the catalog (may differ from derived ID) */
 	catalogExtensionId: string | null;
+	/** Metadata from the existing catalog entry (categories, tags, etc.) */
+	catalogMetadata: CatalogEntryMetadata | null;
 	
 	// Changelog state (for updates)
 	/** Generated changelog content for this version */
