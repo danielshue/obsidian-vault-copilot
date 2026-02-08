@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Daily Journal icon">
+  <defs>
+    <linearGradient id="bg" x1="70" y1="40" x2="460" y2="490" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A855F7"/>
+      <stop offset="0.55" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="120" y1="70" x2="380" y2="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#0B1020" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="url(#bg)"/>
+  <path d="M98 104c44-34 128-56 198-38 57 15 96 56 132 102 10 13 6 31-9 39-45 24-106 32-166 21-61-12-112-40-155-79-15-14-15-37 0-45z" fill="url(#shine)"/>
+
+  <g filter="url(#softShadow)">
+    <!-- Journal/document -->
+    <path fill="#FFFFFF" d="M176 132c-18 0-32 14-32 32v184c0 18 14 32 32 32h140c8 0 14 6 14 14s-6 14-14 14H190c-26 0-46-20-46-46V164c0-34 26-60 60-60h128c22 0 40 18 40 40v222c0 16-12 28-28 28H206c-8 0-14-6-14-14s6-14 14-14h132c4 0 8-4 8-8V144c0-7-5-12-12-12H176z"/>
+    <!-- Lines -->
+    <rect x="196" y="186" width="152" height="18" rx="9" fill="#FFFFFF" opacity="0.95"/>
+    <rect x="196" y="226" width="132" height="18" rx="9" fill="#FFFFFF" opacity="0.95"/>
+    <rect x="196" y="266" width="152" height="18" rx="9" fill="#FFFFFF" opacity="0.95"/>
+    <!-- Incremental update: plus badge -->
+    <circle cx="350" cy="330" r="42" fill="#FFFFFF" opacity="0.16"/>
+    <circle cx="350" cy="330" r="34" fill="#FFFFFF" opacity="0.22"/>
+    <circle cx="350" cy="330" r="26" fill="#FFFFFF"/>
+    <rect x="338" y="326" width="24" height="8" rx="4" fill="#6D28D9"/>
+    <rect x="346" y="318" width="8" height="24" rx="4" fill="#6D28D9"/>
+  </g>
+</svg>
