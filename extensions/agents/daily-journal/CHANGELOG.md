@@ -1,0 +1,32 @@
+# Changelog
+
+All notable changes to the **Daily Journal** extension.
+
+## 1.1.0
+
+### Added
+- Added YAML frontmatter for the agent definition (name, description, model, tools, skills) instead of the prior website-style metadata block.
+- Added new tools and capabilities: `update_note`, `ask_question`, and task tooling (`get_tasks`, `create_task`, `list_tasks`, `mark_tasks`) plus the **obsidian-tasks** skill.
+- Added explicit two-mode workflow documentation: **Create mode** (create today’s daily note if missing) and **Update mode** (edit specific sections in an existing note).
+- Added detailed guidance on **section-by-section updates** including “read before edit,” updating `modified-date`, and enforcing append-only behavior for accumulating sections.
+- Added guided, one-question-at-a-time prompt flows (via `ask_question`) for multiple sections, including new check-in and linking flows.
+- Added **writing style controls** (full narrative / light polish / exact words) with rules about when narrative rewriting applies and when structured data must remain verbatim.
+- Added full **task management inside the journal** documentation, including supported actions (add/complete/review/reschedule/remove) and emoji-based task metadata conventions (e.g., 📅 due dates, ⏫ priority).
+- Added **frontmatter-based tracking** details for mood, energy, goals progress (frontmatter array), and preserving tags/structured fields unless explicitly changed.
+- Added a step-by-step “Usage instructions” section covering session start, section selection, preview-then-save, and continuing/stopping.
+- Added three concrete usage scenarios as examples: “first session of the day,” “midday daily log append,” and “task add + completion.”
+
+### Changed
+- Replaced the prior README structure (Features / Installation / Usage / Journal Structure / Tools Used / Tips / Changelog / License) with an expanded, operational guide emphasizing safe incremental updates and task + frontmatter workflows.
+- Changed the agent’s scope from primarily “structured prompts + pattern recognition + smart links” to a **section-focused editor** that updates only intended regions and avoids overwriting the rest of the daily note.
+- Expanded and reorganized the **Features** section from a short bullet list to a multi-level breakdown covering creation, safe updates, guided prompts, writing styles, task management, and frontmatter tracking.
+- Changed “Usage” examples from simple quoted prompts to procedural, numbered walkthroughs and explicit user choices (section selection, action selection, confirmation before saving).
+- Changed the “Tools Used” presentation from a two-column table to inline tool references within feature bullets and workflow steps.
+
+### Removed
+- Removed the prior website/extension metadata fields (layout, title, permalink, identifier, type, version, author/URLs, repository/license URLs, categories, tags, last_updated, size, versions history block).
+- Removed the dedicated **Installation** section and its manual-copy guidance (`daily-journal-agent.agent.md` to `Reference/Agents/`).
+- Removed the explicit **Journal Structure** bullet list (Morning Intentions, Gratitude, Daily Log, Goals Progress, Evening Reflection, Related Links) as a standalone section, replacing it with section-driven workflows and prompts.
+- Removed the **Tips** section (consistency, honesty, gratitude on hard days, linking guidance) in favor of workflow/behavioral rules.
+- Removed the in-README **Changelog** section for v1.0.0 and the standalone **License** section text (“MIT”).
+- Removed previously listed capabilities around **pattern recognition** (“identify trends” across previous entries) and **automatic smart linking suggestions** as headline features in the feature list.

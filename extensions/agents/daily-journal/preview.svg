@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Daily Journal icon">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="40" x2="432" y2="472" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7C3AED"/>
+      <stop offset="0.55" stop-color="#5B21B6"/>
+      <stop offset="1" stop-color="#312E81"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="120" y1="120" x2="420" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="blur"/>
+      <feOffset dy="6" result="off"/>
+      <feColorMatrix in="off" type="matrix"
+        values="0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0.22 0" result="shadow"/>
+      <feMerge>
+        <feMergeNode in="shadow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="url(#bg)"/>
+  <path d="M92 132 C140 86, 230 78, 312 108 C382 134, 430 192, 438 262 C448 350, 388 432, 282 446 C198 456, 126 418, 98 354 C70 292, 54 188, 92 132 Z" fill="url(#shine)"/>
+
+  <g filter="url(#soft)">
+    <!-- Document -->
+    <path d="M172 138h148c10 0 18 8 18 18v200c0 10-8 18-18 18H172c-10 0-18-8-18-18V156c0-10 8-18 18-18z" fill="#FFFFFF" fill-opacity="0.92"/>
+    <path d="M304 138h16c10 0 18 8 18 18v16h-34c-6 0-10-4-10-10v-24c0 0 0 0 10 0z" fill="#FFFFFF"/>
+
+    <!-- Subtle inner cut lines -->
+    <path d="M186 212h140" stroke="#5B21B6" stroke-opacity="0.18" stroke-width="12" stroke-linecap="round"/>
+    <path d="M186 252h112" stroke="#5B21B6" stroke-opacity="0.18" stroke-width="12" stroke-linecap="round"/>
+    <path d="M186 292h92" stroke="#5B21B6" stroke-opacity="0.18" stroke-width="12" stroke-linecap="round"/>
+
+    <!-- Check-in bubble / incremental update dot -->
+    <circle cx="332" cy="310" r="28" fill="#FFFFFF"/>
+    <path d="M320 310l8 8 16-18" fill="none" stroke="#5B21B6" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Pen stroke -->
+    <path d="M196 360c42-18 82-28 122-28 18 0 32 2 44 6" fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" stroke-opacity="0.9"/>
+    <path d="M370 344l18 10-14 18-22-8z" fill="#FFFFFF" fill-opacity="0.92"/>
+  </g>
+</svg>
