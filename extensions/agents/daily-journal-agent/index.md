@@ -6,7 +6,7 @@ version: "1.1.0"
 description: "Daily Journal Agent helps you create and incrementally update a structured daily journal note throughout the day, guiding you through section-specific reflection prompts. It preserves existing cont..."
 author: "Dan Shue"
 author_url: "https://github.com/danielshue"
-icon: "icon.svg"
+icon: "extensions/agents/daily-journal-agent/icon.svg"
 categories: ["Productivity", "Journaling"]
 tags: ["daily", "journal", "reflection", "gratitude", "goals", "habits"]
 versions:
@@ -43,11 +43,6 @@ versions:
       - "Removed the “Tips” section and the standalone “Changelog v1.0.0” section from the README content."
       - "Removed the explicit “License: MIT” section from the body of the README."
 ---
-
-
-# Daily Journal Agent
-
-Daily Journal Agent is a section-by-section journaling assistant for Obsidian that helps you build a consistent daily reflection practice. It can create a structured daily note from a template, then return with you throughout the day to update only the section you choose—without overwriting anything else.
 
 ## Brief overview
 

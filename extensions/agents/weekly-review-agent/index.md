@@ -6,7 +6,7 @@ version: "1.0.0"
 description: "Guides you through a comprehensive weekly review process to reflect on accomplishments, plan ahead, and maintain productivity."
 author: "Dan Shue"
 author_url: "https://danielshue.com"
-icon: "icon.svg"
+icon: "extensions/agents/weekly-review-agent/icon.svg"
 categories: ["Productivity", "Task Management"]
 tags: ["weekly-review", "gtd", "planning", "reflection", "goals", "productivity"]
 versions:

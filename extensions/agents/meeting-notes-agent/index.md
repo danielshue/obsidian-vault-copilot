@@ -6,7 +6,7 @@ version: "1.0.0"
 description: "Captures, organizes, and summarizes meeting notes with action items, attendees, and follow-up tracking."
 author: "Dan Shue"
 author_url: "https://danielshue.com"
-icon: "icon.svg"
+icon: "extensions/agents/meeting-notes-agent/icon.svg"
 categories: ["Productivity", "Task Management"]
 tags: ["meetings", "notes", "action-items", "agenda", "summary", "collaboration"]
 versions:

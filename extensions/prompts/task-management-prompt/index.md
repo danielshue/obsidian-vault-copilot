@@ -6,7 +6,7 @@ version: "1.0.0"
 description: "A reusable prompt for organizing, prioritizing, and tracking tasks using proven productivity methods."
 author: "Dan Shue"
 author_url: "https://danielshue.com"
-icon: "icon.svg"
+icon: "extensions/prompts/task-management-prompt/icon.svg"
 categories: ["Productivity", "Task Management"]
 tags: ["tasks", "todo", "gtd", "eisenhower", "priority", "planning"]
 versions:

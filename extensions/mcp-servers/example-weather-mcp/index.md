@@ -6,7 +6,7 @@ version: "1.0.0"
 description: "Example MCP server integration that provides weather data for your notes and daily planning."
 author: "Dan Shue"
 author_url: "https://danielshue.com"
-icon: "icon.svg"
+icon: "extensions/mcp-servers/example-weather-mcp/icon.svg"
 categories: ["Integration", "MCP", "Utility"]
 tags: ["weather", "mcp", "api", "daily-notes", "planning"]
 versions:

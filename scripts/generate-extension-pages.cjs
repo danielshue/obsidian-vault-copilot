@@ -57,17 +57,24 @@ function generateExtensionPages() {
       let readmeContent = '';
       if (fs.existsSync(readmePath)) {
         readmeContent = fs.readFileSync(readmePath, 'utf8');
+        // Normalize line endings to \n for consistent regex matching (Windows uses \r\n)
+        readmeContent = readmeContent.replace(/\r\n/g, '\n');
         // Remove any existing front matter from README
         readmeContent = readmeContent.replace(/^---\n[\s\S]*?\n---\n/, '');
+        // Strip leading # Title heading and the first description paragraph
+        // since these are already rendered by the extension layout from front matter.
+        // This avoids duplicate title/description on the rendered page.
+        readmeContent = readmeContent.replace(/^\s*#\s+[^\n]+\n+/, '');
+        readmeContent = readmeContent.replace(/^\s*[^\n#>*\-\d][^\n]+\n+/, '');
       }
       
-      // Find icon file
+      // Find icon file — use full site-relative path so Jekyll's relative_url filter resolves correctly
       let iconPath = null;
       const iconFiles = ['icon.svg', 'icon.png', 'preview.svg', 'preview.png'];
       for (const iconFile of iconFiles) {
         const iconFullPath = path.join(extensionDir, iconFile);
         if (fs.existsSync(iconFullPath)) {
-          iconPath = `${iconFile}`;
+          iconPath = `extensions/${type}/${entry.name}/${iconFile}`;
           break;
         }
       }
