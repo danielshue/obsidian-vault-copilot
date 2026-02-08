@@ -1,0 +1,39 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Daily Journal icon">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7C3AED"/>
+      <stop offset="0.55" stop-color="#A855F7"/>
+      <stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feOffset dy="10" in="SourceAlpha" result="off"/>
+      <feGaussianBlur in="off" stdDeviation="14" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.22 0" result="shadow"/>
+      <feMerge>
+        <feMergeNode in="shadow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="24" y="24" width="464" height="464" rx="92" fill="url(#bg)"/>
+
+  <g filter="url(#softShadow)">
+    <g>
+      <rect x="156" y="118" width="200" height="276" rx="28" fill="#FFFFFF"/>
+      <path d="M300 118H328C343.464 118 356 130.536 356 146V174H328C312.536 174 300 161.464 300 146V118Z" fill="#F5F3FF"/>
+      <path d="M300 118L356 174V146C356 130.536 343.464 118 328 118H300Z" fill="#FFFFFF" opacity="0.55"/>
+      <rect x="184" y="204" width="144" height="18" rx="9" fill="#F5F3FF" opacity="0.95"/>
+      <rect x="184" y="240" width="124" height="18" rx="9" fill="#F5F3FF" opacity="0.85"/>
+      <rect x="184" y="276" width="104" height="18" rx="9" fill="#F5F3FF" opacity="0.75"/>
+
+      <path d="M240 312C240 300.954 248.954 292 260 292H352C363.046 292 372 300.954 372 312V352C372 363.046 363.046 372 352 372H302L279.5 388C274.238 391.743 267 387.98 267 381.5V372H260C248.954 372 240 363.046 240 352V312Z" fill="#FFFFFF"/>
+      <circle cx="274" cy="332" r="6.5" fill="#F5F3FF" opacity="0.9"/>
+      <circle cx="306" cy="332" r="6.5" fill="#F5F3FF" opacity="0.9"/>
+      <circle cx="338" cy="332" r="6.5" fill="#F5F3FF" opacity="0.9"/>
+
+      <path d="M184 160C200 156 204 152 208 136C212 152 216 156 232 160C216 164 212 168 208 184C204 168 200 164 184 160Z" fill="#FFFFFF" opacity="0.9"/>
+      <path d="M216 188C226 185.5 228.5 183 231 173C233.5 183 236 185.5 246 188C236 190.5 233.5 193 231 203C228.5 193 226 190.5 216 188Z" fill="#FFFFFF" opacity="0.7"/>
+    </g>
+  </g>
+</svg>
