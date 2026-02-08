@@ -545,25 +545,21 @@ export async function generateExtensionImageAuto(
 		
 		// Helper: static SVG banner used as a fallback when AI is unavailable or returns invalid output
 		const buildFallbackSvg = (): string => {
-			return `<?xml version="1.0" encoding="UTF-8"?>\n` +
-				`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">\n` +
-				`  <defs>\n` +
-				`    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">\n` +
-				`      <stop offset="0%" style="stop-color:#1e1e2e"/>\n` +
-				`      <stop offset="100%" style="stop-color:#313244"/>\n` +
-				`    </linearGradient>\n` +
-				`  </defs>\n` +
-				`  <rect width="1280" height="720" fill="url(#bg)"/>\n` +
-				`  <rect x="80" y="60" width="1120" height="600" rx="12" fill="#45475a" stroke="#585b70" stroke-width="2"/>\n` +
-				`  <circle cx="110" cy="85" r="8" fill="#f38ba8"/>\n` +
-				`  <circle cx="135" cy="85" r="8" fill="#f9e2af"/>\n` +
-				`  <circle cx="160" cy="85" r="8" fill="#a6e3a1"/>\n` +
-				`  <rect x="100" y="110" width="1080" height="530" fill="#1e1e2e"/>\n` +
-				`  <text x="640" y="320" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="56" fill="#cdd6f4" text-anchor="middle" font-weight="600">${titleText}</text>\n` +
-				`  <text x="640" y="390" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" fill="#a6adc8" text-anchor="middle">AI-generated preview placeholder</text>\n` +
-				`</svg>\n`;
-		};
-
+		return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="fallbackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="100%" style="stop-color:#764ba2"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="64" fill="url(#fallbackGrad)"/>
+  <g transform="translate(256, 256)">
+    <circle r="80" fill="white" opacity="0.2"/>
+    <path d="M 0,-50 L 35,25 L -35,25 Z" fill="white" transform="rotate(0)"/>
+  </g>
+</svg>`;
+	};
 		// Helper: wrap SVG markup in a data URL so the image can be rendered
 		// in the UI without writing files into the vault or repo.
 		const toDataUrl = (svgContent: string): string => {
@@ -605,7 +601,34 @@ export async function generateExtensionImageAuto(
 		// Ask the AI provider to generate standalone SVG markup for the preview image
 		let svgResponse: string;
 		try {
-			const prompt = `You are a UI designer generating SVG preview images for the Obsidian Vault Copilot extensions catalog. Based on the following README content, generate a rich, dark-theme-friendly SVG preview image that visually represents the extension.\n\nRequirements:\n- Output a single, valid standalone SVG element.\n- Size must be 1280x720.\n- Use a modern dark UI style similar to code editors.\n- Include the extension name as prominent title text: "${titleText}".\n- You may include subtle icons, panels, or tags that match the extension's purpose.\n- Do NOT wrap the SVG in Markdown or code fences.\n- Do NOT include any explanations, comments, or backticks.\n- Return only the <svg>...</svg> markup.\n\nREADME content:\n\n${effectiveReadme || "(No README content provided; design a generic but professional preview for the extension.)"}`;
+			const prompt = `You are a UI designer generating SVG preview icons for the Obsidian Vault Copilot extensions catalog. Based on the following README content, generate a vibrant, modern icon that matches the catalog's visual style.
+
+Style Requirements (CRITICAL - match examples exactly):
+- Output a single, valid standalone SVG element
+- Size must be 512x512 (square format)
+- Use a vibrant gradient background (choose from: purple, blue, orange/yellow, teal/green gradients)
+- Add rounded corners (border-radius equivalent via SVG)
+- Center a simple, flat/minimalist icon that represents the extension's purpose
+- Icon should be clean and professional (single-concept, flat design)
+- Use white or light colors for the icon against the gradient background
+- Modern, catalog-quality appearance
+
+Examples of the target style:
+- Daily Journal: Purple gradient background, white document icon centered
+- Meeting Notes: Blue gradient background, white meeting/people icon centered
+- Task Management: Orange gradient background, white checklist icon centered
+- Weather: Blue gradient background, white weather icon centered
+- Weekly Review: Teal gradient background, white checkmark icon centered
+
+Extension context (use this to choose the icon concept):
+Name: "${titleText}"
+${effectiveReadme ? `README excerpt:\n${effectiveReadme.slice(0, 300)}` : "(Design a generic but professional icon)"}
+
+IMPORTANT:
+- Do NOT wrap the SVG in Markdown or code fences
+- Do NOT include any explanations, comments, or backticks
+- Return ONLY the <svg>...</svg> markup
+- Make it visually stunning and catalog-ready`;
 			
 			let aiSession: any = null;
 			if ("createSession" in aiService && typeof (aiService as any).createSession === "function") {

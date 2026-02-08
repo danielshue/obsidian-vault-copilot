@@ -28,12 +28,15 @@ jobs:
       - name: Build catalog.json
         run: node scripts/build-catalog.cjs
       
-      - name: Commit catalog.json
+      - name: Generate extension pages
+        run: node scripts/generate-extension-pages.cjs
+      
+      - name: Commit catalog.json and extension pages
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add catalog/catalog.json
-          git diff --staged --quiet || git commit -m "chore: rebuild catalog.json"
+          git add catalog/catalog.json extensions/*/*/index.md
+          git diff --staged --quiet || git commit -m "chore: rebuild catalog.json and extension pages"
           git push
 
   deploy-pages:

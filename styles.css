@@ -7591,6 +7591,9 @@ text-align: left;
 	flex: 1;
 	min-width: 0;
 	font-weight: 500;
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+	white-space: normal;
 }
 
 .submission-runtime-step.step-pending {
