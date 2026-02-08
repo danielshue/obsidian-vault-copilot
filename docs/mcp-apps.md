@@ -1,3 +1,9 @@
+---
+layout: docs
+title: MCP apps
+permalink: /docs/mcp-apps/
+---
+
 # MCP Apps - Interactive UIs in Chat
 
 The Obsidian Vault Copilot plugin now supports **MCP Apps**, a protocol extension that enables interactive HTML UIs to be rendered inline within the chat interface. This feature is based on the [MCP Apps specification (SEP-1865)](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/draft/apps.mdx).

@@ -1,3 +1,9 @@
+---
+layout: docs
+title: Extension update validation
+permalink: /docs/extension-update-validation/
+---
+
 # Extension Update Validation
 
 ## Overview

@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: docs
 title: Extension Authoring Guide
 permalink: /docs/authoring/
 ---

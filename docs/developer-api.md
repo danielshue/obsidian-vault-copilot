@@ -1,3 +1,9 @@
+---
+layout: docs
+title: Developer API
+permalink: /docs/developer-api/
+---
+
 # Vault Copilot Developer API
 
 This guide explains how third-party Obsidian plugins can integrate with Vault Copilot to register skills, configure MCP servers, and extend the AI assistant's capabilities.

@@ -1,22 +1,72 @@
+---
+layout: docs
+title: Extension submission
+permalink: /docs/extension-submission/
+---
+
 # Extension Submission Guide
 
-This guide explains how to submit extensions to the Vault Copilot marketplace using the `GitHubSubmissionService`.
+This guide explains how to submit extensions to the Vault Copilot marketplace.
 
 ## Overview
 
-The `GitHubSubmissionService` provides an automated workflow for submitting extensions to the official [obsidian-vault-copilot](https://github.com/danielshue/obsidian-vault-copilot) repository. It handles validation, GitHub operations, and pull request creation using the GitHub Copilot CLI SDK.
+Vault Copilot includes an in-app submission wizard (desktop only) that automates creating a pull request to the official [obsidian-vault-copilot](https://github.com/danielshue/obsidian-vault-copilot) repository.
+
+Under the hood, the submission workflow is implemented by `GitHubSubmissionService`, which shells out to the GitHub CLI (`gh`) and `git` to:
+
+- Validate your extension folder
+- Create or reuse your fork
+- Create a branch
+- Copy your extension files into the repo under `extensions/...`
+- Commit, push, and open a pull request
 
 ## Prerequisites
 
-1. **GitHub Copilot CLI**: Must be installed and authenticated
+1. **GitHub CLI (`gh`)**: Must be installed and authenticated
    ```bash
    gh auth login
    ```
 
-2. **Extension Files**: Your extension must include:
-   - `manifest.json` - Extension metadata
-   - `README.md` - Documentation
-   - Extension file(s) - Based on type (e.g., `my-agent.agent.md`)
+2. **Git**: Must be installed and available on your PATH.
+
+3. **Desktop + local vault**: The in-app submission wizard requires a local vault on desktop (it needs filesystem access and runs `gh`/`git`).
+
+4. **Extension files**:
+  - The type-specific extension file is required (examples: `my-agent.agent.md`, `my-prompt.prompt.md`, `skill.md`, `mcp-config.json`).
+  - `manifest.json` and `README.md` are required for validation.
+    - If you use the in-app wizard, it can generate `manifest.json` and `README.md` in a temporary workspace if they’re missing.
+
+5. **Submitter tracking (recommended)**: Add `submittedBy` to your `manifest.json` to lock down who can publish future updates.
+  - If you want this field set, create your own `manifest.json` in the extension folder before submitting (the wizard won’t overwrite an existing manifest).
+  - See: [Extension update validation]({{ '/docs/extension-update-validation/' | relative_url }})
+
+## In-app submission (recommended)
+
+In Obsidian (desktop), run the command:
+
+- **Submit Extension to Catalog**
+
+The wizard guides you through selecting an extension folder, optionally generating/cleaning up content, and then opening a PR.
+
+### What the wizard does
+
+1. Prepares a temporary working folder (so your vault isn’t mutated during submission)
+2. Ensures `manifest.json`, `README.md`, and preview assets exist in the working folder
+3. Runs the GitHub workflow:
+  - Fork (if needed)
+  - Create a branch
+  - Copy your extension under `extensions/<type-folder>/<id>/`
+  - Commit + push
+  - Create the PR
+
+Notes:
+
+- The wizard is **desktop-only**.
+- It runs `gh`/`git` locally and uses a temporary folder under your OS temp directory.
+
+## Programmatic / headless usage (advanced)
+
+If you’re automating submissions outside Obsidian, you can call `GitHubSubmissionService` directly.
 
 ## Workflow Steps
 
@@ -34,7 +84,7 @@ The submission service executes the following workflow:
 ### Basic Submission
 
 ```typescript
-import { GitHubSubmissionService } from "./extensions/GitHubSubmissionService";
+import { GitHubSubmissionService } from "../src/extensions/GitHubSubmissionService";
 
 // Initialize the service
 const service = new GitHubSubmissionService({
@@ -153,22 +203,56 @@ my-agent/
   "name": "My Agent",
   "version": "1.0.0",
   "type": "agent",
+  "submittedBy": "github-username",
   "description": "A helpful agent for task automation",
   "author": {
     "name": "Your Name",
     "url": "https://github.com/yourusername"
   },
+  "minVaultCopilotVersion": "0.0.1",
   "categories": ["Productivity", "Utility"],
   "tags": ["automation", "tasks"],
-  "minVaultCopilotVersion": "0.0.18",
   "files": [
     {
       "source": "my-agent.agent.md",
-      "installPath": "Reference/Agents/my-agent.agent.md"
+      "installPath": "extensions/agents/my-agent/my-agent.agent.md"
     }
-  ]
+  ],
+  "repository": "https://github.com/yourusername/my-extension-repo",
+  "tools": ["create_note", "read_note", "search_vault"]
 }
 ```
+
+## Validate Locally
+
+Validate before submitting a PR:
+
+```bash
+npm install
+
+# Validate a specific extension folder
+npm run validate:extension -- extensions/agents/my-agent
+
+# Or run the validator directly
+node scripts/validate-extension.cjs extensions/agents/my-agent
+```
+
+Tip: The validator is primarily designed to run from a clone of this repository (so it can check for duplicates and apply catalog rules).
+
+## Preview the Docs Site Locally
+
+If you update docs (including your extension `README.md`), you can preview the Jekyll site before publishing:
+
+```bash
+bundle install
+bundle exec jekyll serve --livereload --incremental
+```
+
+Then open:
+
+- `http://127.0.0.1:4000/obsidian-vault-copilot/`
+
+Note: The site uses Highlight.js for client-side code syntax highlighting.
 
 ## Validation Rules
 
@@ -184,6 +268,7 @@ The service validates:
    - `name` is required
    - `version` must follow semantic versioning (x.y.z)
    - `type` must match the submission type
+  - `description` should be 200 characters or fewer (warnings/errors may be raised by tooling)
 
 3. **File Sizes**
    - Individual files should be under 500KB
@@ -221,28 +306,19 @@ if (!result.success) {
 }
 ```
 
-## GitHub Operations
+## GitHub Operations (what runs on your machine)
 
-The service uses custom GitHub Copilot CLI SDK tools for:
+The submission flow uses the real GitHub CLI (`gh`) and `git`.
 
-- **check_github_auth** - Verify CLI authentication
-- **check_fork_exists** - Check if fork exists
-- **create_fork** - Create a repository fork
-- **create_branch** - Create a new branch
-- **copy_files** - Copy files to repository
-- **commit_changes** - Commit changes
-- **push_branch** - Push branch to remote
-- **create_pull_request** - Create a pull request
+At a high level, it performs operations equivalent to:
 
-These tools are powered by the GitHub Copilot CLI SDK and are designed to wrap real GitHub operations.
-
-In the current implementation inside this plugin, the tool handlers in
-GitHubSubmissionService are lightweight stubs that simulate successful
-operations (for example, returning a fake PR number) so the workflow and
-UI can be exercised end-to-end without mutating live repositories. When
-you wire this service into your own automation or CLI scripts, you
-should replace these stubs with real GitHub CLI or API calls
-(`gh repo fork`, `gh pr create`, etc.).
+- `gh auth status` to verify authentication
+- `gh repo fork` (only if you’re not the upstream owner and don’t already have a fork)
+- `git init` + `git fetch` + sparse checkout to retrieve only `extensions/`
+- `git checkout -b <branch>`
+- `git add .` / `git commit`
+- `git push -u origin <branch>`
+- `gh pr create` against `danielshue/obsidian-vault-copilot`
 
 ## Best Practices
 
@@ -288,7 +364,7 @@ npm test
 
 ## Troubleshooting
 
-### "GitHub Copilot CLI not authenticated"
+### "GitHub CLI not authenticated"
 
 Solution: Run `gh auth login` and authenticate with GitHub
 
@@ -306,9 +382,11 @@ Solution: Reduce file sizes or split into multiple extensions
 
 ## Related Documentation
 
-- [Extension Authoring Guide](./AUTHORING.md)
-- [Marketplace Technical Design](./marketplace/marketplace-technical-design.md)
-- [GitHub Copilot CLI SDK Guide](../.github/instructions/copilot-sdk-nodejs.instructions.md)
+- [Developers]({{ '/docs/developers/' | relative_url }})
+- [Extension authoring guide]({{ '/docs/authoring/' | relative_url }})
+- [Extension update validation]({{ '/docs/extension-update-validation/' | relative_url }})
+- [Marketplace technical design](./marketplace/marketplace-technical-design.md)
+- [GitHub CLI documentation](https://cli.github.com/manual/)
 
 ## API Reference
 
