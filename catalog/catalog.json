@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated": "2026-02-08T06:41:49.524Z",
+  "generated": "2026-02-08T06:44:18.318Z",
   "totalExtensions": 4,
   "extensions": [
     {
@@ -29,7 +29,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-08T06:41:36.257Z",
+      "updatedAt": "2026-02-08T06:44:05.436Z",
       "size": "2.4 KB",
       "sizeBytes": 2481,
       "minVaultCopilotVersion": "0.1.0",
@@ -96,7 +96,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-08T06:41:36.259Z",
+      "updatedAt": "2026-02-08T06:44:05.438Z",
       "size": "1.4 KB",
       "sizeBytes": 1467,
       "minVaultCopilotVersion": "0.1.0",
@@ -162,7 +162,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-08T06:41:36.258Z",
+      "updatedAt": "2026-02-08T06:44:05.437Z",
       "size": "0.2 KB",
       "sizeBytes": 238,
       "minVaultCopilotVersion": "0.1.0",
@@ -226,7 +226,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-08T06:41:36.258Z",
+      "updatedAt": "2026-02-08T06:44:05.437Z",
       "size": "3.4 KB",
       "sizeBytes": 3458,
       "minVaultCopilotVersion": "0.1.0",
