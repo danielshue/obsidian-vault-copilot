@@ -39,6 +39,8 @@ jobs:
         id: validate
         run: node scripts/validate-extension.cjs --pr
         continue-on-error: true
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
       
       - name: Check validation result
         if: steps.validate.outcome == 'failure'

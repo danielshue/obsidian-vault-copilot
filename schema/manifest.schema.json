@@ -211,6 +211,11 @@
       "format": "date-time",
       "description": "ISO 8601 date-time when the extension was first published. Automatically set by the publishing system.",
       "examples": ["2026-01-15T10:30:00Z", "2025-12-01T00:00:00Z"]
+    },
+    "submittedBy": {
+      "type": "string",
+      "description": "GitHub username of the person who submitted or last updated this extension. Used for update validation to ensure only the original submitter can update the extension.",
+      "examples": ["danielshue", "janedeveloper", "github-username"]
     }
   }
 }

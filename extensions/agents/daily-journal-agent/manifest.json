@@ -25,6 +25,7 @@
   "preview": "preview.png",
   "featured": true,
   "publishedAt": "2026-02-01T00:00:00Z",
+  "submittedBy": "danielshue",
   "versions": [
     {
       "version": "1.0.0",

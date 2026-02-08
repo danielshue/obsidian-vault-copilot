@@ -649,6 +649,47 @@ function checkDuplicateId(extensionId, extensionPath) {
 }
 
 // =============================================================================
+// Submitter Validation
+// =============================================================================
+
+/**
+ * Validate that the PR submitter matches the previous submitter for updates
+ * @param {string} extensionId
+ * @param {string} prAuthor - GitHub username of the PR author (from environment)
+ * @param {Object} manifest - Current manifest being submitted
+ * @returns {ValidationIssue[]}
+ */
+function validateSubmitter(extensionId, prAuthor, manifest) {
+  const issues = [];
+
+  // Skip validation if no PR author provided (local validation)
+  if (!prAuthor) {
+    return issues;
+  }
+
+  // For new extensions, record the submitter in the manifest
+  if (!manifest.submittedBy) {
+    // This is a new extension submission - no validation needed
+    // The build process will add submittedBy field automatically
+    return issues;
+  }
+
+  // For updates, check if the PR author matches the previous submitter
+  const previousSubmitter = manifest.submittedBy;
+  
+  if (previousSubmitter !== prAuthor) {
+    issues.push({
+      severity: 'error',
+      message: `Update rejected: Only the original submitter (${previousSubmitter}) can update this extension. Current PR author: ${prAuthor}`,
+      code: 'UNAUTHORIZED_UPDATE',
+      file: 'manifest.json'
+    });
+  }
+
+  return issues;
+}
+
+// =============================================================================
 // Main Validation Function
 // =============================================================================
 
@@ -720,6 +761,12 @@ function validateExtension(extPath, options = {}) {
   if (manifest.id && !options.skipDuplicateCheck) {
     const duplicateIssues = checkDuplicateId(manifest.id, extPath);
     result.issues.push(...duplicateIssues);
+  }
+
+  // Submitter validation (for PR mode)
+  if (options.prAuthor && manifest.id) {
+    const submitterIssues = validateSubmitter(manifest.id, options.prAuthor, manifest);
+    result.issues.push(...submitterIssues);
   }
 
   // Determine overall validity
@@ -938,7 +985,9 @@ function main() {
     prMode: args.includes('--pr') || args.includes('--github'),
     jsonMode: args.includes('--json'),
     verbose: args.includes('--verbose') || args.includes('-v'),
-    help: args.includes('--help') || args.includes('-h')
+    help: args.includes('--help') || args.includes('-h'),
+    // Get PR author from environment (set by GitHub Actions)
+    prAuthor: process.env.PR_AUTHOR || process.env.GITHUB_ACTOR || null
   };
 
   if (options.verbose) {
@@ -961,6 +1010,10 @@ Options:
   --json            Output results as JSON
   -v, --verbose     Show info-level messages
   -h, --help        Show this help
+
+Environment Variables:
+  PR_AUTHOR         GitHub username of PR author (for update validation)
+  GITHUB_ACTOR      Alternative source for PR author
     `);
     process.exit(0);
   }
@@ -981,7 +1034,7 @@ Options:
       process.exit(1);
     }
 
-    const extResult = validateExtension(resolvedPath);
+    const extResult = validateExtension(resolvedPath, options);
     result = {
       valid: extResult.valid,
       totalExtensions: 1,
