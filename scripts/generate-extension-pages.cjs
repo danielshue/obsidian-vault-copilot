@@ -12,6 +12,31 @@ const path = require('path');
 const EXTENSIONS_DIR = path.join(__dirname, '..', 'extensions');
 const EXTENSION_TYPES = ['agents', 'voice-agents', 'prompts', 'skills', 'mcp-servers'];
 
+/**
+ * Calculate the total size of an extension directory in human-readable format.
+ * @param {string} extensionDir - Absolute path to the extension directory
+ * @returns {string|null} Formatted size string (e.g., "17.9 KB") or null
+ */
+function getExtensionSize(extensionDir) {
+  try {
+    const files = fs.readdirSync(extensionDir);
+    let totalBytes = 0;
+    for (const file of files) {
+      const filePath = path.join(extensionDir, file);
+      const stat = fs.statSync(filePath);
+      if (stat.isFile()) {
+        totalBytes += stat.size;
+      }
+    }
+    if (totalBytes === 0) return null;
+    if (totalBytes < 1024) return `${totalBytes} B`;
+    if (totalBytes < 1024 * 1024) return `${(totalBytes / 1024).toFixed(1)} KB`;
+    return `${(totalBytes / (1024 * 1024)).toFixed(1)} MB`;
+  } catch {
+    return null;
+  }
+}
+
 function generateExtensionPages() {
   console.log('[generate-extension-pages] Starting...');
   
@@ -68,6 +93,9 @@ function generateExtensionPages() {
         readmeContent = readmeContent.replace(/^\s*[^\n#>*\-\d][^\n]+\n+/, '');
       }
       
+      // Calculate extension size
+      const extensionSize = getExtensionSize(extensionDir);
+
       // Find icon file — use full site-relative path so Jekyll's relative_url filter resolves correctly
       let iconPath = null;
       const iconFiles = ['icon.svg', 'icon.png', 'preview.svg', 'preview.png'];
@@ -92,6 +120,7 @@ function generateExtensionPages() {
         iconPath ? `icon: "${iconPath}"` : null,
         manifest.categories && manifest.categories.length > 0 ? `categories: [${manifest.categories.map(c => `"${c}"`).join(', ')}]` : null,
         manifest.tags && manifest.tags.length > 0 ? `tags: [${manifest.tags.map(t => `"${t}"`).join(', ')}]` : null,
+        extensionSize ? `size: "${extensionSize}"` : null,
       ];
 
       // Include version history when available
