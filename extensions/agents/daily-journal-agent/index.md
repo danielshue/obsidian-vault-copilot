@@ -9,7 +9,7 @@ author_url: "https://github.com/danielshue"
 icon: "extensions/agents/daily-journal-agent/icon.svg"
 categories: ["Productivity", "Journaling"]
 tags: ["daily", "journal", "reflection", "gratitude", "goals", "habits"]
-size: "97.8 KB"
+size: "97.3 KB"
 versions:
   - version: "1.0.0"
     date: "2026-02-01"
