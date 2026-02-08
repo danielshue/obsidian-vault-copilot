@@ -1,0 +1,18 @@
+<nav class="docs-nav" aria-label="Docs navigation">
+  <div class="docs-nav-section">
+    <div class="docs-nav-heading">Developers</div>
+    <ul class="docs-nav-links">
+      <li><a href="{{ '/docs/developers/' | relative_url }}" class="docs-nav-link{% if page.url == '/docs/developers/' %} docs-nav-active{% endif %}">Developers</a></li>
+      <li><a href="{{ '/docs/developer-api/' | relative_url }}" class="docs-nav-link{% if page.url == '/docs/developer-api/' %} docs-nav-active{% endif %}">Developer API</a></li>
+      <li><a href="{{ '/docs/mcp-apps/' | relative_url }}" class="docs-nav-link{% if page.url == '/docs/mcp-apps/' %} docs-nav-active{% endif %}">MCP apps</a></li>
+    </ul>
+  </div>
+
+  <div class="docs-nav-section">
+    <div class="docs-nav-heading">Contribute</div>
+    <ul class="docs-nav-links">
+      <li><a href="{{ '/docs/authoring/' | relative_url }}" class="docs-nav-link{% if page.url == '/docs/authoring/' %} docs-nav-active{% endif %}">Extension authoring guide</a></li>
+      <li><a href="{{ '/docs/extension-submission/' | relative_url }}" class="docs-nav-link{% if page.url == '/docs/extension-submission/' %} docs-nav-active{% endif %}">Extension submission</a></li>
+    </ul>
+  </div>
+</nav>
