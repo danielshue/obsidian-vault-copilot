@@ -63,6 +63,16 @@ export interface ExtensionSubmissionData {
 	
 	/** Author URL (GitHub profile or personal website) */
 	authorUrl: string;
+
+	/** Changelog content for this version (used during updates) */
+	changelog?: string;
+
+	/** Version history entries */
+	versions?: Array<{
+		version: string;
+		date: string;
+		changes: string[];
+	}>;
 }
 
 /**
@@ -108,6 +118,12 @@ export interface ExtensionManifest {
 	dependencies?: string[];
 	preview?: string;
 	featured?: boolean;
+	changelog?: string;
+	versions?: Array<{
+		version: string;
+		date: string;
+		changes: string[];
+	}>;
 }
 
 /**

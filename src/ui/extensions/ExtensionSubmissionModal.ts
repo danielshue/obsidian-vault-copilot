@@ -39,6 +39,7 @@ import { renderAuthorDetailsScreen } from "./Submission/AuthorDetailsScreen";
 import { renderDescriptionScreen } from "./Submission/DescriptionScreen";
 import { renderReadmeScreen } from "./Submission/ReadmeScreen";
 import { renderPreviewScreen } from "./Submission/PreviewScreen";
+import { renderChangelogScreen } from "./Submission/ChangelogScreen";
 import { renderSubmissionProgressScreen } from "./Submission/SubmissionProgressScreen";
 import { renderSuccessScreen } from "./Submission/SuccessScreen";
 
@@ -50,6 +51,8 @@ import {
 	validateExtensionId,
 	validateSemver,
 	compareSemver,
+	fetchPreviousExtensionData,
+	generateChangelogWithAI,
 	generateExtensionContent,
 	generateExtensionImageAuto,
 	generateExtensionImage
@@ -100,6 +103,12 @@ export class ExtensionSubmissionModal extends Modal {
 	// Update detection state
 	private isUpdate = false;
 	private catalogVersion: string | null = null;
+	private catalogExtensionId: string | null = null;
+	
+	// Changelog state (for updates)
+	private isGeneratingChangelog = false;
+	private generatedChangelog = "";
+	private changelogInput: HTMLTextAreaElement | null = null;
 	
 	/**
 	 * Creates a new extension submission modal
@@ -170,7 +179,11 @@ export class ExtensionSubmissionModal extends Modal {
 			hasCompletedInitialValidation: this.hasCompletedInitialValidation,
 			skipAIGeneration: this.skipAIGeneration,
 			isUpdate: this.isUpdate,
-			catalogVersion: this.catalogVersion
+			catalogVersion: this.catalogVersion,
+			catalogExtensionId: this.catalogExtensionId,
+			generatedChangelog: this.generatedChangelog,
+			isGeneratingChangelog: this.isGeneratingChangelog,
+			changelogInput: this.changelogInput
 		};
 	}
 	
@@ -182,11 +195,19 @@ export class ExtensionSubmissionModal extends Modal {
 			onNext: async () => {
 				if (await this.validateCurrentStep()) {
 					this.currentStep++;
+					// Skip changelog step (4) for new submissions
+					if (this.currentStep === 4 && !this.isUpdate) {
+						this.currentStep++;
+					}
 					this.renderCurrentStep();
 				}
 			},
 			onBack: () => {
 				this.currentStep--;
+				// Skip changelog step (4) for new submissions
+				if (this.currentStep === 4 && !this.isUpdate) {
+					this.currentStep--;
+				}
 				this.renderCurrentStep();
 			},
 			onClose: () => this.close(),
@@ -213,11 +234,12 @@ export class ExtensionSubmissionModal extends Modal {
 				// Welcome screen
 				renderWelcomeScreen(contentEl, callbacks);
 				break;
-			case 0:
-				// Select Extension
-				this.renderProgressIndicator(contentEl);
-				renderSelectExtensionScreen(contentEl, context, callbacks, this.renderNavigationButtons.bind(this));
+			case 0: {
+				// Select Extension — uses its own inline step header instead of the progress bar
+				const totalSteps = this.isUpdate ? 6 : 5;
+				renderSelectExtensionScreen(contentEl, context, callbacks, this.renderNavigationButtons.bind(this), totalSteps);
 				break;
+			}
 			case 1:
 				// Author Details
 				this.renderProgressIndicator(contentEl);
@@ -260,6 +282,57 @@ export class ExtensionSubmissionModal extends Modal {
 				renderReadmeScreen(contentEl, context, callbacks, this.renderNavigationButtons.bind(this));
 				break;
 			case 4:
+				// Changelog (updates only — skipped automatically for new submissions)
+				this.renderProgressIndicator(contentEl);
+				renderChangelogScreen(
+					contentEl,
+					context,
+					callbacks,
+					this.renderNavigationButtons.bind(this),
+					async () => {
+						this.isGeneratingChangelog = true;
+						this.renderCurrentStep();
+						
+						// Fetch previous README from the catalog repository
+						// Use the actual catalog ID (may differ from derived ID)
+						const catalogId = this.catalogExtensionId || this.submissionData.extensionId || "";
+						const prevData = await fetchPreviousExtensionData(
+							catalogId,
+							this.submissionData.extensionType || "agent"
+						);
+						
+						// Use current README from the form or generated content
+						const currentReadme = this.readmeInput?.value
+							|| this.submissionData.readme
+							|| this.generatedReadme
+							|| "";
+						
+						const changelog = await generateChangelogWithAI(
+							this.plugin,
+							this.submissionData.extensionName || this.submissionData.extensionId || "",
+							this.submissionData.extensionId || "",
+							prevData.readme,
+							currentReadme,
+							this.catalogVersion || "0.0.0",
+							this.submissionData.version || "0.0.1",
+							contentEl.querySelector('.step-message-container') as HTMLElement,
+							showInlineMessage
+						);
+						
+						this.generatedChangelog = changelog;
+						this.submissionData.changelog = changelog;
+						
+						// Preserve previous versions from the catalog manifest
+						if (prevData.manifest?.versions) {
+							this.submissionData.versions = [...prevData.manifest.versions];
+						}
+						
+						this.isGeneratingChangelog = false;
+						this.renderCurrentStep();
+					}
+				);
+				break;
+			case 5:
 				// Preview & Submit
 				this.renderProgressIndicator(contentEl);
 				renderPreviewScreen(contentEl, context, this.renderNavigationButtons.bind(this));
@@ -271,27 +344,33 @@ export class ExtensionSubmissionModal extends Modal {
 	 * Renders the progress indicator
 	 */
 	private renderProgressIndicator(container: HTMLElement): void {
-		const steps = [
-			"Select Extension",
-			"Author Details",
-			"Description",
-			"README",
-			"Preview & Submit"
+		// Build step list — include Changelog step only for updates
+		const allSteps: Array<{ name: string; step: number }> = [
+			{ name: "Select Extension", step: 0 },
+			{ name: "Author Details", step: 1 },
+			{ name: "Description", step: 2 },
+			{ name: "README", step: 3 },
 		];
+		if (this.isUpdate) {
+			allSteps.push({ name: "Changelog", step: 4 });
+		}
+		allSteps.push(
+			{ name: "Preview & Submit", step: 5 }
+		);
 		
 		const progressContainer = container.createDiv({ cls: "submission-progress" });
 		
-		steps.forEach((stepName, index) => {
+		allSteps.forEach(({ name, step }, displayIndex) => {
 			const stepEl = progressContainer.createDiv({ cls: "progress-step" });
 			
-			if (index < this.currentStep) {
+			if (step < this.currentStep) {
 				stepEl.addClass("complete");
-			} else if (index === this.currentStep) {
+			} else if (step === this.currentStep) {
 				stepEl.addClass("active");
 			}
 			
-			stepEl.createDiv({ cls: "step-number", text: `${index + 1}` });
-			stepEl.createDiv({ cls: "step-label", text: stepName });
+			stepEl.createDiv({ cls: "step-number", text: `${displayIndex + 1}` });
+			stepEl.createDiv({ cls: "step-label", text: name });
 		});
 	}
 	
@@ -311,6 +390,10 @@ export class ExtensionSubmissionModal extends Modal {
 				.setButtonText("← Back")
 				.onClick(() => {
 					this.currentStep--;
+					// Skip changelog step (4) for new submissions
+					if (this.currentStep === 4 && !this.isUpdate) {
+						this.currentStep--;
+					}
 					this.renderCurrentStep();
 				});
 		}
@@ -354,14 +437,6 @@ export class ExtensionSubmissionModal extends Modal {
 					return false;
 				}
 				
-				// Validate user-specified version if present
-				if (this.submissionData.version && !validateSemver(this.submissionData.version)) {
-					if (messageContainer) {
-						showInlineMessage(messageContainer, "Version must be in semantic version format: MAJOR.MINOR.PATCH (e.g. 1.0.0)", 'error');
-					}
-					return false;
-				}
-				
 				// Skip initial validation if already completed
 				if (this.hasCompletedInitialValidation) {
 					return true;
@@ -399,19 +474,7 @@ export class ExtensionSubmissionModal extends Modal {
 							const idResult = await validateExtensionId(this.submissionData.extensionId);
 							this.isUpdate = idResult.exists;
 							this.catalogVersion = idResult.catalogVersion;
-							
-							if (idResult.exists && idResult.catalogVersion && this.submissionData.version) {
-								if (compareSemver(this.submissionData.version, idResult.catalogVersion) <= 0) {
-									if (messageContainer) {
-										showInlineMessage(
-											messageContainer,
-											`Update detected: catalog has v${idResult.catalogVersion}. Your version (${this.submissionData.version}) should be higher. Please increment the version.`,
-											'warning'
-										);
-									}
-									// Don't block, just warn — user may still proceed
-								}
-							}
+							this.catalogExtensionId = idResult.catalogExtensionId;
 						} catch {
 							// Catalog check is best-effort
 						}
@@ -517,18 +580,7 @@ export class ExtensionSubmissionModal extends Modal {
 					const idResult = await validateExtensionId(this.submissionData.extensionId);
 					this.isUpdate = idResult.exists;
 					this.catalogVersion = idResult.catalogVersion;
-					
-					if (idResult.exists && idResult.catalogVersion && this.submissionData.version) {
-						if (compareSemver(this.submissionData.version, idResult.catalogVersion) <= 0) {
-							if (messageContainer) {
-								showInlineMessage(
-									messageContainer,
-									`Update detected: catalog has v${idResult.catalogVersion}. Your version (${this.submissionData.version}) should be higher. Please increment the version.`,
-									'warning'
-								);
-							}
-						}
-					}
+					this.catalogExtensionId = idResult.catalogExtensionId;
 					tasks[2]!.status = 'complete';
 					
 					const branchPrefix = this.isUpdate ? "update" : "add";
@@ -594,10 +646,31 @@ export class ExtensionSubmissionModal extends Modal {
 				}
 				return true;
 			
-			case 2:
-				// Description step: enforce manifest constraints so validation does not
-				// fail later in CI. Description is optional, but when provided it must
-				// respect the 200-character catalog limit.
+			case 2: {
+				// Description step: validate version and description constraints.
+				// Validate user-specified version
+				if (this.submissionData.version && !validateSemver(this.submissionData.version)) {
+					if (messageContainer) {
+						showInlineMessage(messageContainer, "Version must be in semantic version format: MAJOR.MINOR.PATCH (e.g. 1.0.0)", 'error');
+					}
+					return false;
+				}
+				
+				// Warn if submitted version is not higher than the catalog version
+				if (this.isUpdate && this.catalogVersion && this.submissionData.version) {
+					if (compareSemver(this.submissionData.version, this.catalogVersion) <= 0) {
+						if (messageContainer) {
+							showInlineMessage(
+								messageContainer,
+								`Catalog has v${this.catalogVersion}. Your version (${this.submissionData.version}) should be higher. Please increment the version.`,
+								'warning'
+							);
+						}
+						// Warn only — don't block
+					}
+				}
+				
+				// Enforce the 200-character catalog description limit
 				if (this.submissionData.description && this.submissionData.description.length > 200) {
 					if (messageContainer) {
 						showInlineMessage(
@@ -609,7 +682,10 @@ export class ExtensionSubmissionModal extends Modal {
 					return false;
 				}
 				return true;
-			case 3:
+			}
+			case 3: // README
+				return true;
+			case 4: // Changelog (updates only)
 				return true;
 		}
 		
@@ -770,7 +846,7 @@ export class ExtensionSubmissionModal extends Modal {
 				description = `${description.slice(0, 197)}...`;
 			}
 
-			const manifest = {
+			const manifest: Record<string, unknown> = {
 				id: data.extensionId,
 				name: data.extensionName,
 				version: data.version,
@@ -791,6 +867,29 @@ export class ExtensionSubmissionModal extends Modal {
 				],
 			};
 
+			// Include changelog reference and version history when available (updates)
+			if (data.changelog) {
+				manifest.changelog = "CHANGELOG.md";
+
+				// Build the versions array: append current version entry to any previous entries
+				const todayIso = new Date().toISOString().slice(0, 10);
+
+				// Parse change lines from the generated changelog text
+				const changeLines = data.changelog
+					.split("\n")
+					.filter((l: string) => l.startsWith("- "))
+					.map((l: string) => l.replace(/^-\s*/, ""));
+
+				const currentVersionEntry = {
+					version: data.version,
+					date: todayIso,
+					changes: changeLines.length > 0 ? changeLines : ["Updated extension"],
+				};
+
+				const previousVersions = data.versions || [];
+				manifest.versions = [...previousVersions, currentVersionEntry];
+			}
+
 			fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf-8");
 		}
 
@@ -804,7 +903,14 @@ export class ExtensionSubmissionModal extends Modal {
 			fs.writeFileSync(readmePath, readmeContent, "utf-8");
 		}
 
-		// 3) Preview image (optional but nice-to-have)
+		// 3) CHANGELOG.md (for updates with generated changelogs)
+		if (data.changelog) {
+			const changelogPath = path.join(extensionRootFs, "CHANGELOG.md");
+			const header = `# Changelog\n\nAll notable changes to the **${data.extensionName}** extension.\n\n`;
+			fs.writeFileSync(changelogPath, header + data.changelog, "utf-8");
+		}
+
+		// 4) Preview image (optional but nice-to-have)
 		const imageSource =
 			this.previewImagePath || this.iconImagePath || this.generatedImagePath;
 		if (!imageSource) {

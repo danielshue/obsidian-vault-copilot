@@ -5,105 +5,139 @@
 
 /**
  * @module Submission/WelcomeScreen
- * @description Welcome screen for extension submission wizard
+ * @description Welcome screen for extension submission wizard.
+ * 
+ * Presents a polished landing page with:
+ * - Hero header with title and subtitle
+ * - Three-step "How It Works" cards
+ * - "Why Use This?" benefits list
+ * - Privacy & Permissions callout
+ * - Get Started / Cancel actions
+ * 
+ * @see {@link ExtensionSubmissionModal} for the wizard orchestrator
+ * @since 0.0.14
  */
 
 import { ButtonComponent } from "obsidian";
 import type { ScreenCallbacks } from "./types";
 
 /**
- * Renders the welcome screen
+ * Renders the welcome/landing screen for the extension submission wizard.
+ * 
+ * @param container - The parent element to render into
+ * @param callbacks - Navigation callbacks (onNext, onClose)
+ * 
+ * @example
+ * ```typescript
+ * renderWelcomeScreen(contentEl, { onNext: () => goToStep(0), onClose: () => modal.close() });
+ * ```
  */
 export function renderWelcomeScreen(container: HTMLElement, callbacks: ScreenCallbacks): void {
-	container.createEl("h1", { text: "Welcome to Extension Submission" });
-	container.createEl("p", { 
-		text: "This wizard will guide you through submitting your extension to the Vault Copilot catalog.",
+	const wrapper = container.createDiv({ cls: "welcome-wrapper" });
+
+	// --- Hero ---
+	wrapper.createEl("h1", { text: "Submit an Extension to Vault Copilot", cls: "welcome-title" });
+	wrapper.createEl("p", {
+		text: "Turn your extension into a ready-to-merge pull request — in minutes.",
 		cls: "welcome-subtitle"
 	});
-	
-	// What this wizard does
-	const stepsSection = container.createDiv({ cls: "welcome-section" });
-	stepsSection.createEl("h3", { text: "📋 What This Wizard Will Do:" });
-	
-	const stepsList = stepsSection.createEl("ol", { cls: "welcome-steps-list" });
-	
+
+	const aiNote = wrapper.createDiv({ cls: "welcome-ai-note" });
+	aiNote.createSpan({ text: "(Optional AI assistance, full review before anything is submitted.)" });
+	aiNote.createSpan({ text: " 🤖", cls: "welcome-ai-icon" });
+
+	// --- Divider ---
+	wrapper.createEl("hr", { cls: "welcome-divider" });
+
+	// --- Two-column body ---
+	const columns = wrapper.createDiv({ cls: "welcome-columns" });
+
+	// ── Left column: How It Works ──
+	const leftCol = columns.createDiv({ cls: "welcome-col-left" });
+
+	leftCol.createEl("h2", { text: "How It Works", cls: "welcome-section-heading" });
+
 	const steps = [
-		{
-			title: "Gather Extension Information",
-			description: "Collect details about your extension from the markdown file or folder"
-		},
-		{
-			title: "Generate Required Content (Optional)",
-			description: "Use AI to automatically create description, README, and image—or provide your own"
-		},
-		{
-			title: "Collect Author Information",
-			description: "Auto-populate your name and GitHub profile from git config (editable)"
-		},
-		{
-			title: "Review & Edit",
-			description: "Review all generated content in large preview boxes and make any changes"
-		},
-		{
-			title: "Package Files Together",
-			description: "Prepare extension files, manifest.json, README, and images for submission"
-		},
-		{
-			title: "Create Pull Request on GitHub",
-			description: "Automatically fork the repository, create a branch, commit files, and submit a PR"
+		{ number: "1", title: "Gather", description: "Collect extension details from your folder or markdown files" },
+		{ number: "2", title: "Generate", tag: "(Optional)", description: "Create README, description, and images using AI — or bring your own" },
+		{ number: "3", title: "Submit", description: "Prepare files, fork the repo, and open a pull request on GitHub" }
+	];
+
+	steps.forEach(step => {
+		const card = leftCol.createDiv({ cls: "welcome-step-card" });
+		const header = card.createDiv({ cls: "welcome-step-header" });
+		header.createSpan({ text: step.number, cls: "welcome-step-number" });
+		header.createEl("strong", { text: step.title });
+		if (step.tag) {
+			header.createSpan({ text: step.tag, cls: "welcome-step-tag" });
 		}
-	];
-	
-	steps.forEach((step) => {
-		const stepItem = stepsList.createEl("li", { cls: "welcome-step-item" });
-		stepItem.createEl("strong", { text: step.title });
-		stepItem.createSpan({ text: ": " });
-		stepItem.createSpan({ text: step.description });
+		card.createEl("p", { text: step.description, cls: "welcome-step-desc" });
 	});
-	
-	// Key benefits
-	const benefitsSection = container.createDiv({ cls: "welcome-section" });
-	benefitsSection.createEl("h3", { text: "✨ Key Benefits:" });
-	
-	const benefitsList = benefitsSection.createEl("ul", { cls: "welcome-benefits-list" });
-	
+
+	const stepsHint = leftCol.createDiv({ cls: "welcome-steps-hint" });
+	stepsHint.createSpan({ text: "💡 " });
+	stepsHint.createSpan({ text: "You'll review and edit " });
+	stepsHint.createEl("em", { text: "everything" });
+	stepsHint.createSpan({ text: " before submission." });
+
+	// ── Right column: Why Use This? + Privacy ──
+	const rightCol = columns.createDiv({ cls: "welcome-col-right" });
+
+	rightCol.createEl("h2", { text: "Why Use This?", cls: "welcome-section-heading" });
+
+	const benefitsList = rightCol.createDiv({ cls: "welcome-benefits" });
+
 	const benefits = [
-		"Complete automation from extension to pull request in 2-3 minutes",
-		"Optional AI-powered content generation saves manual work",
-		"Smart defaults from git config—minimal data entry required",
-		"Transparent progress tracking at every step",
-		"Full control—all generated content is editable",
-		"Duplicate prevention to avoid wasted effort"
+		{ icon: "⚡", bold: "2–3 minute", rest: " submission" },
+		{ icon: "🤖", bold: "", rest: "Optional AI saves repetitive writing" },
+		{ icon: "⚙️", bold: "", rest: "Smart defaults from git config" },
+		{ icon: "✏️", bold: "", rest: "Everything is editable" },
+		{ icon: "🛡️", bold: "", rest: "Duplicate detection prevents wasted effort" }
 	];
-	
-	benefits.forEach(benefit => {
-		benefitsList.createEl("li", { text: benefit });
+
+	benefits.forEach(b => {
+		const row = benefitsList.createDiv({ cls: "welcome-benefit-row" });
+		row.createSpan({ text: b.icon, cls: "welcome-benefit-icon" });
+		if (b.bold) {
+			const textSpan = row.createSpan();
+			textSpan.createEl("strong", { text: b.bold });
+			textSpan.appendText(b.rest);
+		} else {
+			row.createSpan({ text: b.rest });
+		}
 	});
-	
-	// Privacy & permissions
-	const privacySection = container.createDiv({ cls: "welcome-section welcome-privacy" });
-	privacySection.createEl("h3", { text: "🔒 Privacy & Permissions:" });
-	privacySection.createEl("p", { text: "This wizard will:" });
-	
-	const privacyList = privacySection.createEl("ul");
-	privacyList.createEl("li", { text: "Use your GitHub credentials to create a fork and pull request" });
-	privacyList.createEl("li", { text: "Read extension files from your vault to generate content (if AI enabled)" });
-	privacyList.createEl("li", { text: "Access git config for author information (name and email)" });
-	
-	privacySection.createEl("p", { 
-		text: "All operations require your confirmation. You'll review everything before submission.",
-		cls: "privacy-note"
+
+	// Privacy box inside right column
+	const privacyBox = rightCol.createDiv({ cls: "welcome-privacy" });
+	privacyBox.createEl("h3", { text: "🔒  Privacy & Permissions" });
+
+	const privacyItems = [
+		"Use your GitHub credentials to fork and open a pull request",
+		"Read selected extension files to generate content (AI optional)",
+		"Read your git config for name and email (editable)",
+		"No background access",
+		"You confirm every step"
+	];
+
+	const privacyList = privacyBox.createDiv({ cls: "welcome-privacy-list" });
+	privacyItems.forEach(item => {
+		const row = privacyList.createDiv({ cls: "welcome-privacy-item" });
+		row.createSpan({ text: "✅ ", cls: "welcome-privacy-check" });
+		row.createSpan({ text: item });
 	});
-	
-	// Buttons
-	const buttonContainer = container.createDiv({ cls: "modal-button-container" });
-	
-	new ButtonComponent(buttonContainer)
+
+	// --- Bottom bar ---
+	const bottomBar = wrapper.createDiv({ cls: "welcome-bottom-bar" });
+	bottomBar.createSpan({ text: "You can stop or go back at any time.", cls: "welcome-bottom-hint" });
+
+	const buttonGroup = bottomBar.createDiv({ cls: "welcome-button-group" });
+
+	new ButtonComponent(buttonGroup)
 		.setButtonText("Get Started →")
 		.setCta()
 		.onClick(() => callbacks.onNext());
-	
-	new ButtonComponent(buttonContainer)
+
+	new ButtonComponent(buttonGroup)
 		.setButtonText("Cancel")
 		.onClick(() => callbacks.onClose());
 }

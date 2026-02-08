@@ -71,6 +71,16 @@ export interface ScreenContext {
 	isUpdate: boolean;
 	/** The version currently published in the catalog (if updating) */
 	catalogVersion: string | null;
+	/** The actual extension ID in the catalog (may differ from derived ID) */
+	catalogExtensionId: string | null;
+	
+	// Changelog state (for updates)
+	/** Generated changelog content for this version */
+	generatedChangelog: string;
+	/** Whether changelog generation is in progress */
+	isGeneratingChangelog: boolean;
+	/** Reference to the changelog textarea element */
+	changelogInput: HTMLTextAreaElement | null;
 }
 
 /**

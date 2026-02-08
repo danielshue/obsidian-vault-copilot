@@ -8,7 +8,7 @@
  * @description Preview and confirmation screen before submission
  */
 
-import { TFile } from "obsidian";
+import { MarkdownRenderer, TFile } from "obsidian";
 import type { ScreenContext } from "./types";
 import { addSummaryItem } from "./utils";
 
@@ -118,6 +118,28 @@ export function renderPreviewScreen(
 		summaryContainer.createEl("h3", { text: "README" });
 		const readmeText = summaryContainer.createDiv({ cls: "summary-readme" });
 		readmeText.setText(context.readmeInput.value);
+	}
+	
+	// Changelog (for updates)
+	if (context.isUpdate && (context.generatedChangelog || context.submissionData.changelog)) {
+		summaryContainer.createEl("h3", { text: "Changelog" });
+		const changelogDiv = summaryContainer.createDiv({ cls: "summary-changelog" });
+		const changelogMarkdown = context.generatedChangelog || context.submissionData.changelog || "";
+		if (context.plugin) {
+			MarkdownRenderer.render(
+				context.plugin.app,
+				changelogMarkdown,
+				changelogDiv,
+				"",
+				context.plugin
+			);
+		} else {
+			changelogDiv.setText(changelogMarkdown);
+		}
+		summaryContainer.createEl("div", {
+			text: "A CHANGELOG.md file will be created and referenced in the manifest.",
+			cls: "summary-note"
+		});
 	}
 	
 	// What will happen

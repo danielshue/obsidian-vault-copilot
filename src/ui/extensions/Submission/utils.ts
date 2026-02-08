@@ -269,6 +269,8 @@ export interface ExtensionIdValidationResult {
 	exists: boolean;
 	/** The version currently published in the catalog (if it exists) */
 	catalogVersion: string | null;
+	/** The actual extension ID as it appears in the catalog (may differ from derived ID) */
+	catalogExtensionId: string | null;
 }
 
 /**
@@ -291,7 +293,7 @@ export interface ExtensionIdValidationResult {
  */
 export async function validateExtensionId(extensionId: string): Promise<ExtensionIdValidationResult> {
 	if (!extensionId) {
-		return { exists: false, catalogVersion: null };
+		return { exists: false, catalogVersion: null, catalogExtensionId: null };
 	}
 	
 	try {
@@ -306,24 +308,30 @@ export async function validateExtensionId(extensionId: string): Promise<Extensio
 		
 		const catalog = await response.json();
 		
-		const allExtensions = [
-			...(catalog.agents || []),
-			...(catalog['voice-agents'] || []),
-			...(catalog.prompts || []),
-			...(catalog.skills || []),
-			...(catalog['mcp-servers'] || [])
-		];
+		// The catalog uses a flat "extensions" array, not per-type arrays
+		const allExtensions: any[] = catalog.extensions || [];
 		
-		const existingExtension = allExtensions.find((ext: any) => ext.id === extensionId);
+		// Exact match first
+		let existingExtension = allExtensions.find((ext: any) => ext.id === extensionId);
+		
+		// Fallback: the derived ID from a file like "daily-journal.agent.md" yields
+		// "daily-journal", but the catalog entry may be "daily-journal-agent".
+		// Try matching by prefix (derivedId matches the start of a catalog ID).
+		if (!existingExtension) {
+			existingExtension = allExtensions.find(
+				(ext: any) => ext.id && ext.id.startsWith(extensionId + "-")
+			);
+		}
 		
 		if (existingExtension) {
 			return {
 				exists: true,
-				catalogVersion: existingExtension.version || null
+				catalogVersion: existingExtension.version || null,
+				catalogExtensionId: existingExtension.id || null
 			};
 		}
 		
-		return { exists: false, catalogVersion: null };
+		return { exists: false, catalogVersion: null, catalogExtensionId: null };
 	} catch (error) {
 		if (error instanceof Error) {
 			if (error.message.includes("Could not fetch extension catalog")) {
@@ -331,7 +339,7 @@ export async function validateExtensionId(extensionId: string): Promise<Extensio
 			}
 		}
 		console.warn("Catalog validation failed:", error);
-		return { exists: false, catalogVersion: null };
+		return { exists: false, catalogVersion: null, catalogExtensionId: null };
 	}
 }
 
@@ -374,6 +382,188 @@ export function compareSemver(a: string, b: string): number {
 		if (diff !== 0) return diff;
 	}
 	return 0;
+}
+
+/**
+ * Result type for fetching previous extension data from the catalog repository.
+ *
+ * @internal
+ */
+interface PreviousExtensionData {
+	/** Previous README content, or empty string if not found */
+	readme: string;
+	/** Previous manifest data, or null if not found */
+	manifest: ExtensionManifest | null;
+}
+
+/**
+ * Fetches the previous README and manifest for an existing catalog extension from GitHub.
+ *
+ * Used during update submissions to generate a changelog by comparing the previous
+ * and new versions of the extension's README.
+ *
+ * @param extensionId - The unique extension identifier
+ * @param extensionType - The type of extension (agent, prompt, etc.)
+ * @returns Previous README content and manifest from the catalog repository
+ *
+ * @example
+ * ```typescript
+ * const prev = await fetchPreviousExtensionData("my-agent", "agent");
+ * console.log(prev.readme); // previous README content
+ * console.log(prev.manifest?.version); // e.g. "1.0.0"
+ * ```
+ *
+ * @since 0.1.0
+ */
+export async function fetchPreviousExtensionData(
+	extensionId: string,
+	extensionType: ExtensionType
+): Promise<PreviousExtensionData> {
+	const baseUrl = "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions";
+	const typeFolder = `${extensionType}s`;
+
+	const readmeUrl = `${baseUrl}/${typeFolder}/${extensionId}/README.md`;
+	const manifestUrl = `${baseUrl}/${typeFolder}/${extensionId}/manifest.json`;
+
+	let readme = "";
+	let manifest: ExtensionManifest | null = null;
+
+	try {
+		const readmeResp = await fetch(readmeUrl);
+		if (readmeResp.ok) {
+			readme = await readmeResp.text();
+		}
+	} catch (err) {
+		console.warn("Failed to fetch previous README:", err);
+	}
+
+	try {
+		const manifestResp = await fetch(manifestUrl);
+		if (manifestResp.ok) {
+			manifest = (await manifestResp.json()) as ExtensionManifest;
+		}
+	} catch (err) {
+		console.warn("Failed to fetch previous manifest:", err);
+	}
+
+	return { readme, manifest };
+}
+
+/**
+ * Generates a structured changelog by comparing the previous and new README using AI.
+ *
+ * The function sends both versions of the README to the active AI provider and asks it
+ * to produce a concise changelog summarizing what changed between versions. The result
+ * is a human-readable Markdown string suitable for inclusion in CHANGELOG.md and the
+ * manifest's `versions` array.
+ *
+ * @param plugin - The Vault Copilot plugin instance (provides access to the AI service)
+ * @param extensionName - Human-readable name of the extension
+ * @param extensionId - Unique extension identifier
+ * @param previousReadme - The README content from the currently published version
+ * @param currentReadme - The README content for the new version being submitted
+ * @param previousVersion - The version string of the current catalog entry
+ * @param newVersion - The version string being submitted
+ * @param messageContainer - Optional element for displaying status messages
+ * @param showMessage - Optional callback for rendering inline messages
+ * @returns Generated changelog as Markdown text
+ *
+ * @example
+ * ```typescript
+ * const changelog = await generateChangelogWithAI(
+ *   plugin, "My Agent", "my-agent",
+ *   "# My Agent\n\nDoes thing A.",
+ *   "# My Agent\n\nDoes thing A and B.",
+ *   "1.0.0", "1.1.0"
+ * );
+ * console.log(changelog); // "## 1.1.0\n\n- Added support for thing B"
+ * ```
+ *
+ * @since 0.1.0
+ */
+export async function generateChangelogWithAI(
+	plugin: VaultCopilotPlugin | undefined,
+	extensionName: string,
+	extensionId: string,
+	previousReadme: string,
+	currentReadme: string,
+	previousVersion: string,
+	newVersion: string,
+	messageContainer?: HTMLElement | null,
+	showMessage?: (container: HTMLElement, message: string, type: "error" | "warning" | "success" | "info") => void
+): Promise<string> {
+	if (!plugin) {
+		const fallback = `## ${newVersion}\n\n- Updated from ${previousVersion}`;
+		return fallback;
+	}
+
+	try {
+		const service = plugin.getActiveService?.();
+		if (!service) {
+			throw new Error("No active AI service available");
+		}
+
+		const prompt = `You are an expert technical writer generating a detailed changelog entry for an Obsidian Vault Copilot extension update.
+
+Extension: "${extensionName}" (ID: ${extensionId})
+Previous version: ${previousVersion}
+New version: ${newVersion}
+
+Below are the PREVIOUS and CURRENT README files in their entirety. Perform a thorough, line-by-line comparison and document every meaningful difference.
+
+=== PREVIOUS README (v${previousVersion}) ===
+${previousReadme || "(no previous README available)"}
+
+=== CURRENT README (v${newVersion}) ===
+${currentReadme || "(no current README available)"}
+
+Instructions:
+1. Compare both READMEs carefully. Identify ALL differences: added sections, removed sections, changed wording, new features, removed features, updated examples, modified instructions, etc.
+2. Output ONLY the changelog entry as Markdown. Do NOT say "see README" or "refer to README" — the changelog must be self-contained.
+3. Start with: ## ${newVersion}
+4. Group changes under these headings where applicable:
+   ### Added
+   ### Changed
+   ### Fixed
+   ### Removed
+5. Use bullet points for each individual change.
+6. Be specific and descriptive. Instead of "Updated documentation", write "Added new Configuration section with API key setup instructions".
+7. If a section was rewritten, describe what changed in its content.
+8. If both READMEs are identical, output: "## ${newVersion}\n\n- No content changes detected"
+9. Do NOT include any commentary, preamble, or explanation outside the changelog entry itself.`;
+
+		// If AI service requires session creation, initialize it first
+		// createSession() returns a session ID string and sets up the internal session
+		if ('createSession' in service && typeof (service as any).createSession === 'function') {
+			await (service as any).createSession();
+		}
+
+		let response: string;
+		if (typeof service.sendMessage === "function") {
+			const result = await service.sendMessage(prompt);
+			response = typeof result === "string" ? result : (result as { text?: string }).text || String(result);
+		} else {
+			throw new Error("AI service does not support sendMessage");
+		}
+
+		const changelog = cleanMarkdownCodeBlocks(response.trim());
+
+		if (messageContainer && showMessage) {
+			showMessage(messageContainer, "Changelog generated successfully!", "success");
+		}
+
+		return changelog;
+	} catch (error) {
+		console.error("AI changelog generation error:", error);
+
+		const fallback = `## ${newVersion}\n\n- Updated from ${previousVersion}\n- See README for details`;
+
+		if (messageContainer && showMessage) {
+			showMessage(messageContainer, "Changelog generation failed. Using fallback content.", "warning");
+		}
+
+		return fallback;
+	}
 }
 
 /**

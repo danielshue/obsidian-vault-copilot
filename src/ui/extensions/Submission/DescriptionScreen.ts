@@ -24,8 +24,40 @@ export function renderDescriptionScreen(
 ): void {
 	container.createEl("h2", { text: "Extension Description" });
 	container.createEl("p", { 
-		text: "Provide a description and image for your extension."
+		text: "Provide a description, version, and image for your extension."
 	});
+	
+	// Show extension ID
+	const idText = context.submissionData.extensionId || "(unknown)";
+	const identityInfo = container.createDiv({ cls: "validation-info" });
+	identityInfo.createEl("p", {
+		text: `📦 Extension ID: ${idText}`
+	});
+	
+	// Show update notice if this is an existing catalog extension
+	if (context.isUpdate && context.catalogVersion) {
+		const updateNotice = container.createDiv({ cls: "inline-message inline-message-info" });
+		updateNotice.createSpan({ cls: "inline-message-icon", text: "ℹ️" });
+		updateNotice.createSpan({
+			cls: "inline-message-text",
+			text: `This extension already exists in the catalog (v${context.catalogVersion}). Your submission will be treated as an update.`
+		});
+	}
+	
+	// Version input
+	new Setting(container)
+		.setName("Version")
+		.setDesc("Semantic version (e.g. 1.0.0). Auto-populated from manifest.json if present, but you can override it.")
+		.addText(text => {
+			context.versionInput = text;
+			text
+				.setPlaceholder("1.0.0")
+				.setValue(context.submissionData.version || "")
+				.onChange(value => {
+					context.submissionData.version = value.trim();
+				});
+			text.inputEl.style.width = "120px";
+		});
 	
 	// Extension description (AI-generated and pre-populated)
 	const descWrapper = container.createDiv({ cls: "setting-item-stacked" });

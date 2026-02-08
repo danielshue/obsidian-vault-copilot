@@ -85,12 +85,29 @@ function generateExtensionPages() {
         iconPath ? `icon: "${iconPath}"` : null,
         manifest.categories && manifest.categories.length > 0 ? `categories: [${manifest.categories.map(c => `"${c}"`).join(', ')}]` : null,
         manifest.tags && manifest.tags.length > 0 ? `tags: [${manifest.tags.map(t => `"${t}"`).join(', ')}]` : null,
-        '---',
-        ''
-      ].filter(line => line !== null).join('\n');
+      ];
+
+      // Include version history when available
+      if (manifest.versions && Array.isArray(manifest.versions) && manifest.versions.length > 0) {
+        frontMatter.push('versions:');
+        for (const v of manifest.versions) {
+          frontMatter.push(`  - version: "${v.version}"`);
+          frontMatter.push(`    date: "${v.date}"`);
+          if (v.changes && v.changes.length > 0) {
+            frontMatter.push('    changes:');
+            for (const change of v.changes) {
+              frontMatter.push(`      - "${change.replace(/"/g, '\\"')}"`);
+            }
+          }
+        }
+      }
+
+      frontMatter.push('---', '');
+
+      const frontMatterStr = frontMatter.filter(line => line !== null).join('\n');
       
       // Combine front matter with README content
-      const pageContent = frontMatter + '\n' + readmeContent;
+      const pageContent = frontMatterStr + '\n' + readmeContent;
       
       // Write index.md
       fs.writeFileSync(indexPath, pageContent, 'utf8');
