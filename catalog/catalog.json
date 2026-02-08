@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generated": "2026-02-07T23:56:28.637Z",
-  "totalExtensions": 5,
+  "generated": "2026-02-08T00:03:28.756Z",
+  "totalExtensions": 6,
   "extensions": [
     {
       "id": "daily-journal-agent",
@@ -29,7 +29,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-07T23:56:15.887Z",
+      "updatedAt": "2026-02-08T00:03:18.693Z",
       "size": "2.3 KB",
       "sizeBytes": 2373,
       "minVaultCopilotVersion": "0.1.0",
@@ -95,7 +95,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-07T23:56:15.887Z",
+      "updatedAt": "2026-02-08T00:03:18.693Z",
       "size": "2.4 KB",
       "sizeBytes": 2481,
       "minVaultCopilotVersion": "0.1.0",
@@ -161,7 +161,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-07T23:56:15.889Z",
+      "updatedAt": "2026-02-08T00:03:18.695Z",
       "size": "1.4 KB",
       "sizeBytes": 1467,
       "minVaultCopilotVersion": "0.1.0",
@@ -201,6 +201,46 @@
       ]
     },
     {
+      "id": "tutor",
+      "name": "Tutor",
+      "type": "agent",
+      "version": "1.0.0",
+      "description": "A graduate-level tutor agent that uses Socratic questioning, active learning, and real-world application to build deep mastery in any chosen subject area. It can reference and organize your Obsidia...",
+      "author": {
+        "name": "Dan Shue",
+        "url": "https://github.com/danielshue"
+      },
+      "categories": [],
+      "tags": [],
+      "downloads": 0,
+      "rating": null,
+      "ratingCount": 0,
+      "publishedAt": "2026-02-08T00:03:18.694Z",
+      "updatedAt": "2026-02-08T00:03:18.694Z",
+      "size": "7.9 KB",
+      "sizeBytes": 8081,
+      "minVaultCopilotVersion": "0.0.1",
+      "repository": null,
+      "license": "MIT",
+      "detailPageUrl": "https://danielshue.github.io/obsidian-vault-copilot/extensions/agents/tutor/",
+      "discussionUrl": null,
+      "files": [
+        {
+          "source": "tutor.agent.md",
+          "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/extensions/agents/tutor/tutor.agent.md",
+          "installPath": "extensions/agents/tutor/tutor.agent.md",
+          "size": "7.9 KB"
+        }
+      ],
+      "tools": [],
+      "permissions": [],
+      "dependencies": [],
+      "preview": null,
+      "icon": null,
+      "featured": false,
+      "versions": []
+    },
+    {
       "id": "example-weather-mcp",
       "name": "Weather MCP Server",
       "type": "mcp-server",
@@ -226,7 +266,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-07T23:56:15.888Z",
+      "updatedAt": "2026-02-08T00:03:18.695Z",
       "size": "0.2 KB",
       "sizeBytes": 238,
       "minVaultCopilotVersion": "0.1.0",
@@ -289,7 +329,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-07T23:56:15.888Z",
+      "updatedAt": "2026-02-08T00:03:18.694Z",
       "size": "3.4 KB",
       "sizeBytes": 3458,
       "minVaultCopilotVersion": "0.1.0",
@@ -346,11 +386,12 @@
     "meeting-notes-agent",
     "weekly-review-agent",
     "task-management-prompt",
-    "example-weather-mcp"
+    "example-weather-mcp",
+    "tutor"
   ],
   "stats": {
     "byType": {
-      "agents": 3,
+      "agents": 4,
       "voice-agents": 0,
       "prompts": 1,
       "skills": 0,
