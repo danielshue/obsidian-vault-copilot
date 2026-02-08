@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated": "2026-02-08T00:24:02.088Z",
+  "generated": "2026-02-08T00:55:51.546Z",
   "totalExtensions": 5,
   "extensions": [
     {
@@ -29,7 +29,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-08T00:23:52.252Z",
+      "updatedAt": "2026-02-08T00:55:41.849Z",
       "size": "2.3 KB",
       "sizeBytes": 2373,
       "minVaultCopilotVersion": "0.1.0",
@@ -67,7 +67,8 @@
             "Smart linking to related notes"
           ]
         }
-      ]
+      ],
+      "submittedBy": "danielshue"
     },
     {
       "id": "meeting-notes-agent",
@@ -95,7 +96,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-08T00:23:52.253Z",
+      "updatedAt": "2026-02-08T00:55:41.850Z",
       "size": "2.4 KB",
       "sizeBytes": 2481,
       "minVaultCopilotVersion": "0.1.0",
@@ -133,7 +134,8 @@
             "Follow-up tracking integration"
           ]
         }
-      ]
+      ],
+      "submittedBy": null
     },
     {
       "id": "task-management-prompt",
@@ -161,7 +163,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-08T00:23:52.255Z",
+      "updatedAt": "2026-02-08T00:55:41.852Z",
       "size": "1.4 KB",
       "sizeBytes": 1467,
       "minVaultCopilotVersion": "0.1.0",
@@ -198,7 +200,8 @@
             "Task categorization and tagging"
           ]
         }
-      ]
+      ],
+      "submittedBy": null
     },
     {
       "id": "example-weather-mcp",
@@ -226,7 +229,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-08T00:23:52.254Z",
+      "updatedAt": "2026-02-08T00:55:41.851Z",
       "size": "0.2 KB",
       "sizeBytes": 238,
       "minVaultCopilotVersion": "0.1.0",
@@ -261,7 +264,8 @@
             "Location-based weather lookup"
           ]
         }
-      ]
+      ],
+      "submittedBy": null
     },
     {
       "id": "weekly-review-agent",
@@ -289,7 +293,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-08T00:23:52.253Z",
+      "updatedAt": "2026-02-08T00:55:41.851Z",
       "size": "3.4 KB",
       "sizeBytes": 3458,
       "minVaultCopilotVersion": "0.1.0",
@@ -327,7 +331,8 @@
             "Week-over-week comparison"
           ]
         }
-      ]
+      ],
+      "submittedBy": null
     }
   ],
   "categories": [
