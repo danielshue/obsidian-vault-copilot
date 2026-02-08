@@ -3,13 +3,13 @@ layout: extension
 title: "Daily Journal Agent"
 type: agent
 version: "1.1.0"
-description: "Daily Journal Agent helps you create and incrementally update a structured daily journal note throughout the day, guiding you through section-specific reflection prompts. It preserves existing cont..."
+description: "Daily Journal Agent helps you create and incrementally update a structured daily journal note throughout the day, guiding you through section-specific reflection prompts. It preserves existing content, supports incremental section-by-section journaling, and includes mood tracking, task management, and evening reflections."
 author: "Dan Shue"
 author_url: "https://github.com/danielshue"
 icon: "extensions/agents/daily-journal-agent/icon.svg"
 categories: ["Productivity", "Journaling"]
 tags: ["daily", "journal", "reflection", "gratitude", "goals", "habits"]
-size: "97.7 KB"
+size: "97.8 KB"
 versions:
   - version: "1.0.0"
     date: "2026-02-01"
