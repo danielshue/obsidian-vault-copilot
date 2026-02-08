@@ -1,0 +1,61 @@
+{
+  "id": "daily-journal",
+  "name": "Daily Journal",
+  "version": "1.1.0",
+  "type": "agent",
+  "description": "Daily Journal Agent helps you build a consistent daily reflection practice by creating today’s journal note (if missing) and guiding you through focused, section-by-section updates throughout the d...",
+  "author": {
+    "name": "Dan Shue",
+    "url": "https://github.com/danielshue"
+  },
+  "minVaultCopilotVersion": "0.0.1",
+  "categories": [],
+  "tags": [],
+  "files": [
+    {
+      "source": "daily-journal.agent.md",
+      "installPath": "extensions/agents/daily-journal/daily-journal.agent.md"
+    }
+  ],
+  "changelog": "CHANGELOG.md",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "date": "2026-02-01",
+      "changes": [
+        "Initial release",
+        "Structured journal entries with gratitude and goals sections",
+        "Pattern recognition from previous entries",
+        "Smart linking to related notes"
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-02-08",
+      "changes": [
+        "Added new YAML frontmatter with agent runtime configuration fields (`name`, `description`, `model: gpt-4o`) and expanded capabilities metadata.",
+        "Added new tools to support incremental edits and interactive flows: `update_note`, `ask_question`, plus task-oriented tools (`get_tasks`, `create_task`, `list_tasks`, `mark_tasks`).",
+        "Added `skills` support for `obsidian-tasks`.",
+        "Added a full “Brief overview” section describing two explicit workflows: **Create mode** (create today’s note if missing) and **Update mode** (pick a specific section to work on).",
+        "Added detailed safety model for updates:",
+        "Added multiple new feature areas not present before:",
+        "Added a comprehensive “Usage instructions” guide with a 4-step flow:",
+        "Added explicit rewrite/data-handling rules by content type:",
+        "Added a “Task management behavior (high level)” section detailing supported task operations (add/complete/review/reschedule/remove) and formatting rules (emoji placement relative to description/tags).",
+        "Added a new “Examples” section with three step-by-step scenarios:",
+        "Replaced the previous website-style metadata block (e.g., `layout`, `title`, `permalink`, `identifier`, `version`, `author`, `repository`, `license`, `categories`, `tags`, `last_updated`, `size`, and embedded `versions` history) with an agent-focused configuration frontmatter and removed the embedded historical release listing from the README content.",
+        "Expanded and reframed the agent from a “structured journal entries with gratitude and goals” assistant into a **section-focused**, **incremental update** journaling assistant that avoids overwriting unrelated sections.",
+        "Changed the feature presentation from a short emoji-based bullet list (Structured Entries / Goal Tracking / Pattern Recognition / Guided Prompts / Smart Linking) to a detailed, multi-level feature specification including creation, safe section updates, rewrite modes, append-only sections, tasks, and mood/energy tracking.",
+        "Changed “Usage” from three short invocation examples (start day / evening reflection / review themes) to an end-to-end operational guide that explains the agent’s tool-driven sequence and decision points.",
+        "Changed the journaling model from a fixed “Each entry includes” list to a selectable section workflow where the user chooses what to work on, including new section options (Tasks, Mood & Energy, Add Related Links).",
+        "Changed tool documentation from a simple “Tools Used” purpose table to step-by-step behavior describing *when and why* tools are called (including `update_note` and previews) and how frontmatter is updated (`modified-date`).",
+        "Implemented explicit content-safety constraints missing from v1.0.0 documentation: section-scoped updates, append-only behavior for Daily Log/Related, and verbatim preservation rules for structured data (especially tasks), reducing the risk of overwriting unrelated content during updates.",
+        "Removed the previous README’s “Installation” instructions that referenced copying `daily-journal-agent.agent.md` to `Reference/Agents/`.",
+        "Removed the previous “Tools Used” markdown table that listed tool purposes.",
+        "Removed the previous “Tips” section (journaling consistency, honesty, gratitude on hard days, linking advice).",
+        "Removed the previous “Changelog” section embedded in the README (v1.0.0 bullets).",
+        "Removed explicit mention of v1.0.0 features around **pattern recognition across previous entries** and “smart linking” as automatic suggestions; the new README instead focuses on updating today’s note safely and appending related wikilinks to a dedicated section."
+      ]
+    }
+  ]
+}
