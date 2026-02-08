@@ -262,11 +262,36 @@ export function cleanMarkdownCodeBlocks(content: string): string {
 }
 
 /**
- * Validates that the extension ID doesn't exist in the catalog
+ * Result of validating an extension ID against the catalog
  */
-export async function validateExtensionId(extensionId: string): Promise<void> {
+export interface ExtensionIdValidationResult {
+	/** Whether the extension ID already exists in the catalog */
+	exists: boolean;
+	/** The version currently published in the catalog (if it exists) */
+	catalogVersion: string | null;
+}
+
+/**
+ * Validates an extension ID against the catalog, returning status info
+ * 
+ * Instead of throwing when an ID exists, this returns structured info
+ * so the caller can determine whether this is a new submission or an update.
+ * 
+ * @param extensionId - The extension ID to check
+ * @returns Validation result with existence status and catalog version
+ * @throws {Error} If the catalog cannot be fetched (network error)
+ * 
+ * @example
+ * ```typescript
+ * const result = await validateExtensionId("my-agent");
+ * if (result.exists) {
+ *   console.log(`Update: current catalog version is ${result.catalogVersion}`);
+ * }
+ * ```
+ */
+export async function validateExtensionId(extensionId: string): Promise<ExtensionIdValidationResult> {
 	if (!extensionId) {
-		return;
+		return { exists: false, catalogVersion: null };
 	}
 	
 	try {
@@ -292,20 +317,63 @@ export async function validateExtensionId(extensionId: string): Promise<void> {
 		const existingExtension = allExtensions.find((ext: any) => ext.id === extensionId);
 		
 		if (existingExtension) {
-			throw new Error(`Extension ID "${extensionId}" already exists in the catalog. Please choose a different ID.`);
+			return {
+				exists: true,
+				catalogVersion: existingExtension.version || null
+			};
 		}
+		
+		return { exists: false, catalogVersion: null };
 	} catch (error) {
 		if (error instanceof Error) {
-			// Surface known validation issues to the caller so the UI can show them.
-			if (
-				error.message.includes("already exists") ||
-				error.message.includes("Could not fetch extension catalog")
-			) {
+			if (error.message.includes("Could not fetch extension catalog")) {
 				throw error;
 			}
 		}
 		console.warn("Catalog validation failed:", error);
+		return { exists: false, catalogVersion: null };
 	}
+}
+
+/**
+ * Validates that a version string is valid semantic versioning (MAJOR.MINOR.PATCH)
+ * 
+ * @param version - The version string to validate
+ * @returns Whether the version is valid semver
+ * 
+ * @example
+ * ```typescript
+ * validateSemver("1.0.0"); // true
+ * validateSemver("2.1.3"); // true
+ * validateSemver("v1.0");  // false
+ * ```
+ */
+export function validateSemver(version: string): boolean {
+	return /^\d+\.\d+\.\d+$/.test(version);
+}
+
+/**
+ * Compares two semantic version strings
+ * 
+ * @param a - First version string
+ * @param b - Second version string
+ * @returns Negative if a < b, 0 if equal, positive if a > b
+ * 
+ * @example
+ * ```typescript
+ * compareSemver("1.0.0", "2.0.0"); // -1 (a < b)
+ * compareSemver("1.1.0", "1.0.0"); // 1 (a > b)
+ * ```
+ */
+export function compareSemver(a: string, b: string): number {
+	const partsA = a.split(".").map(Number);
+	const partsB = b.split(".").map(Number);
+	
+	for (let i = 0; i < 3; i++) {
+		const diff = (partsA[i] || 0) - (partsB[i] || 0);
+		if (diff !== 0) return diff;
+	}
+	return 0;
 }
 
 /**

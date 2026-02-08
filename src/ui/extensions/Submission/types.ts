@@ -45,6 +45,7 @@ export interface ScreenContext {
 	
 	// Form elements (shared across screens)
 	extensionPathInput: TextComponent | null;
+	versionInput: TextComponent | null;
 	authorNameInput: TextComponent | null;
 	authorUrlInput: TextComponent | null;
 	descriptionInput: HTMLTextAreaElement | null;
@@ -64,6 +65,12 @@ export interface ScreenContext {
 	// Validation state
 	hasCompletedInitialValidation: boolean;
 	skipAIGeneration: boolean;
+	
+	// Update detection
+	/** Whether this submission is an update to an existing catalog extension */
+	isUpdate: boolean;
+	/** The version currently published in the catalog (if updating) */
+	catalogVersion: string | null;
 }
 
 /**

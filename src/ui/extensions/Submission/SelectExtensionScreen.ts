@@ -87,10 +87,42 @@ export function renderSelectExtensionScreen(
 					context.generatedDescription = "";
 					context.generatedReadme = "";
 					context.generatedImagePath = null;
+					context.isUpdate = false;
+					context.catalogVersion = null;
+					// Clear version so it gets re-derived from the new manifest
+					context.submissionData.version = "";
+					if (context.versionInput) {
+						context.versionInput.setValue("");
+					}
 				});
 			// Make the input field longer
 			text.inputEl.style.width = "100%";
 		});
+	
+	// Version input
+	new Setting(container)
+		.setName("Version")
+		.setDesc("Semantic version (e.g. 1.0.0). Auto-populated from manifest.json if present, but you can override it.")
+		.addText(text => {
+			context.versionInput = text;
+			text
+				.setPlaceholder("1.0.0")
+				.setValue(context.submissionData.version || "")
+				.onChange(value => {
+					context.submissionData.version = value.trim();
+				});
+			text.inputEl.style.width = "120px";
+		});
+	
+	// Show update notice if we already detected an existing catalog entry
+	if (context.isUpdate && context.catalogVersion) {
+		const updateNotice = container.createDiv({ cls: "inline-message inline-message-info" });
+		updateNotice.createSpan({ cls: "inline-message-icon", text: "ℹ️" });
+		updateNotice.createSpan({
+			cls: "inline-message-text",
+			text: `This extension already exists in the catalog (v${context.catalogVersion}). Your submission will be treated as an update.`
+		});
+	}
 	
 	// AI generation option (checkbox)
 	new Setting(container)

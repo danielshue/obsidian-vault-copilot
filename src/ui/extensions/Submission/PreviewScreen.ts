@@ -37,7 +37,13 @@ export function renderPreviewScreen(
 	addSummaryItem(summaryContainer, "Path", context.submissionData.extensionPath || "");
 	addSummaryItem(summaryContainer, "ID", context.submissionData.extensionId || "");
 	addSummaryItem(summaryContainer, "Name", context.submissionData.extensionName || "");
-	addSummaryItem(summaryContainer, "Version", context.submissionData.version || "");
+	
+	// Version with update context
+	const versionDisplay = context.isUpdate && context.catalogVersion
+		? `${context.submissionData.version || ""} (updating from v${context.catalogVersion})`
+		: context.submissionData.version || "";
+	addSummaryItem(summaryContainer, "Version", versionDisplay);
+	addSummaryItem(summaryContainer, "Submission", context.isUpdate ? "Update" : "New");
 	
 	summaryContainer.createEl("h3", { text: "Author" });
 	addSummaryItem(summaryContainer, "Name", context.submissionData.authorName || "");

@@ -48,6 +48,8 @@ import {
 	showInlineMessage,
 	parseOrDeriveExtensionInfo,
 	validateExtensionId,
+	validateSemver,
+	compareSemver,
 	generateExtensionContent,
 	generateExtensionImageAuto,
 	generateExtensionImage
@@ -68,6 +70,7 @@ export class ExtensionSubmissionModal extends Modal {
 	
 	// Form elements
 	private extensionPathInput: TextComponent | null = null;
+	private versionInput: TextComponent | null = null;
 	private authorNameInput: TextComponent | null = null;
 	private authorUrlInput: TextComponent | null = null;
 	private descriptionInput: HTMLTextAreaElement | null = null;
@@ -93,6 +96,10 @@ export class ExtensionSubmissionModal extends Modal {
 	
 	// Track whether user wants AI generation
 	private skipAIGeneration = false;
+	
+	// Update detection state
+	private isUpdate = false;
+	private catalogVersion: string | null = null;
 	
 	/**
 	 * Creates a new extension submission modal
@@ -148,6 +155,7 @@ export class ExtensionSubmissionModal extends Modal {
 			plugin: this.plugin,
 			submissionData: this.submissionData,
 			extensionPathInput: this.extensionPathInput,
+			versionInput: this.versionInput,
 			authorNameInput: this.authorNameInput,
 			authorUrlInput: this.authorUrlInput,
 			descriptionInput: this.descriptionInput,
@@ -160,7 +168,9 @@ export class ExtensionSubmissionModal extends Modal {
 			generatedDescription: this.generatedDescription,
 			generatedReadme: this.generatedReadme,
 			hasCompletedInitialValidation: this.hasCompletedInitialValidation,
-			skipAIGeneration: this.skipAIGeneration
+			skipAIGeneration: this.skipAIGeneration,
+			isUpdate: this.isUpdate,
+			catalogVersion: this.catalogVersion
 		};
 	}
 	
@@ -344,6 +354,14 @@ export class ExtensionSubmissionModal extends Modal {
 					return false;
 				}
 				
+				// Validate user-specified version if present
+				if (this.submissionData.version && !validateSemver(this.submissionData.version)) {
+					if (messageContainer) {
+						showInlineMessage(messageContainer, "Version must be in semantic version format: MAJOR.MINOR.PATCH (e.g. 1.0.0)", 'error');
+					}
+					return false;
+				}
+				
 				// Skip initial validation if already completed
 				if (this.hasCompletedInitialValidation) {
 					return true;
@@ -367,30 +385,60 @@ export class ExtensionSubmissionModal extends Modal {
 						
 						this.submissionData.extensionId = manifest.id;
 						this.submissionData.extensionName = manifest.name;
-						this.submissionData.version = manifest.version;
+						// Use user-specified version if provided, otherwise use manifest version
+						if (!this.submissionData.version) {
+							this.submissionData.version = manifest.version;
+							// Update the version input field to reflect the derived value
+							if (this.versionInput) {
+								this.versionInput.setValue(manifest.version);
+							}
+						}
 						
+						// Check catalog for existing extension (update detection)
+						try {
+							const idResult = await validateExtensionId(this.submissionData.extensionId);
+							this.isUpdate = idResult.exists;
+							this.catalogVersion = idResult.catalogVersion;
+							
+							if (idResult.exists && idResult.catalogVersion && this.submissionData.version) {
+								if (compareSemver(this.submissionData.version, idResult.catalogVersion) <= 0) {
+									if (messageContainer) {
+										showInlineMessage(
+											messageContainer,
+											`Update detected: catalog has v${idResult.catalogVersion}. Your version (${this.submissionData.version}) should be higher. Please increment the version.`,
+											'warning'
+										);
+									}
+									// Don't block, just warn — user may still proceed
+								}
+							}
+						} catch {
+							// Catalog check is best-effort
+						}
+						
+						const branchPrefix = this.isUpdate ? "update" : "add";
 						if (this.submissionData.githubUsername) {
 							this.submissionData.forkRepoName = "obsidian-vault-copilot";
-							this.submissionData.branchName = `add-${manifest.id}`;
+							this.submissionData.branchName = `${branchPrefix}-${manifest.id}`;
 						} else {
 							this.submissionData.githubUsername = "user";
 							this.submissionData.forkRepoName = "obsidian-vault-copilot";
-							this.submissionData.branchName = `add-${manifest.id}`;
+							this.submissionData.branchName = `${branchPrefix}-${manifest.id}`;
 						}
 						
-													this.hasCompletedInitialValidation = true; 
-													const prepared = await this.prepareTempExtensionFolder();
-													if (!prepared) {
-														if (messageContainer) {
-															showInlineMessage(
-																messageContainer,
-																"Failed to prepare temporary folder for submission. Please ensure you are using a local desktop vault.",
-																"error"
-															);
-														}
-														return false;
-													}
-													return true;
+						this.hasCompletedInitialValidation = true; 
+						const prepared = await this.prepareTempExtensionFolder();
+						if (!prepared) {
+							if (messageContainer) {
+								showInlineMessage(
+									messageContainer,
+									"Failed to prepare temporary folder for submission. Please ensure you are using a local desktop vault.",
+									"error"
+								);
+							}
+							return false;
+						}
+						return true;
 						
 					} catch (error) {
 						console.error("Basic validation failed:", error);
@@ -405,7 +453,7 @@ export class ExtensionSubmissionModal extends Modal {
 				const tasks: LoadingTask[] = [
 					{ name: "Generating Description", status: 'pending' },
 					{ name: "Generating Image", status: 'pending' },
-					{ name: "Validating ID doesn't exist", status: 'pending' }
+					{ name: "Checking catalog", status: 'pending' }
 				];
 				
 				try {
@@ -424,15 +472,13 @@ export class ExtensionSubmissionModal extends Modal {
 					
 					this.submissionData.extensionId = manifest.id;
 					this.submissionData.extensionName = manifest.name;
-					this.submissionData.version = manifest.version;
-					
-					if (this.submissionData.githubUsername) {
-						this.submissionData.forkRepoName = "obsidian-vault-copilot";
-						this.submissionData.branchName = `add-${manifest.id}`;
-					} else {
-						this.submissionData.githubUsername = "user";
-						this.submissionData.forkRepoName = "obsidian-vault-copilot";
-						this.submissionData.branchName = `add-${manifest.id}`;
+					// Use user-specified version if provided, otherwise use manifest version
+					if (!this.submissionData.version) {
+						this.submissionData.version = manifest.version;
+						// Update the version input field to reflect the derived value
+						if (this.versionInput) {
+							this.versionInput.setValue(manifest.version);
+						}
 					}
 					
 					// Task 1: Generate description and README
@@ -465,25 +511,49 @@ export class ExtensionSubmissionModal extends Modal {
 					}
 					tasks[1]!.status = 'complete';
 					
-					// Task 3: Validate ID
+					// Task 3: Check catalog for existing extension
 					tasks[2]!.status = 'in-progress';
-					renderGeneratingContentScreen(this.contentEl, "Validating extension ID...", tasks);
-					await validateExtensionId(this.submissionData.extensionId);
+					renderGeneratingContentScreen(this.contentEl, "Checking catalog...", tasks);
+					const idResult = await validateExtensionId(this.submissionData.extensionId);
+					this.isUpdate = idResult.exists;
+					this.catalogVersion = idResult.catalogVersion;
+					
+					if (idResult.exists && idResult.catalogVersion && this.submissionData.version) {
+						if (compareSemver(this.submissionData.version, idResult.catalogVersion) <= 0) {
+							if (messageContainer) {
+								showInlineMessage(
+									messageContainer,
+									`Update detected: catalog has v${idResult.catalogVersion}. Your version (${this.submissionData.version}) should be higher. Please increment the version.`,
+									'warning'
+								);
+							}
+						}
+					}
 					tasks[2]!.status = 'complete';
 					
-											this.hasCompletedInitialValidation = true; 
-											const prepared = await this.prepareTempExtensionFolder();
-											if (!prepared) {
-												if (messageContainer) {
-													showInlineMessage(
-														messageContainer,
-														"Failed to prepare temporary folder for submission. Please ensure you are using a local desktop vault.",
-														"error"
-													);
-												}
-												return false;
-											}
-											return true;
+					const branchPrefix = this.isUpdate ? "update" : "add";
+					if (this.submissionData.githubUsername) {
+						this.submissionData.forkRepoName = "obsidian-vault-copilot";
+						this.submissionData.branchName = `${branchPrefix}-${this.submissionData.extensionId}`;
+					} else {
+						this.submissionData.githubUsername = "user";
+						this.submissionData.forkRepoName = "obsidian-vault-copilot";
+						this.submissionData.branchName = `${branchPrefix}-${this.submissionData.extensionId}`;
+					}
+					
+					this.hasCompletedInitialValidation = true; 
+					const prepared = await this.prepareTempExtensionFolder();
+					if (!prepared) {
+						if (messageContainer) {
+							showInlineMessage(
+								messageContainer,
+								"Failed to prepare temporary folder for submission. Please ensure you are using a local desktop vault.",
+								"error"
+							);
+						}
+						return false;
+					}
+					return true;
 					
 				} catch (error) {
 					console.error("Validation/generation failed:", error);
@@ -494,19 +564,19 @@ export class ExtensionSubmissionModal extends Modal {
 								: "Some automated tasks failed. You can still proceed and enter details manually.";
 						showInlineMessage(messageContainer, message, 'warning');
 					}
-											this.hasCompletedInitialValidation = true; 
-											const prepared = await this.prepareTempExtensionFolder();
-											if (!prepared) {
-												if (messageContainer) {
-													showInlineMessage(
-														messageContainer,
-														"Failed to prepare temporary folder for submission. Please ensure you are using a local desktop vault.",
-														"error"
-													);
-												}
-												return false;
-											}
-											return true;
+					this.hasCompletedInitialValidation = true; 
+					const prepared = await this.prepareTempExtensionFolder();
+					if (!prepared) {
+						if (messageContainer) {
+							showInlineMessage(
+								messageContainer,
+								"Failed to prepare temporary folder for submission. Please ensure you are using a local desktop vault.",
+								"error"
+							);
+						}
+						return false;
+					}
+					return true;
 				}
 				
 			case 1: // Author Details
