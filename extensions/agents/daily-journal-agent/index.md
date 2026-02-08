@@ -9,6 +9,14 @@ author_url: "https://danielshue.com"
 icon: "icon.svg"
 categories: ["Productivity", "Journaling"]
 tags: ["daily", "journal", "reflection", "gratitude", "goals", "habits"]
+versions:
+  - version: "1.0.0"
+    date: "2026-02-01"
+    changes:
+      - "Initial release"
+      - "Structured journal entries with gratitude and goals sections"
+      - "Pattern recognition from previous entries"
+      - "Smart linking to related notes"
 ---
 
 

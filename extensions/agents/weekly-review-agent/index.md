@@ -9,6 +9,14 @@ author_url: "https://danielshue.com"
 icon: "icon.svg"
 categories: ["Productivity", "Task Management"]
 tags: ["weekly-review", "gtd", "planning", "reflection", "goals", "productivity"]
+versions:
+  - version: "1.0.0"
+    date: "2026-02-01"
+    changes:
+      - "Initial release"
+      - "GTD-inspired weekly review workflow"
+      - "Accomplishments and goals tracking"
+      - "Week-over-week comparison"
 ---
 
 

@@ -9,6 +9,14 @@ author_url: "https://danielshue.com"
 icon: "icon.svg"
 categories: ["Integration", "MCP", "Utility"]
 tags: ["weather", "mcp", "api", "daily-notes", "planning"]
+versions:
+  - version: "1.0.0"
+    date: "2026-02-01"
+    changes:
+      - "Initial release"
+      - "Current weather data integration"
+      - "Forecast support for daily planning"
+      - "Location-based weather lookup"
 ---
 
 

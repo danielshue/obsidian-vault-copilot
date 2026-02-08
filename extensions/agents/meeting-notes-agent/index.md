@@ -9,6 +9,14 @@ author_url: "https://danielshue.com"
 icon: "icon.svg"
 categories: ["Productivity", "Task Management"]
 tags: ["meetings", "notes", "action-items", "agenda", "summary", "collaboration"]
+versions:
+  - version: "1.0.0"
+    date: "2026-02-01"
+    changes:
+      - "Initial release"
+      - "Meeting capture with attendees and agenda"
+      - "Automatic action item extraction"
+      - "Follow-up tracking integration"
 ---
 
 

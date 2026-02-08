@@ -9,6 +9,14 @@ author_url: "https://danielshue.com"
 icon: "icon.svg"
 categories: ["Productivity", "Task Management"]
 tags: ["tasks", "todo", "gtd", "eisenhower", "priority", "planning"]
+versions:
+  - version: "1.0.0"
+    date: "2026-02-01"
+    changes:
+      - "Initial release"
+      - "Eisenhower matrix prioritization"
+      - "GTD next actions support"
+      - "Task categorization and tagging"
 ---
 
 
