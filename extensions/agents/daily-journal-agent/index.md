@@ -11,45 +11,6 @@ categories: ["Productivity", "Journaling"]
 tags: ["daily", "journal", "reflection", "gratitude", "goals", "habits"]
 ---
 
----
-layout: extension
-title: Daily Journal Agent
-permalink: /extensions/agents/daily-journal-agent/
-identifier: daily-journal-agent
-type: agent
-version: 1.0.0
-author: Dan Shue
-author_url: https://danielshue.com
-repository: https://github.com/danielshue/vault-copilot-extensions
-license: MIT
-license_url: https://github.com/danielshue/vault-copilot-extensions/blob/main/LICENSE
-categories:
-  - Productivity
-  - Journaling
-tags:
-  - daily
-  - journal
-  - reflection
-  - gratitude
-  - goals
-  - habits
-tools:
-  - create_note
-  - read_note
-  - search_vault
-  - get_daily_note
-last_updated: 2026-02-01
-size: 2.4 KB
-versions:
-  - version: "1.0.0"
-    date: "2026-02-01"
-    changes:
-      - Initial release
-      - Structured journal entries with gratitude and goals sections
-      - Pattern recognition from previous entries
-      - Smart linking to related notes
-description: "A thoughtful AI journaling assistant that helps you maintain a consistent daily reflection practice with structured prompts for gratitude, goals, and self-improvement."
----
 
 ## Features
 

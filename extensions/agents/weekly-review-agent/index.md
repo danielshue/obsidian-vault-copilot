@@ -11,45 +11,6 @@ categories: ["Productivity", "Task Management"]
 tags: ["weekly-review", "gtd", "planning", "reflection", "goals", "productivity"]
 ---
 
----
-layout: extension
-title: Weekly Review Agent
-permalink: /extensions/agents/weekly-review-agent/
-identifier: weekly-review-agent
-type: agent
-version: 1.0.0
-author: Dan Shue
-author_url: https://danielshue.com
-repository: https://github.com/danielshue/vault-copilot-extensions
-license: MIT
-license_url: https://github.com/danielshue/vault-copilot-extensions/blob/main/LICENSE
-categories:
-  - Productivity
-  - Task Management
-tags:
-  - weekly-review
-  - gtd
-  - planning
-  - reflection
-  - goals
-  - productivity
-tools:
-  - create_note
-  - read_note
-  - search_vault
-  - list_folder
-last_updated: 2026-02-01
-size: 3.5 KB
-versions:
-  - version: "1.0.0"
-    date: "2026-02-01"
-    changes:
-      - Initial release
-      - GTD-inspired weekly review workflow
-      - Accomplishments and goals tracking
-      - Week-over-week comparison
-description: "A productivity coaching agent that guides you through a comprehensive weekly review process inspired by GTD (Getting Things Done) methodology."
----
 
 ## Features
 

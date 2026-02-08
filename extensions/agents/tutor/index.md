@@ -9,18 +9,6 @@ author_url: "https://github.com/danielshue"
 icon: "preview.svg"
 ---
 
----
-title: tutor.agent
-date-created: 2026-01-31
-date-modified: 2026-01-31
-description: Graduate-level tutor specialized in deep learning and mastery of specific topics
-name: tutor
-tools:
-  - list_notes_recursively
-  - read_note
-  - search_note
-  - web_fetch
----
 
 # Tutor Agent
 

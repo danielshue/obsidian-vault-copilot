@@ -11,45 +11,6 @@ categories: ["Productivity", "Task Management"]
 tags: ["meetings", "notes", "action-items", "agenda", "summary", "collaboration"]
 ---
 
----
-layout: extension
-title: Meeting Notes Agent
-permalink: /extensions/agents/meeting-notes-agent/
-identifier: meeting-notes-agent
-type: agent
-version: 1.0.0
-author: Dan Shue
-author_url: https://danielshue.com
-repository: https://github.com/danielshue/vault-copilot-extensions
-license: MIT
-license_url: https://github.com/danielshue/vault-copilot-extensions/blob/main/LICENSE
-categories:
-  - Productivity
-  - Task Management
-tags:
-  - meetings
-  - notes
-  - action-items
-  - agenda
-  - summary
-  - collaboration
-tools:
-  - create_note
-  - read_note
-  - search_vault
-  - update_note
-last_updated: 2026-02-01
-size: 2.5 KB
-versions:
-  - version: "1.0.0"
-    date: "2026-02-01"
-    changes:
-      - Initial release
-      - Meeting capture with attendees and agenda
-      - Automatic action item extraction
-      - Follow-up tracking integration
-description: "An efficient AI assistant that captures, organizes, and tracks meeting notes with automatic action item extraction and follow-up reminders."
----
 
 ## Features
 

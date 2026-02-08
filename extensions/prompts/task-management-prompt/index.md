@@ -11,44 +11,6 @@ categories: ["Productivity", "Task Management"]
 tags: ["tasks", "todo", "gtd", "eisenhower", "priority", "planning"]
 ---
 
----
-layout: extension
-title: Task Management Prompt
-permalink: /extensions/prompts/task-management-prompt/
-identifier: task-management-prompt
-type: prompt
-version: 1.0.0
-author: Dan Shue
-author_url: https://danielshue.com
-repository: https://github.com/danielshue/vault-copilot-extensions
-license: MIT
-license_url: https://github.com/danielshue/vault-copilot-extensions/blob/main/LICENSE
-categories:
-  - Productivity
-  - Task Management
-tags:
-  - tasks
-  - todo
-  - gtd
-  - eisenhower
-  - priority
-  - planning
-tools:
-  - search_vault
-  - read_note
-  - create_note
-last_updated: 2026-02-01
-size: 1.5 KB
-versions:
-  - version: "1.0.0"
-    date: "2026-02-01"
-    changes:
-      - Initial release
-      - Eisenhower matrix prioritization
-      - GTD next actions support
-      - Task categorization and tagging
-description: "A structured prompt for organizing, prioritizing, and tracking tasks using proven productivity methods like the Eisenhower Matrix."
----
 
 ## Features
 

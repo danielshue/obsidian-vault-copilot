@@ -11,41 +11,6 @@ categories: ["Integration", "MCP", "Utility"]
 tags: ["weather", "mcp", "api", "daily-notes", "planning"]
 ---
 
----
-layout: extension
-title: Weather MCP Server
-permalink: /extensions/mcp-servers/example-weather-mcp/
-identifier: example-weather-mcp
-type: mcp-server
-version: 1.0.0
-author: Dan Shue
-author_url: https://danielshue.com
-repository: https://github.com/danielshue/vault-copilot-extensions
-license: MIT
-license_url: https://github.com/danielshue/vault-copilot-extensions/blob/main/LICENSE
-categories:
-  - Integration
-  - MCP
-  - Utility
-tags:
-  - weather
-  - mcp
-  - api
-  - daily-notes
-  - planning
-tools: []
-last_updated: 2026-02-01
-size: 0.2 KB
-versions:
-  - version: "1.0.0"
-    date: "2026-02-01"
-    changes:
-      - Initial release
-      - Current weather data integration
-      - Forecast support for daily planning
-      - Location-based weather lookup
-description: "An example MCP (Model Context Protocol) server integration that provides weather data for use in your notes and daily planning."
----
 
 ## Features
 
