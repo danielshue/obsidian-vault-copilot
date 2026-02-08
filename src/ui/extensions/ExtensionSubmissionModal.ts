@@ -115,6 +115,9 @@ export class ExtensionSubmissionModal extends Modal {
 	private generatedChangelog = "";
 	private changelogInput: HTMLTextAreaElement | null = null;
 	
+	/** The last context object given to a screen, used to sync user-modified values back */
+	private lastContext: ScreenContext | null = null;
+	
 	/**
 	 * Creates a new extension submission modal
 	 */
@@ -164,7 +167,7 @@ export class ExtensionSubmissionModal extends Modal {
 	 * Gets the screen context
 	 */
 	private getContext(): ScreenContext {
-		return {
+		const ctx: ScreenContext = {
 			app: this.app,
 			plugin: this.plugin,
 			submissionData: this.submissionData,
@@ -191,6 +194,39 @@ export class ExtensionSubmissionModal extends Modal {
 			isGeneratingChangelog: this.isGeneratingChangelog,
 			changelogInput: this.changelogInput
 		};
+		this.lastContext = ctx;
+		return ctx;
+	}
+	
+	/**
+	 * Syncs mutable primitive values that screens may have modified on the
+	 * context object back into the modal's own state. Reference-type fields
+	 * like `submissionData` are already shared and don't need syncing.
+	 * @internal
+	 */
+	private syncFromContext(): void {
+		const ctx = this.lastContext;
+		if (!ctx) return;
+		this.skipAIGeneration = ctx.skipAIGeneration;
+		this.hasCompletedInitialValidation = ctx.hasCompletedInitialValidation;
+		this.isUpdate = ctx.isUpdate;
+		this.catalogVersion = ctx.catalogVersion;
+		this.catalogExtensionId = ctx.catalogExtensionId;
+		this.catalogMetadata = ctx.catalogMetadata;
+		this.generatedDescription = ctx.generatedDescription;
+		this.generatedReadme = ctx.generatedReadme;
+		this.generatedImagePath = ctx.generatedImagePath;
+		this.generatedChangelog = ctx.generatedChangelog;
+		this.isGeneratingChangelog = ctx.isGeneratingChangelog;
+		this.extensionPathInput = ctx.extensionPathInput;
+		this.versionInput = ctx.versionInput;
+		this.authorNameInput = ctx.authorNameInput;
+		this.authorUrlInput = ctx.authorUrlInput;
+		this.descriptionInput = ctx.descriptionInput;
+		this.readmeInput = ctx.readmeInput;
+		this.iconImagePath = ctx.iconImagePath;
+		this.previewImagePath = ctx.previewImagePath;
+		this.changelogInput = ctx.changelogInput;
 	}
 	
 	/**
@@ -432,6 +468,10 @@ export class ExtensionSubmissionModal extends Modal {
 	 * Validates the current step before proceeding
 	 */
 	private async validateCurrentStep(): Promise<boolean> {
+		// Sync any values that screens modified on the context object back
+		// into the modal so validation logic sees the latest state.
+		this.syncFromContext();
+		
 		const messageContainer = this.contentEl.querySelector('.step-message-container') as HTMLElement;
 		
 		switch (this.currentStep) {
