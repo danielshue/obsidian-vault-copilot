@@ -23,7 +23,7 @@
  * @since 1.0.0
  */
 
-import { TableClient, TableEntity, odata } from "@azure/data-tables";
+import { TableClient, TableEntity, odata, AzureNamedKeyCredential } from "@azure/data-tables";
 import { DefaultAzureCredential } from "@azure/identity";
 
 // ---------------------------------------------------------------------------
@@ -124,20 +124,64 @@ export class TableStorageService {
     /**
      * Construct a new service instance.
      *
+     * Supports dual-mode authentication:
+     * - Local development: HTTP endpoint to Azurite with AzureNamedKeyCredential
+     * - Production: HTTPS endpoint with DefaultAzureCredential (Managed Identity)
+     *
      * @internal – use {@link getInstance} instead.
      */
     private constructor() {
-        const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
-        if (!accountName) {
-            throw new Error("AZURE_STORAGE_ACCOUNT_NAME environment variable is not set");
+        const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+
+        if (connectionString) {
+            // Parse connection string for local Azurite development
+            const accountMatch = connectionString.match(/AccountName=([^;]+)/);
+            const keyMatch = connectionString.match(/AccountKey=([^;]+)/);
+            const endpointMatch = connectionString.match(/TableEndpoint=([^;]+)/);
+            
+            if (!accountMatch || !keyMatch || !endpointMatch) {
+                throw new Error("Invalid AZURE_STORAGE_CONNECTION_STRING format");
+            }
+            
+            const accountName = accountMatch[1];
+            const accountKey = keyMatch[1];
+            let tableEndpoint = endpointMatch[1];
+            
+            // Ensure endpoint doesn't have trailing slash  
+            if (tableEndpoint.endsWith("/")) {
+                tableEndpoint = tableEndpoint.slice(0, -1);
+            }
+            
+            // Add account name to path if not already there (for Azurite)
+            if (!tableEndpoint.includes(accountName)) {
+                tableEndpoint = `${tableEndpoint}/${accountName}`;
+            }
+            
+            const credential = new AzureNamedKeyCredential(accountName, accountKey);
+            
+            this.installsClient = new TableClient(tableEndpoint, "Installs", credential, {
+                allowInsecureConnection: true,
+            });
+            this.ratingsClient = new TableClient(tableEndpoint, "Ratings", credential, {
+                allowInsecureConnection: true,
+            });
+            this.metricsCacheClient = new TableClient(tableEndpoint, "MetricsCache", credential, {
+                allowInsecureConnection: true,
+            });
+        } else {
+            // Production: use DefaultAzureCredential (Managed Identity)
+            const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
+            if (!accountName) {
+                throw new Error("Either AZURE_STORAGE_CONNECTION_STRING or AZURE_STORAGE_ACCOUNT_NAME must be set");
+            }
+
+            const endpoint = `https://${accountName}.table.core.windows.net`;
+            const credential = new DefaultAzureCredential();
+
+            this.installsClient = new TableClient(endpoint, "Installs", credential);
+            this.ratingsClient = new TableClient(endpoint, "Ratings", credential);
+            this.metricsCacheClient = new TableClient(endpoint, "MetricsCache", credential);
         }
-
-        const endpoint = `https://${accountName}.table.core.windows.net`;
-        const credential = new DefaultAzureCredential();
-
-        this.installsClient = new TableClient(endpoint, "Installs", credential);
-        this.ratingsClient = new TableClient(endpoint, "Ratings", credential);
-        this.metricsCacheClient = new TableClient(endpoint, "MetricsCache", credential);
     }
 
     /**

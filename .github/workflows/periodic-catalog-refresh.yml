@@ -1,0 +1,95 @@
+name: Periodic Catalog Refresh
+
+on:
+  schedule:
+    # Run every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: catalog-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh-catalog:
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.check-changes.outputs.has_changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build catalog.json
+        run: node scripts/build-catalog.cjs
+
+      - name: Fetch extension metrics from Azure
+        run: node scripts/fetch-azure-metrics.cjs
+        env:
+          AZURE_API_URL: ${{ secrets.AZURE_API_URL }}
+
+      - name: Generate extension pages
+        run: node scripts/generate-extension-pages.cjs
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          git add catalog/catalog.json extensions/*/*/index.md
+          if git diff --staged --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No changes detected — skipping deploy."
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Changes detected — will commit and deploy."
+          fi
+
+      - name: Commit changes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: periodic catalog refresh [skip ci]"
+          git push
+
+  deploy-pages:
+    needs: refresh-catalog
+    if: needs.refresh-catalog.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Build Jekyll site
+        run: bundle exec jekyll build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,7 @@
+node_modules
+deploy.zip
+verify-final
+verify-new
+.git
+.gitignore
+*.md
