@@ -1,0 +1,26 @@
+{
+  "name": "vault-copilot-analytics",
+  "version": "1.0.0",
+  "description": "Azure Functions analytics API for Vault Copilot extension marketplace",
+  "main": "dist/src/functions/*.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "clean": "rimraf dist",
+    "prestart": "npm run clean && npm run build",
+    "start": "func start"
+  },
+  "dependencies": {
+    "@azure/data-tables": "^13.3.0",
+    "@azure/functions": "^4.6.0",
+    "@azure/identity": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

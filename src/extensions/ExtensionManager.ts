@@ -18,6 +18,8 @@
 import { App, Notice, TFile, Vault } from "obsidian";
 import { httpRequest } from "../utils/http";
 import { FileConflictModal, FileConflictResolution } from "./FileConflictModal";
+import { ExtensionAnalyticsService } from "./ExtensionAnalyticsService";
+import { isMobile } from "../utils/platform";
 import {
 	MarketplaceExtension,
 	LocalExtensionRecord,
@@ -60,16 +62,46 @@ export class ExtensionManager {
 	private app: App;
 	private trackingFilePath: string;
 	private installedExtensionsMap: Map<string, LocalExtensionRecord>;
+	/** Analytics service for tracking installs/uninstalls/ratings */
+	private analyticsService: ExtensionAnalyticsService | null = null;
+	/** Whether analytics is enabled */
+	private analyticsEnabled: boolean;
+	/** User hash for analytics (cached) */
+	private cachedUserHash: string | null = null;
+	/** Plugin version for analytics */
+	private pluginVersion: string;
 	
 	/**
 	 * Creates a new ExtensionManager.
 	 * 
 	 * @param app - Obsidian App instance
+	 * @param options - Optional configuration for analytics
 	 */
-	constructor(app: App) {
+	constructor(app: App, options?: {
+		enableAnalytics?: boolean;
+		analyticsEndpoint?: string;
+		githubUsername?: string;
+		anonymousId?: string;
+		pluginVersion?: string;
+	}) {
 		this.app = app;
 		this.trackingFilePath = ".obsidian/obsidian-vault-copilot-extensions.json";
 		this.installedExtensionsMap = new Map();
+		this.analyticsEnabled = options?.enableAnalytics !== false;
+		this.pluginVersion = options?.pluginVersion || '0.0.0';
+		
+		if (this.analyticsEnabled && options?.analyticsEndpoint) {
+			this.analyticsService = new ExtensionAnalyticsService(options.analyticsEndpoint);
+		}
+		
+		// Pre-compute user hash if username provided
+		if (options?.githubUsername) {
+			this.computeUserHash(options.githubUsername).then(hash => {
+				this.cachedUserHash = hash;
+			});
+		} else if (options?.anonymousId) {
+			this.cachedUserHash = options.anonymousId;
+		}
 	}
 	
 	/**
@@ -267,6 +299,10 @@ export class ExtensionManager {
 			
 			console.log(`[ExtensionManager] Installation of ${manifest.uniqueId} completed successfully`);
 			
+			// Track install analytics (fire-and-forget, don't fail installation)
+			this.trackInstallAnalytics(manifest.uniqueId, manifest.semanticVersion)
+				.catch(err => console.warn('[ExtensionManager] Analytics tracking failed:', err));
+			
 			return {
 				operationSucceeded: true,
 				affectedExtensionId: manifest.uniqueId,
@@ -343,6 +379,10 @@ export class ExtensionManager {
 			console.log(`[ExtensionManager] Updating tracking file...`);
 			await this.saveTrackingFile();
 			console.log(`[ExtensionManager] Tracking file updated successfully`);
+			
+			// Track uninstall analytics (fire-and-forget)
+			this.trackUninstallAnalytics(extensionId)
+				.catch(err => console.warn('[ExtensionManager] Analytics tracking failed:', err));
 			
 			return {
 				operationSucceeded: true,
@@ -472,10 +512,116 @@ export class ExtensionManager {
 	}
 	
 	/**
+	 * Gets the analytics service for external use (e.g., rating modal).
+	 * 
+	 * @returns The analytics service, or null if analytics is disabled.
+	 */
+	getAnalyticsService(): ExtensionAnalyticsService | null {
+		return this.analyticsService;
+	}
+	
+	/**
+	 * Gets the cached user hash for analytics.
+	 * 
+	 * @returns The user hash string, or null if not available.
+	 */
+	getUserHash(): string | null {
+		return this.cachedUserHash;
+	}
+	
+	/**
+	 * Returns whether analytics is enabled.
+	 */
+	isAnalyticsEnabled(): boolean {
+		return this.analyticsEnabled && this.analyticsService !== null;
+	}
+	
+	/**
 	 * Performs cleanup operations on shutdown.
 	 */
 	async cleanup(): Promise<void> {
 		// No-op for now, but available for future cleanup needs
+	}
+	
+	// ===== Analytics Helpers =====
+	
+	/**
+	 * Tracks an install event via the analytics service.
+	 * @param extensionId - Extension that was installed
+	 * @param version - Version that was installed
+	 * @internal
+	 */
+	private async trackInstallAnalytics(extensionId: string, version: string): Promise<void> {
+		if (!this.analyticsService || !this.analyticsEnabled) return;
+		
+		const userHash = await this.ensureUserHash();
+		if (!userHash) return;
+		
+		await this.analyticsService.trackInstall({
+			extensionId,
+			version,
+			userHash,
+			platform: isMobile ? 'mobile' : 'desktop',
+			vaultCopilotVersion: this.pluginVersion,
+			timestamp: new Date().toISOString(),
+		});
+	}
+	
+	/**
+	 * Tracks an uninstall event via the analytics service.
+	 * @param extensionId - Extension that was uninstalled
+	 * @internal
+	 */
+	private async trackUninstallAnalytics(extensionId: string): Promise<void> {
+		if (!this.analyticsService || !this.analyticsEnabled) return;
+		
+		const userHash = await this.ensureUserHash();
+		if (!userHash) return;
+		
+		await this.analyticsService.trackUninstall({
+			extensionId,
+			userHash,
+			timestamp: new Date().toISOString(),
+		});
+	}
+	
+	/**
+	 * Ensures we have a user hash, generating an anonymous one if needed.
+	 * @returns The user hash, or null if we can't generate one.
+	 * @internal
+	 */
+	private async ensureUserHash(): Promise<string | null> {
+		if (this.cachedUserHash) return this.cachedUserHash;
+		
+		// Generate anonymous ID
+		const anonymousId = this.generateAnonymousId();
+		this.cachedUserHash = anonymousId;
+		return anonymousId;
+	}
+	
+	/**
+	 * Computes a SHA-256 hash of a username for privacy.
+	 * @param username - The GitHub username to hash
+	 * @returns The hex-encoded SHA-256 hash
+	 * @internal
+	 */
+	private async computeUserHash(username: string): Promise<string> {
+		const encoder = new TextEncoder();
+		const data = encoder.encode(username.toLowerCase());
+		const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+		const hashArray = Array.from(new Uint8Array(hashBuffer));
+		return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+	}
+	
+	/**
+	 * Generates a random anonymous ID (64-char hex string matching userHash format).
+	 * @returns A random 64-character hex string
+	 * @internal
+	 */
+	private generateAnonymousId(): string {
+		const array = new Uint8Array(32);
+		crypto.getRandomValues(array);
+		return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
 	}
 	
 	// ===== Private Helper Methods =====

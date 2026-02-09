@@ -28,6 +28,11 @@ jobs:
       - name: Build catalog.json
         run: node scripts/build-catalog.cjs
       
+      - name: Fetch extension metrics from Azure
+        run: node scripts/fetch-azure-metrics.cjs
+        env:
+          AZURE_API_URL: ${{ secrets.AZURE_API_URL }}
+      
       - name: Generate extension pages
         run: node scripts/generate-extension-pages.cjs
       
