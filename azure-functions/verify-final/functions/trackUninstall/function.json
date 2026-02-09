@@ -1,0 +1,11 @@
+{
+  "scriptFile": "../../index.js",
+  "bindings": [
+    {
+      "name": "req",
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in"
+    }
+  ]
+}

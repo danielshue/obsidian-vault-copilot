@@ -6,21 +6,10 @@
         "isEnabled": true,
         "excludedTypes": "Request"
       }
-    },
-    "logLevel": {
-      "default": "Information",
-      "Host.Results": "Error",
-      "Function": "Information",
-      "Host.Aggregator": "Trace"
     }
   },
   "extensionBundle": {
     "id": "Microsoft.Azure.Functions.ExtensionBundle",
     "version": "[4.*, 5.0.0)"
-}
-,
-  "extensions": {
-    "http": {
-      "routePrefix": "api"
-    }
   }
+}
