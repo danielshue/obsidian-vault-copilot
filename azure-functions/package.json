@@ -2,7 +2,7 @@
   "name": "vault-copilot-analytics",
   "version": "1.0.0",
   "description": "Azure Functions analytics API for Vault Copilot extension marketplace",
-  "main": "dist/src/functions/*.js",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",

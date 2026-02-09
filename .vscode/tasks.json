@@ -1,0 +1,201 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build and Deploy Plugin",
+			"type": "shell",
+			"command": "npm run build && node deploy.mjs",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build and Deploy Plugin",
+			"type": "shell",
+			"command": "npm run build && node deploy.mjs",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build and Deploy Plugin",
+			"type": "shell",
+			"command": "npm run build && node deploy.mjs",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build with esbuild and Deploy",
+			"type": "shell",
+			"command": "node esbuild.config.mjs production && node deploy.mjs",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build and Deploy Plugin",
+			"type": "shell",
+			"command": "npm run build && node deploy.mjs",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build and Deploy Plugin",
+			"type": "shell",
+			"command": "node esbuild.config.mjs production && node deploy.mjs",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build and Deploy Plugin",
+			"type": "shell",
+			"command": "npm run build && node deploy.mjs",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Sync with master and push",
+			"type": "shell",
+			"command": "git fetch origin master && git merge origin/master && git push origin copilot/add-mute-function-realtime-agent",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Complete merge and push",
+			"type": "shell",
+			"command": "git commit -m \"Merge master into copilot/add-mute-function-realtime-agent\" && git push origin copilot/add-mute-function-realtime-agent",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Check git status",
+			"type": "shell",
+			"command": "git status",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Complete merge and push",
+			"type": "shell",
+			"command": "git add -A && git commit --no-edit && git push origin copilot/add-mute-function-realtime-agent",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Complete merge",
+			"type": "shell",
+			"command": "git commit --no-edit && git push origin copilot/add-mute-function-realtime-agent",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Push branch",
+			"type": "shell",
+			"command": "git push origin copilot/add-mute-function-realtime-agent",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Merge PR",
+			"type": "shell",
+			"command": "gh pr merge 9 --squash --delete-branch",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Ready and merge PR",
+			"type": "shell",
+			"command": "gh pr ready 9 && gh pr merge 9 --squash --delete-branch",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Check PR status",
+			"type": "shell",
+			"command": "gh pr view 9",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Check git state",
+			"type": "shell",
+			"command": "git status && git log --oneline -5",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build and Deploy Plugin",
+			"type": "shell",
+			"command": "npm run build && node deploy.mjs",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build and Deploy Plugin",
+			"type": "shell",
+			"command": "npm run build && node deploy.mjs",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"type": "func",
+			"label": "func: host start",
+			"command": "host start",
+			"problemMatcher": "$func-node-watch",
+			"isBackground": true,
+			"dependsOn": "npm watch (functions)",
+			"options": {
+				"cwd": "${workspaceFolder}/azure-functions"
+			}
+		},
+		{
+			"type": "shell",
+			"label": "npm build (functions)",
+			"command": "npm run build",
+			"dependsOn": "npm clean (functions)",
+			"problemMatcher": "$tsc",
+			"options": {
+				"cwd": "${workspaceFolder}/azure-functions"
+			}
+		},
+		{
+			"type": "shell",
+			"label": "npm watch (functions)",
+			"command": "npm run watch",
+			"dependsOn": "npm clean (functions)",
+			"problemMatcher": "$tsc-watch",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"isBackground": true,
+			"options": {
+				"cwd": "${workspaceFolder}/azure-functions"
+			}
+		},
+		{
+			"type": "shell",
+			"label": "npm install (functions)",
+			"command": "npm install",
+			"options": {
+				"cwd": "${workspaceFolder}/azure-functions"
+			}
+		},
+		{
+			"type": "shell",
+			"label": "npm prune (functions)",
+			"command": "npm prune --production",
+			"dependsOn": "npm build (functions)",
+			"problemMatcher": [],
+			"options": {
+				"cwd": "${workspaceFolder}/azure-functions"
+			}
+		},
+		{
+			"type": "shell",
+			"label": "npm clean (functions)",
+			"command": "npm run clean",
+			"dependsOn": "npm install (functions)",
+			"options": {
+				"cwd": "${workspaceFolder}/azure-functions"
+			}
+		}
+	]
+}

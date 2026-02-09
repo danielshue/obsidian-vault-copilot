@@ -3,7 +3,7 @@
     "module": "Node16",
     "target": "ES2022",
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "src",
     "sourceMap": true,
     "strict": true,
     "moduleResolution": "Node16",
