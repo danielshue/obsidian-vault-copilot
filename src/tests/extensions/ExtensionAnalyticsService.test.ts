@@ -36,7 +36,7 @@ function mockResponse(partial: { status: number; json: any; text: string }): Req
 
 describe("ExtensionAnalyticsService", () => {
 	let service: ExtensionAnalyticsService;
-	const BASE_URL = "https://vault-copilot-api.azurewebsites.net/api";
+	const BASE_URL = "https://vault-copilot-api.azurewebsites.net";
 
 	beforeEach(() => {
 		service = new ExtensionAnalyticsService(BASE_URL);
@@ -49,14 +49,25 @@ describe("ExtensionAnalyticsService", () => {
 
 	describe("constructor", () => {
 		it("should strip trailing slashes from base URL", () => {
-			const svc = new ExtensionAnalyticsService("https://example.com/api///");
+			const svc = new ExtensionAnalyticsService("https://example.com///");
 			// We can't inspect private property directly; test via request URL
 			mockRequestUrl.mockResolvedValue(mockResponse({ status: 200, json: { extensionId: "test" }, text: "{}" }));
 			svc.getMetrics("test");
 			// The URL should not have triple slashes
 			expect(mockRequestUrl).toHaveBeenCalledWith(
 				expect.objectContaining({
-					url: "https://example.com/api/api/metrics/test",
+					url: "https://example.com/api/metrics/test",
+				}),
+			);
+		});
+
+		it("should strip trailing /api to prevent double-prefixing", () => {
+			const svc = new ExtensionAnalyticsService("https://example.com/api");
+			mockRequestUrl.mockResolvedValue(mockResponse({ status: 200, json: { extensionId: "test" }, text: "{}" }));
+			svc.getMetrics("test");
+			expect(mockRequestUrl).toHaveBeenCalledWith(
+				expect.objectContaining({
+					url: "https://example.com/api/metrics/test",
 				}),
 			);
 		});

@@ -66,7 +66,7 @@ export class ExtensionBrowserView extends ItemView {
 		
 		this.extensionManager = new ExtensionManager(this.app, {
 			enableAnalytics: plugin.settings.enableAnalytics !== false,
-			analyticsEndpoint: plugin.settings.analyticsEndpoint || 'https://vault-copilot-api.azurewebsites.net/api',
+			analyticsEndpoint: plugin.settings.analyticsEndpoint || 'https://vault-copilot-api.azurewebsites.net',
 			githubUsername: plugin.settings.githubUsername || '',
 			anonymousId: plugin.settings.anonymousId || '',
 			pluginVersion: plugin.manifest.version,

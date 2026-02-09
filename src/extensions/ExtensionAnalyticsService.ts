@@ -185,7 +185,9 @@ export class ExtensionAnalyticsService {
      *                  A trailing slash is stripped automatically.
      */
     constructor(baseUrl: string) {
-        this.baseUrl = baseUrl.replace(/\/+$/, '');
+        // Strip trailing slashes and a trailing "/api" segment to prevent
+        // double-prefixing (each endpoint path already includes "/api/…").
+        this.baseUrl = baseUrl.replace(/\/+$/, '').replace(/\/api$/i, '');
     }
 
     /* -------------------------------------------------------------- */
