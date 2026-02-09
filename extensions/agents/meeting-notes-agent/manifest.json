@@ -23,7 +23,7 @@
   "tools": ["create_note", "read_note", "search_vault", "update_note"],
   "dependencies": [],
   "preview": "preview.png",
-  "featured": true,
+  "featured": false,
   "publishedAt": "2026-02-01T00:00:00Z",
   "versions": [
     {

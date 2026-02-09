@@ -622,22 +622,12 @@ function selectFeaturedExtensions(extensions) {
   // Take top extensions that meet minimum criteria
   const featured = scored
     .filter(s => {
-      // If explicitly marked featured, always include
+      // Only include extensions explicitly marked as featured
       const ext = extensions.find(e => e.id === s.id);
-      if (ext?.featured) return true;
-      // Otherwise, check minimum rating if set
-      if (FEATURED_CONFIG.minRating && s.rating !== null) {
-        return s.rating >= FEATURED_CONFIG.minRating;
-      }
-      return true;
+      return ext?.featured === true;
     })
     .slice(0, FEATURED_CONFIG.maxFeatured)
     .map(s => s.id);
-  
-  // If no extensions meet criteria, take the top few anyway
-  if (featured.length === 0 && extensions.length > 0) {
-    return scored.slice(0, Math.min(5, extensions.length)).map(s => s.id);
-  }
   
   return featured;
 }

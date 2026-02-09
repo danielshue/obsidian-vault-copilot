@@ -34,7 +34,7 @@
     "get_daily_note"
   ],
   "repository": "https://github.com/danielshue/obsidian-vault-copilot",
-  "featured": true,
+  "featured": false,
   "changelog": "CHANGELOG.md",
   "versions": [
     {

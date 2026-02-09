@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated": "2026-02-09T15:01:07.519Z",
+  "generated": "2026-02-09T15:19:14.715Z",
   "totalExtensions": 4,
   "extensions": [
     {
@@ -29,9 +29,9 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-09T15:00:53.779Z",
-      "size": "2.4 KB",
-      "sizeBytes": 2481,
+      "updatedAt": "2026-02-09T15:18:48.602Z",
+      "size": "2.5 KB",
+      "sizeBytes": 2577,
       "minVaultCopilotVersion": "0.1.0",
       "repository": "https://github.com/danielshue/obsidian-vault-copilot",
       "license": "MIT",
@@ -42,7 +42,7 @@
           "source": "meeting-notes-agent.agent.md",
           "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/agents/meeting-notes-agent/meeting-notes-agent.agent.md",
           "installPath": "Reference/Agents/",
-          "size": "2.4 KB"
+          "size": "2.5 KB"
         }
       ],
       "tools": [
@@ -55,7 +55,7 @@
       "dependencies": [],
       "preview": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/agents/meeting-notes-agent/preview.png",
       "icon": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/agents/meeting-notes-agent/icon.svg",
-      "featured": true,
+      "featured": false,
       "versions": [
         {
           "version": "1.0.0",
@@ -68,9 +68,7 @@
           ]
         }
       ],
-      "submittedBy": null,
-      "activeInstalls": 0,
-      "analyticsSource": "azure"
+      "submittedBy": null
     },
     {
       "id": "task-management-prompt",
@@ -98,9 +96,9 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-09T15:00:53.781Z",
-      "size": "1.4 KB",
-      "sizeBytes": 1467,
+      "updatedAt": "2026-02-06T04:23:50.230Z",
+      "size": "1.5 KB",
+      "sizeBytes": 1526,
       "minVaultCopilotVersion": "0.1.0",
       "repository": "https://github.com/danielshue/obsidian-vault-copilot",
       "license": "MIT",
@@ -111,7 +109,7 @@
           "source": "task-management-prompt.prompt.md",
           "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/prompts/task-management-prompt/task-management-prompt.prompt.md",
           "installPath": "Reference/Prompts/",
-          "size": "1.4 KB"
+          "size": "1.5 KB"
         }
       ],
       "tools": [
@@ -136,9 +134,7 @@
           ]
         }
       ],
-      "submittedBy": null,
-      "activeInstalls": 0,
-      "analyticsSource": "azure"
+      "submittedBy": null
     },
     {
       "id": "example-weather-mcp",
@@ -166,9 +162,9 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-09T15:00:53.781Z",
+      "updatedAt": "2026-02-06T04:23:50.228Z",
       "size": "0.2 KB",
-      "sizeBytes": 238,
+      "sizeBytes": 252,
       "minVaultCopilotVersion": "0.1.0",
       "repository": "https://github.com/danielshue/obsidian-vault-copilot",
       "license": "MIT",
@@ -179,7 +175,7 @@
           "source": "mcp-config.json",
           "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/mcp-servers/example-weather-mcp/mcp-config.json",
           "installPath": ".obsidian/",
-          "size": "238 B"
+          "size": "252 B"
         }
       ],
       "tools": [],
@@ -202,9 +198,7 @@
           ]
         }
       ],
-      "submittedBy": null,
-      "activeInstalls": 0,
-      "analyticsSource": "azure"
+      "submittedBy": null
     },
     {
       "id": "weekly-review-agent",
@@ -232,9 +226,9 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-09T15:00:53.780Z",
-      "size": "3.4 KB",
-      "sizeBytes": 3458,
+      "updatedAt": "2026-02-09T15:18:48.602Z",
+      "size": "3.5 KB",
+      "sizeBytes": 3597,
       "minVaultCopilotVersion": "0.1.0",
       "repository": "https://github.com/danielshue/obsidian-vault-copilot",
       "license": "MIT",
@@ -245,7 +239,7 @@
           "source": "weekly-review-agent.agent.md",
           "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/agents/weekly-review-agent/weekly-review-agent.agent.md",
           "installPath": "Reference/Agents/",
-          "size": "3.4 KB"
+          "size": "3.5 KB"
         }
       ],
       "tools": [
@@ -258,7 +252,7 @@
       "dependencies": [],
       "preview": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/agents/weekly-review-agent/preview.png",
       "icon": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/agents/weekly-review-agent/icon.svg",
-      "featured": true,
+      "featured": false,
       "versions": [
         {
           "version": "1.0.0",
@@ -271,9 +265,7 @@
           ]
         }
       ],
-      "submittedBy": null,
-      "activeInstalls": 0,
-      "analyticsSource": "azure"
+      "submittedBy": null
     }
   ],
   "categories": [
@@ -287,12 +279,7 @@
     "MCP",
     "Utility"
   ],
-  "featured": [
-    "meeting-notes-agent",
-    "weekly-review-agent",
-    "task-management-prompt",
-    "example-weather-mcp"
-  ],
+  "featured": [],
   "stats": {
     "byType": {
       "agents": 2,
@@ -314,6 +301,5 @@
     },
     "withRatings": 0,
     "averageRating": null
-  },
-  "lastUpdated": "2026-02-09T15:01:11.293Z"
+  }
 }
