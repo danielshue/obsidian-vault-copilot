@@ -101,6 +101,10 @@ export class ExtensionManager {
 			});
 		} else if (options?.anonymousId) {
 			this.cachedUserHash = options.anonymousId;
+		} else if (this.analyticsEnabled) {
+			// Auto-generate anonymous ID if analytics is enabled but no user identifier provided
+			this.cachedUserHash = this.generateAnonymousId();
+			console.log('[ExtensionManager] Auto-generated anonymous ID for analytics');
 		}
 	}
 	

@@ -74,6 +74,7 @@ import { getTracingService } from "./copilot/TracingService";
 import { MainVaultAssistant } from "./copilot/realtime-agent/MainVaultAssistant";
 import { isMobile, supportsLocalProcesses } from "./utils/platform";
 import * as VaultOps from "./copilot/tools/VaultOperations";
+import { loadAuthorInfo } from "./ui/extensions/Submission/utils";
 
 /**
  * Session information combining local UI state with SDK session metadata.
@@ -574,6 +575,21 @@ export default class CopilotPlugin extends Plugin {
 	 */
 	async onload(): Promise<void> {
 		await this.loadSettings();
+
+		// Auto-detect GitHub username if not already set (desktop only)
+		if (supportsLocalProcesses() && !this.settings.githubUsername) {
+			try {
+				const authorInfo = await loadAuthorInfo();
+				if (authorInfo.githubUsername) {
+					console.log('[VaultCopilot] Auto-detected GitHub username:', authorInfo.githubUsername);
+					this.settings.githubUsername = authorInfo.githubUsername;
+					await this.saveSettings();
+				}
+			} catch (error) {
+				// Silently fail - username is optional
+				console.log('[VaultCopilot] Could not auto-detect GitHub username:', error);
+			}
+		}
 
 		// Validate provider compatibility on load (mobile check)
 		if (isMobile && this.settings.aiProvider === "copilot") {

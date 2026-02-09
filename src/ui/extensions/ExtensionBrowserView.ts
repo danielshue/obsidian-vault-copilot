@@ -731,8 +731,15 @@ export class ExtensionBrowserView extends ItemView {
 		const analyticsService = this.extensionManager.getAnalyticsService();
 		const userHash = this.extensionManager.getUserHash();
 		
-		if (!analyticsService || !userHash) {
+		// Analytics service is required for ratings (userHash is auto-generated if not set)
+		if (!analyticsService) {
 			new Notice('Analytics is not enabled. Enable it in Settings → Extension Analytics.', 5000);
+			return;
+		}
+		
+		// userHash should always be available when analytics is enabled, but check just in case
+		if (!userHash) {
+			new Notice('Unable to submit rating: user identification not available.', 5000);
 			return;
 		}
 		
