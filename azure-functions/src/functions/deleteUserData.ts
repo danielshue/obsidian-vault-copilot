@@ -27,10 +27,24 @@ async function deleteUserData(request: HttpRequest, context: InvocationContext):
     context.log("Processing deleteUserData request");
 
     const userHash = request.params.userHash;
+    const authenticatedUserHash = request.headers.get("x-user-hash");
 
     const userHashResult = validateUserHash(userHash);
     if (!userHashResult.valid) {
         return { status: 400, jsonBody: { error: userHashResult.error } };
+    }
+
+    // Authorization: Only the user themselves OR an admin can delete user data
+    const adminHashes = (process.env.ADMIN_USER_HASHES || "").split(",").map(h => h.trim()).filter(Boolean);
+    const isAdmin = authenticatedUserHash && adminHashes.includes(authenticatedUserHash);
+    const isOwner = authenticatedUserHash === userHash;
+
+    if (!authenticatedUserHash || (!isOwner && !isAdmin)) {
+        context.warn(`Unauthorized deleteUserData attempt: authenticated=${authenticatedUserHash}, target=${userHash}, isAdmin=${isAdmin}`);
+        return {
+            status: 403,
+            jsonBody: { error: "Forbidden: You can only delete your own data" },
+        };
     }
 
     try {

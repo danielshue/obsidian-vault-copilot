@@ -358,7 +358,7 @@ export class RatingModal extends Modal {
     }
 
     /**
-     * Build the action buttons (Submit / Cancel).
+     * Build the action buttons (Submit / Cancel / Remove).
      *
      * @param containerEl - Parent element.
      * @internal
@@ -379,6 +379,15 @@ export class RatingModal extends Modal {
             cls: "vc-rating-cancel",
         });
         cancelBtn.addEventListener("click", () => this.close());
+
+        // Remove button (only shown when editing)
+        if (this.isEditing()) {
+            const removeBtn = actionsEl.createEl("button", {
+                text: "Remove Rating",
+                cls: "vc-rating-remove mod-warning",
+            });
+            removeBtn.addEventListener("click", () => this.handleRemove());
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -558,6 +567,54 @@ export class RatingModal extends Modal {
             this.submitting = false;
             this.submitBtnEl.textContent = this.isEditing() ? "Update Rating" : "Submit Rating";
             this.updateSubmitButton();
+        }
+    }
+
+    /**
+     * Handle removing an existing rating.
+     *
+     * Prompts for confirmation, then calls the analytics service to delete
+     * the rating from the backend.
+     *
+     * @internal
+     */
+    private async handleRemove(): Promise<void> {
+        if (!this.isEditing() || this.submitting) {
+            return;
+        }
+
+        // Confirm deletion
+        const confirmed = confirm(
+            `Are you sure you want to remove your rating for "${this.config.extensionName}"? This action cannot be undone.`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        this.submitting = true;
+        this.submitBtnEl.textContent = "Removing...";
+        this.submitBtnEl.disabled = true;
+
+        try {
+            const { averageRating, ratingCount } = await this.config.analyticsService.deleteRating(
+                this.config.extensionId,
+                this.config.userHash
+            );
+
+            new Notice("Rating removed successfully!");
+            this.config.onRatingSubmitted?.(0, undefined, {
+                success: true,
+                message: "Rating removed",
+                aggregateRating: averageRating,
+                ratingCount: ratingCount,
+            });
+            this.close();
+        } catch {
+            new Notice("Failed to remove rating. Please try again.");
+            this.submitting = false;
+            this.submitBtnEl.textContent = "Update Rating";
+            this.submitBtnEl.disabled = false;
         }
     }
 

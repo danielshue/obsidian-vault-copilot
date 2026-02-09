@@ -177,17 +177,30 @@ export interface UserDataResponse {
 export class ExtensionAnalyticsService {
     /** Base URL of the Azure Functions API (no trailing slash). */
     private readonly baseUrl: string;
+    /** Authenticated user hash for authorization (optional). */
+    private authenticatedUserHash?: string;
 
     /**
      * Create a new analytics service instance.
      *
      * @param baseUrl - Root URL of the analytics API (e.g. `https://my-func.azurewebsites.net`).
      *                  A trailing slash is stripped automatically.
+     * @param authenticatedUserHash - Optional user hash for authenticated requests.
      */
-    constructor(baseUrl: string) {
+    constructor(baseUrl: string, authenticatedUserHash?: string) {
         // Strip trailing slashes and a trailing "/api" segment to prevent
         // double-prefixing (each endpoint path already includes "/api/…").
         this.baseUrl = baseUrl.replace(/\/+$/, '').replace(/\/api$/i, '');
+        this.authenticatedUserHash = authenticatedUserHash;
+    }
+
+    /**
+     * Set the authenticated user hash for authorization.
+     *
+     * @param userHash - The authenticated user's hash.
+     */
+    setAuthenticatedUser(userHash: string): void {
+        this.authenticatedUserHash = userHash;
     }
 
     /* -------------------------------------------------------------- */
@@ -280,20 +293,24 @@ export class ExtensionAnalyticsService {
      *
      * @param extensionId - The extension whose rating should be removed.
      * @param userHash    - Anonymised user hash that owns the rating.
-     * @returns Resolves when the rating has been deleted.
+     * @returns Resolves with updated aggregate rating and count after deletion.
      *
      * @example
      * ```typescript
-     * await svc.deleteRating('my-ext', 'hash');
+     * const { averageRating, ratingCount } = await svc.deleteRating('my-ext', 'hash');
      * ```
      *
      * @throws {Error} If the server responds with a status >= 400.
      */
-    async deleteRating(extensionId: string, userHash: string): Promise<void> {
-        await this.request<void>(
+    async deleteRating(extensionId: string, userHash: string): Promise<{ averageRating: number; ratingCount: number }> {
+        const response = await this.request<RatingResponse>(
             `/api/ratings/${encodeURIComponent(extensionId)}/${encodeURIComponent(userHash)}`,
             { method: 'DELETE' },
         );
+        return {
+            averageRating: response.aggregateRating,
+            ratingCount: response.ratingCount,
+        };
     }
 
     /* -------------------------------------------------------------- */
@@ -440,6 +457,11 @@ export class ExtensionAnalyticsService {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
         };
+
+        // Add authenticated user hash for authorization
+        if (this.authenticatedUserHash) {
+            headers['X-User-Hash'] = this.authenticatedUserHash;
+        }
 
         const response = await requestUrl({
             url,

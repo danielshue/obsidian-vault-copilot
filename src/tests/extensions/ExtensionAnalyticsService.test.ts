@@ -189,9 +189,19 @@ describe("ExtensionAnalyticsService", () => {
 
 	describe("deleteRating", () => {
 		it("should send DELETE to /api/ratings/{extensionId}/{userHash}", async () => {
-			mockRequestUrl.mockResolvedValue(mockResponse({ status: 204, json: null, text: "" }));
+			const deleteResponse = {
+				success: true,
+				message: "Rating deleted successfully",
+				aggregateRating: 4.5,
+				ratingCount: 10,
+			};
+			mockRequestUrl.mockResolvedValue(mockResponse({
+				status: 200,
+				json: deleteResponse,
+				text: JSON.stringify(deleteResponse),
+			}));
 
-			await service.deleteRating("daily-journal", "d".repeat(64));
+			const result = await service.deleteRating("daily-journal", "d".repeat(64));
 
 			expect(mockRequestUrl).toHaveBeenCalledWith(
 				expect.objectContaining({
@@ -199,6 +209,8 @@ describe("ExtensionAnalyticsService", () => {
 					method: "DELETE",
 				}),
 			);
+			expect(result.averageRating).toBe(4.5);
+			expect(result.ratingCount).toBe(10);
 		});
 	});
 

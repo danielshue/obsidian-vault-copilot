@@ -98,13 +98,25 @@ export class ExtensionManager {
 		if (options?.githubUsername) {
 			this.computeUserHash(options.githubUsername).then(hash => {
 				this.cachedUserHash = hash;
+				// Set authenticated user in analytics service
+				if (this.analyticsService) {
+					this.analyticsService.setAuthenticatedUser(hash);
+				}
 			});
 		} else if (options?.anonymousId) {
 			this.cachedUserHash = options.anonymousId;
+			// Set authenticated user in analytics service
+			if (this.analyticsService) {
+				this.analyticsService.setAuthenticatedUser(options.anonymousId);
+			}
 		} else if (this.analyticsEnabled) {
 			// Auto-generate anonymous ID if analytics is enabled but no user identifier provided
 			this.cachedUserHash = this.generateAnonymousId();
 			console.log('[ExtensionManager] Auto-generated anonymous ID for analytics');
+			// Set authenticated user in analytics service
+			if (this.analyticsService) {
+				this.analyticsService.setAuthenticatedUser(this.cachedUserHash);
+			}
 		}
 	}
 	

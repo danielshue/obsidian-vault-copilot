@@ -18,6 +18,7 @@ import { app } from "@azure/functions";
 import "./functions/health";
 import "./functions/getExtensionRatings";
 import "./functions/submitRating";
+import "./functions/deleteRating";
 import "./functions/getMetrics";
 import "./functions/getBatchMetrics";
 import "./functions/trackInstall";

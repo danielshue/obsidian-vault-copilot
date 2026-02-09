@@ -767,8 +767,15 @@ export class ExtensionBrowserView extends ItemView {
 			analyticsService,
 			existingRating,
 			existingComment,
-			onRatingSubmitted: async (_rating, _comment, response) => {
-				new Notice(`Rating submitted for "${ext.displayTitle}"`);
+			onRatingSubmitted: async (rating, _comment, response) => {
+				if (rating === 0) {
+					// Rating was removed
+					new Notice(`Rating removed for "${ext.displayTitle}"`);
+				} else {
+					// Rating was submitted or updated
+					new Notice(`Rating ${existingRating ? 'updated' : 'submitted'} for "${ext.displayTitle}"`);
+				}
+				
 				// Update the in-memory catalog cache so the UI reflects the new rating immediately
 				this.catalogService.updateCachedRating(
 					ext.uniqueId,
