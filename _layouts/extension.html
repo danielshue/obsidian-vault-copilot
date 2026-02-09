@@ -78,24 +78,14 @@
         </section>
         {% endif %}
         
-        <!-- Comments Section -->
-        <section class="extension-comments">
-          <h2>Feedback & Discussion</h2>
-          <script src="https://giscus.app/client.js"
-            data-repo="danielshue/vault-copilot-extensions"
-            data-repo-id="R_kgDORJfKUQ"
-            data-category="Extension Feedback"
-            data-category-id="DIC_kwDORJfKUc4C18J5"
-            data-mapping="pathname"
-            data-strict="0"
-            data-reactions-enabled="1"
-            data-emit-metadata="0"
-            data-input-position="bottom"
-            data-theme="preferred_color_scheme"
-            data-lang="en"
-            crossorigin="anonymous"
-            async>
-          </script>
+        <!-- Feedback Section (ratings with comments from Azure) -->
+        <section class="extension-feedback" id="extension-feedback">
+          <h2>Feedback</h2>
+          <div id="feedback-loading" class="feedback-loading">Loading feedback...</div>
+          <div id="feedback-list" class="feedback-list" style="display:none;"></div>
+          <div id="feedback-empty" class="feedback-empty" style="display:none;">
+            <p>No feedback yet. Rate this extension in Vault Copilot to leave a review!</p>
+          </div>
         </section>
       </article>
       
@@ -158,6 +148,122 @@
           }
         });
       }
+    })();
+    
+    // Feedback & metrics from Azure API
+    (function() {
+      const API_BASE = 'https://vault-copilot-api.azurewebsites.net/api';
+      const extensionId = '{{ page.identifier }}';
+      
+      if (!extensionId) return;
+      
+      function renderStars(rating) {
+        const r = rating || 0;
+        let html = '';
+        for (let i = 1; i <= 5; i++) {
+          if (r >= i) html += '<span class="star star-filled">★</span>';
+          else if (r >= i - 0.5) html += '<span class="star star-half">★</span>';
+          else html += '<span class="star star-empty">☆</span>';
+        }
+        return html;
+      }
+      
+      function renderStarsText(rating) {
+        const r = rating || 0;
+        let text = '';
+        for (let i = 1; i <= 5; i++) {
+          text += r >= i ? '★' : (r >= i - 0.5 ? '★' : '☆');
+        }
+        return text;
+      }
+      
+      function timeAgo(dateStr) {
+        const d = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now - d;
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return diffMins + 'm ago';
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return diffHours + 'h ago';
+        const diffDays = Math.floor(diffHours / 24);
+        if (diffDays < 30) return diffDays + 'd ago';
+        const diffMonths = Math.floor(diffDays / 30);
+        if (diffMonths < 12) return diffMonths + 'mo ago';
+        return Math.floor(diffMonths / 12) + 'y ago';
+      }
+      
+      function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+      
+      // Fetch metrics for sidebar
+      fetch(API_BASE + '/metrics/' + encodeURIComponent(extensionId))
+        .then(r => r.ok ? r.json() : null)
+        .then(metrics => {
+          if (!metrics) return;
+          
+          // Show rating in sidebar
+          if (metrics.ratingCount > 0) {
+            const ratingSection = document.getElementById('sidebar-rating');
+            const starsEl = document.getElementById('sidebar-stars');
+            const textEl = document.getElementById('sidebar-rating-text');
+            if (ratingSection && starsEl && textEl) {
+              starsEl.innerHTML = renderStars(metrics.averageRating);
+              textEl.textContent = metrics.averageRating.toFixed(1) + ' (' + metrics.ratingCount + ' rating' + (metrics.ratingCount !== 1 ? 's' : '') + ')';
+              ratingSection.style.display = '';
+            }
+          }
+          
+          // Show downloads in sidebar
+          if (metrics.totalInstalls > 0) {
+            const dlSection = document.getElementById('sidebar-downloads');
+            const dlCount = document.getElementById('sidebar-downloads-count');
+            if (dlSection && dlCount) {
+              dlCount.textContent = metrics.totalInstalls.toLocaleString();
+              dlSection.style.display = '';
+            }
+          }
+        })
+        .catch(() => {});
+      
+      // Fetch ratings/feedback
+      fetch(API_BASE + '/ratings/' + encodeURIComponent(extensionId))
+        .then(r => r.ok ? r.json() : [])
+        .then(ratings => {
+          const loading = document.getElementById('feedback-loading');
+          const list = document.getElementById('feedback-list');
+          const empty = document.getElementById('feedback-empty');
+          
+          if (loading) loading.style.display = 'none';
+          
+          if (!ratings || ratings.length === 0) {
+            if (empty) empty.style.display = '';
+            return;
+          }
+          
+          if (list) {
+            list.innerHTML = ratings.map(r => `
+              <div class="feedback-item">
+                <div class="feedback-header">
+                  <span class="feedback-stars">${renderStars(r.rating)}</span>
+                  <span class="feedback-date">${timeAgo(r.updatedDate)}</span>
+                </div>
+                ${r.comment ? '<p class="feedback-comment">' + escapeHtml(r.comment) + '</p>' : ''}
+                ${r.version ? '<span class="feedback-version">v' + escapeHtml(r.version) + '</span>' : ''}
+              </div>
+            `).join('');
+            list.style.display = '';
+          }
+        })
+        .catch(() => {
+          const loading = document.getElementById('feedback-loading');
+          const empty = document.getElementById('feedback-empty');
+          if (loading) loading.style.display = 'none';
+          if (empty) empty.style.display = '';
+        });
     })();
   </script>
 </body>

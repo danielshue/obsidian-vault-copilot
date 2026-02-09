@@ -111,6 +111,7 @@ function generateExtensionPages() {
       const frontMatter = [
         '---',
         'layout: extension',
+        `identifier: "${manifest.id || entry.name}"`,
         `title: "${manifest.name || entry.name}"`,
         `type: ${manifest.type || type.replace(/s$/, '')}`,
         `version: "${manifest.version || '1.0.0'}"`,

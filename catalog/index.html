@@ -33,6 +33,7 @@ title: Browse Extensions
         <option value="name">Name</option>
         <option value="newest">Newest</option>
         <option value="downloads">Most Downloads</option>
+        <option value="rating">Highest Rated</option>
       </select>
     </div>
   </div>
@@ -188,6 +189,49 @@ title: Browse Extensions
   color: var(--color-text-secondary);
 }
 
+.extension-stats {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+  margin-top: var(--spacing-sm);
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.extension-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.extension-stat svg {
+  opacity: 0.7;
+}
+
+.star {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.star-filled {
+  color: #f5a623;
+}
+
+.star-half {
+  color: #f5a623;
+  opacity: 0.6;
+}
+
+.star-empty {
+  color: var(--color-text-secondary);
+  opacity: 0.4;
+}
+
+.rating-count {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+}
+
 .extension-tags {
   display: flex;
   flex-wrap: wrap;
@@ -253,6 +297,21 @@ document.addEventListener('DOMContentLoaded', async function() {
     console.error('Failed to load catalog:', error);
   }
   
+  function renderStars(rating) {
+    const r = rating || 0;
+    let stars = '';
+    for (let i = 1; i <= 5; i++) {
+      if (r >= i) {
+        stars += '<span class="star star-filled">★</span>';
+      } else if (r >= i - 0.5) {
+        stars += '<span class="star star-half">★</span>';
+      } else {
+        stars += '<span class="star star-empty">☆</span>';
+      }
+    }
+    return stars;
+  }
+  
   function renderExtensions() {
     const typeValue = typeFilter.value;
     const categoryValue = categoryFilter.value;
@@ -268,7 +327,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     filtered.sort((a, b) => {
       if (sortValue === 'name') return a.name.localeCompare(b.name);
       if (sortValue === 'newest') return new Date(b.publishedAt) - new Date(a.publishedAt);
-      if (sortValue === 'downloads') return b.downloads - a.downloads;
+      if (sortValue === 'downloads') return (b.downloads || 0) - (a.downloads || 0);
+      if (sortValue === 'rating') return (b.rating || 0) - (a.rating || 0);
       return 0;
     });
     
@@ -315,6 +375,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         <div class="extension-meta">
           <span>v${ext.version}</span>
           <span>by ${ext.author.name}</span>
+        </div>
+        <div class="extension-stats">
+          <span class="extension-stat" title="Downloads">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            ${ext.downloads || 0}
+          </span>
+          <span class="extension-stat" title="${ext.rating ? ext.rating.toFixed(1) + ' average rating' : 'No ratings yet'}">
+            ${renderStars(ext.rating)}
+            <span class="rating-count">(${ext.ratingCount || 0})</span>
+          </span>
         </div>
         <div class="extension-tags">
           ${ext.tags.slice(0, 3).map(tag => `<span class="extension-tag">${tag}</span>`).join('')}

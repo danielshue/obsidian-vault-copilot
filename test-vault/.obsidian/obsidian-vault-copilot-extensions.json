@@ -1,0 +1,14 @@
+{
+  "formatVersion": "1.0",
+  "installedExtensions": {
+    "meeting-notes-agent": {
+      "extensionId": "meeting-notes-agent",
+      "installedVersion": "1.0.0",
+      "installationTimestamp": "2026-02-09T15:42:48.683Z",
+      "installedFilePaths": [
+        "Reference/Agents/meeting-notes-agent.agent.md"
+      ],
+      "linkedDependencies": []
+    }
+  }
+}

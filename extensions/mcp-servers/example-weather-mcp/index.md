@@ -1,5 +1,6 @@
 ---
 layout: extension
+identifier: "example-weather-mcp"
 title: "Weather MCP Server"
 type: mcp-server
 version: "1.0.0"
@@ -9,7 +10,7 @@ author_url: "https://danielshue.com"
 icon: "extensions/mcp-servers/example-weather-mcp/icon.svg"
 categories: ["Integration", "MCP", "Utility"]
 tags: ["weather", "mcp", "api", "daily-notes", "planning"]
-size: "64.1 KB"
+size: "64.5 KB"
 versions:
   - version: "1.0.0"
     date: "2026-02-01"

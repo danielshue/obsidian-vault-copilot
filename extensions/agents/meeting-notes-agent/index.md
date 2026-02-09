@@ -1,5 +1,6 @@
 ---
 layout: extension
+identifier: "meeting-notes-agent"
 title: "Meeting Notes Agent"
 type: agent
 version: "1.0.0"
@@ -9,7 +10,7 @@ author_url: "https://danielshue.com"
 icon: "extensions/agents/meeting-notes-agent/icon.svg"
 categories: ["Productivity", "Task Management"]
 tags: ["meetings", "notes", "action-items", "agenda", "summary", "collaboration"]
-size: "62.5 KB"
+size: "62.8 KB"
 versions:
   - version: "1.0.0"
     date: "2026-02-01"

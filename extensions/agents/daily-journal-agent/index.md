@@ -1,5 +1,6 @@
 ---
 layout: extension
+identifier: "daily-journal-agent"
 title: "Daily Journal Agent"
 type: agent
 version: "1.1.0"
@@ -9,7 +10,7 @@ author_url: "https://github.com/danielshue"
 icon: "extensions/agents/daily-journal-agent/icon.svg"
 categories: ["Productivity", "Journaling"]
 tags: ["daily", "journal", "reflection", "gratitude", "goals", "habits"]
-size: "97.3 KB"
+size: "98.1 KB"
 versions:
   - version: "1.0.0"
     date: "2026-02-01"

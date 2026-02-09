@@ -1058,15 +1058,106 @@ body {
   margin-bottom: 0;
 }
 
-/* Extension Comments */
-.extension-comments {
+/* Extension Feedback */
+.extension-feedback {
   margin-top: var(--spacing-xl);
   padding-top: var(--spacing-xl);
   border-top: 1px solid var(--color-border);
 }
 
-.extension-comments h2 {
+.extension-feedback h2 {
   margin-bottom: var(--spacing-lg);
+}
+
+.feedback-loading {
+  color: var(--color-text-secondary);
+  font-style: italic;
+  padding: var(--spacing-md) 0;
+}
+
+.feedback-empty {
+  color: var(--color-text-secondary);
+  padding: var(--spacing-md) 0;
+}
+
+.feedback-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.feedback-item {
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--color-border);
+}
+
+.feedback-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+}
+
+.feedback-stars .star {
+  font-size: 0.95rem;
+}
+
+.feedback-date {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.feedback-comment {
+  margin: var(--spacing-sm) 0;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.feedback-version {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  background: var(--color-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Stars (shared) */
+.star {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.star-filled {
+  color: #f5a623;
+}
+
+.star-half {
+  color: #f5a623;
+  opacity: 0.6;
+}
+
+.star-empty {
+  color: var(--color-text-secondary);
+  opacity: 0.4;
+}
+
+/* Sidebar Rating */
+.sidebar-rating-display {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-stars .star {
+  font-size: 1rem;
+}
+
+.sidebar-rating-text {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
 }
 
 /* Extension Card */
@@ -1188,18 +1279,6 @@ body {
 
 .resources-list a:hover {
   text-decoration: underline;
-}
-
-/* Comments Section */
-.extension-comments {
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: var(--spacing-xl);
-  padding-top: 0;
-}
-
-.extension-comments h2 {
-  margin-bottom: var(--spacing-md);
 }
 
 /* Footer */

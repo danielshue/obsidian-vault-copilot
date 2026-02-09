@@ -341,7 +341,7 @@ export class RatingModal extends Modal {
             attr: {
                 placeholder: "Share your experience (optional)",
                 maxlength: String(MAX_COMMENT_LENGTH),
-                rows: "4",
+                rows: "6",
                 "aria-label": "Rating comment",
             },
         });

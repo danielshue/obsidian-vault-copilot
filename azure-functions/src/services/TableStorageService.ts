@@ -364,6 +364,57 @@ export class TableStorageService {
         await this.refreshMetricsCache(extensionId);
     }
 
+    /**
+     * Retrieve all ratings (with comments) for an extension, sorted by most
+     * recent first.
+     *
+     * @param extensionId - The extension to query.
+     * @returns Array of rating objects with user hash, rating, comment, and dates.
+     *
+     * @example
+     * ```typescript
+     * const reviews = await svc.getExtensionRatings("my-ext");
+     * ```
+     */
+    public async getExtensionRatings(
+        extensionId: string,
+    ): Promise<Array<{
+        rating: number;
+        comment: string;
+        version: string;
+        submittedDate: string;
+        updatedDate: string;
+    }>> {
+        const ratings: Array<{
+            rating: number;
+            comment: string;
+            version: string;
+            submittedDate: string;
+            updatedDate: string;
+        }> = [];
+
+        const query = this.ratingsClient.listEntities<RatingEntity>({
+            queryOptions: {
+                filter: odata`PartitionKey eq ${extensionId}`,
+            },
+        });
+
+        for await (const entity of query) {
+            ratings.push({
+                rating: entity.Rating as number,
+                comment: (entity.Comment as string) ?? "",
+                version: (entity.Version as string) ?? "",
+                submittedDate: (entity.SubmittedDate as string) ?? "",
+                updatedDate: (entity.UpdatedDate as string) ?? "",
+            });
+        }
+
+        // Sort by most recently updated first
+        ratings.sort((a, b) => b.updatedDate.localeCompare(a.updatedDate));
+
+        return ratings;
+    }
+
     // -----------------------------------------------------------------------
     // Metrics
     // -----------------------------------------------------------------------

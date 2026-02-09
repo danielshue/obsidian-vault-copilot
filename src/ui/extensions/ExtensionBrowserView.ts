@@ -736,6 +736,21 @@ export class ExtensionBrowserView extends ItemView {
 			return;
 		}
 		
+		// Fetch the user's existing rating for this extension so the modal
+		// opens in edit mode (preventing unintentional duplicate submissions).
+		let existingRating: number | undefined;
+		let existingComment: string | undefined;
+		try {
+			const userRatings = await analyticsService.getUserRatings(userHash);
+			const match = userRatings.find(r => r.extensionId === ext.uniqueId);
+			if (match) {
+				existingRating = match.rating;
+				existingComment = match.comment;
+			}
+		} catch {
+			// If the lookup fails, fall through and let the user submit a new rating.
+		}
+		
 		RatingModal.show({
 			app: this.app,
 			extensionId: ext.uniqueId,
@@ -743,6 +758,8 @@ export class ExtensionBrowserView extends ItemView {
 			extensionVersion: ext.semanticVersion,
 			userHash,
 			analyticsService,
+			existingRating,
+			existingComment,
 			onRatingSubmitted: async (_rating, _comment, response) => {
 				new Notice(`Rating submitted for "${ext.displayTitle}"`);
 				// Update the in-memory catalog cache so the UI reflects the new rating immediately

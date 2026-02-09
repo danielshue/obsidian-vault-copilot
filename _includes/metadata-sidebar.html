@@ -23,6 +23,21 @@
   </div>
   {% endif %}
   
+  <!-- Rating (populated via JS from Azure API) -->
+  <div class="sidebar-section" id="sidebar-rating" style="display:none;">
+    <h3 class="sidebar-heading">Rating</h3>
+    <div class="sidebar-rating-display">
+      <span id="sidebar-stars" class="sidebar-stars"></span>
+      <span id="sidebar-rating-text" class="sidebar-rating-text"></span>
+    </div>
+  </div>
+  
+  <!-- Downloads (populated via JS from Azure API) -->
+  <div class="sidebar-section" id="sidebar-downloads" style="display:none;">
+    <h3 class="sidebar-heading">Downloads</h3>
+    <p class="sidebar-value" id="sidebar-downloads-count"></p>
+  </div>
+  
   <!-- Last Updated -->
   {% if page.last_updated %}
   <div class="sidebar-section">

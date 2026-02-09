@@ -5872,9 +5872,10 @@ transform: scale(1.15);
 color: #f59e0b;
 }
 
-.vc-rating-modal__comment {
+.vc-rating-modal__comment,
+.vc-rating-comment {
 width: 100%;
-min-height: 80px;
+min-height: 140px;
 padding: 10px;
 border: 1px solid var(--background-modifier-border);
 border-radius: var(--radius-s);
