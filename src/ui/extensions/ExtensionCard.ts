@@ -135,9 +135,7 @@ export class ExtensionCardComponent {
 		
 		// Build metrics section (ratings + installs)
 		const metricsSection = this.createMetricsSection();
-		if (metricsSection) {
-			cardContainer.appendChild(metricsSection);
-		}
+		cardContainer.appendChild(metricsSection);
 		
 		// Build footer with metadata and actions
 		const footerSection = this.createFooterSection();
@@ -309,40 +307,40 @@ export class ExtensionCardComponent {
 	
 	/**
 	 * Creates the metrics section showing ratings and install counts.
-	 * Returns null if no metrics data is available.
+	 * Always displays the star rating row (empty stars when no ratings exist).
 	 */
-	private createMetricsSection(): HTMLElement | null {
+	private createMetricsSection(): HTMLElement {
 		const ext = this.config.extensionData;
-		// Only show if there's rating or download data
-		if (!ext.communityRating && !ext.downloadMetrics) return null;
 		
 		const metrics = document.createElement("div");
 		metrics.addClass("vc-extension-card__metrics");
 		
-		// Rating display
-		if (ext.communityRating && ext.communityRating > 0) {
-			const ratingContainer = document.createElement("span");
-			ratingContainer.addClass("vc-extension-card__rating");
-			
-			const starsEl = document.createElement("span");
-			starsEl.addClass("vc-extension-card__stars");
-			starsEl.textContent = this.getStarString(ext.communityRating);
-			starsEl.setAttribute("aria-label", `${ext.communityRating.toFixed(1)} out of 5 stars`);
-			ratingContainer.appendChild(starsEl);
-			
-			const scoreEl = document.createElement("span");
-			scoreEl.addClass("vc-extension-card__score");
-			scoreEl.textContent = ext.communityRating.toFixed(1);
-			ratingContainer.appendChild(scoreEl);
-			
-			// ratingCount - check if the raw extension data has it
+		// Rating display — always shown
+		const rating = ext.communityRating ?? 0;
+		const ratingContainer = document.createElement("span");
+		ratingContainer.addClass("vc-extension-card__rating");
+		
+		const starsEl = document.createElement("span");
+		starsEl.addClass("vc-extension-card__stars");
+		starsEl.textContent = this.getStarString(rating);
+		starsEl.setAttribute("aria-label", rating > 0
+			? `${rating.toFixed(1)} out of 5 stars`
+			: "No ratings yet");
+		ratingContainer.appendChild(starsEl);
+		
+		const scoreEl = document.createElement("span");
+		scoreEl.addClass("vc-extension-card__score");
+		scoreEl.textContent = rating > 0 ? rating.toFixed(1) : "No ratings";
+		ratingContainer.appendChild(scoreEl);
+		
+		if (rating > 0) {
 			const ratingCountEl = document.createElement("span");
 			ratingCountEl.addClass("vc-extension-card__rating-count");
 			ratingCountEl.textContent = `(${(ext as any).ratingCount || 0})`;
 			ratingContainer.appendChild(ratingCountEl);
-			
-			metrics.appendChild(ratingContainer);
 		}
+		
+		metrics.appendChild(ratingContainer);
 		
 		// Install count
 		if (ext.downloadMetrics && ext.downloadMetrics > 0) {
