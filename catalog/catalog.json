@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated": "2026-02-09T15:19:14.715Z",
+  "generated": "2026-02-09T15:20:04.847Z",
   "totalExtensions": 4,
   "extensions": [
     {
@@ -25,13 +25,13 @@
         "summary",
         "collaboration"
       ],
-      "downloads": 0,
-      "rating": null,
-      "ratingCount": 0,
+      "downloads": 1,
+      "rating": 3,
+      "ratingCount": 1,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-09T15:18:48.602Z",
-      "size": "2.5 KB",
-      "sizeBytes": 2577,
+      "updatedAt": "2026-02-09T15:19:55.023Z",
+      "size": "2.4 KB",
+      "sizeBytes": 2481,
       "minVaultCopilotVersion": "0.1.0",
       "repository": "https://github.com/danielshue/obsidian-vault-copilot",
       "license": "MIT",
@@ -42,7 +42,7 @@
           "source": "meeting-notes-agent.agent.md",
           "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/agents/meeting-notes-agent/meeting-notes-agent.agent.md",
           "installPath": "Reference/Agents/",
-          "size": "2.5 KB"
+          "size": "2.4 KB"
         }
       ],
       "tools": [
@@ -68,7 +68,9 @@
           ]
         }
       ],
-      "submittedBy": null
+      "submittedBy": null,
+      "activeInstalls": 1,
+      "analyticsSource": "azure"
     },
     {
       "id": "task-management-prompt",
@@ -96,9 +98,9 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T04:23:50.230Z",
-      "size": "1.5 KB",
-      "sizeBytes": 1526,
+      "updatedAt": "2026-02-09T15:19:55.025Z",
+      "size": "1.4 KB",
+      "sizeBytes": 1467,
       "minVaultCopilotVersion": "0.1.0",
       "repository": "https://github.com/danielshue/obsidian-vault-copilot",
       "license": "MIT",
@@ -109,7 +111,7 @@
           "source": "task-management-prompt.prompt.md",
           "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/prompts/task-management-prompt/task-management-prompt.prompt.md",
           "installPath": "Reference/Prompts/",
-          "size": "1.5 KB"
+          "size": "1.4 KB"
         }
       ],
       "tools": [
@@ -134,7 +136,9 @@
           ]
         }
       ],
-      "submittedBy": null
+      "submittedBy": null,
+      "activeInstalls": 0,
+      "analyticsSource": "azure"
     },
     {
       "id": "example-weather-mcp",
@@ -162,9 +166,9 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T04:23:50.228Z",
+      "updatedAt": "2026-02-09T15:19:55.024Z",
       "size": "0.2 KB",
-      "sizeBytes": 252,
+      "sizeBytes": 238,
       "minVaultCopilotVersion": "0.1.0",
       "repository": "https://github.com/danielshue/obsidian-vault-copilot",
       "license": "MIT",
@@ -175,7 +179,7 @@
           "source": "mcp-config.json",
           "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/mcp-servers/example-weather-mcp/mcp-config.json",
           "installPath": ".obsidian/",
-          "size": "252 B"
+          "size": "238 B"
         }
       ],
       "tools": [],
@@ -198,7 +202,9 @@
           ]
         }
       ],
-      "submittedBy": null
+      "submittedBy": null,
+      "activeInstalls": 0,
+      "analyticsSource": "azure"
     },
     {
       "id": "weekly-review-agent",
@@ -226,9 +232,9 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-09T15:18:48.602Z",
-      "size": "3.5 KB",
-      "sizeBytes": 3597,
+      "updatedAt": "2026-02-09T15:19:55.024Z",
+      "size": "3.4 KB",
+      "sizeBytes": 3458,
       "minVaultCopilotVersion": "0.1.0",
       "repository": "https://github.com/danielshue/obsidian-vault-copilot",
       "license": "MIT",
@@ -239,7 +245,7 @@
           "source": "weekly-review-agent.agent.md",
           "downloadUrl": "https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master/extensions/agents/weekly-review-agent/weekly-review-agent.agent.md",
           "installPath": "Reference/Agents/",
-          "size": "3.5 KB"
+          "size": "3.4 KB"
         }
       ],
       "tools": [
@@ -265,7 +271,9 @@
           ]
         }
       ],
-      "submittedBy": null
+      "submittedBy": null,
+      "activeInstalls": 0,
+      "analyticsSource": "azure"
     }
   ],
   "categories": [
@@ -301,5 +309,6 @@
     },
     "withRatings": 0,
     "averageRating": null
-  }
+  },
+  "lastUpdated": "2026-02-09T15:20:05.149Z"
 }
