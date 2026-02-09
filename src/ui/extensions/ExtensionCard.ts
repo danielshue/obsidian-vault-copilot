@@ -39,6 +39,9 @@ export interface ExtensionCardConfig {
 	
 	/** Callback when user clicks remove button */
 	onRemoveClick: (ext: MarketplaceExtension) => void;
+	
+	/** Callback when user clicks the rate button */
+	onRateClick?: (ext: MarketplaceExtension) => void;
 }
 
 /**
@@ -129,6 +132,10 @@ export class ExtensionCardComponent {
 		// Build description section
 		const descSection = this.createDescriptionSection();
 		cardContainer.appendChild(descSection);
+		
+		// Build metrics section (ratings + installs)
+		const metricsSection = this.createMetricsSection();
+		cardContainer.appendChild(metricsSection);
 		
 		// Build footer with metadata and actions
 		const footerSection = this.createFooterSection();
@@ -246,6 +253,16 @@ export class ExtensionCardComponent {
 			});
 			actionsContainer.appendChild(updateBtn);
 		} else if (this.config.isCurrentlyInstalled) {
+			// Show rate button
+			if (this.config.onRateClick) {
+				const rateBtn = this.createActionButton("Rate", "star");
+				rateBtn.addEventListener("click", (evt) => {
+					evt.stopPropagation();
+					this.config.onRateClick!(this.config.extensionData);
+				});
+				actionsContainer.appendChild(rateBtn);
+			}
+			
 			// Show remove button
 			const removeBtn = this.createActionButton("Remove", "trash");
 			removeBtn.addEventListener("click", (evt) => {
@@ -286,6 +303,77 @@ export class ExtensionCardComponent {
 		button.appendChild(labelEl);
 		
 		return button;
+	}
+	
+	/**
+	 * Creates the metrics section showing ratings and install counts.
+	 * Always displays the star rating row (empty stars when no ratings exist).
+	 */
+	private createMetricsSection(): HTMLElement {
+		const ext = this.config.extensionData;
+		
+		const metrics = document.createElement("div");
+		metrics.addClass("vc-extension-card__metrics");
+		
+		// Rating display — always shown
+		const rating = ext.communityRating ?? 0;
+		const ratingContainer = document.createElement("span");
+		ratingContainer.addClass("vc-extension-card__rating");
+		
+		const starsEl = document.createElement("span");
+		starsEl.addClass("vc-extension-card__stars");
+		starsEl.textContent = this.getStarString(rating);
+		starsEl.setAttribute("aria-label", rating > 0
+			? `${rating.toFixed(1)} out of 5 stars`
+			: "No ratings yet");
+		ratingContainer.appendChild(starsEl);
+		
+		const scoreEl = document.createElement("span");
+		scoreEl.addClass("vc-extension-card__score");
+		scoreEl.textContent = rating > 0 ? rating.toFixed(1) : "No ratings";
+		ratingContainer.appendChild(scoreEl);
+		
+		if (rating > 0) {
+			const ratingCountEl = document.createElement("span");
+			ratingCountEl.addClass("vc-extension-card__rating-count");
+			ratingCountEl.textContent = `(${(ext as any).ratingCount || 0})`;
+			ratingContainer.appendChild(ratingCountEl);
+		}
+		
+		metrics.appendChild(ratingContainer);
+		
+		// Install count
+		if (ext.downloadMetrics && ext.downloadMetrics > 0) {
+			const installsEl = document.createElement("span");
+			installsEl.addClass("vc-extension-card__installs");
+			installsEl.textContent = `📥 ${this.formatCount(ext.downloadMetrics)} installs`;
+			metrics.appendChild(installsEl);
+		}
+		
+		return metrics;
+	}
+	
+	/**
+	 * Converts a numeric rating (0-5) to a star string using ★ and ☆.
+	 * @param rating - The numeric rating value
+	 * @returns A string of filled and empty star characters
+	 */
+	private getStarString(rating: number): string {
+		const fullStars = Math.floor(rating);
+		const hasHalf = rating % 1 >= 0.25 && rating % 1 < 0.75;
+		const emptyStars = 5 - fullStars - (hasHalf ? 1 : 0);
+		return '★'.repeat(fullStars) + (hasHalf ? '★' : '') + '☆'.repeat(Math.max(0, emptyStars));
+	}
+	
+	/**
+	 * Formats a count number with K/M suffixes for compact display.
+	 * @param count - The raw count number
+	 * @returns Formatted string (e.g., "1.2K", "3.5M")
+	 */
+	private formatCount(count: number): string {
+		if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+		if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+		return count.toString();
 	}
 	
 	/**

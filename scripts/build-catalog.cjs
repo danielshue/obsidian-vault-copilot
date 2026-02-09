@@ -25,7 +25,7 @@ const EXTENSIONS_DIR = path.join(__dirname, '..', 'extensions');
 const CATALOG_PATH = path.join(__dirname, '..', 'catalog', 'catalog.json');
 const SCHEMA_PATH = path.join(__dirname, '..', 'schema', 'manifest.schema.json');
 const BASE_URL = 'https://danielshue.github.io/obsidian-vault-copilot';
-const RAW_BASE = 'https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main';
+const RAW_BASE = 'https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/master';
 
 // GitHub API configuration
 const GITHUB_OWNER = 'danielshue';

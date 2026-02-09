@@ -33,3 +33,9 @@ test-vault/.obsidian/plugins/obsidian-vault-copilot/manifest.json
 
 test-vault/.obsidian/vault-copilot-extensions.json
 _site/
+
+# Azure Functions build artifacts
+azure-functions/dist/
+azure-functions/node_modules/
+azure-functions/deploy.zip
+azure-functions/local.settings.json

@@ -358,4 +358,12 @@ export interface CopilotPluginSettings {
 	cliLastKnownStatus?: CliStatus | null;
 	/** Extension marketplace catalog URL */
 	extensionCatalogUrl?: string;
+	/** Enable anonymous extension analytics (install tracking, ratings) */
+	enableAnalytics?: boolean;
+	/** Custom analytics API endpoint URL */
+	analyticsEndpoint?: string;
+	/** GitHub username for rating attribution (hashed for privacy) */
+	githubUsername?: string;
+	/** Generated anonymous ID for users without GitHub username */
+	anonymousId?: string;
 }

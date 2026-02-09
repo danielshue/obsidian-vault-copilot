@@ -113,6 +113,10 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	cliStatusChecked: false,
 	cliLastKnownStatus: null,
 	extensionCatalogUrl: "https://danielshue.github.io/obsidian-vault-copilot/catalog/catalog.json",
+	enableAnalytics: true,
+	analyticsEndpoint: 'https://vault-copilot-api.azurewebsites.net/api',
+	githubUsername: '',
+	anonymousId: '',
 };
 
 // ============================================================================

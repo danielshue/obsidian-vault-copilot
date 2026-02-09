@@ -18,6 +18,7 @@ import { ExtensionManager } from "../../extensions/ExtensionManager";
 import { MarketplaceExtension, VaultExtensionKind, BrowseFilter } from "../../extensions/types";
 import { ExtensionCardComponent } from "./ExtensionCard";
 import { ExtensionWebView, EXTENSION_WEB_VIEW_TYPE } from "./ExtensionWebView";
+import { RatingModal } from "./RatingModal";
 
 export const EXTENSION_BROWSER_VIEW_TYPE = "extension-browser-view";
 
@@ -63,7 +64,13 @@ export class ExtensionBrowserView extends ItemView {
 			cacheTTLMillis: 300000, // 5 minutes
 		});
 		
-		this.extensionManager = new ExtensionManager(this.app);
+		this.extensionManager = new ExtensionManager(this.app, {
+			enableAnalytics: plugin.settings.enableAnalytics !== false,
+			analyticsEndpoint: plugin.settings.analyticsEndpoint || 'https://vault-copilot-api.azurewebsites.net/api',
+			githubUsername: plugin.settings.githubUsername || '',
+			anonymousId: plugin.settings.anonymousId || '',
+			pluginVersion: plugin.manifest.version,
+		});
 	}
 	
 	getViewType(): string {
@@ -592,6 +599,9 @@ export class ExtensionBrowserView extends ItemView {
 				onInstallClick: (ext) => this.handleInstall(ext),
 				onUpdateClick: (ext) => this.handleUpdate(ext),
 				onRemoveClick: (ext) => this.handleRemove(ext),
+				onRateClick: this.extensionManager.isAnalyticsEnabled()
+					? (ext) => this.handleRate(ext)
+					: undefined,
 			});
 			
 			content.appendChild(card.buildElement());
@@ -712,5 +722,31 @@ export class ExtensionBrowserView extends ItemView {
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			new Notice(`Removal failed: ${errorMsg}`, 5000);
 		}
+	}
+	
+	/**
+	 * Handles rating an extension via the RatingModal.
+	 */
+	private async handleRate(ext: MarketplaceExtension): Promise<void> {
+		const analyticsService = this.extensionManager.getAnalyticsService();
+		const userHash = this.extensionManager.getUserHash();
+		
+		if (!analyticsService || !userHash) {
+			new Notice('Analytics is not enabled. Enable it in Settings → Extension Analytics.', 5000);
+			return;
+		}
+		
+		RatingModal.show({
+			app: this.app,
+			extensionId: ext.uniqueId,
+			extensionName: ext.displayTitle,
+			extensionVersion: ext.semanticVersion,
+			userHash,
+			analyticsService,
+			onRatingSubmitted: async (_rating, _comment) => {
+				new Notice(`Rating submitted for "${ext.displayTitle}"`);
+				await this.renderSections();
+			},
+		});
 	}
 }
