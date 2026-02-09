@@ -19,6 +19,7 @@ import "./functions/health";
 import "./functions/getExtensionRatings";
 import "./functions/submitRating";
 import "./functions/deleteRating";
+import "./functions/getUserRatings";
 import "./functions/getMetrics";
 import "./functions/getBatchMetrics";
 import "./functions/trackInstall";
