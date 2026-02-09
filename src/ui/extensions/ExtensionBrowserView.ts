@@ -743,8 +743,14 @@ export class ExtensionBrowserView extends ItemView {
 			extensionVersion: ext.semanticVersion,
 			userHash,
 			analyticsService,
-			onRatingSubmitted: async (_rating, _comment) => {
+			onRatingSubmitted: async (_rating, _comment, response) => {
 				new Notice(`Rating submitted for "${ext.displayTitle}"`);
+				// Update the in-memory catalog cache so the UI reflects the new rating immediately
+				this.catalogService.updateCachedRating(
+					ext.uniqueId,
+					response.aggregateRating,
+					response.ratingCount,
+				);
 				await this.renderSections();
 			},
 		});

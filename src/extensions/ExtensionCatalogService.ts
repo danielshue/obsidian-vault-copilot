@@ -271,6 +271,38 @@ export class ExtensionCatalogService {
 	}
 	
 	/**
+	 * Updates the cached community rating for a specific extension.
+	 *
+	 * Call this after a successful rating submission so the UI reflects the
+	 * new aggregate without waiting for a full catalog re-fetch.
+	 *
+	 * @param extensionId - Unique identifier of the extension
+	 * @param averageRating - Updated aggregate average rating
+	 * @param ratingCount - Updated total number of ratings
+	 *
+	 * @example
+	 * ```typescript
+	 * service.updateCachedRating('my-ext', 4.3, 12);
+	 * ```
+	 *
+	 * @since 0.1.0
+	 */
+	updateCachedRating(extensionId: string, averageRating: number, ratingCount: number): void {
+		if (!this.cachedData) return;
+
+		const ext = this.cachedData.manifestData.availableExtensions
+			.find(e => e.uniqueId === extensionId);
+		if (ext) {
+			ext.communityRating = averageRating;
+			ext.downloadMetrics = ext.downloadMetrics ?? 0;
+			// Store rating count on the extension for display purposes.
+			// The field doesn't exist on the type yet, but the card renderer
+			// can read it when available.
+			(ext as any).ratingCount = ratingCount;
+		}
+	}
+	
+	/**
 	 * Clears the cached catalog data.
 	 * Next fetch will download fresh data from the remote endpoint.
 	 * 

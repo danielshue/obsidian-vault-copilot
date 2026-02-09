@@ -38,7 +38,7 @@
  */
 
 import { App, Modal, Notice, Setting } from "obsidian";
-import type { ExtensionAnalyticsService } from "../../extensions/ExtensionAnalyticsService";
+import type { ExtensionAnalyticsService, RatingResponse } from "../../extensions/ExtensionAnalyticsService";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,7 +83,7 @@ export interface RatingModalConfig {
     /** Pre-fill for editing an existing comment */
     existingComment?: string;
     /** Callback invoked after a successful submission */
-    onRatingSubmitted?: (rating: number, comment?: string) => void;
+    onRatingSubmitted?: (rating: number, comment: string | undefined, response: RatingResponse) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -542,7 +542,7 @@ export class RatingModal extends Modal {
         const comment = this.commentEl.value.trim() || undefined;
 
         try {
-            await this.config.analyticsService.submitRating({
+            const response = await this.config.analyticsService.submitRating({
                 extensionId: this.config.extensionId,
                 rating: this.selectedRating as 1 | 2 | 3 | 4 | 5,
                 userHash: this.config.userHash,
@@ -551,7 +551,7 @@ export class RatingModal extends Modal {
             });
 
             new Notice("Rating submitted successfully!");
-            this.config.onRatingSubmitted?.(this.selectedRating, comment);
+            this.config.onRatingSubmitted?.(this.selectedRating, comment, response);
             this.close();
         } catch {
             new Notice("Failed to submit rating. Please try again.");
