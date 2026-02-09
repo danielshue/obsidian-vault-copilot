@@ -628,52 +628,65 @@ export class ExtensionManager {
 	
 	/**
 	 * Loads the tracking file from disk.
+	 * Uses vault adapter for direct file system access (works with .obsidian folder).
 	 */
 	private async loadTrackingFile(): Promise<void> {
+		console.log(`[ExtensionManager] Loading tracking file from: ${this.trackingFilePath}`);
 		try {
-			const file = this.app.vault.getAbstractFileByPath(this.trackingFilePath);
+			// Use adapter for direct file access (getAbstractFileByPath doesn't work for .obsidian)
+			const exists = await this.app.vault.adapter.exists(this.trackingFilePath);
 			
-			if (file instanceof TFile) {
-				const content = await this.app.vault.read(file);
+			if (!exists) {
+				console.log(`[ExtensionManager] Tracking file does not exist yet`);
+				this.installedExtensionsMap.clear();
+				return;
+			}
+			
+			console.log(`[ExtensionManager] Tracking file found, reading...`);
+			const content = await this.app.vault.adapter.read(this.trackingFilePath);
+			
+			// Validate content before parsing
+			if (!content || content.trim().length === 0) {
+				console.warn("[ExtensionManager] Tracking file is empty, starting fresh");
+				this.installedExtensionsMap.clear();
+				return;
+			}
+			
+			try {
+				const data: TrackingFileData = JSON.parse(content);
 				
-				// Validate content before parsing
-				if (!content || content.trim().length === 0) {
-					console.warn("Tracking file is empty, starting fresh");
+				// Validate structure
+				if (!data || typeof data !== 'object' || !data.installedExtensions) {
+					console.warn("[ExtensionManager] Tracking file has invalid structure, starting fresh");
 					this.installedExtensionsMap.clear();
 					return;
 				}
 				
-				try {
-					const data: TrackingFileData = JSON.parse(content);
-					
-					// Validate structure
-					if (!data || typeof data !== 'object' || !data.installedExtensions) {
-						console.warn("Tracking file has invalid structure, starting fresh");
-						this.installedExtensionsMap.clear();
-						return;
-					}
-					
-					// Populate map from tracking file
-					for (const [id, record] of Object.entries(data.installedExtensions)) {
-						this.installedExtensionsMap.set(id, record);
-					}
-				} catch (parseError) {
-					console.error("Failed to parse tracking file:", parseError);
-					console.error("Content preview:", content.substring(0, 100));
-					// Delete corrupted file and start fresh
-					await this.app.vault.delete(file);
-					this.installedExtensionsMap.clear();
+				// Populate map from tracking file
+				const extensionCount = Object.keys(data.installedExtensions).length;
+				console.log(`[ExtensionManager] Found ${extensionCount} installed extensions in tracking file`);
+				for (const [id, record] of Object.entries(data.installedExtensions)) {
+					this.installedExtensionsMap.set(id, record);
+					console.log(`[ExtensionManager] Loaded extension: ${id} (v${record.installedVersion})`);
 				}
+				console.log(`[ExtensionManager] Successfully loaded ${this.installedExtensionsMap.size} extensions`);
+			} catch (parseError) {
+				console.error("[ExtensionManager] Failed to parse tracking file:", parseError);
+				console.error("[ExtensionManager] Content preview:", content.substring(0, 100));
+				// Delete corrupted file and start fresh
+				await this.app.vault.adapter.remove(this.trackingFilePath);
+				this.installedExtensionsMap.clear();
 			}
 		} catch (error) {
 			// Tracking file doesn't exist or other error - start fresh
-			console.warn("Error loading tracking file:", error);
+			console.warn("[ExtensionManager] Error loading tracking file:", error);
 			this.installedExtensionsMap.clear();
 		}
 	}
 	
 	/**
 	 * Saves the tracking file to disk.
+	 * Uses vault adapter for direct file system access (works with .obsidian folder).
 	 */
 	private async saveTrackingFile(): Promise<void> {
 		const data: TrackingFileData = {
@@ -684,34 +697,12 @@ export class ExtensionManager {
 		const content = JSON.stringify(data, null, 2);
 		
 		try {
-			const file = this.app.vault.getAbstractFileByPath(this.trackingFilePath);
-			
-			if (file instanceof TFile) {
-				console.log(`[ExtensionManager] Tracking file exists, modifying...`);
-				await this.app.vault.modify(file, content);
-			} else {
-				// File doesn't exist, create it
-				console.log(`[ExtensionManager] Tracking file doesn't exist, creating...`);
-				await this.app.vault.create(this.trackingFilePath, content);
-			}
+			// Use adapter for direct file access (works with .obsidian folder)
+			console.log(`[ExtensionManager] Saving tracking file with ${this.installedExtensionsMap.size} extensions...`);
+			await this.app.vault.adapter.write(this.trackingFilePath, content);
+			console.log(`[ExtensionManager] Tracking file saved successfully`);
 		} catch (error) {
 			console.error(`[ExtensionManager] saveTrackingFile error:`, error);
-			// If creation failed because file exists (vault caching issue), try to modify it
-			const errorMsg = error instanceof Error ? error.message : String(error);
-			if (errorMsg.toLowerCase().includes("already exists") || errorMsg.toLowerCase().includes("file already exists")) {
-				console.log(`[ExtensionManager] File exists error, retrying with modify...`);
-				// Force re-fetch the file
-				const file = this.app.vault.getAbstractFileByPath(this.trackingFilePath);
-				if (file instanceof TFile) {
-					await this.app.vault.modify(file, content);
-				} else {
-					// Ultimate fallback: adapter direct write
-					console.log(`[ExtensionManager] Using adapter.write as fallback...`);
-					await this.app.vault.adapter.write(this.trackingFilePath, content);
-				}
-			} else {
-				throw error;
-			}
 		}
 	}
 	
