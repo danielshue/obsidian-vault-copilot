@@ -12,7 +12,7 @@ node_modules
 main.js
 
 # Don't include the bundled styles.css (built from src/styles/).
-styles.css
+/styles.css
 
 # Exclude sourcemaps
 *.map

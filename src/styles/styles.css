@@ -1,0 +1,24 @@
+/* Vault Copilot — CSS entry point (bundled by esbuild) */
+@import "./chat.css";
+@import "./welcome.css";
+@import "./messages.css";
+@import "./references.css";
+@import "./input.css";
+@import "./toolbar.css";
+@import "./statusbar.css";
+@import "./settings.css";
+@import "./session-panel.css";
+@import "./tool-picker.css";
+@import "./skills-mcp.css";
+@import "./directory-list.css";
+@import "./prompt-picker.css";
+@import "./mcp-apps.css";
+@import "./voice.css";
+@import "./realtime.css";
+@import "./tracing.css";
+@import "./conversation-history.css";
+@import "./tool-approval.css";
+@import "./prompt-input.css";
+@import "./whisper.css";
+@import "./mobile.css";
+@import "./extensions.css";
