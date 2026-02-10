@@ -35,7 +35,7 @@
     },
     "description": {
       "type": "string",
-      "maxLength": 200,
+      "maxLength": 500,
       "description": "Brief description of what the extension does. Displayed in catalog listings and search results. Keep it concise and informative.",
       "examples": ["Automatically creates and manages daily notes with AI-powered summaries", "Voice-activated journaling with emotion tracking and insights"]
     },
