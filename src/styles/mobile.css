@@ -1,0 +1,60 @@
+/* =========================================
+   Mobile-specific styles
+   ========================================= */
+
+/* Mobile chat container - full height */
+.is-mobile .vc-chat-container {
+height: 100%;
+}
+
+/* Mobile input wrapper - safe area for notched phones */
+.is-mobile .vc-input-wrapper {
+padding: var(--size-4-4);
+padding-bottom: calc(var(--size-4-4) + env(safe-area-inset-bottom));
+}
+
+/* Mobile chat input - prevent iOS zoom on focus */
+.is-mobile .vc-chat-input {
+font-size: 16px;
+min-height: 44px;
+}
+
+/* Mobile buttons - minimum tap target size */
+.is-mobile .vc-send-button,
+.is-mobile .vc-voice-button {
+min-width: 44px;
+min-height: 44px;
+}
+
+/* Mobile messages - better fit for narrow screens */
+.is-mobile .vc-message {
+max-width: 90%;
+font-size: var(--font-ui-medium);
+}
+
+/* Hide hover actions on touch devices - use long-press instead */
+@media (hover: none) {
+.vc-message-actions {
+display: none;
+}
+}
+
+/* Mobile warning in settings */
+.vc-mobile-warning {
+background: var(--background-modifier-error);
+border-radius: var(--radius-m);
+padding: var(--size-4-2);
+margin-top: var(--size-4-2);
+margin-bottom: var(--size-4-2);
+}
+
+.vc-mobile-warning .setting-item-name {
+font-weight: 600;
+color: var(--text-error);
+}
+
+.vc-mobile-warning .setting-item-description {
+color: var(--text-on-accent);
+}
+
+

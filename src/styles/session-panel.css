@@ -1,0 +1,436 @@
+
+/* Layout Wrapper */
+.vc-layout-wrapper {
+	display: flex;
+	height: 100%;
+	overflow: hidden;
+}
+
+.vc-main-view {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	min-width: 0;
+}
+
+/* Resizer Handle */
+.vc-resizer {
+	width: 4px;
+	background: transparent;
+	cursor: col-resize;
+	flex-shrink: 0;
+	position: relative;
+	transition: background 0.15s;
+}
+
+.vc-resizer:hover,
+.vc-resizer:active {
+	background: var(--interactive-accent);
+}
+
+.vc-resizer::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -4px;
+	right: -4px;
+}
+
+/* Updated Chat Header */
+.vc-chat-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	flex-shrink: 0;
+}
+
+.vc-header-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	min-width: 0;
+}
+
+.vc-header-right {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.vc-header-title {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vc-header-btn {
+	background: transparent !important;
+	border: none !important;
+	padding: 4px;
+	border-radius: 0 !important;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-header-btn:hover,
+.vc-header-btn:focus,
+.vc-header-btn:active {
+	background: transparent !important;
+	color: var(--text-normal);
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+/* Session Panel Wrapper */
+.vc-session-panel-wrapper {
+	width: 280px;
+	min-width: 200px;
+	max-width: 50%;
+	border-top: 1px solid var(--background-modifier-border);
+	border-left: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+/* Session Panel */
+.vc-session-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+/* Session Panel Titlebar */
+.vc-session-titlebar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	flex-shrink: 0;
+}
+
+.vc-session-titlebar-text {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+}
+
+.vc-session-toolbar {
+	display: flex;
+	gap: 2px;
+}
+
+.vc-session-toolbar-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 4px;
+	background: transparent !important;
+	border: none !important;
+	border-radius: 0 !important;
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: color 0.15s;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-session-toolbar-btn:hover,
+.vc-session-toolbar-btn:focus,
+.vc-session-toolbar-btn:active {
+	background: transparent !important;
+	color: var(--text-normal);
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-session-toolbar-btn svg,
+.vc-session-toolbar-btn .svg-icon {
+	width: 14px;
+	height: 14px;
+	display: block;
+}
+
+/* Session Search Bar */
+.vc-session-search-bar {
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.vc-session-search-bar.vc-hidden {
+	display: none;
+}
+
+.vc-session-search-input {
+	width: 100%;
+	padding: 6px 10px;
+	font-size: 13px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.vc-session-search-input:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+
+.vc-session-panel-header {
+	padding: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.vc-session-new-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: 100%;
+	padding: 8px 12px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 500;
+	transition: background 0.15s;
+}
+
+.vc-session-new-btn:hover {
+	background: var(--interactive-accent-hover);
+}
+
+.vc-session-panel-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: 8px;
+}
+
+/* Session Section */
+.vc-session-section {
+	margin-bottom: 16px;
+}
+
+.vc-session-section-title {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	padding: 4px 8px;
+	margin-bottom: 4px;
+}
+
+.vc-session-archived-header {
+	cursor: pointer;
+	user-select: none;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.vc-session-archived-header:hover {
+	color: var(--text-normal);
+}
+
+.vc-archived-toggle {
+	font-size: 10px;
+	width: 12px;
+}
+
+/* Session Item */
+.vc-session-item {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 8px;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background 0.15s;
+	margin-bottom: 2px;
+}
+
+.vc-session-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-session-item-content {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.vc-session-item-icon {
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	margin-right: 4px;
+}
+
+.vc-session-item-name {
+	font-size: 13px;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vc-session-item-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.vc-session-duration {
+	color: var(--text-faint);
+}
+
+.vc-session-time {
+	color: var(--text-muted);
+}
+
+/* Session Actions */
+.vc-session-item-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.vc-session-item:hover .vc-session-item-actions {
+	opacity: 1;
+}
+
+.vc-session-action-btn {
+	background: transparent !important;
+	border: none !important;
+	padding: 4px;
+	border-radius: 0 !important;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-session-action-btn:hover,
+.vc-session-action-btn:focus,
+.vc-session-action-btn:active {
+	background: transparent !important;
+	color: var(--text-normal);
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-session-action-btn svg,
+.vc-session-action-btn .svg-icon {
+	width: 14px;
+	height: 14px;
+	display: block;
+}
+
+.vc-session-action-btn:hover svg,
+.vc-session-action-btn:hover .svg-icon {
+	display: block;
+}
+
+/* Empty State */
+.vc-session-empty {
+	text-align: center;
+	padding: 24px 16px;
+	color: var(--text-muted);
+}
+
+.vc-session-empty p {
+	margin: 0 0 8px 0;
+}
+
+.vc-session-empty-hint {
+	font-size: 12px;
+	color: var(--text-faint);
+}
+
+/* Rename Modal */
+.vc-rename-modal {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+}
+
+.vc-rename-modal-content {
+	background: var(--background-primary);
+	border-radius: 8px;
+	padding: 20px;
+	min-width: 300px;
+	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.vc-rename-modal-content h3 {
+	margin: 0 0 16px 0;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-rename-input {
+	width: 100%;
+	padding: 8px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: 14px;
+	margin-bottom: 16px;
+}
+
+.vc-rename-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.vc-rename-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+

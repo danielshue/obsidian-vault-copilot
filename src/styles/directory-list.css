@@ -1,0 +1,100 @@
+
+/* Directory List UI */
+.vc-directory-list {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+}
+
+.vc-directory-header {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-bottom: 12px;
+}
+
+.vc-directory-title {
+	font-weight: 500;
+	font-size: 14px;
+}
+
+.vc-directory-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.vc-directory-items {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+
+.vc-directory-empty {
+	font-size: 13px;
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.vc-directory-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-directory-path {
+	flex: 1;
+	font-size: 13px;
+	font-family: var(--font-monospace);
+	word-break: break-all;
+}
+
+.vc-btn-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: background 0.15s, color 0.15s;
+}
+
+.vc-btn-icon:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.vc-btn-remove:hover {
+	color: var(--text-error);
+}
+
+.vc-directory-add {
+	display: flex;
+	gap: 8px;
+}
+
+.vc-directory-input {
+	flex: 1;
+	padding: 6px 10px;
+	font-size: 13px;
+	font-family: var(--font-monospace);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-primary);
+}
+
+.vc-directory-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+

@@ -83,24 +83,29 @@ export class ExtensionCardComponent {
 	/**
 	 * Builds the DOM element for this card.
 	 * Returns a fully interactive card element ready to be inserted into the DOM.
+	 * 
+	 * VS Code-style layout:
+	 * ┌──────────────────────────────────────┐
+	 * │ [icon]  Title                  ⬇ 5M  │
+	 * │         Short description that   ★4.5│
+	 * │         can wrap to 2 lines...       │
+	 * │         Author                       │
+	 * │         [Install]                    │
+	 * └──────────────────────────────────────┘
 	 */
 	public buildElement(): HTMLElement {
 		const cardContainer = document.createElement("div");
 		cardContainer.addClass("vc-extension-card");
 		
-		// Add installed state class if applicable
 		if (this.config.isCurrentlyInstalled) {
 			cardContainer.addClass("vc-extension-card--installed");
 		}
-		
-		// Add update available class if applicable
 		if (this.config.hasAvailableUpdate) {
 			cardContainer.addClass("vc-extension-card--has-update");
 		}
 		
 		// Make card clickable
 		cardContainer.addEventListener("click", (evt) => {
-			// Don't trigger if clicking action buttons
 			if ((evt.target as HTMLElement).closest(".vc-extension-card__actions")) {
 				return;
 			}
@@ -109,37 +114,115 @@ export class ExtensionCardComponent {
 		
 		// Add hover handlers
 		cardContainer.addEventListener("mouseenter", (evt) => {
-			// Delay showing popup slightly to avoid flickering
 			this.hoverTimeout = window.setTimeout(() => {
 				this.hoverPopup?.show(cardContainer, evt);
 			}, 400);
 		});
 		
 		cardContainer.addEventListener("mouseleave", () => {
-			// Cancel pending show
 			if (this.hoverTimeout !== null) {
 				window.clearTimeout(this.hoverTimeout);
 				this.hoverTimeout = null;
 			}
-			// Hide popup
 			this.hoverPopup?.hide();
 		});
 		
-		// Build header section
-		const headerSection = this.createHeaderSection();
-		cardContainer.appendChild(headerSection);
+		// Icon (left column)
+		const icon = document.createElement("div");
+		icon.addClass("vc-extension-card__icon");
+		icon.setAttribute("data-kind", this.config.extensionData.kind);
+		setIcon(icon, this.getIconForExtensionKind(this.config.extensionData.kind));
+		cardContainer.appendChild(icon);
 		
-		// Build description section
-		const descSection = this.createDescriptionSection();
-		cardContainer.appendChild(descSection);
+		// Details (right column)
+		const details = document.createElement("div");
+		details.addClass("vc-extension-card__details");
 		
-		// Build metrics section (ratings + installs)
-		const metricsSection = this.createMetricsSection();
-		cardContainer.appendChild(metricsSection);
+		// Row 1: title + download count
+		const row1 = document.createElement("div");
+		row1.addClass("vc-extension-card__row");
 		
-		// Build footer with metadata and actions
-		const footerSection = this.createFooterSection();
-		cardContainer.appendChild(footerSection);
+		const title = document.createElement("span");
+		title.addClass("vc-extension-card__title");
+		title.textContent = this.config.extensionData.displayTitle;
+		row1.appendChild(title);
+		
+		// Downloads + rating in top-right area
+		const stats = document.createElement("span");
+		stats.addClass("vc-extension-card__stats");
+		
+		const ext = this.config.extensionData;
+		if (ext.downloadMetrics && ext.downloadMetrics > 0) {
+			const downloads = document.createElement("span");
+			downloads.addClass("vc-extension-card__downloads");
+			downloads.textContent = this.formatCount(ext.downloadMetrics);
+			stats.appendChild(downloads);
+		}
+		
+		const rating = ext.communityRating ?? 0;
+		if (rating > 0) {
+			const ratingEl = document.createElement("span");
+			ratingEl.addClass("vc-extension-card__rating-compact");
+			ratingEl.textContent = `★${rating.toFixed(1)}`;
+			stats.appendChild(ratingEl);
+		}
+		
+		row1.appendChild(stats);
+		details.appendChild(row1);
+		
+		// Row 2: description (2-line clamp)
+		const desc = document.createElement("div");
+		desc.addClass("vc-extension-card__description");
+		desc.textContent = this.config.extensionData.briefSummary;
+		details.appendChild(desc);
+		
+		// Row 3: author + action buttons
+		const row3 = document.createElement("div");
+		row3.addClass("vc-extension-card__row");
+		
+		const author = document.createElement("span");
+		author.addClass("vc-extension-card__author");
+		author.textContent = this.config.extensionData.creator?.displayName || "";
+		row3.appendChild(author);
+		
+		const actions = document.createElement("div");
+		actions.addClass("vc-extension-card__actions");
+		
+		if (this.config.hasAvailableUpdate) {
+			const updateBtn = this.createActionButton("Update", "sync");
+			updateBtn.addEventListener("click", (evt) => {
+				evt.stopPropagation();
+				this.config.onUpdateClick(this.config.extensionData);
+			});
+			actions.appendChild(updateBtn);
+		} else if (this.config.isCurrentlyInstalled) {
+			if (this.config.onRateClick) {
+				const rateBtn = this.createActionButton("Rate", "star");
+				rateBtn.addEventListener("click", (evt) => {
+					evt.stopPropagation();
+					this.config.onRateClick!(this.config.extensionData);
+				});
+				actions.appendChild(rateBtn);
+			}
+			const removeBtn = this.createActionButton("Remove", "trash");
+			removeBtn.addEventListener("click", (evt) => {
+				evt.stopPropagation();
+				this.config.onRemoveClick(this.config.extensionData);
+			});
+			actions.appendChild(removeBtn);
+		} else {
+			const installBtn = this.createActionButton("Install", "download");
+			installBtn.addEventListener("click", (evt) => {
+				evt.stopPropagation();
+				this.config.onInstallClick(this.config.extensionData);
+			});
+			actions.appendChild(installBtn);
+		}
+		
+		row3.appendChild(actions);
+		details.appendChild(row3);
+		
+		cardContainer.appendChild(details);
 		
 		return cardContainer;
 	}
@@ -155,134 +238,6 @@ export class ExtensionCardComponent {
 		
 		this.hoverPopup?.destroy();
 		this.hoverPopup = null;
-	}
-	
-	/**
-	 * Creates the header section with icon, title, and version.
-	 */
-	private createHeaderSection(): HTMLElement {
-		const header = document.createElement("div");
-		header.addClass("vc-extension-card__header");
-		
-		// Icon
-		const iconWrapper = document.createElement("div");
-		iconWrapper.addClass("vc-extension-card__icon");
-		iconWrapper.setAttribute("data-kind", this.config.extensionData.kind);
-		const iconName = this.getIconForExtensionKind(this.config.extensionData.kind);
-		setIcon(iconWrapper, iconName);
-		header.appendChild(iconWrapper);
-		
-		// Title and version container
-		const titleContainer = document.createElement("div");
-		titleContainer.addClass("vc-extension-card__title-container");
-		
-		const titleText = document.createElement("div");
-		titleText.addClass("vc-extension-card__title");
-		titleText.textContent = this.config.extensionData.displayTitle;
-		titleContainer.appendChild(titleText);
-		
-		const versionBadge = document.createElement("div");
-		versionBadge.addClass("vc-extension-card__version");
-		versionBadge.textContent = `v${this.config.extensionData.semanticVersion}`;
-		titleContainer.appendChild(versionBadge);
-		
-		header.appendChild(titleContainer);
-		
-		// Update badge if applicable
-		if (this.config.hasAvailableUpdate) {
-			const updateBadge = document.createElement("div");
-			updateBadge.addClass("vc-extension-card__update-badge");
-			updateBadge.textContent = "Update Available";
-			header.appendChild(updateBadge);
-		}
-		
-		return header;
-	}
-	
-	/**
-	 * Creates the description section.
-	 */
-	private createDescriptionSection(): HTMLElement {
-		const descSection = document.createElement("div");
-		descSection.addClass("vc-extension-card__description");
-		descSection.textContent = this.config.extensionData.briefSummary;
-		return descSection;
-	}
-	
-	/**
-	 * Creates the footer section with categories and action buttons.
-	 */
-	private createFooterSection(): HTMLElement {
-		const footer = document.createElement("div");
-		footer.addClass("vc-extension-card__footer");
-		
-		// Category tags
-		const categoriesContainer = document.createElement("div");
-		categoriesContainer.addClass("vc-extension-card__categories");
-		
-		for (const category of this.config.extensionData.classificationTags.slice(0, 2)) {
-			const badge = document.createElement("span");
-			badge.addClass("vc-extension-card__category-badge");
-			badge.setAttribute("data-category", category);
-			badge.textContent = category;
-			categoriesContainer.appendChild(badge);
-		}
-		
-		// Show "+N more" if there are additional categories
-		if (this.config.extensionData.classificationTags.length > 2) {
-			const moreBadge = document.createElement("span");
-			moreBadge.addClass("vc-extension-card__category-badge");
-			moreBadge.addClass("vc-extension-card__category-badge--more");
-			const remaining = this.config.extensionData.classificationTags.length - 2;
-			moreBadge.textContent = `+${remaining}`;
-			categoriesContainer.appendChild(moreBadge);
-		}
-		
-		footer.appendChild(categoriesContainer);
-		
-		// Action buttons
-		const actionsContainer = document.createElement("div");
-		actionsContainer.addClass("vc-extension-card__actions");
-		
-		if (this.config.hasAvailableUpdate) {
-			// Show update button
-			const updateBtn = this.createActionButton("Update", "sync");
-			updateBtn.addEventListener("click", (evt) => {
-				evt.stopPropagation();
-				this.config.onUpdateClick(this.config.extensionData);
-			});
-			actionsContainer.appendChild(updateBtn);
-		} else if (this.config.isCurrentlyInstalled) {
-			// Show rate button
-			if (this.config.onRateClick) {
-				const rateBtn = this.createActionButton("Rate", "star");
-				rateBtn.addEventListener("click", (evt) => {
-					evt.stopPropagation();
-					this.config.onRateClick!(this.config.extensionData);
-				});
-				actionsContainer.appendChild(rateBtn);
-			}
-			
-			// Show remove button
-			const removeBtn = this.createActionButton("Remove", "trash");
-			removeBtn.addEventListener("click", (evt) => {
-				evt.stopPropagation();
-				this.config.onRemoveClick(this.config.extensionData);
-			});
-			actionsContainer.appendChild(removeBtn);
-		} else {
-			// Show install button
-			const installBtn = this.createActionButton("Install", "download");
-			installBtn.addEventListener("click", (evt) => {
-				evt.stopPropagation();
-				this.config.onInstallClick(this.config.extensionData);
-			});
-			actionsContainer.appendChild(installBtn);
-		}
-		
-		footer.appendChild(actionsContainer);
-		
-		return footer;
 	}
 	
 	/**
@@ -303,66 +258,6 @@ export class ExtensionCardComponent {
 		button.appendChild(labelEl);
 		
 		return button;
-	}
-	
-	/**
-	 * Creates the metrics section showing ratings and install counts.
-	 * Always displays the star rating row (empty stars when no ratings exist).
-	 */
-	private createMetricsSection(): HTMLElement {
-		const ext = this.config.extensionData;
-		
-		const metrics = document.createElement("div");
-		metrics.addClass("vc-extension-card__metrics");
-		
-		// Rating display — always shown
-		const rating = ext.communityRating ?? 0;
-		const ratingContainer = document.createElement("span");
-		ratingContainer.addClass("vc-extension-card__rating");
-		
-		const starsEl = document.createElement("span");
-		starsEl.addClass("vc-extension-card__stars");
-		starsEl.textContent = this.getStarString(rating);
-		starsEl.setAttribute("aria-label", rating > 0
-			? `${rating.toFixed(1)} out of 5 stars`
-			: "No ratings yet");
-		ratingContainer.appendChild(starsEl);
-		
-		const scoreEl = document.createElement("span");
-		scoreEl.addClass("vc-extension-card__score");
-		scoreEl.textContent = rating > 0 ? rating.toFixed(1) : "No ratings";
-		ratingContainer.appendChild(scoreEl);
-		
-		if (rating > 0) {
-			const ratingCountEl = document.createElement("span");
-			ratingCountEl.addClass("vc-extension-card__rating-count");
-			ratingCountEl.textContent = `(${(ext as any).ratingCount || 0})`;
-			ratingContainer.appendChild(ratingCountEl);
-		}
-		
-		metrics.appendChild(ratingContainer);
-		
-		// Install count
-		if (ext.downloadMetrics && ext.downloadMetrics > 0) {
-			const installsEl = document.createElement("span");
-			installsEl.addClass("vc-extension-card__installs");
-			installsEl.textContent = `📥 ${this.formatCount(ext.downloadMetrics)} installs`;
-			metrics.appendChild(installsEl);
-		}
-		
-		return metrics;
-	}
-	
-	/**
-	 * Converts a numeric rating (0-5) to a star string using ★ and ☆.
-	 * @param rating - The numeric rating value
-	 * @returns A string of filled and empty star characters
-	 */
-	private getStarString(rating: number): string {
-		const fullStars = Math.floor(rating);
-		const hasHalf = rating % 1 >= 0.25 && rating % 1 < 0.75;
-		const emptyStars = 5 - fullStars - (hasHalf ? 1 : 0);
-		return '★'.repeat(fullStars) + (hasHalf ? '★' : '') + '☆'.repeat(Math.max(0, emptyStars));
 	}
 	
 	/**

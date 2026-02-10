@@ -11,7 +11,7 @@
  * extensions from the marketplace catalog.
  */
 
-import { ItemView, WorkspaceLeaf, setIcon, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, Notice, Menu } from "obsidian";
 import type CopilotPlugin from "../../main";
 import { ExtensionCatalogService } from "../../extensions/ExtensionCatalogService";
 import { ExtensionManager } from "../../extensions/ExtensionManager";
@@ -33,35 +33,25 @@ export class ExtensionBrowserView extends ItemView {
 	private catalogUrl: string;
 	
 	private searchInput: HTMLInputElement | null = null;
-	private categoryBtn: HTMLElement | null = null;
-	private typeBtn: HTMLElement | null = null;
-	private categoryMenu: HTMLElement | null = null;
-	private typeMenu: HTMLElement | null = null;
 	private refreshBtn: HTMLElement | null = null;
 	
-	private selectedCategory: string = "";
-	private selectedType: string = "";
-	
 	private installedSection: HTMLElement | null = null;
-	private featuredSection: HTMLElement | null = null;
-	private allExtensionsSection: HTMLElement | null = null;
+	private recommendedSection: HTMLElement | null = null;
 	
-	private currentFilter: BrowseFilter = {};
 	private allExtensions: MarketplaceExtension[] = [];
 	private installedExtensionIds: Set<string> = new Set();
-	private availableUpdates: Map<string, string> = new Map(); // extensionId -> new version
+	private availableUpdates: Map<string, string> = new Map();
 	
 	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin) {
 		super(leaf);
 		this.plugin = plugin;
 		
-		// Initialize services
 		this.catalogUrl = plugin.settings.extensionCatalogUrl || 
 			"https://danielshue.github.io/obsidian-vault-copilot/catalog/catalog.json";
 		
 		this.catalogService = new ExtensionCatalogService(this.app, {
 			catalogEndpoint: this.catalogUrl,
-			cacheTTLMillis: 300000, // 5 minutes
+			cacheTTLMillis: 300000,
 		});
 		
 		this.extensionManager = new ExtensionManager(this.app, {
@@ -96,71 +86,152 @@ export class ExtensionBrowserView extends ItemView {
 	}
 	
 	/**
-	 * Renders the main UI structure
+	 * Renders the VS Code-style extension sidebar layout.
 	 */
 	private render(): void {
 		const container = this.contentEl;
 		container.empty();
 		container.addClass("vc-extension-browser");
 		
-		// Header
+		// Header bar: "EXTENSIONS" title + action icons
 		const header = container.createDiv({ cls: "vc-extension-browser-header" });
+		header.createSpan({ text: "EXTENSIONS", cls: "vc-extension-browser-header-title" });
 		
-		const title = header.createEl("h2", { text: "Extensions" });
+		const headerActions = header.createDiv({ cls: "vc-extension-browser-header-actions" });
 		
-		// Search and filters bar
-		const filtersBar = container.createDiv({ cls: "vc-extension-browser-filters" });
+		// Refresh button
+		this.refreshBtn = headerActions.createEl("button", {
+			cls: "vc-extension-browser-btn",
+			attr: { "aria-label": "Refresh catalog", title: "Refresh" }
+		});
+		setIcon(this.refreshBtn, "refresh-cw");
+		this.refreshBtn.addEventListener("click", () => this.handleRefresh());
 		
-		// Search input
-		const searchContainer = filtersBar.createDiv({ cls: "vc-extension-browser-search" });
+		// Ellipsis menu button
+		const menuBtn = headerActions.createEl("button", {
+			cls: "vc-extension-browser-btn",
+			attr: { "aria-label": "More actions", title: "More Actions..." }
+		});
+		setIcon(menuBtn, "more-horizontal");
+		menuBtn.addEventListener("click", (evt) => this.showActionsMenu(evt));
+		
+		// Search bar with inline action buttons (VS Code style)
+		const searchContainer = container.createDiv({ cls: "vc-extension-browser-search" });
 		const searchIcon = searchContainer.createDiv({ cls: "vc-extension-browser-search-icon" });
 		setIcon(searchIcon, "search");
 		
 		this.searchInput = searchContainer.createEl("input", {
 			type: "text",
-			placeholder: "Search Extensions in Marketplace",
+			placeholder: "Search Extensions in ...",
 			cls: "vc-extension-browser-search-input"
 		});
 		this.searchInput.addEventListener("input", () => this.handleFilterChange());
 		
-		// Filter dropdowns container
-		const filterDropdowns = filtersBar.createDiv({ cls: "vc-extension-browser-filter-dropdowns" });
+		// Inline search actions (clear + filter) inside the search box
+		const searchActions = searchContainer.createDiv({ cls: "vc-extension-browser-search-actions" });
 		
-		// Category filter
-		this.createCascadingFilter(filterDropdowns, "Category", "filter");
+		// Clear button — hidden when search is empty
+		const clearBtn = searchActions.createEl("button", {
+			cls: "vc-extension-browser-search-btn",
+			attr: { "aria-label": "Clear search", title: "Clear search" }
+		});
+		setIcon(clearBtn, "x");
+		clearBtn.classList.add("vc-hidden");
+		clearBtn.addEventListener("click", () => {
+			if (this.searchInput) {
+				this.searchInput.value = "";
+				this.handleFilterChange();
+			}
+		});
 		
-		// Type filter
-		this.createCascadingFilter(filterDropdowns, "Type", "layers");
+		// Show/hide clear button based on input
+		this.searchInput.addEventListener("input", () => {
+			clearBtn.classList.toggle("vc-hidden", !this.searchInput?.value);
+		});
+		
+		// Filter button
+		const filterBtn = searchActions.createEl("button", {
+			cls: "vc-extension-browser-search-btn",
+			attr: { "aria-label": "Filter extensions", title: "Filter" }
+		});
+		setIcon(filterBtn, "filter");
+		filterBtn.addEventListener("click", (evt) => this.showFilterMenu(evt));
 		
 		// Sections container
 		const sectionsContainer = container.createDiv({ cls: "vc-extension-browser-sections" });
 		
-		// Sections header with refresh button
-		const sectionsHeader = sectionsContainer.createDiv({ cls: "vc-extension-browser-sections-header" });
-		sectionsHeader.createEl("h3", { text: "Browse Extensions" });
-		
-		const sectionsActions = sectionsHeader.createDiv({ cls: "vc-extension-browser-sections-actions" });
-		
-		// Refresh button
-		this.refreshBtn = sectionsActions.createEl("button", {
-			cls: "vc-extension-browser-btn",
-			attr: { "aria-label": "Refresh catalog" }
-		});
-		setIcon(this.refreshBtn, "refresh-cw");
-		this.refreshBtn.addEventListener("click", () => this.handleRefresh());
-		
 		// Installed section
 		this.installedSection = this.createSection(sectionsContainer, "INSTALLED", "installed");
 		
-		// Featured section
-		this.featuredSection = this.createSection(sectionsContainer, "FEATURED", "featured");
-		
-		// All extensions section
-		this.allExtensionsSection = this.createSection(sectionsContainer, "ALL EXTENSIONS", "all");
+		// Recommended section (renamed from Featured)
+		this.recommendedSection = this.createSection(sectionsContainer, "RECOMMENDED", "recommended");
 	}
 	
 	/**
-	 * Creates a collapsible section
+	 * Shows the ellipsis (...) actions menu using Obsidian's native Menu API.
+	 */
+	private showActionsMenu(evt: MouseEvent): void {
+		const menu = new Menu();
+		
+		menu.addItem((item) => {
+			item.setTitle("Check for Extension Updates");
+			item.setIcon("refresh-cw");
+			item.onClick(() => this.handleRefresh());
+		});
+		
+		menu.addSeparator();
+		
+		menu.addItem((item) => {
+			item.setTitle("Submit Extension...");
+			item.setIcon("upload");
+			item.onClick(() => this.plugin.openExtensionSubmissionModal());
+		});
+		
+		menu.showAtMouseEvent(evt);
+	}
+	
+	/**
+	 * Shows the filter menu for filtering by type/category.
+	 */
+	private showFilterMenu(evt: MouseEvent): void {
+		const menu = new Menu();
+		
+		const types: { label: string; value: string; icon: string }[] = [
+			{ label: "All Types", value: "", icon: "list" },
+			{ label: "Agents", value: "agent", icon: "bot" },
+			{ label: "Voice Agents", value: "voice-agent", icon: "mic" },
+			{ label: "Prompts", value: "prompt", icon: "file-text" },
+			{ label: "Skills", value: "skill", icon: "wrench" },
+			{ label: "MCP Servers", value: "mcp-server", icon: "plug" }
+		];
+		
+		for (const t of types) {
+			menu.addItem((item) => {
+				item.setTitle(t.label);
+				item.setIcon(t.icon);
+				item.onClick(async () => {
+					// Re-filter with selected type
+					await this.applyTypeFilter(t.value);
+				});
+			});
+		}
+		
+		menu.showAtMouseEvent(evt);
+	}
+	
+	/** Active type filter value */
+	private activeTypeFilter: string = "";
+	
+	/**
+	 * Applies a type filter and re-renders sections.
+	 */
+	private async applyTypeFilter(typeValue: string): Promise<void> {
+		this.activeTypeFilter = typeValue;
+		await this.renderSections();
+	}
+	
+	/**
+	 * Creates a collapsible section with VS Code-style header.
 	 */
 	private createSection(parent: HTMLElement, title: string, id: string): HTMLElement {
 		const section = parent.createDiv({ cls: "vc-extension-browser-section" });
@@ -169,12 +240,12 @@ export class ExtensionBrowserView extends ItemView {
 		const header = section.createDiv({ cls: "vc-extension-browser-section-header" });
 		header.addEventListener("click", () => this.toggleSection(section));
 		
-		const headerTitle = header.createDiv({ cls: "vc-extension-browser-section-title" });
-		const icon = headerTitle.createSpan({ cls: "vc-extension-browser-section-icon" });
+		const headerLeft = header.createDiv({ cls: "vc-extension-browser-section-title" });
+		const icon = headerLeft.createSpan({ cls: "vc-extension-browser-section-icon" });
 		setIcon(icon, "chevron-down");
-		headerTitle.createSpan({ text: title, cls: "vc-extension-browser-section-text" });
+		headerLeft.createSpan({ text: title, cls: "vc-extension-browser-section-text" });
 		
-		const count = header.createSpan({ cls: "vc-extension-browser-section-count", text: "(0)" });
+		header.createSpan({ cls: "vc-extension-browser-section-count", text: "0" });
 		
 		const content = section.createDiv({ cls: "vc-extension-browser-section-content" });
 		
@@ -182,7 +253,7 @@ export class ExtensionBrowserView extends ItemView {
 	}
 	
 	/**
-	 * Toggles a section's expanded/collapsed state
+	 * Toggles a section's expanded/collapsed state.
 	 */
 	private toggleSection(section: HTMLElement): void {
 		const isCollapsed = section.hasClass("collapsed");
@@ -190,227 +261,12 @@ export class ExtensionBrowserView extends ItemView {
 	}
 	
 	/**
-	 * Creates a cascading filter menu
-	 */
-	private createCascadingFilter(
-		parent: HTMLElement,
-		label: string,
-		iconName: string
-	): void {
-		const wrapper = parent.createDiv({ cls: "vc-extension-browser-filter-wrapper" });
-		
-		// Filter button
-		const button = wrapper.createDiv({ cls: "vc-extension-browser-filter-btn" });
-		
-		const icon = button.createDiv({ cls: "vc-extension-browser-filter-icon" });
-		setIcon(icon, iconName);
-		
-		const text = button.createSpan({ cls: "vc-extension-browser-filter-text", text: label });
-		
-		const chevron = button.createDiv({ cls: "vc-extension-browser-filter-chevron" });
-		setIcon(chevron, "chevron-right");
-		
-		// Store references
-		if (label === "Category") {
-			this.categoryBtn = button;
-		} else if (label === "Type") {
-			this.typeBtn = button;
-		}
-		
-		// Cascading menu
-		const menu = wrapper.createDiv({ cls: "vc-extension-browser-cascading-menu" });
-		menu.style.display = "none";
-		
-		// Store menu reference
-		if (label === "Category") {
-			this.categoryMenu = menu;
-		} else if (label === "Type") {
-			this.typeMenu = menu;
-		}
-		
-		// Populate menu based on type
-		if (label === "Type") {
-			this.populateTypeMenu(menu);
-		}
-		// Category menu will be populated after catalog loads
-		
-		// Toggle menu on click
-		button.addEventListener("click", (e) => {
-			e.stopPropagation();
-			this.toggleCascadingMenu(menu);
-		});
-		
-		// Close menu when clicking outside
-		this.registerDomEvent(document, "click", () => {
-			if (menu.style.display === "block") {
-				menu.style.display = "none";
-				wrapper.removeClass("active");
-			}
-		});
-	}
-	
-	/**
-	 * Populates the type filter menu
-	 */
-	private populateTypeMenu(menu: HTMLElement): void {
-		const types = [
-			{ label: "All Types", value: "" },
-			{ label: "Agents", value: "agent" },
-			{ label: "Voice Agents", value: "voice-agent" },
-			{ label: "Prompts", value: "prompt" },
-			{ label: "Skills", value: "skill" },
-			{ label: "MCP Servers", value: "mcp-server" }
-		];
-		
-		types.forEach(type => {
-			const item = menu.createDiv({ cls: "vc-extension-browser-menu-item" });
-			item.textContent = type.label;
-			item.dataset.value = type.value;
-			
-			if (type.value === this.selectedType) {
-				item.addClass("active");
-			}
-			
-			item.addEventListener("click", (e) => {
-				e.stopPropagation();
-				// Update active state
-				menu.querySelectorAll(".vc-extension-browser-menu-item").forEach(i => i.removeClass("active"));
-				item.addClass("active");
-				
-				// Update selection
-				this.selectedType = type.value;
-				this.updateTypeButton();
-				this.handleFilterChange();
-				
-				// Close menu
-				menu.style.display = "none";
-				if (this.typeBtn) {
-					this.typeBtn.parentElement?.removeClass("active");
-				}
-			});
-		});
-	}
-	
-	/**
-	 * Populates the category filter menu
-	 */
-	private populateCategoryMenu(categories: string[]): void {
-		if (!this.categoryMenu) return;
-		
-		this.categoryMenu.empty();
-		
-		const allItem = this.categoryMenu.createDiv({ cls: "vc-extension-browser-menu-item" });
-		allItem.textContent = "All Categories";
-		allItem.dataset.value = "";
-		
-		if (this.selectedCategory === "") {
-			allItem.addClass("active");
-		}
-		
-		allItem.addEventListener("click", (e) => {
-			e.stopPropagation();
-			this.categoryMenu?.querySelectorAll(".vc-extension-browser-menu-item").forEach(i => i.removeClass("active"));
-			allItem.addClass("active");
-			this.selectedCategory = "";
-			this.updateCategoryButton();
-			this.handleFilterChange();
-			this.categoryMenu!.style.display = "none";
-			if (this.categoryBtn) {
-				this.categoryBtn.parentElement?.removeClass("active");
-			}
-		});
-		
-		categories.forEach(category => {
-			const item = this.categoryMenu!.createDiv({ cls: "vc-extension-browser-menu-item" });
-			item.textContent = category;
-			item.dataset.value = category;
-			
-			if (category === this.selectedCategory) {
-				item.addClass("active");
-			}
-			
-			item.addEventListener("click", (e) => {
-				e.stopPropagation();
-				this.categoryMenu?.querySelectorAll(".vc-extension-browser-menu-item").forEach(i => i.removeClass("active"));
-				item.addClass("active");
-				this.selectedCategory = category;
-				this.updateCategoryButton();
-				this.handleFilterChange();
-				this.categoryMenu!.style.display = "none";
-				if (this.categoryBtn) {
-					this.categoryBtn.parentElement?.removeClass("active");
-				}
-			});
-		});
-	}
-	
-	/**
-	 * Toggles a cascading menu's visibility
-	 */
-	private toggleCascadingMenu(menu: HTMLElement): void {
-		// Close other menus
-		if (this.categoryMenu && this.categoryMenu !== menu) {
-			this.categoryMenu.style.display = "none";
-			this.categoryBtn?.parentElement?.removeClass("active");
-		}
-		if (this.typeMenu && this.typeMenu !== menu) {
-			this.typeMenu.style.display = "none";
-			this.typeBtn?.parentElement?.removeClass("active");
-		}
-		
-		// Toggle this menu
-		const isVisible = menu.style.display === "block";
-		menu.style.display = isVisible ? "none" : "block";
-		
-		if (!isVisible) {
-			menu.parentElement?.addClass("active");
-		} else {
-			menu.parentElement?.removeClass("active");
-		}
-	}
-	
-	/**
-	 * Updates the category button text
-	 */
-	private updateCategoryButton(): void {
-		if (!this.categoryBtn) return;
-		const textEl = this.categoryBtn.querySelector(".vc-extension-browser-filter-text");
-		if (textEl) {
-			textEl.textContent = this.selectedCategory || "Category";
-		}
-	}
-	
-	/**
-	 * Updates the type button text
-	 */
-	private updateTypeButton(): void {
-		if (!this.typeBtn) return;
-		const textEl = this.typeBtn.querySelector(".vc-extension-browser-filter-text");
-		if (textEl) {
-			// Map values to display names
-			const typeNames: Record<string, string> = {
-				"": "Type",
-				"agent": "Agents",
-				"voice-agent": "Voice Agents",
-				"prompt": "Prompts",
-				"skill": "Skills",
-				"mcp-server": "MCP Servers"
-			};
-			textEl.textContent = typeNames[this.selectedType] || "Type";
-		}
-	}
-	
-	/**
 	 * Loads extensions from the catalog
 	 */
 	private async loadExtensions(): Promise<void> {
 		try {
-			// Fetch catalog
 			const catalog = await this.catalogService.fetchCatalog();
 			this.allExtensions = catalog.availableExtensions;
-			
-			// Load categories
-			await this.loadCategories(catalog.knownCategories);
 			
 			// Load installed extensions
 			const installed = await this.extensionManager.getInstalledExtensions();
@@ -430,12 +286,9 @@ export class ExtensionBrowserView extends ItemView {
 				existingErrors.forEach(el => el.remove());
 			}
 			
-			// Render sections
 			await this.renderSections();
 		} catch (error) {
 			console.error("Failed to load extensions:", error);
-			
-			// Show user-friendly error in the UI
 			this.showCatalogError(error);
 			
 			// Still try to show installed extensions
@@ -508,16 +361,14 @@ export class ExtensionBrowserView extends ItemView {
 	/**
 	 * Loads categories into the filter dropdown
 	 */
-	private async loadCategories(categories: string[]): Promise<void> {
-		// Populate the category cascading menu
-		this.populateCategoryMenu(categories);
+	private async loadCategories(_categories: string[]): Promise<void> {
+		// Categories are now handled via the filter menu
 	}
 	
 	/**
-	 * Renders all sections based on current filter
+	 * Renders all sections based on current filter.
 	 */
 	private async renderSections(): Promise<void> {
-		// Apply filters to get all extensions
 		const filteredExtensions = await this.applyFilters();
 		
 		// Get installed extensions (filtered)
@@ -525,16 +376,14 @@ export class ExtensionBrowserView extends ItemView {
 			this.installedExtensionIds.has(ext.uniqueId)
 		);
 		
-		// Get featured extensions (filtered)
-		const allFeatured = await this.catalogService.getFeatured();
-		const featuredExtensions = filteredExtensions.filter(ext =>
-			allFeatured.some(f => f.uniqueId === ext.uniqueId)
+		// Get recommended extensions (non-installed, featured first then all)
+		const recommendedExtensions = filteredExtensions.filter(ext =>
+			!this.installedExtensionIds.has(ext.uniqueId)
 		);
 		
 		// Render each section
 		this.renderExtensionList(this.installedSection!, installedExtensions, "installed");
-		this.renderExtensionList(this.featuredSection!, featuredExtensions, "featured");
-		this.renderExtensionList(this.allExtensionsSection!, filteredExtensions, "all");
+		this.renderExtensionList(this.recommendedSection!, recommendedExtensions, "recommended");
 	}
 	
 	/**
@@ -547,12 +396,8 @@ export class ExtensionBrowserView extends ItemView {
 			filter.textQuery = this.searchInput.value;
 		}
 		
-		if (this.selectedType) {
-			filter.filterByKind = this.selectedType as VaultExtensionKind;
-		}
-		
-		if (this.selectedCategory) {
-			filter.filterByCategories = [this.selectedCategory];
+		if (this.activeTypeFilter) {
+			filter.filterByKind = this.activeTypeFilter as VaultExtensionKind;
 		}
 		
 		return await this.catalogService.searchExtensions(filter);
@@ -569,10 +414,10 @@ export class ExtensionBrowserView extends ItemView {
 		const content = section.querySelector(".vc-extension-browser-section-content") as HTMLElement;
 		if (!content) return;
 		
-		// Update count
+		// Update count badge
 		const countEl = section.querySelector(".vc-extension-browser-section-count");
 		if (countEl) {
-			countEl.textContent = `(${extensions.length})`;
+			countEl.textContent = `${extensions.length}`;
 		}
 		
 		// Clear content

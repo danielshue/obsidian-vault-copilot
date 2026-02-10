@@ -62,9 +62,47 @@ npm run build
       constants.ts
     types.ts         # TypeScript interfaces and types
   ```
-- **Do not commit build artifacts**: Never commit `node_modules/`, `main.js`, or other generated files to version control.
+- **Do not commit build artifacts**: Never commit `node_modules/`, `main.js`, `styles.css`, or other generated files to version control.
 - Keep the plugin small. Avoid large dependencies. Prefer browser-compatible packages.
 - Generated output should be placed at the plugin root or `dist/` depending on your build setup. Release artifacts must end up at the top level of the plugin folder in the vault (`main.js`, `manifest.json`, `styles.css`).
+
+### CSS architecture
+
+Styles are split into modular component files under `src/styles/` and bundled by esbuild into a single `styles.css` at the project root. The entry point is `src/styles/styles.css`, which uses CSS `@import` statements to include each component file.
+
+- **Entry point**: `src/styles/styles.css` — imports all component files
+- **Build**: esbuild resolves `@import` statements and bundles everything into one minified `styles.css`
+- **Do not edit the root `styles.css`** — it is a generated build artifact. Edit the component files in `src/styles/` instead.
+
+**Component files** (`src/styles/`):
+
+| File | Purpose |
+|------|---------|
+| `chat.css` | Chat container and header layout |
+| `welcome.css` | Welcome message and capabilities card |
+| `messages.css` | Message styles, errors, thinking indicator |
+| `references.css` | Collapsible used-references panel |
+| `input.css` | Input area, context picker, attachment chips |
+| `toolbar.css` | Input toolbar, model/agent selectors, send button |
+| `statusbar.css` | Status bar, scrollbar, settings help |
+| `settings.css` | Settings tab sections, buttons, CLI status |
+| `session-panel.css` | Session panel, layout wrapper, rename modal |
+| `tool-picker.css` | Tool picker modal (VS Code style) |
+| `skills-mcp.css` | Skills and MCP server tables |
+| `directory-list.css` | Directory list UI |
+| `prompt-picker.css` | Prompt picker dropdown |
+| `mcp-apps.css` | MCP apps inline rendering |
+| `voice.css` | Voice recording button states |
+| `realtime.css` | Realtime agent button states, transcript |
+| `tracing.css` | Tracing modal and SDK logs |
+| `conversation-history.css` | Conversation history modal |
+| `tool-approval.css` | Tool approval prompt |
+| `prompt-input.css` | Prompt input modal |
+| `whisper.css` | Whisper.cpp settings section |
+| `mobile.css` | Mobile-specific overrides |
+| `extensions.css` | Extension marketplace, cards, submission wizard |
+
+When adding new styles, create a new component file in `src/styles/` and add an `@import` to `src/styles/styles.css`.
 
 ## Manifest rules (`manifest.json`)
 

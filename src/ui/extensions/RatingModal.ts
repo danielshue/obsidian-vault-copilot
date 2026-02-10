@@ -263,6 +263,7 @@ export class RatingModal extends Modal {
             text: this.config.extensionName,
             cls: "vc-rating-extension-name",
         });
+        infoEl.createSpan({ text: " " });
         infoEl.createSpan({
             text: `v${this.config.extensionVersion}`,
             cls: "vc-rating-extension-version",

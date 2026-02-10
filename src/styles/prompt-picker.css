@@ -1,0 +1,80 @@
+/* ================================
+   PROMPT PICKER
+   ================================ */
+
+.vc-prompt-picker {
+	position: absolute;
+	bottom: 100%;
+	left: 0;
+	right: 0;
+	margin-bottom: 4px;
+	max-height: 320px;
+	overflow-y: auto;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	z-index: 100;
+	font-size: 13px;
+}
+
+.vc-prompt-picker-empty {
+	padding: 8px 12px;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.vc-prompt-picker-item {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 4px 10px;
+	cursor: pointer;
+	min-height: 22px;
+}
+
+.vc-prompt-picker-item:hover,
+.vc-prompt-picker-item.vc-selected {
+	background: var(--background-modifier-hover);
+}
+
+.vc-prompt-picker-name {
+	flex-shrink: 0;
+	color: var(--text-normal);
+	font-size: 13px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 50%;
+}
+
+.vc-prompt-picker-desc {
+	flex: 1;
+	font-size: 13px;
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-align: right;
+}
+
+/* Scrollbar styling for prompt picker */
+.vc-prompt-picker::-webkit-scrollbar {
+	width: 6px;
+}
+
+.vc-prompt-picker::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.vc-prompt-picker::-webkit-scrollbar-thumb {
+	background: var(--background-modifier-border);
+	border-radius: 3px;
+}
+
+.vc-prompt-picker::-webkit-scrollbar-thumb:hover {
+	background: var(--background-modifier-border-hover);
+}
+

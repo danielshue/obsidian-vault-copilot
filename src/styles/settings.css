@@ -1,0 +1,590 @@
+/* CLI Status Section in Settings */
+.vc-cli-status-section {
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	margin-bottom: 16px;
+}
+
+.vc-status-checking {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.vc-status-row {
+	display: flex;
+	align-items: center;
+	padding: 8px 0;
+}
+
+.vc-status-indicator-wrapper {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-status-dot {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	display: inline-block;
+	flex-shrink: 0;
+}
+
+.vc-status-ok {
+	background: var(--color-green);
+	box-shadow: 0 0 6px var(--color-green);
+}
+
+.vc-status-error {
+	background: var(--color-red);
+	box-shadow: 0 0 6px var(--color-red);
+}
+
+.vc-status-label {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-version {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin-left: 4px;
+}
+
+/* Install Section */
+.vc-install-section {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-warning {
+	color: var(--text-warning);
+	font-weight: 500;
+}
+
+.vc-install-command {
+	margin: 12px 0;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-install-command p {
+	margin: 0 0 8px 0;
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.vc-code-block {
+	display: block;
+	padding: 8px 12px;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	color: var(--text-normal);
+	word-break: break-all;
+	margin-bottom: 8px;
+}
+
+.vc-copy-btn {
+	padding: 4px 12px;
+	font-size: 0.85em;
+	background: var(--background-modifier-border);
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-normal);
+}
+
+.vc-copy-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Auth Section */
+.vc-auth-section {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-pat-info {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	font-size: 0.9em;
+}
+
+.vc-pat-info p {
+	margin: 0 0 8px 0;
+	color: var(--text-muted);
+}
+
+.vc-pat-info ol {
+	margin: 0;
+	padding-left: 20px;
+}
+
+.vc-pat-info li {
+	margin: 4px 0;
+	color: var(--text-normal);
+}
+
+.vc-pat-info code {
+	background: var(--background-secondary);
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 0.9em;
+}
+
+.vc-pat-info a {
+	color: var(--interactive-accent);
+}
+
+/* Help Content */
+.vc-help-content p {
+	margin-bottom: 12px;
+}
+
+.vc-help-content p:last-child {
+	margin-bottom: 0;
+}
+
+/* Help Links */
+.vc-help-links {
+	margin-top: 12px;
+	font-size: 0.9em;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.vc-help-links a {
+	color: var(--interactive-accent);
+	display: block;
+}
+
+.vc-help-links a:hover {
+	text-decoration: underline;
+}
+
+/* Model Banner */
+.vc-model-banner {
+	padding: 8px 16px;
+	background: linear-gradient(135deg, var(--interactive-accent) 0%, var(--interactive-accent-hover) 100%);
+	color: var(--text-on-accent);
+	font-size: 13px;
+}
+
+.vc-banner-content {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-banner-icon {
+	display: flex;
+	align-items: center;
+	opacity: 0.9;
+}
+
+.vc-banner-text {
+	flex: 1;
+	font-weight: 500;
+}
+
+.vc-banner-change-btn {
+	background: rgba(255, 255, 255, 0.2);
+	border: none;
+	padding: 4px 10px;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-on-accent);
+	font-size: 12px;
+	transition: background 0.15s;
+}
+
+.vc-banner-change-btn:hover {
+	background: rgba(255, 255, 255, 0.3);
+}
+
+/* ================================
+   PROFESSIONAL SETTINGS UI
+   ================================ */
+
+/* Settings Header */
+.vc-settings-header {
+	margin-bottom: 24px;
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-settings-title-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+}
+
+.vc-settings-logo {
+	width: 36px;
+	height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	margin-top: 2px;
+}
+
+.vc-settings-logo img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.vc-settings-title-text {
+	flex: 1;
+	min-width: 0;
+}
+
+.vc-settings-header h2 {
+	margin: 0 0 4px 0;
+	padding-left: 0;
+	font-size: 20px;
+	font-weight: 600;
+	color: var(--text-normal);
+	text-align: left;
+}
+
+.vc-settings-header p {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: 13px;
+	line-height: 1.4;
+	text-align: left;
+}
+
+/* Settings Sections */
+.vc-settings-section {
+	margin-bottom: 24px;
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-section-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+
+.vc-section-header h3 {
+	margin: 0;
+	padding-left: 0;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+/* All headings in settings sections */
+.vc-settings-section h3,
+.vc-settings-section h4 {
+	padding-left: 0;
+	text-align: left;
+}
+
+/* Status Card */
+.vc-status-card {
+	background: var(--background-primary);
+	border-radius: 6px;
+	padding: 16px;
+}
+
+.vc-status-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 16px;
+}
+
+.vc-status-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.vc-status-item .vc-status-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.vc-status-item .vc-status-label {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-status-item .vc-version {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-left: 4px;
+}
+
+.vc-status-loading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 16px;
+	color: var(--text-muted);
+}
+
+/* Spinner Animation */
+.vc-spinner {
+	width: 16px;
+	height: 16px;
+	border: 2px solid var(--background-modifier-border);
+	border-top-color: var(--interactive-accent);
+	border-radius: 50%;
+	animation: vc-spin 0.8s linear infinite;
+}
+
+@keyframes vc-spin {
+	to { transform: rotate(360deg); }
+}
+
+/* Refresh Button */
+.vc-refresh-btn {
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 6px 12px;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	transition: all 0.15s;
+}
+
+.vc-refresh-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border-hover);
+}
+
+.vc-refresh-btn.vc-spinning svg {
+	animation: vc-spin 0.8s linear infinite;
+}
+
+/* Buttons */
+.vc-btn-primary {
+	padding: 8px 16px;
+	background: var(--interactive-accent);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--text-on-accent);
+	font-size: 14px;
+	font-weight: 500;
+	transition: background 0.15s;
+}
+
+.vc-btn-primary:hover {
+	background: var(--interactive-accent-hover);
+}
+
+.vc-btn-secondary {
+	padding: 8px 16px;
+	background: var(--background-modifier-border);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--text-normal);
+	font-size: 14px;
+	font-weight: 500;
+	transition: all 0.15s;
+}
+
+.vc-btn-secondary:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-btn-link {
+	background: transparent;
+	border: none;
+	padding: 0;
+	color: var(--interactive-accent);
+	cursor: pointer;
+	font-size: 14px;
+	text-decoration: underline;
+}
+
+.vc-btn-link:hover {
+	text-decoration: none;
+}
+
+.vc-btn-row {
+	display: flex;
+	gap: 12px;
+	margin-top: 16px;
+}
+
+/* Command Groups */
+.vc-cmd-group {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+}
+
+.vc-cmd-group h4 {
+	margin: 0 0 8px 0;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.vc-cmd-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.vc-cmd-row:last-child {
+	margin-bottom: 0;
+}
+
+.vc-cmd-row .vc-code-block {
+	margin: 0;
+	flex: 1;
+}
+
+/* Auth Details */
+.vc-auth-details {
+	margin-top: 12px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	font-size: 14px;
+}
+
+.vc-auth-details p {
+	margin: 0 0 8px 0;
+	color: var(--text-muted);
+}
+
+.vc-auth-details p:last-child {
+	margin-bottom: 0;
+}
+
+.vc-auth-details strong {
+	color: var(--text-normal);
+}
+
+/* PAT Content */
+.vc-pat-content {
+	margin-top: 12px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+}
+
+.vc-pat-content p {
+	margin: 0 0 8px 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.vc-pat-content ol {
+	margin: 0;
+	padding-left: 20px;
+	font-size: 13px;
+}
+
+.vc-pat-content li {
+	margin: 6px 0;
+	color: var(--text-normal);
+}
+
+.vc-pat-content code {
+	background: var(--background-secondary);
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 0.9em;
+}
+
+.vc-pat-content a {
+	color: var(--interactive-accent);
+}
+
+/* Advanced Section Toggle */
+.vc-advanced-content {
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Session Section */
+.vc-session-controls {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.vc-session-dropdown {
+	flex: 1;
+	padding: 8px 12px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	color: var(--text-normal);
+	font-size: 14px;
+	cursor: pointer;
+	min-width: 200px;
+}
+
+.vc-session-dropdown:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.vc-no-sessions {
+	padding: 16px;
+	text-align: center;
+	color: var(--text-muted);
+	font-style: italic;
+	background: var(--background-primary);
+	border-radius: 6px;
+}
+
+/* Message placeholder for empty settings */
+.vc-settings-placeholder {
+	padding: 24px 16px;
+	text-align: center;
+	color: var(--text-muted);
+	font-size: 14px;
+}
+
+/* Link styling in settings */
+.vc-settings-section a {
+	color: var(--interactive-accent);
+}
+
+.vc-settings-section a:hover {
+	text-decoration: underline;
+}
+
+/* ================================
+   SESSION PANEL & TOOLBAR
+   ================================ */

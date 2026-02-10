@@ -1,0 +1,85 @@
+/* GitHub Copilot Plugin Styles */
+
+/* Chat Container */
+.vc-chat-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	background: var(--background-secondary);
+	overflow: hidden;
+}
+
+/* Header */
+.vc-chat-header {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.vc-chat-header h4 {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-header-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.vc-header-btn {
+	background: transparent !important;
+	border: none !important;
+	padding: 4px;
+	border-radius: 0 !important;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-header-btn:hover,
+.vc-header-btn:focus,
+.vc-header-btn:active {
+	background: transparent !important;
+	color: var(--text-normal);
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-header-btn svg,
+.vc-header-btn .svg-icon {
+	width: 16px;
+	height: 16px;
+	display: block;
+}
+
+.vc-header-btn:hover svg,
+.vc-header-btn:hover .svg-icon {
+	display: block;
+}
+
+.vc-session-toggle-btn {
+	width: 28px;
+	height: 28px;
+}
+
+/* Messages Container */
+.vc-messages {
+	flex: 1;
+	overflow-y: auto;
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-height: 0;
+	background: var(--background-secondary);
+}
+
