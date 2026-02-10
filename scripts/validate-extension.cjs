@@ -254,10 +254,10 @@ function validateManifestBasic(manifest) {
   }
 
   // Description length
-  if (manifest.description && manifest.description.length > 200) {
+  if (manifest.description && manifest.description.length > 500) {
     issues.push({
       severity: 'warning',
-      message: `Description exceeds 200 characters (${manifest.description.length})`,
+      message: `Description exceeds 500 characters (${manifest.description.length})`,
       code: 'DESCRIPTION_TOO_LONG',
       file: 'manifest.json'
     });
