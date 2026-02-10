@@ -317,7 +317,7 @@ export class ExtensionManager {
 			
 			// Track install analytics (fire-and-forget, don't fail installation)
 			this.trackInstallAnalytics(manifest.uniqueId, manifest.semanticVersion)
-				.catch(err => console.warn('[ExtensionManager] Analytics tracking failed:', err));
+				.catch(err => console.log('[ExtensionManager] Analytics tracking failed:', err));
 			
 			return {
 				operationSucceeded: true,
@@ -398,7 +398,7 @@ export class ExtensionManager {
 			
 			// Track uninstall analytics (fire-and-forget)
 			this.trackUninstallAnalytics(extensionId)
-				.catch(err => console.warn('[ExtensionManager] Analytics tracking failed:', err));
+				.catch(err => console.log('[ExtensionManager] Analytics tracking failed:', err));
 			
 			return {
 				operationSucceeded: true,
