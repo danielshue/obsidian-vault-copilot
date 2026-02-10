@@ -1,9 +1,9 @@
 {
   "id": "daily-journal-agent",
   "name": "Daily Journal Agent",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "agent",
-  "description": "Daily Journal Agent helps you create and incrementally update a structured daily journal note throughout the day, guiding you through section-specific reflection prompts. It preserves existing content, supports incremental section-by-section journaling, and includes mood tracking, task management, and evening reflections.",
+  "description": "Daily Journal Agent helps you create a structured daily journal note and then update it throughout the day, one section at a time (intentions, gratitude, log, mood/energy, reflection, and related l...",
   "author": {
     "name": "Dan Shue",
     "url": "https://github.com/danielshue"
@@ -34,7 +34,6 @@
     "get_daily_note"
   ],
   "repository": "https://github.com/danielshue/obsidian-vault-copilot",
-  "featured": false,
   "changelog": "CHANGELOG.md",
   "versions": [
     {
@@ -73,6 +72,28 @@
         "Removed the Tools Used table in favor of describing tool usage inline as part of the workflow.",
         "Removed the “Tips” section and the standalone “Changelog v1.0.0” section from the README content.",
         "Removed the explicit “License: MIT” section from the body of the README."
+      ]
+    },
+    {
+      "version": "1.1.1",
+      "date": "2026-02-10",
+      "changes": [
+        "Added explicit **Create vs. Update mode** framing in the overview, describing what the agent does when today’s note is missing vs. already exists.",
+        "Added a dedicated **Create mode** section explaining that the agent generates the full daily journal structure (frontmatter + all standard sections) before prompting for the first section to fill.",
+        "Added a more explicit **safe update workflow** for section updates, including that updates target content **between a section heading and the next heading**.",
+        "Added detailed **task formatting rules** for Obsidian Tasks, including:",
+        "Added clearer documentation that **structured fields remain verbatim**, explicitly including **goals** and **tags** (in addition to mood/energy/tasks).",
+        "Added “Preview-first for rewritten sections” as a first-class feature item (highlighting preview before saving narrative rewrites).",
+        "Rewrote the opening description from a workflow-heavy explanation to a concise “thoughtful journaling assistant” summary emphasizing **focused prompts**, **optional narrative rewriting**, and **preserving existing writing**.",
+        "Reworked “Brief overview” from “two core workflows” into “two modes” with clearer, tighter definitions and an explicit note that the agent can manage tasks via Obsidian Tasks metadata.",
+        "Consolidated and reorganized the **Features** list from detailed tool-by-tool behavior into higher-level capabilities, while still calling out:",
+        "Updated the **writing style options** wording and descriptions:",
+        "Restructured **Usage instructions**:",
+        "Expanded and clarified **task management** behavior:",
+        "Updated the **Examples** section:",
+        "Removed the explicit “Special cases” breakdown that previously enumerated behavior for Daily Log, Related Links, Mood/Energy (with exact `mood:` / `energy:` field names), and Tasks as separate bullet rules.",
+        "Removed the dedicated **Task management example** walkthrough (previous “Example C”), replacing it with a more formal task rules section plus shorter scenario examples.",
+        "Removed the documented optional behavior to set `status: complete` in frontmatter when finishing the day."
       ]
     }
   ]
