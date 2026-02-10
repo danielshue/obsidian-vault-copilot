@@ -779,7 +779,17 @@ export class ExtensionManager {
 		} else {
 			// Create new file (Obsidian creates parent folders automatically)
 			console.log(`[ExtensionManager] Creating new file: ${path}`);
-			await this.app.vault.create(path, content);
+				// Ensure parent directories exist
+				const pathParts = path.split('/');
+				const parentPath = pathParts.slice(0, -1).join('/');
+				if (parentPath) {
+					const parentExists = this.app.vault.getAbstractFileByPath(parentPath);
+					if (!parentExists) {
+						console.log(`[ExtensionManager] Creating parent folders: ${parentPath}`);
+						await this.app.vault.createFolder(parentPath);
+					}
+				}
+				await this.app.vault.create(path, content);
 		}
 	}
 	
