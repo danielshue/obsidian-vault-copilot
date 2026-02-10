@@ -1,0 +1,20 @@
+{
+  "id": "daily-journal",
+  "name": "Daily Journal",
+  "version": "1.0.0",
+  "type": "agent",
+  "description": "Daily Journal Agent helps you build a consistent daily reflection practice by creating a structured daily note and guiding you through section-by-section prompts throughout the day. It safely updat...",
+  "author": {
+    "name": "Dan Shue",
+    "url": "https://github.com/danielshue"
+  },
+  "minVaultCopilotVersion": "0.0.1",
+  "categories": [],
+  "tags": [],
+  "files": [
+    {
+      "source": "daily-journal.agent.md",
+      "installPath": "extensions/agents/daily-journal/daily-journal.agent.md"
+    }
+  ]
+}

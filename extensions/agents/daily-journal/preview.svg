@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none" role="img" aria-label="Daily Journal">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="0.55" stop-color="#6D28D9"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+
+    <linearGradient id="shine" x1="120" y1="88" x2="392" y2="424" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="0.35" stop-color="#FFFFFF" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+
+    <clipPath id="clip">
+      <rect x="32" y="32" width="448" height="448" rx="96"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#clip)">
+    <rect x="32" y="32" width="448" height="448" rx="96" fill="url(#bg)"/>
+    <path d="M90 118C154 72 238 72 302 118C366 164 420 252 412 330C404 408 324 450 248 446C172 442 106 392 92 320C78 248 26 164 90 118Z" fill="url(#shine)"/>
+    <path d="M52 80C120 34 210 40 270 86C330 132 388 218 384 294C380 370 314 430 238 434C162 438 96 394 72 328C48 262 -16 126 52 80Z" fill="#FFFFFF" fill-opacity="0.06"/>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <g transform="translate(0,4)">
+      <path d="M174 140H338C360.091 140 378 157.909 378 180V340C378 362.091 360.091 380 338 380H194C171.909 380 154 362.091 154 340V160C154 148.954 162.954 140 174 140Z" fill="#FFFFFF" fill-opacity="0.14"/>
+      <path d="M186 148H334C350.569 148 364 161.431 364 178V338C364 354.569 350.569 368 334 368H202C185.431 368 172 354.569 172 338V164C172 155.163 179.163 148 188 148H186Z" fill="#FFFFFF" fill-opacity="0.12"/>
+
+      <path d="M188 150H334C349.464 150 362 162.536 362 178V338C362 353.464 349.464 366 334 366H204C188.536 366 176 353.464 176 338V164C176 156.268 182.268 150 190 150H188Z" fill="#FFFFFF"/>
+
+      <path d="M176 176C176 163.85 185.85 154 198 154H210V366H204C188.536 366 176 353.464 176 338V176Z" fill="#FFFFFF" fill-opacity="0.18"/>
+
+      <path d="M230 220H332" stroke="#6D28D9" stroke-opacity="0.22" stroke-width="14" stroke-linecap="round"/>
+      <path d="M230 262H320" stroke="#6D28D9" stroke-opacity="0.20" stroke-width="14" stroke-linecap="round"/>
+      <path d="M230 304H306" stroke="#6D28D9" stroke-opacity="0.18" stroke-width="14" stroke-linecap="round"/>
+
+      <circle cx="222" cy="220" r="8" fill="#FFFFFF"/>
+      <circle cx="222" cy="262" r="8" fill="#FFFFFF"/>
+      <circle cx="222" cy="304" r="8" fill="#FFFFFF"/>
+
+      <path d="M300 168C301.7 165.1 304.8 163.2 308.3 163.2C313.7 163.2 318.1 167.6 318.1 173C318.1 176.4 316.3 179.5 313.4 181.2L308.3 184.1L303.2 181.2C300.3 179.5 298.5 176.4 298.5 173C298.5 170.3 299.3 169.2 300 168Z" fill="#FFFFFF" fill-opacity="0.95"/>
+      <path d="M286 188H330" stroke="#6D28D9" stroke-opacity="0.18" stroke-width="10" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <rect x="32" y="32" width="448" height="448" rx="96" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="2"/>
+</svg>
