@@ -55,6 +55,18 @@ describe("ExtensionManager", () => {
 	};
 	
 	beforeEach(() => {
+		const adapterStore = new Map<string, string>();
+		const mockAdapter = {
+			exists: vi.fn(async (path: string) => adapterStore.has(path)),
+			read: vi.fn(async (path: string) => adapterStore.get(path) ?? ""),
+			write: vi.fn(async (path: string, content: string) => {
+				adapterStore.set(path, content);
+			}),
+			remove: vi.fn(async (path: string) => {
+				adapterStore.delete(path);
+			}),
+		};
+
 		// Setup mock vault
 		mockVault = {
 			getAbstractFileByPath: vi.fn().mockReturnValue(null),
@@ -62,6 +74,7 @@ describe("ExtensionManager", () => {
 			create: vi.fn(),
 			modify: vi.fn(),
 			delete: vi.fn(),
+			adapter: mockAdapter,
 		};
 		
 		mockApp = {

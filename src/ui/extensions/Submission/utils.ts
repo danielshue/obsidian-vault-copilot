@@ -11,6 +11,7 @@
 import { App, TFile, ButtonComponent } from "obsidian";
 import type { ExtensionManifest, ExtensionType } from "./types";
 import type VaultCopilotPlugin from "../../../main";
+import { normalizeVaultPath, toVaultRelativePath } from "../../../utils/pathUtils";
 
 /**
  * Loads author information from GitHub CLI or git config
@@ -122,6 +123,84 @@ export function addSummaryItem(container: HTMLElement, label: string, value: str
 	const item = container.createDiv({ cls: "summary-item" });
 	item.createEl("span", { cls: "summary-label", text: `${label}:` });
 	item.createEl("span", { cls: "summary-value", text: value });
+}
+
+/**
+ * Opens a native file/folder picker and returns a vault-relative path.
+ *
+ * The picker is only available on desktop vaults with a local filesystem.
+ * If the user selects a path outside of the vault, this returns an error
+ * message so the caller can show feedback in the UI.
+ *
+ * @param app - The Obsidian app instance
+ * @param extensionType - The extension type (used for dialog title context)
+ * @returns Selected vault-relative path and optional error message
+ *
+ * @example
+ * ```typescript
+ * const result = await openExtensionPathDialog(app, "agent");
+ * if (result.path) {
+ *   console.log("Selected:", result.path);
+ * }
+ * ```
+ *
+ * @since 0.1.0
+ */
+export async function openExtensionPathDialog(
+	app: App,
+	extensionType: ExtensionType | undefined
+): Promise<{ path: string | null; error?: string }> {
+	const adapter = (app.vault as any).adapter as {
+		getBasePath?: () => string;
+		basePath?: string;
+	};
+	const vaultBasePath =
+		typeof adapter?.getBasePath === "function"
+			? adapter.getBasePath()
+			: typeof adapter?.basePath === "string"
+				? adapter.basePath
+				: undefined;
+
+	if (!vaultBasePath) {
+		return {
+			path: null,
+			error: "File browsing is only available for local desktop vaults."
+		};
+	}
+
+	const electron = (window as any)?.require ? (window as any).require("electron") : null;
+	const dialog = electron?.remote?.dialog || electron?.dialog;
+	if (!dialog || typeof dialog.showOpenDialog !== "function") {
+		return {
+			path: null,
+			error: "Native file picker is not available in this environment."
+		};
+	}
+
+	const typeLabel = extensionType ? extensionType.replace(/-/g, " ") : "extension";
+	const result = await dialog.showOpenDialog({
+		title: `Select ${typeLabel} file or folder`,
+		defaultPath: vaultBasePath,
+		properties: ["openFile", "openDirectory"]
+	});
+
+	if (result?.canceled || !result?.filePaths?.length) {
+		return { path: null };
+	}
+
+	const pickedPath = result.filePaths[0];
+	const normalizedPicked = normalizeVaultPath(pickedPath);
+	const normalizedBase = normalizeVaultPath(vaultBasePath);
+
+	if (!normalizedPicked.toLowerCase().startsWith(normalizedBase.toLowerCase())) {
+		return {
+			path: null,
+			error: "Please choose a file or folder inside the current vault."
+		};
+	}
+
+	const vaultRelative = toVaultRelativePath(normalizedPicked, vaultBasePath);
+	return { path: vaultRelative || "" };
 }
 
 /**

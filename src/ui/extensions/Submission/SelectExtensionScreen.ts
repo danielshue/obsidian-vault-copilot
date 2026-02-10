@@ -18,6 +18,7 @@
 
 import { ButtonComponent } from "obsidian";
 import type { ScreenContext, ScreenCallbacks, ExtensionType } from "./types";
+import { openExtensionPathDialog } from "./utils";
 
 /**
  * Returns an example filename for the given extension type.
@@ -179,6 +180,9 @@ export function renderSelectExtensionScreen(
 		aiToggle.toggleClass("is-enabled", !context.skipAIGeneration);
 	});
 
+	// Message container for validation feedback
+	const messageContainer = container.createDiv({ cls: "step-message-container" });
+
 	// ── Right column ──
 	const rightCol = columns.createDiv({ cls: "select-col-right" });
 
@@ -247,15 +251,25 @@ export function renderSelectExtensionScreen(
 		}
 	});
 
+	browseBtn.onClick(async () => {
+		const result = await openExtensionPathDialog(context.app, context.submissionData.extensionType);
+		if (result.error) {
+			callbacks.showInlineMessage(messageContainer, result.error, "error");
+			return;
+		}
+		if (!result.path) {
+			return;
+		}
+		pathInput.value = result.path;
+		pathInput.dispatchEvent(new Event("input"));
+	});
+
 	// Store reference so wizard can read value
 	context.extensionPathInput = {
 		getValue: () => pathInput.value,
 		setValue: (v: string) => { pathInput.value = v; },
 		inputEl: pathInput
 	} as any;
-
-	// Message container for validation feedback
-	container.createDiv({ cls: "step-message-container" });
 
 	// Navigation buttons
 	renderNavigationButtons(container, false, true);
