@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated": "2026-02-10T08:29:23.178Z",
+  "generated": "2026-02-10T08:51:23.521Z",
   "totalExtensions": 5,
   "extensions": [
     {
@@ -28,8 +28,8 @@
       "downloads": 0,
       "rating": null,
       "ratingCount": 0,
-      "publishedAt": "2026-02-10T08:29:10.572Z",
-      "updatedAt": "2026-02-10T08:29:10.572Z",
+      "publishedAt": "2026-02-10T08:51:13.519Z",
+      "updatedAt": "2026-02-10T08:51:13.519Z",
       "size": "17.9 KB",
       "sizeBytes": 18349,
       "minVaultCopilotVersion": "0.0.1",
@@ -118,9 +118,7 @@
           ]
         }
       ],
-      "submittedBy": null,
-      "activeInstalls": 0,
-      "analyticsSource": "azure"
+      "submittedBy": null
     },
     {
       "id": "meeting-notes-agent",
@@ -144,11 +142,11 @@
         "summary",
         "collaboration"
       ],
-      "downloads": 5,
-      "rating": 3.5,
-      "ratingCount": 4,
+      "downloads": 0,
+      "rating": null,
+      "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-10T08:29:10.573Z",
+      "updatedAt": "2026-02-10T08:51:13.519Z",
       "size": "2.4 KB",
       "sizeBytes": 2481,
       "minVaultCopilotVersion": "0.1.0",
@@ -187,9 +185,7 @@
           ]
         }
       ],
-      "submittedBy": null,
-      "activeInstalls": 4,
-      "analyticsSource": "azure"
+      "submittedBy": null
     },
     {
       "id": "task-management-prompt",
@@ -217,7 +213,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-10T08:29:10.575Z",
+      "updatedAt": "2026-02-10T08:51:13.521Z",
       "size": "1.4 KB",
       "sizeBytes": 1467,
       "minVaultCopilotVersion": "0.1.0",
@@ -255,9 +251,7 @@
           ]
         }
       ],
-      "submittedBy": null,
-      "activeInstalls": 0,
-      "analyticsSource": "azure"
+      "submittedBy": null
     },
     {
       "id": "example-weather-mcp",
@@ -285,7 +279,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-10T08:29:10.574Z",
+      "updatedAt": "2026-02-10T08:51:13.520Z",
       "size": "0.2 KB",
       "sizeBytes": 238,
       "minVaultCopilotVersion": "0.1.0",
@@ -321,9 +315,7 @@
           ]
         }
       ],
-      "submittedBy": null,
-      "activeInstalls": 0,
-      "analyticsSource": "azure"
+      "submittedBy": null
     },
     {
       "id": "weekly-review-agent",
@@ -351,7 +343,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-10T08:29:10.573Z",
+      "updatedAt": "2026-02-10T08:51:13.520Z",
       "size": "3.4 KB",
       "sizeBytes": 3458,
       "minVaultCopilotVersion": "0.1.0",
@@ -390,9 +382,7 @@
           ]
         }
       ],
-      "submittedBy": null,
-      "activeInstalls": 0,
-      "analyticsSource": "azure"
+      "submittedBy": null
     }
   ],
   "categories": [
@@ -429,5 +419,5 @@
     "withRatings": 0,
     "averageRating": null
   },
-  "lastUpdated": "2026-02-10T08:29:27.165Z"
+  "lastUpdated": "2026-02-10T08:51:38.765Z"
 }
