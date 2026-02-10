@@ -145,7 +145,25 @@ function parseRawServers(
 }
 
 /**
- * Safely read and parse a JSON file
+/**
+ * Strip JSONC (JSON with Comments) features to make it valid JSON
+ * Removes single-line comments, multi-line comments, and trailing commas
+ */
+function stripJsonc(content: string): string {
+	// Remove multi-line comments
+	let result = content.replace(/\/\*[\s\S]*?\*\//g, "");
+	
+	// Remove single-line comments (but preserve URLs like https://)
+	result = result.replace(/(?<!:)\/\/.*$/gm, "");
+	
+	// Remove trailing commas before closing brackets/braces
+	result = result.replace(/,(\s*[}\]])/g, "$1");
+	
+	return result;
+}
+
+/**
+ * Safely read and parse a JSON file (supports JSONC for VS Code/Cursor configs)
  */
 function readJsonFile(filePath: string): unknown | null {
 	try {
@@ -153,7 +171,12 @@ function readJsonFile(filePath: string): unknown | null {
 			return null;
 		}
 		const content = fs.readFileSync(filePath, "utf-8");
-		return JSON.parse(content);
+		
+		// Strip JSONC features (comments, trailing commas) if this is a settings file
+		const isSettingsFile = filePath.includes("settings.json") || filePath.includes(".cursor");
+		const jsonContent = isSettingsFile ? stripJsonc(content) : content;
+		
+		return JSON.parse(jsonContent);
 	} catch (error) {
 		console.warn(`[McpDiscovery] Failed to read ${filePath}:`, error);
 		return null;
