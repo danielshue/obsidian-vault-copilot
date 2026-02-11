@@ -373,6 +373,10 @@ export default class CopilotPlugin extends Plugin {
 	private cliManager: GitHubCopilotCliManager | null = null;
 	/** Settings change listeners */
 	private settingsChangeListeners: Set<() => void> = new Set();
+	/** Debounce timer for settings save */
+	private saveSettingsTimer: ReturnType<typeof setTimeout> | null = null;
+	/** Debounce delay for settings save (ms) */
+	private static readonly SAVE_SETTINGS_DEBOUNCE_MS = 100;
 
 	/**
 	 * Get the CLI manager instance for checking Copilot CLI availability.
@@ -765,6 +769,12 @@ export default class CopilotPlugin extends Plugin {
 	 * @internal
 	 */
 	async onunload(): Promise<void> {
+		// Clear any pending debounced operations
+		if (this.saveSettingsTimer) {
+			clearTimeout(this.saveSettingsTimer);
+			this.saveSettingsTimer = null;
+		}
+		
 		await this.disconnectCopilot();
 		await this.mcpManager?.shutdown();
 		this.agentCache?.destroy();
@@ -918,6 +928,9 @@ export default class CopilotPlugin extends Plugin {
 	/**
 	 * Save plugin settings to disk.
 	 * 
+	 * This method is debounced to coalesce multiple rapid saves into one.
+	 * Heavy operations like cache updates are deferred to avoid blocking UI.
+	 * 
 	 * Also triggers updates to:
 	 * - Service configuration
 	 * - Tracing service state
@@ -926,8 +939,16 @@ export default class CopilotPlugin extends Plugin {
 	 * @internal
 	 */
 	async saveSettings(): Promise<void> {
+		// Cancel any pending debounced save
+		if (this.saveSettingsTimer) {
+			clearTimeout(this.saveSettingsTimer);
+			this.saveSettingsTimer = null;
+		}
+
+		// Immediately persist the settings to disk (non-blocking via Obsidian's saveData)
 		await this.saveData(this.settings);
 		
+		// Lightweight, fast operations can happen immediately
 		// Update service config when settings change
 		if (this.githubCopilotCliService) {
 			this.githubCopilotCliService.updateConfig(this.getServiceConfig());
@@ -941,28 +962,44 @@ export default class CopilotPlugin extends Plugin {
 			tracingService.disable();
 		}
 		
-		// Update agent cache when agent directories change
-		if (this.agentCache) {
-			await this.agentCache.updateDirectories(this.settings.agentDirectories);
-		}
-		
-		// Update prompt cache when prompt directories change
-		if (this.promptCache) {
-			await this.promptCache.updateDirectories(this.settings.promptDirectories);
-		}
-		
 		// Update CLI manager path if changed
 		if (this.cliManager) {
 			this.cliManager.setCliPath(this.settings.cliPath || "copilot");
 		}
 		
-		// Notify settings change listeners
+		// Notify settings change listeners immediately
 		for (const listener of this.settingsChangeListeners) {
 			try {
 				listener();
 			} catch (e) {
 				console.error("[VaultCopilot] Settings change listener error:", e);
 			}
+		}
+		
+		// Defer heavy operations (file system scans) off the main thread
+		// Use setTimeout to yield back to the event loop and not block click handlers
+		setTimeout(() => {
+			this.applyDeferredSettingsUpdates();
+		}, 0);
+	}
+
+	/**
+	 * Apply heavy settings updates that should not block UI interactions.
+	 * Called asynchronously after saveSettings() to avoid blocking click handlers.
+	 * 
+	 * @internal
+	 */
+	private async applyDeferredSettingsUpdates(): Promise<void> {
+		// Update agent cache when agent directories change
+		// This involves file system scanning and can be slow
+		if (this.agentCache) {
+			await this.agentCache.updateDirectories(this.settings.agentDirectories);
+		}
+		
+		// Update prompt cache when prompt directories change
+		// This involves file system scanning and can be slow
+		if (this.promptCache) {
+			await this.promptCache.updateDirectories(this.settings.promptDirectories);
 		}
 	}
 
