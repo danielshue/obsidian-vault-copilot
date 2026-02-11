@@ -3375,6 +3375,7 @@ export class CopilotChatView extends ItemView {
 			for (let i = 0; i < highlightElements.length; i++) {
 				const highlightElement = highlightElements[i];
 				const originalRect = rects[i];
+				if (!highlightElement || !originalRect) continue;
 				
 				// Recalculate position relative to new editor position
 				highlightElement.style.left = `${originalRect.left - newEditorRect.left}px`;
