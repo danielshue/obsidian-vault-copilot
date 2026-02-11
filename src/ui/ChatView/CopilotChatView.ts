@@ -154,6 +154,9 @@ export class CopilotChatView extends ItemView {
 	private selectionHighlightOverlay: HTMLElement | null = null;
 	private preservedSelectionText: string = '';
 	private editorSelectionCleanup: (() => void) | null = null;
+	private cachedSelectionRects: DOMRectList | null = null;
+	private cachedEditorRect: DOMRect | null = null;
+	private cachedCmEditor: HTMLElement | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, githubCopilotCliService: GitHubCopilotCliService | null) {
 		super(leaf);
@@ -566,9 +569,15 @@ export class CopilotChatView extends ItemView {
 		// Event listeners
 		
 		// Preserve editor selection when clicking into chat input
-		// This captures the selection BEFORE focus changes to the input
-		this.inputEl.addEventListener("mousedown", () => {
-			this.preserveEditorSelection();
+		// Use capture phase to get selection BEFORE it's cleared by the click
+		this.inputEl.addEventListener("mousedown", (e) => {
+			// Cache the selection rectangles before the click clears them
+			this.cacheEditorSelection();
+		}, true); // Use capture phase
+		
+		// Create the visual highlight after the input gains focus
+		this.inputEl.addEventListener("focus", () => {
+			this.createSelectionHighlightFromCache();
 		});
 		
 		this.inputEl.addEventListener("keydown", (e) => {
@@ -3191,40 +3200,96 @@ export class CopilotChatView extends ItemView {
 	 * Capture the current editor selection and create a visual highlight overlay
 	 * This preserves the selection visually when focus moves to the chat input
 	 */
-	private preserveEditorSelection(): void {
-		// Clean up any existing highlight
-		this.clearEditorSelectionHighlight();
-		
+	/**
+	 * Cache the current editor selection rectangles
+	 * Called in capture phase of mousedown, BEFORE the selection is cleared
+	 */
+	private cacheEditorSelection(): void {
 		// Get the active markdown view
 		const activeLeaf = this.app.workspace.getActiveViewOfType(ItemView);
-		if (!activeLeaf || !('editor' in activeLeaf)) return;
+		if (!activeLeaf || !('editor' in activeLeaf)) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
 		
 		const editor = (activeLeaf as any).editor;
-		if (!editor || typeof editor.getSelection !== 'function') return;
+		if (!editor || typeof editor.getSelection !== 'function') {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
 		
 		const selectedText = editor.getSelection();
-		if (!selectedText) return;
+		if (!selectedText) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
 		
 		// Store the selected text for context
 		this.preservedSelectionText = selectedText;
 		
 		// Find the CodeMirror editor container
 		const viewContentEl = (activeLeaf as any).contentEl as HTMLElement;
-		if (!viewContentEl) return;
+		if (!viewContentEl) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
 		
 		const cmEditor = viewContentEl.querySelector('.cm-editor') as HTMLElement;
-		if (!cmEditor) return;
+		if (!cmEditor) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
 		
-		// Get the selection rects from the browser
+		// Get the selection rects from the browser - THIS MUST HAPPEN BEFORE FOCUS CHANGES
 		const windowSelection = window.getSelection();
-		if (!windowSelection || windowSelection.rangeCount === 0) return;
+		if (!windowSelection || windowSelection.rangeCount === 0) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
 		
 		const range = windowSelection.getRangeAt(0);
 		const rects = range.getClientRects();
-		if (rects.length === 0) return;
+		if (rects.length === 0) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
 		
-		// Get the editor's bounding rect for positioning
-		const editorRect = cmEditor.getBoundingClientRect();
+		// Cache everything we need for later
+		this.cachedSelectionRects = rects;
+		this.cachedEditorRect = cmEditor.getBoundingClientRect();
+		this.cachedCmEditor = cmEditor;
+	}
+	
+	/**
+	 * Create the visual selection highlight from cached rectangles
+	 * Called after the input gains focus and the selection has been cleared
+	 */
+	private createSelectionHighlightFromCache(): void {
+		// Clean up any existing highlight
+		this.clearEditorSelectionHighlight();
+		
+		// Check if we have cached selection data
+		if (!this.cachedSelectionRects || !this.cachedEditorRect || !this.cachedCmEditor) {
+			return;
+		}
+		
+		const rects = this.cachedSelectionRects;
+		const editorRect = this.cachedEditorRect;
+		const cmEditor = this.cachedCmEditor;
 		
 		// Create overlay container
 		this.selectionHighlightOverlay = document.createElement('div');
@@ -3266,6 +3331,21 @@ export class CopilotChatView extends ItemView {
 		this.editorSelectionCleanup = () => {
 			cmEditor.removeEventListener('focusin', cleanupHandler);
 		};
+		
+		// Clear the cache after using it
+		this.cachedSelectionRects = null;
+		this.cachedEditorRect = null;
+		this.cachedCmEditor = null;
+	}
+	
+	
+	/**
+	 * Legacy method kept for compatibility
+	 * Now delegates to the new two-step process
+	 */
+	private preserveEditorSelection(): void {
+		this.cacheEditorSelection();
+		this.createSelectionHighlightFromCache();
 	}
 	
 	/**
@@ -3281,6 +3361,10 @@ export class CopilotChatView extends ItemView {
 			this.editorSelectionCleanup = null;
 		}
 		this.preservedSelectionText = '';
+		// Also clear any cached selection data
+		this.cachedSelectionRects = null;
+		this.cachedEditorRect = null;
+		this.cachedCmEditor = null;
 	}
 
 	/**
