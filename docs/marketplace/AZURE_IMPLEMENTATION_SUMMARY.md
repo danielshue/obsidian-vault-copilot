@@ -410,7 +410,7 @@ export class ExtensionManager {
   constructor(app: App, plugin: CopilotPlugin) {
     this.analyticsService = new ExtensionAnalyticsService(
       plugin.settings.analyticsEndpoint || 
-      'https://vault-copilot-api.azurewebsites.net/api'
+      'https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io/api'
     );
   }
 
@@ -594,7 +594,7 @@ Add step to fetch Azure metrics:
 - name: Fetch Extension Metrics from Azure
   run: node scripts/fetch-azure-metrics.js
   env:
-    AZURE_API_URL: https://vault-copilot-api.azurewebsites.net/api
+    AZURE_API_URL: https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io/api
 ```
 
 ### New Script: fetch-azure-metrics.js
@@ -669,10 +669,10 @@ func azure functionapp publish vault-copilot-api
 **4. Test Endpoints**
 ```bash
 # Health check
-curl https://vault-copilot-api.azurewebsites.net/api/health
+curl https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io/api/health
 
 # Test install tracking
-curl -X POST https://vault-copilot-api.azurewebsites.net/api/installs \
+curl -X POST https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io/api/installs \
   -H "Content-Type: application/json" \
   -d '{"extensionId":"test","version":"1.0.0","userHash":"'$(printf 'a%.0s' {1..64})'","platform":"desktop","vaultCopilotVersion":"0.0.20","timestamp":"2026-02-08T12:00:00Z"}'
 ```
@@ -680,14 +680,14 @@ curl -X POST https://vault-copilot-api.azurewebsites.net/api/installs \
 **5. Update Plugin Settings**
 ```typescript
 // In plugin settings default
-analyticsEndpoint: 'https://vault-copilot-api.azurewebsites.net/api'
+analyticsEndpoint: 'https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io/api'
 enableAnalytics: true  // Opt-in by default
 ```
 
 **6. Update GitHub Actions**
 ```bash
 # Add secret to repository
-gh secret set AZURE_API_URL --body "https://vault-copilot-api.azurewebsites.net/api"
+gh secret set AZURE_API_URL --body "https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io/api"
 ```
 
 **7. Deploy Plugin Update**
@@ -796,7 +796,7 @@ npm install -g artillery
 
 # Run load test
 artillery quick --count 100 --num 10 \
-  https://vault-copilot-api.azurewebsites.net/api/metrics/daily-journal
+  https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io/api/metrics/daily-journal
 ```
 
 ---

@@ -26,7 +26,7 @@
  * @since 0.0.1
  */
 
-import { App, DropdownComponent, Modal, Notice, Setting } from "obsidian";
+import { App, DropdownComponent, Modal, Setting } from "obsidian";
 import {
 	AIProviderProfile,
 	AIProviderProfileType,
@@ -246,7 +246,7 @@ export class AIProviderProfileModal extends Modal {
 		onSuccess: (secretId: string) => void;
 	}): void {
 		if (!this.app.secretStorage) {
-			new Notice('SecretStorage is not available in this version of Obsidian.');
+			console.error('SecretStorage is not available in this version of Obsidian.');
 			return;
 		}
 		const existing = this.app.secretStorage.listSecrets?.() ?? [];
@@ -258,7 +258,7 @@ export class AIProviderProfileModal extends Modal {
 			onSubmit: (secretId, secretValue) => {
 				this.app.secretStorage!.setSecret(secretId, secretValue);
 				options.onSuccess(secretId);
-				new Notice(`${options.providerName} API key saved to Keychain.`);
+				console.log(`${options.providerName} API key saved to Keychain.`);
 			},
 		});
 		modal.open();
@@ -413,7 +413,7 @@ export class AIProviderProfileModal extends Modal {
 	private saveProfile(): void {
 		// Validate required fields
 		if (!this.profile.name?.trim()) {
-			new Notice('Profile name is required');
+			console.error('Profile name is required');
 			return;
 		}
 
@@ -422,12 +422,12 @@ export class AIProviderProfileModal extends Modal {
 		if (type === 'azure-openai') {
 			const azure = this.profile as AzureOpenAIProviderProfile;
 			if (!azure.endpoint?.trim()) {
-				new Notice('Azure endpoint is required');
+				console.error('Azure endpoint is required');
 				return;
 			}
 			// Deployment name is required
 			if (!azure.deploymentName?.trim()) {
-				new Notice('Deployment name is required');
+				console.error('Deployment name is required');
 				return;
 			}
 		}
@@ -435,7 +435,7 @@ export class AIProviderProfileModal extends Modal {
 		if (type === 'local') {
 			const local = this.profile as LocalProviderProfile;
 			if (!local.serverUrl?.trim()) {
-				new Notice('Server URL is required');
+				console.error('Server URL is required');
 				return;
 			}
 		}

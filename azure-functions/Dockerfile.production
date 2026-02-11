@@ -1,0 +1,19 @@
+# Production Dockerfile for Azure Container Apps
+# Uses Azure Functions runtime in a container
+FROM mcr.microsoft.com/azure-functions/node:4-node24
+
+ENV AzureWebJobsScriptRoot=/home/site/wwwroot \
+    AzureFunctionsJobHost__Logging__Console__IsEnabled=true \
+    FUNCTIONS_WORKER_RUNTIME=node
+
+WORKDIR /home/site/wwwroot
+
+# Copy package files and install production deps
+COPY package.json package-lock.json ./
+RUN npm ci --production
+
+# Copy built output and config
+COPY dist/ ./dist/
+COPY host.json ./
+
+EXPOSE 80

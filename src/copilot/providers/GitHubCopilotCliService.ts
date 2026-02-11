@@ -51,7 +51,7 @@
  */
 
 import { CopilotClient, CopilotSession, SessionEvent, defineTool } from "@github/copilot-sdk";
-import { App, TFile, Notice } from "obsidian";
+import { App, TFile } from "obsidian";
 import { SkillRegistry, VaultCopilotSkill } from "../customization/SkillRegistry";
 import { CustomizationLoader, CustomInstruction } from "../customization/CustomizationLoader";
 import { McpManager, McpManagerEvent } from "../mcp/McpManager";

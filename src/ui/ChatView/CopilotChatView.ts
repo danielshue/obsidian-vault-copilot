@@ -50,7 +50,7 @@
  * @since 0.0.1
  */
 
-import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon, Menu } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, setIcon, Menu } from "obsidian";
 import { GitHubCopilotCliService, ChatMessage } from "../../copilot/providers/GitHubCopilotCliService";
 import CopilotPlugin from "../../main";
 import { getAvailableModels, getModelDisplayName, CopilotSession, VoiceConversation, VoiceMessage, getVoiceServiceConfigFromProfile, getProfileById, OpenAIProviderProfile, AzureOpenAIProviderProfile, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "../../ui/settings";
@@ -1082,7 +1082,7 @@ export class CopilotChatView extends ItemView {
 				const errorMessage = error instanceof Error 
 					? error.message 
 					: (typeof error === 'string' ? error : JSON.stringify(error));
-				new Notice(`Voice agent error: ${errorMessage}`);
+				console.error(`Voice agent error: ${errorMessage}`);
 				console.error('[VoiceAgent] Error:', error);
 			})
 		);
@@ -1140,7 +1140,7 @@ export class CopilotChatView extends ItemView {
 		}
 
 		if (!this.realtimeAgentService) {
-			new Notice('Failed to initialize voice agent. Check your OpenAI API key.');
+			console.error('Failed to initialize voice agent. Check your OpenAI API key.');
 			return;
 		}
 
@@ -1197,7 +1197,7 @@ export class CopilotChatView extends ItemView {
 				});
 
 			} catch (error) {
-				new Notice(`Failed to connect voice agent: ${error instanceof Error ? error.message : String(error)}`);
+				console.error(`Failed to connect voice agent: ${error instanceof Error ? error.message : String(error)}`);
 			}
 		} else {
 			// Save the current conversation before stopping
@@ -1301,14 +1301,14 @@ export class CopilotChatView extends ItemView {
 		
 		if (decision === 'deny') {
 			this.realtimeAgentService.rejectTool(request);
-			new Notice(`Denied tool: ${request.toolName}`);
+			console.log(`Denied tool: ${request.toolName}`);
 		} else {
 			if (decision === 'always') {
 				this.realtimeAgentService.approveToolForSession(request);
 			} else {
 				this.realtimeAgentService.approveTool(request);
 			}
-			new Notice(`Allowed tool: ${request.toolName}${decision === 'always' ? ' (for session)' : ''}`);
+			console.log(`Allowed tool: ${request.toolName}${decision === 'always' ? ' (for session)' : ''}`);
 		}
 		
 		// Clean up
@@ -2315,7 +2315,7 @@ export class CopilotChatView extends ItemView {
 		diagnostics.push(`**Prompt Directories:** ${this.plugin.settings.promptDirectories.length}`);
 		diagnostics.push(`**Skill Directories:** ${this.plugin.settings.skillDirectories.length}`);
 		
-		new Notice(diagnostics.join("\n"), 10000);
+		console.log(diagnostics.join("\n"));
 	}
 
 	/**
@@ -3000,7 +3000,7 @@ export class CopilotChatView extends ItemView {
 				this.currentStreamingMessageEl = null;
 			}
 		} catch (error) {
-			new Notice(`Vault Copilot error: ${error}`);
+			console.error(`Vault Copilot error: ${error}`);
 			if (this.currentStreamingMessageEl) {
 				this.currentStreamingMessageEl.remove();
 				this.currentStreamingMessageEl = null;
@@ -3178,7 +3178,7 @@ export class CopilotChatView extends ItemView {
 		// Load the full prompt content
 		const fullPrompt = await this.plugin.promptCache.getFullPrompt(promptInfo.name);
 		if (!fullPrompt) {
-			new Notice(`Could not load prompt: ${promptInfo.name}`);
+			console.error(`Could not load prompt: ${promptInfo.name}`);
 			return;
 		}
 		
@@ -3428,7 +3428,7 @@ export class CopilotChatView extends ItemView {
 				this.githubCopilotCliService.updateConfig({ model: originalModel });
 			}
 		} catch (error) {
-			new Notice(`Prompt execution error: ${error}`);
+			console.error(`Prompt execution error: ${error}`);
 			if (this.currentStreamingMessageEl) {
 				this.currentStreamingMessageEl.remove();
 				this.currentStreamingMessageEl = null;
@@ -3453,7 +3453,7 @@ export class CopilotChatView extends ItemView {
 		// Load the full prompt content
 		const fullPrompt = await this.plugin.promptCache.getFullPrompt(promptInfo.name);
 		if (!fullPrompt) {
-			new Notice(`Could not load prompt: ${promptInfo.name}`);
+			console.error(`Could not load prompt: ${promptInfo.name}`);
 			return;
 		}
 		
@@ -3550,7 +3550,7 @@ export class CopilotChatView extends ItemView {
 				this.githubCopilotCliService.updateConfig({ model: originalModel });
 			}
 		} catch (error) {
-			new Notice(`Prompt execution error: ${error}`);
+			console.error(`Prompt execution error: ${error}`);
 			if (this.currentStreamingMessageEl) {
 				this.currentStreamingMessageEl.remove();
 				this.currentStreamingMessageEl = null;

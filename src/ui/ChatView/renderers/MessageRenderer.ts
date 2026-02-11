@@ -1,4 +1,4 @@
-import { App, MarkdownRenderer, Notice, Component } from "obsidian";
+import { App, MarkdownRenderer, Component } from "obsidian";
 import { ChatMessage } from "../../../copilot/providers/GitHubCopilotCliService";
 
 /**
@@ -144,13 +144,13 @@ export class MessageRenderer {
 						"text/plain": new Blob([text], { type: "text/plain" })
 					})
 				]);
-				new Notice("Copied to clipboard");
+				console.log("Copied to clipboard");
 				copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 				setTimeout(() => {
 					copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
 				}, 2000);
 			} catch {
-				new Notice("Failed to copy");
+				console.error("Failed to copy");
 			}
 		});
 	}
@@ -374,7 +374,7 @@ export class MessageRenderer {
 			await new Promise(resolve => setTimeout(resolve, 500));
 		} catch (error) {
 			console.error('TTS error:', error);
-			new Notice(`TTS error: ${error instanceof Error ? error.message : String(error)}`);
+			console.error(`TTS error: ${error instanceof Error ? error.message : String(error)}`);
 		} finally {
 			// Restore button state
 			button.innerHTML = originalIcon;

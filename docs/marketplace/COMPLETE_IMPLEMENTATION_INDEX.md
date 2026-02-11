@@ -375,7 +375,7 @@ func azure functionapp publish vault-copilot-api
 
 ### Test API
 ```bash
-curl https://vault-copilot-api.azurewebsites.net/api/health
+curl https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io/api/health
 ```
 
 ### Update Plugin

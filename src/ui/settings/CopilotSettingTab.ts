@@ -13,7 +13,7 @@
  * @since 0.0.1
  */
 
-import { App, PluginSettingTab, Setting, Notice, FileSystemAdapter } from "obsidian";
+import { App, PluginSettingTab, Setting, FileSystemAdapter } from "obsidian";
 import CopilotPlugin from "../../main";
 import { GitHubCopilotCliManager, CliStatus } from "../../copilot/providers/GitHubCopilotCliManager";
 import { SkillInfo, McpServerConfig } from "../../copilot/customization/SkillRegistry";
@@ -246,7 +246,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 		const copyBtn = cmdRow.createEl("button", { text: "Copy", cls: "vc-btn-secondary vc-btn-sm" });
 		copyBtn.addEventListener("click", () => {
 			navigator.clipboard.writeText(installInfo.command);
-			new Notice("Copied to clipboard");
+			console.log("Copied to clipboard");
 		});
 
 		// Action buttons
@@ -475,7 +475,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 							.setTooltip("Refresh available models from API")
 							.onClick(async () => {
 								button.setDisabled(true);
-								new Notice("Discovering models...");
+console.log("Discovering models...");
 								
 								try {
 									let models: string[] = [];
@@ -544,12 +544,12 @@ export class CopilotSettingTab extends PluginSettingTab {
 											}
 										}
 										
-										new Notice(`Found ${models.length} models`);
+										console.log(`Found ${models.length} models`);
 									} else {
-										new Notice("No models found");
+										console.log("No models found");
 									}
 								} catch (error) {
-									new Notice(`Error discovering models: ${error}`);
+									console.error(`Error discovering models: ${error}`);
 								}
 								
 								button.setDisabled(false);
@@ -718,7 +718,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 							this.renderProfileList(profileListContainer);
 							// Refresh all settings to update dropdowns
 							this.display();
-							new Notice(`Profile "${profile.name}" created`);
+							console.log(`Profile "${profile.name}" created`);
 						});
 						modal.open();
 					});
@@ -807,7 +807,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 							this.renderProfileList(container);
 							// Refresh all settings to update dropdowns
 							this.display();
-							new Notice(`Profile "${updatedProfile.name}" updated`);
+							console.log(`Profile "${updatedProfile.name}" updated`);
 						}
 					});
 					modal.open();
@@ -857,7 +857,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 						// Re-render voice settings sections to update dropdowns
 						this.display();
 						
-						new Notice(`Profile "${profile.name}" deleted`);
+						console.log(`Profile "${profile.name}" deleted`);
 					}
 				});
 			}
@@ -1307,16 +1307,16 @@ export class CopilotSettingTab extends PluginSettingTab {
 							});
 
 							if (result.success) {
-								new Notice("Whisper.cpp downloaded successfully!");
+								console.log("Whisper.cpp downloaded successfully!");
 								await this.refreshWhisperCppStatus();
 							} else {
-								new Notice(`Download failed: ${result.error}`);
+								console.error(`Download failed: ${result.error}`);
 								button.setDisabled(false);
 								button.setButtonText("Download");
 								progressContainer.style.display = "none";
 							}
 						} catch (error) {
-							new Notice(`Download error: ${error instanceof Error ? error.message : String(error)}`);
+							console.error(`Download error: ${error instanceof Error ? error.message : String(error)}`);
 							button.setDisabled(false);
 							button.setButtonText("Download");
 							progressContainer.style.display = "none";
@@ -1347,10 +1347,10 @@ export class CopilotSettingTab extends PluginSettingTab {
 					if (confirm(`Delete model ${modelFile}?`)) {
 						try {
 							await manager.deleteModel(modelFile);
-							new Notice(`Deleted ${modelFile}`);
+							console.log(`Deleted ${modelFile}`);
 							await this.refreshWhisperCppStatus();
 						} catch (error) {
-							new Notice(`Failed to delete: ${error instanceof Error ? error.message : String(error)}`);
+							console.error(`Failed to delete: ${error instanceof Error ? error.message : String(error)}`);
 						}
 					}
 				});
@@ -1399,16 +1399,16 @@ export class CopilotSettingTab extends PluginSettingTab {
 				});
 
 				if (result.success) {
-					new Notice(`Model ${selectedModel.name} downloaded successfully!`);
+					console.log(`Model ${selectedModel.name} downloaded successfully!`);
 					await this.refreshWhisperCppStatus();
 				} else {
-					new Notice(`Download failed: ${result.error}`);
+					console.error(`Download failed: ${result.error}`);
 					downloadModelBtn.disabled = false;
 					downloadModelBtn.setText("Download Model");
 					modelProgressContainer.style.display = "none";
 				}
 			} catch (error) {
-				new Notice(`Download error: ${error instanceof Error ? error.message : String(error)}`);
+				console.error(`Download error: ${error instanceof Error ? error.message : String(error)}`);
 				downloadModelBtn.disabled = false;
 				downloadModelBtn.setText("Download Model");
 				modelProgressContainer.style.display = "none";
@@ -1461,13 +1461,13 @@ export class CopilotSettingTab extends PluginSettingTab {
 				try {
 					const result = manager.stopServer();
 					if (result.success) {
-						new Notice("Whisper.cpp server stopped");
+						console.log("Whisper.cpp server stopped");
 						await this.refreshWhisperCppStatus();
 					} else {
-						new Notice(`Failed to stop server: ${result.error}`);
+						console.error(`Failed to stop server: ${result.error}`);
 					}
 				} catch (error) {
-					new Notice(`Error: ${error instanceof Error ? error.message : String(error)}`);
+					console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
 				}
 			});
 		} else {
@@ -1476,7 +1476,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 			startBtn.addEventListener("click", async () => {
 				try {
 					if (!selectedServerModel) {
-						new Notice("Please select a model first");
+						console.log("Please select a model first");
 						return;
 					}
 					// Extract model ID from filename (e.g., "ggml-tiny.bin" -> "tiny")
@@ -1487,7 +1487,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 					const result = await manager.startServer(modelId);
 					if (result.success) {
-						new Notice("Whisper.cpp server started!");
+						console.log("Whisper.cpp server started!");
 						// Update voice settings to use local-whisper
 						if (this.plugin.settings.voice) {
 							this.plugin.settings.voice.backend = 'local-whisper';
@@ -1496,12 +1496,12 @@ export class CopilotSettingTab extends PluginSettingTab {
 						}
 						await this.refreshWhisperCppStatus();
 					} else {
-						new Notice(`Failed to start server: ${result.error}`);
+						console.error(`Failed to start server: ${result.error}`);
 						startBtn.disabled = false;
 						startBtn.setText("Start Server");
 					}
 				} catch (error) {
-					new Notice(`Error: ${error instanceof Error ? error.message : String(error)}`);
+					console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
 					startBtn.disabled = false;
 					startBtn.setText("Start Server");
 				}
@@ -1537,15 +1537,15 @@ export class CopilotSettingTab extends PluginSettingTab {
 							try {
 								const result = await manager.uninstall();
 								if (result.success) {
-									new Notice("Whisper.cpp uninstalled successfully");
+									console.log("Whisper.cpp uninstalled successfully");
 									await this.refreshWhisperCppStatus();
 								} else {
-									new Notice(`Uninstall failed: ${result.error}`);
+									console.error(`Uninstall failed: ${result.error}`);
 									button.setDisabled(false);
 									button.setButtonText("Uninstall");
 								}
 							} catch (error) {
-								new Notice(`Error: ${error instanceof Error ? error.message : String(error)}`);
+								console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
 								button.setDisabled(false);
 								button.setButtonText("Uninstall");
 							}
@@ -1719,7 +1719,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 					.setTooltip("Refresh models")
 					.onClick(async () => {
 						button.setDisabled(true);
-						new Notice("Loading audio models...");
+						console.log("Loading audio models...");
 						
 						try {
 							let models: string[] = [];
@@ -1764,14 +1764,14 @@ export class CopilotSettingTab extends PluginSettingTab {
 									const currentModel = this.plugin.settings.voice!.audioModel;
 									modelDropdown.setValue(currentModel || '');
 								}
-								new Notice(`Loaded ${models.length} audio models`);
+								console.log(`Loaded ${models.length} audio models`);
 							} else {
-								new Notice("No audio models found");
+								console.log("No audio models found");
 							}
 						} catch (error) {
 							console.error("Failed to load audio models:", error);
 							const message = error instanceof Error ? error.message : String(error);
-							new Notice(`Failed to load models: ${message}`);
+							console.error(`Failed to load models: ${message}`);
 						} finally {
 							button.setDisabled(false);
 						}
@@ -1963,7 +1963,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 					.setTooltip("Refresh models")
 					.onClick(async () => {
 						button.setDisabled(true);
-						new Notice("Loading realtime models...");
+						console.log("Loading realtime models...");
 						
 						try {
 							let models: string[] = [];
@@ -1994,14 +1994,14 @@ export class CopilotSettingTab extends PluginSettingTab {
 									const currentModel = this.plugin.settings.realtimeAgentModel;
 									modelDropdown.setValue(currentModel || '');
 								}
-								new Notice(`Loaded ${models.length} realtime models`);
+								console.log(`Loaded ${models.length} realtime models`);
 							} else {
-								new Notice("No realtime models found");
+								console.log("No realtime models found");
 							}
 						} catch (error) {
 							console.error("Failed to load realtime models:", error);
 							const message = error instanceof Error ? error.message : String(error);
-							new Notice(`Failed to load models: ${message}`);
+							console.error(`Failed to load models: ${message}`);
 						} finally {
 							button.setDisabled(false);
 						}
@@ -2332,7 +2332,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 			refreshBtn.addEventListener("click", async () => {
 				await this.plugin.mcpManager.refreshDiscovery();
 				this.updateSkillsDisplay();
-				new Notice("MCP servers refreshed");
+				console.log("MCP servers refreshed");
 			});
 		}
 		
@@ -2441,7 +2441,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 		autoStartCheckbox.checked = this.plugin.mcpManager.isServerAutoStart(config.id);
 		autoStartCheckbox.addEventListener("change", async () => {
 			await this.plugin.mcpManager.setServerAutoStart(config.id, autoStartCheckbox.checked);
-			new Notice(autoStartCheckbox.checked 
+			console.log(autoStartCheckbox.checked 
 				? `${config.name} will auto-start on launch` 
 				: `${config.name} will not auto-start`);
 		});
@@ -2475,9 +2475,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 				try {
 					await this.plugin.mcpManager.stopServer(config.id);
 					this.updateSkillsDisplay();
-					new Notice(`Stopped ${config.name}`);
+					console.log(`Stopped ${config.name}`);
 				} catch (error) {
-					new Notice(`Failed to stop: ${error}`);
+					console.error(`Failed to stop: ${error}`);
 				}
 			});
 		} else if (status.status === "connecting") {
@@ -2494,9 +2494,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 					startBtn.textContent = "Starting...";
 					await this.plugin.mcpManager.startServer(config.id);
 					this.updateSkillsDisplay();
-					new Notice(`Started ${config.name}`);
+					console.log(`Started ${config.name}`);
 				} catch (error) {
-					new Notice(`Failed to start: ${error}`);
+					console.error(`Failed to start: ${error}`);
 					this.updateSkillsDisplay();
 				}
 			});
@@ -2684,7 +2684,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 		btn.addEventListener("click", async () => {
 			const vaultPath = this.getVaultPath();
 			if (!vaultPath) {
-				new Notice("Could not determine vault path");
+				console.error("Could not determine vault path");
 				return;
 			}
 			btn.disabled = true;

@@ -14,7 +14,7 @@
  *
  * @example
  * ```bash
- * AZURE_API_URL=https://vault-copilot-api.azurewebsites.net/api node scripts/fetch-azure-metrics.cjs
+ * AZURE_API_URL=https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io/api node scripts/fetch-azure-metrics.cjs
  * ```
  *
  * @since 0.1.0
@@ -26,7 +26,7 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const CATALOG_PATH = path.join(__dirname, '..', 'catalog', 'catalog.json');
-const AZURE_API_URL = process.env.AZURE_API_URL || 'https://vault-copilot-api.azurewebsites.net/api';
+const AZURE_API_URL = process.env.AZURE_API_URL || 'https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io/api';
 
 /**
  * Makes an HTTP GET request and returns the parsed JSON response.

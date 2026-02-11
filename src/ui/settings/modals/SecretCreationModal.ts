@@ -21,7 +21,7 @@
  * @since 0.0.1
  */
 
-import { App, Modal, Notice, Setting } from "obsidian";
+import { App, Modal, Setting } from "obsidian";
 
 /**
  * Options for configuring the SecretCreationModal.
@@ -125,11 +125,11 @@ export class SecretCreationModal extends Modal {
 	private handleSubmit(): void {
 		const trimmedId = this.secretId.trim();
 		if (!trimmedId) {
-			new Notice("Provide a secret name.");
+			console.error("Provide a secret name.");
 			return;
 		}
 		if (!this.secretValue) {
-			new Notice("Provide a secret value.");
+			console.error("Provide a secret value.");
 			return;
 		}
 		this.options.onSubmit(trimmedId, this.secretValue);

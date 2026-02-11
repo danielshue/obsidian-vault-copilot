@@ -23,7 +23,7 @@
  * @since 0.0.1
  */
 
-import { App, Modal, Notice, Setting } from "obsidian";
+import { App, Modal, Setting } from "obsidian";
 import type CopilotPlugin from "../../../main";
 import { isMobile } from "../../../utils/platform";
 import type { McpServerSource } from "../../../copilot/mcp/McpTypes";
@@ -276,7 +276,7 @@ export class AddHttpMcpServerModal extends Modal {
 			// Add to McpManager
 			await this.plugin.mcpManager.addManualServer(config);
 
-			new Notice(`Added MCP server: ${config.name}`);
+			console.log(`Added MCP server: ${config.name}`);
 			this.onSuccess();
 			this.close();
 		} catch (error) {

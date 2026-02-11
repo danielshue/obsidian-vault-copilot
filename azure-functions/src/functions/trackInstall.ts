@@ -62,6 +62,10 @@ async function trackInstall(request: HttpRequest, context: InvocationContext): P
 
     try {
         const svc = TableStorageService.getInstance();
+        
+        // Ensure tables exist before attempting to write
+        await svc.ensureTablesExist();
+        
         await svc.trackInstall({
             extensionId: body.extensionId as string,
             userHash: body.userHash as string,

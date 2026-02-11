@@ -16,7 +16,7 @@
  * ```typescript
  * import { ExtensionAnalyticsService } from './ExtensionAnalyticsService';
  *
- * const analytics = new ExtensionAnalyticsService('https://my-func-app.azurewebsites.net');
+ * const analytics = new ExtensionAnalyticsService('https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io');
  * await analytics.trackInstall({
  *     extensionId: 'my-extension',
  *     version: '1.0.0',
@@ -183,7 +183,7 @@ export class ExtensionAnalyticsService {
     /**
      * Create a new analytics service instance.
      *
-     * @param baseUrl - Root URL of the analytics API (e.g. `https://my-func.azurewebsites.net`).
+     * @param baseUrl - Root URL of the analytics API (e.g. `https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io`).
      *                  A trailing slash is stripped automatically.
      * @param authenticatedUserHash - Optional user hash for authenticated requests.
      */

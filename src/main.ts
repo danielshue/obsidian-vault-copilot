@@ -46,7 +46,7 @@
  * @since 0.0.1
  */
 
-import { Plugin, Notice } from "obsidian";
+import { Plugin } from "obsidian";
 import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "./ui/settings";
 import { GitHubCopilotCliService, GitHubCopilotCliConfig, ChatMessage, ModelInfoResult, ModelCapabilitiesInfo, ModelPolicyInfo } from "./copilot/providers/GitHubCopilotCliService";
 import { CopilotChatView, COPILOT_VIEW_TYPE, ConversationHistoryView, TracingView, TRACING_VIEW_TYPE, VOICE_HISTORY_VIEW_TYPE } from "./ui/ChatView";
@@ -596,7 +596,7 @@ export default class CopilotPlugin extends Plugin {
 			// Auto-switch to OpenAI on mobile if Copilot was selected
 			this.settings.aiProvider = "openai";
 			await this.saveSettings();
-			new Notice(
+			console.error(
 				"GitHub Copilot CLI is unavailable on mobile. " +
 				"Switched to OpenAI. Please configure your API key in settings."
 			);
@@ -816,6 +816,11 @@ export default class CopilotPlugin extends Plugin {
 			voiceInputProfileId: savedData.voiceInputProfileId ?? null,
 			realtimeAgentProfileId: savedData.realtimeAgentProfileId ?? null,
 		};
+
+		// Migration: Fix stale analytics endpoint from Azure Functions era
+		if (this.settings.analyticsEndpoint?.includes('azurewebsites.net')) {
+			this.settings.analyticsEndpoint = DEFAULT_SETTINGS.analyticsEndpoint;
+		}
 
 		// Migration: Create a profile from existing voice settings if no profiles exist
 		await this.migrateVoiceSettingsToProfiles();
@@ -1069,7 +1074,7 @@ export default class CopilotPlugin extends Plugin {
 			console.log("Extension submission data:", submissionData);
 		} catch (error) {
 			console.error("Extension submission failed:", error);
-			new Notice(
+			console.error(
 				`Extension submission failed: ${error instanceof Error ? error.message : String(error)}`
 			);
 		}
@@ -1112,11 +1117,11 @@ export default class CopilotPlugin extends Plugin {
 				await this.openaiService.initialize();
 				this.updateStatusBar();
 			} catch (error) {
-				new Notice(`Failed to connect to OpenAI: ${error}`);
+				console.error(`Failed to connect to OpenAI: ${error}`);
 			}
 		} else if (provider === "azure-openai") {
 			// Connect to Azure OpenAI using legacy settings (if we add them)
-			new Notice("Azure OpenAI requires a provider profile. Please configure a profile in settings.");
+			console.error("Azure OpenAI requires a provider profile. Please configure a profile in settings.");
 		} else {
 			// Connect to GitHub Copilot
 			if (!this.githubCopilotCliService) {
@@ -1127,7 +1132,7 @@ export default class CopilotPlugin extends Plugin {
 				await this.githubCopilotCliService.start();
 				this.updateStatusBar();
 			} catch (error) {
-				new Notice(`Failed to connect to Copilot: ${error}`);
+				console.error(`Failed to connect to Copilot: ${error}`);
 			}
 		}
 	}
@@ -1156,7 +1161,7 @@ export default class CopilotPlugin extends Plugin {
 			await this.openaiService.initialize();
 			this.updateStatusBar();
 		} catch (error) {
-			new Notice(`Failed to connect to OpenAI: ${error}`);
+			console.error(`Failed to connect to OpenAI: ${error}`);
 		}
 	}
 
@@ -1166,7 +1171,7 @@ export default class CopilotPlugin extends Plugin {
 	private async connectAzureOpenAI(profile: AzureOpenAIProviderProfile): Promise<void> {
 		if (!this.azureOpenaiService) {
 			if (!profile.deploymentName) {
-				new Notice("Azure OpenAI profile requires a deployment name");
+				console.error("Azure OpenAI profile requires a deployment name");
 				return;
 			}
 			
@@ -1192,7 +1197,7 @@ export default class CopilotPlugin extends Plugin {
 			await this.azureOpenaiService.initialize();
 			this.updateStatusBar();
 		} catch (error) {
-			new Notice(`Failed to connect to Azure OpenAI: ${error}`);
+			console.error(`Failed to connect to Azure OpenAI: ${error}`);
 		}
 	}
 
@@ -1315,7 +1320,7 @@ export default class CopilotPlugin extends Plugin {
 		// Find the session in settings
 		const session = this.settings.sessions.find(s => s.id === sessionId);
 		if (!session) {
-			new Notice("Session not found");
+			console.error("Session not found");
 			return;
 		}
 

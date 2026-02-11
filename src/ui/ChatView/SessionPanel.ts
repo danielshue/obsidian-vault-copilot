@@ -11,7 +11,7 @@
  * @since 0.0.14
  */
 
-import { Menu, Notice, setIcon } from "obsidian";
+import { Menu, setIcon } from "obsidian";
 import CopilotPlugin from "../../main";
 import { CopilotSession } from "../../ui/settings";
 
@@ -443,7 +443,7 @@ export class SessionPanel {
 	}
 
 	async deleteSession(session: CopilotSession): Promise<void> {
-		// Simple confirmation via notice - in production you'd use a modal
+		// Simple confirmation via console log
 		const sessions = this.plugin.settings.sessions;
 		const index = sessions.findIndex(s => s.id === session.id);
 		if (index !== -1) {
@@ -456,7 +456,7 @@ export class SessionPanel {
 			
 			await this.plugin.saveSettings();
 			this.render();
-			new Notice(`Deleted: ${session.name}`);
+			console.log(`Deleted: ${session.name}`);
 		}
 	}
 

@@ -15,7 +15,7 @@
  * - MCP server configuration merging
  */
 
-import { App, Notice, TFile, Vault } from "obsidian";
+import { App, TFile, Vault } from "obsidian";
 import { httpRequest } from "../utils/http";
 import { FileConflictModal, FileConflictResolution } from "./FileConflictModal";
 import { ExtensionAnalyticsService } from "./ExtensionAnalyticsService";
@@ -472,7 +472,7 @@ export class ExtensionManager {
 				};
 			}
 			
-			new Notice(`Extension "${newManifest.displayTitle}" updated successfully`);
+			console.log(`Extension "${newManifest.displayTitle}" updated successfully`);
 			
 			return {
 				operationSucceeded: true,
@@ -482,7 +482,7 @@ export class ExtensionManager {
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			
-			new Notice(`Failed to update extension: ${errorMsg}`, 5000);
+			console.error(`Failed to update extension: ${errorMsg}`);
 			
 			return {
 				operationSucceeded: false,

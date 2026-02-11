@@ -11,7 +11,7 @@
  * extensions from the marketplace catalog.
  */
 
-import { ItemView, WorkspaceLeaf, setIcon, Notice, Menu } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, Menu } from "obsidian";
 import type CopilotPlugin from "../../main";
 import { ExtensionCatalogService } from "../../extensions/ExtensionCatalogService";
 import { ExtensionManager } from "../../extensions/ExtensionManager";
@@ -56,7 +56,7 @@ export class ExtensionBrowserView extends ItemView {
 		
 		this.extensionManager = new ExtensionManager(this.app, {
 			enableAnalytics: plugin.settings.enableAnalytics !== false,
-			analyticsEndpoint: plugin.settings.analyticsEndpoint || 'https://vault-copilot-api.azurewebsites.net',
+			analyticsEndpoint: plugin.settings.analyticsEndpoint || 'https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io',
 			githubUsername: plugin.settings.githubUsername || '',
 			anonymousId: plugin.settings.anonymousId || '',
 			pluginVersion: plugin.manifest.version,
@@ -512,17 +512,17 @@ export class ExtensionBrowserView extends ItemView {
 			const result = await this.extensionManager.installExtension(ext);
 			
 			if (result.operationSucceeded) {
-				new Notice(`Extension "${ext.displayTitle}" installed successfully`);
+				console.log(`Extension "${ext.displayTitle}" installed successfully`);
 				this.installedExtensionIds.add(ext.uniqueId);
 				this.availableUpdates.delete(ext.uniqueId); // Remove from updates if present
 				await this.renderSections();
 			} else {
-				new Notice(`Installation failed: ${result.errorDetails || 'Unknown error'}`, 5000);
+				console.error(`Installation failed: ${result.errorDetails || 'Unknown error'}`);
 			}
 		} catch (error) {
 			console.error("Installation failed:", error);
 			const errorMsg = error instanceof Error ? error.message : String(error);
-			new Notice(`Installation failed: ${errorMsg}`, 5000);
+			console.error(`Installation failed: ${errorMsg}`);
 		}
 	}
 	
@@ -534,16 +534,16 @@ export class ExtensionBrowserView extends ItemView {
 			const result = await this.extensionManager.updateExtension(ext.uniqueId, ext);
 			
 			if (result.operationSucceeded) {
-				// Note: updateExtension already shows success notice
+				// Note: updateExtension already logs success
 				this.availableUpdates.delete(ext.uniqueId); // Remove from updates after successful update
 				await this.renderSections();
 			} else {
-				new Notice(`Update failed: ${result.errorDetails || 'Unknown error'}`, 5000);
+				console.error(`Update failed: ${result.errorDetails || 'Unknown error'}`);
 			}
 		} catch (error) {
 			console.error("Update failed:", error);
 			const errorMsg = error instanceof Error ? error.message : String(error);
-			new Notice(`Update failed: ${errorMsg}`, 5000);
+			console.error(`Update failed: ${errorMsg}`);
 		}
 	}
 	
@@ -555,17 +555,17 @@ export class ExtensionBrowserView extends ItemView {
 			const result = await this.extensionManager.uninstallExtension(ext.uniqueId);
 			
 			if (result.operationSucceeded) {
-				new Notice(`Extension "${ext.displayTitle}" removed successfully`);
+				console.log(`Extension "${ext.displayTitle}" removed successfully`);
 				this.installedExtensionIds.delete(ext.uniqueId);
 				this.availableUpdates.delete(ext.uniqueId);
 				await this.renderSections();
 			} else {
-				new Notice(`Removal failed: ${result.errorDetails || 'Unknown error'}`, 5000);
+				console.error(`Removal failed: ${result.errorDetails || 'Unknown error'}`);
 			}
 		} catch (error) {
 			console.error("Removal failed:", error);
 			const errorMsg = error instanceof Error ? error.message : String(error);
-			new Notice(`Removal failed: ${errorMsg}`, 5000);
+			console.error(`Removal failed: ${errorMsg}`);
 		}
 	}
 	
@@ -578,13 +578,13 @@ export class ExtensionBrowserView extends ItemView {
 		
 		// Analytics service is required for ratings (userHash is auto-generated if not set)
 		if (!analyticsService) {
-			new Notice('Analytics is not enabled. Enable it in Settings → Extension Analytics.', 5000);
+			console.log('Analytics is not enabled. Enable it in Settings → Extension Analytics.');
 			return;
 		}
 		
 		// userHash should always be available when analytics is enabled, but check just in case
 		if (!userHash) {
-			new Notice('Unable to submit rating: user identification not available.', 5000);
+			console.error('Unable to submit rating: user identification not available.');
 			return;
 		}
 		
@@ -613,14 +613,6 @@ export class ExtensionBrowserView extends ItemView {
 			existingRating,
 			existingComment,
 			onRatingSubmitted: async (rating, _comment, response) => {
-				if (rating === 0) {
-					// Rating was removed
-					new Notice(`Rating removed for "${ext.displayTitle}"`);
-				} else {
-					// Rating was submitted or updated
-					new Notice(`Rating ${existingRating ? 'updated' : 'submitted'} for "${ext.displayTitle}"`);
-				}
-				
 				// Update the in-memory catalog cache so the UI reflects the new rating immediately
 				this.catalogService.updateCachedRating(
 					ext.uniqueId,

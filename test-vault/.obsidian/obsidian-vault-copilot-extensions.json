@@ -9,6 +9,15 @@
         "Reference/Agents/meeting-notes-agent.agent.md"
       ],
       "linkedDependencies": []
+    },
+    "daily-journal-agent": {
+      "extensionId": "daily-journal-agent",
+      "installedVersion": "1.1.1",
+      "installationTimestamp": "2026-02-10T17:22:56.286Z",
+      "installedFilePaths": [
+        "extensions/agents/daily-journal-agent/daily-journal-agent.agent.md"
+      ],
+      "linkedDependencies": []
     }
   }
 }

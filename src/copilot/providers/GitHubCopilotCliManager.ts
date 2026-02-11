@@ -1,5 +1,5 @@
 import { exec, spawn } from "child_process";
-import { Platform, Notice } from "obsidian";
+import { Platform } from "obsidian";
 
 export interface CliStatus {
 	installed: boolean;
@@ -147,21 +147,21 @@ export class GitHubCopilotCliManager {
 					this.cachedStatus = null; // Invalidate cache
 					resolve(true);
 				} else {
-					new Notice(`Failed to install GitHub Copilot CLI. Please install manually.`);
+					console.error(`Failed to install GitHub Copilot CLI. Please install manually.`);
 					console.error("Install error:", errorOutput || output);
 					resolve(false);
 				}
 			});
 
 			child.on("error", (err) => {
-				new Notice(`Installation failed: ${err.message}. Please install manually.`);
+				console.error(`Installation failed: ${err.message}. Please install manually.`);
 				resolve(false);
 			});
 
 			// Timeout after 5 minutes
 			setTimeout(() => {
 				child.kill();
-				new Notice("Installation timed out. Please install manually.");
+				console.error("Installation timed out. Please install manually.");
 				resolve(false);
 			}, 5 * 60 * 1000);
 		});
@@ -282,7 +282,7 @@ export class GitHubCopilotCliManager {
 				(error, stdout, stderr) => {
 					if (error) {
 						const errorMsg = stderr || error.message;
-						new Notice(`Failed to initialize vault: ${errorMsg}`);
+						console.error(`Failed to initialize vault: ${errorMsg}`);
 						resolve({ success: false, error: errorMsg });
 					} else {
 						this.cachedStatus = null; // Invalidate cache

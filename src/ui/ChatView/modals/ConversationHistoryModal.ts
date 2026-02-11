@@ -11,7 +11,7 @@
  * @since 0.0.14
  */
 
-import { App, ItemView, Modal, Notice, Platform, WorkspaceLeaf, setIcon } from "obsidian";
+import { App, ItemView, Modal, Platform, WorkspaceLeaf, setIcon } from "obsidian";
 import { VoiceConversation, VoiceMessage } from "../../../ui/settings";
 import type CopilotPlugin from "../../../main";
 
@@ -62,7 +62,7 @@ class ConversationHistoryPanel {
 					this.conversations = [];
 					this.expandedIds.clear();
 					this.render();
-					new Notice("All voice conversations deleted");
+					console.log("All voice conversations deleted");
 				}
 			});
 		}
@@ -244,7 +244,7 @@ class ConversationHistoryPanel {
 				this.conversations = this.conversations.filter(c => c.id !== conv.id);
 				this.expandedIds.delete(conv.id);
 				this.render();
-				new Notice("Conversation deleted");
+				console.log("Conversation deleted");
 			}
 		});
 	}
@@ -372,10 +372,10 @@ class ConversationHistoryPanel {
 		const markdown = this.conversationToMarkdown(conv);
 		try {
 			await navigator.clipboard.writeText(markdown);
-			new Notice("Conversation copied to clipboard");
+			console.log("Conversation copied to clipboard");
 		} catch (error) {
 			console.error("Failed to copy:", error);
-			new Notice("Failed to copy to clipboard");
+			console.error("Failed to copy to clipboard");
 		}
 	}
 
@@ -397,10 +397,10 @@ class ConversationHistoryPanel {
 			}
 
 			await this.app.vault.create(finalPath, markdown);
-			new Notice(`Exported to ${finalPath}`);
+			console.log(`Exported to ${finalPath}`);
 		} catch (error) {
 			console.error("Failed to export conversation:", error);
-			new Notice("Failed to export conversation");
+			console.error("Failed to export conversation");
 		}
 	}
 

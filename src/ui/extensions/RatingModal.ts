@@ -37,7 +37,7 @@
  * @since 0.1.0
  */
 
-import { App, Modal, Notice, Setting } from "obsidian";
+import { App, Modal, Setting } from "obsidian";
 import type { ExtensionAnalyticsService, RatingResponse } from "../../extensions/ExtensionAnalyticsService";
 
 // ---------------------------------------------------------------------------
@@ -560,11 +560,11 @@ export class RatingModal extends Modal {
                 version: this.config.extensionVersion,
             });
 
-            new Notice("Rating submitted successfully!");
             this.config.onRatingSubmitted?.(this.selectedRating, comment, response);
             this.close();
-        } catch {
-            new Notice("Failed to submit rating. Please try again.");
+        } catch (err) {
+            console.error('[RatingModal] Failed to submit rating:', err);
+            console.error(`Failed to submit rating: ${err instanceof Error ? err.message : 'Unknown error'}`);
             this.submitting = false;
             this.submitBtnEl.textContent = this.isEditing() ? "Update Rating" : "Submit Rating";
             this.updateSubmitButton();
@@ -603,7 +603,6 @@ export class RatingModal extends Modal {
                 this.config.userHash
             );
 
-            new Notice("Rating removed successfully!");
             this.config.onRatingSubmitted?.(0, undefined, {
                 success: true,
                 message: "Rating removed",
@@ -611,8 +610,9 @@ export class RatingModal extends Modal {
                 ratingCount: ratingCount,
             });
             this.close();
-        } catch {
-            new Notice("Failed to remove rating. Please try again.");
+        } catch (err) {
+            console.error('[RatingModal] Failed to remove rating:', err);
+            console.error(`Failed to remove rating: ${err instanceof Error ? err.message : 'Unknown error'}`);
             this.submitting = false;
             this.submitBtnEl.textContent = "Update Rating";
             this.submitBtnEl.disabled = false;

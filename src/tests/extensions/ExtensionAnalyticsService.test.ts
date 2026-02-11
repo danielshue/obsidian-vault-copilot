@@ -36,7 +36,7 @@ function mockResponse(partial: { status: number; json: any; text: string }): Req
 
 describe("ExtensionAnalyticsService", () => {
 	let service: ExtensionAnalyticsService;
-	const BASE_URL = "https://vault-copilot-api.azurewebsites.net";
+	const BASE_URL = "https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io";
 
 	beforeEach(() => {
 		service = new ExtensionAnalyticsService(BASE_URL);

@@ -1,1 +1,0 @@
-{"properties":{"functionAppConfig":{"runtime":{"name":"node","version":"20"},"scaleAndConcurrency":{"instanceMemoryMB":512,"maximumInstanceCount":100},"deployment":{"storage":{"type":"blobcontainer","value":"https://vaultcopilotanalytics.blob.core.windows.net/app-package-vaultcopilotapi-5078702","authentication":{"type":"SystemAssignedIdentity"}}}}}}

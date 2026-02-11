@@ -16,6 +16,7 @@ import { app } from "@azure/functions";
 
 // Import all functions to register them with the app
 import "./functions/health";
+import "./functions/setup";
 import "./functions/getExtensionRatings";
 import "./functions/submitRating";
 import "./functions/deleteRating";

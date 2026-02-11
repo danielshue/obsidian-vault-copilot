@@ -12,7 +12,7 @@
  * @since 0.0.14
  */
 
-import { App, Modal, Notice } from "obsidian";
+import { App, Modal } from "obsidian";
 import { ToolCatalog, ToolInfo } from "../../../copilot/tools/ToolCatalog";
 import { CopilotPluginSettings, CopilotSession } from "../../../ui/settings";
 
@@ -382,7 +382,7 @@ export class ToolPickerModal extends Modal {
 			await this.onSave(enabledTools);
 			this.close();
 		} catch (error) {
-			new Notice(`Failed to save: ${error}`);
+			console.error(`Failed to save: ${error}`);
 		}
 	}
 

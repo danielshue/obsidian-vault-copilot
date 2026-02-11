@@ -14,7 +14,7 @@
  * - Cross-platform HTTP handling
  */
 
-import { App, Notice } from "obsidian";
+import { App } from "obsidian";
 import { httpRequest } from "../utils/http";
 import {
 	CatalogManifest,
