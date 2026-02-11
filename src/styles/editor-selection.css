@@ -30,19 +30,24 @@
  * CodeMirror-specific selection preservation
  * Obsidian uses CodeMirror for the editor
  */
-.cm-editor .cm-selectionBackground,
 .cm-editor .cm-content ::selection,
 .cm-editor .cm-line ::selection {
-	background: var(--text-selection) !important;
+	background: var(--text-selection);
 }
 
 /*
- * Ensure selection remains visible when editor loses focus
- * Override default behavior that hides selection on blur
+ * Ensure selection background remains visible in all editor states
+ * Default state (focused and unfocused)
+ */
+.cm-editor .cm-selectionBackground {
+	background: var(--text-selection);
+}
+
+/*
+ * Reduce opacity when editor loses focus
+ * This indicates inactive state while maintaining visibility
  */
 .cm-editor:not(.cm-focused) .cm-selectionBackground {
-	/* Keep selection visible even when not focused */
-	background: var(--text-selection);
 	opacity: 0.7; /* Slightly more transparent to indicate inactive state */
 }
 
