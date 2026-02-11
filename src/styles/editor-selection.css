@@ -19,10 +19,11 @@
  * Preserve selection highlighting in unfocused/inactive editor elements
  * Uses ::selection pseudo-element to style text selection appearance
  * Works across all editor elements in the workspace
+ * 
+ * IMPORTANT: Use fallback color in case --text-selection is not defined
  */
 .workspace-leaf-content ::selection {
-	/* Use a slightly muted version of the selection color for inactive selections */
-	background: var(--text-selection);
+	background: var(--text-selection, rgba(0, 122, 255, 0.2));
 	color: inherit;
 }
 
@@ -33,16 +34,17 @@
  */
 .cm-editor .cm-content ::selection,
 .cm-editor .cm-line ::selection {
-	background: var(--text-selection);
+	background: var(--text-selection, rgba(0, 122, 255, 0.2));
 }
 
 /*
  * Ensure selection background remains visible in all editor states
  * CodeMirror 6 uses .cm-selectionLayer as a container for selection backgrounds
  * Apply base color for both focused and unfocused states
+ * Use !important to override CodeMirror's inline styles
  */
 .cm-editor .cm-selectionLayer .cm-selectionBackground {
-	background-color: var(--text-selection);
+	background-color: var(--text-selection, rgba(0, 122, 255, 0.2)) !important;
 }
 
 /*
@@ -52,13 +54,14 @@
  */
 .cm-editor:not(.cm-focused) .cm-selectionLayer {
 	display: block !important;
+	visibility: visible !important;
 }
 
 /*
  * Reduce opacity when editor loses focus to indicate inactive state
  */
 .cm-editor:not(.cm-focused) .cm-selectionLayer .cm-selectionBackground {
-	opacity: 0.7; /* Slightly more transparent to indicate inactive state */
+	opacity: 0.7 !important; /* Slightly more transparent to indicate inactive state */
 }
 
 /*
@@ -66,7 +69,7 @@
  * Ensure selection remains visible on mobile devices
  */
 .is-mobile .cm-editor:not(.cm-focused) .cm-selectionLayer .cm-selectionBackground {
-	opacity: 0.6; /* More transparent on mobile for clearer visual distinction */
+	opacity: 0.6 !important; /* More transparent on mobile for clearer visual distinction */
 }
 
 /*
@@ -75,5 +78,5 @@
  */
 .markdown-source-view.is-readable-line-width ::selection,
 .markdown-source-view ::selection {
-	background: var(--text-selection);
+	background: var(--text-selection, rgba(0, 122, 255, 0.2));
 }
