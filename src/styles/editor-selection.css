@@ -27,8 +27,9 @@
 }
 
 /* 
- * CodeMirror-specific selection preservation
- * Obsidian uses CodeMirror for the editor
+ * CodeMirror 6 selection preservation
+ * Obsidian uses CodeMirror 6 for the editor
+ * CodeMirror 6 renders selections using a .cm-selectionLayer with .cm-selectionBackground divs
  */
 .cm-editor .cm-content ::selection,
 .cm-editor .cm-line ::selection {
@@ -37,17 +38,24 @@
 
 /*
  * Ensure selection background remains visible in all editor states
- * Default state (focused and unfocused)
+ * CodeMirror 6 uses .cm-selectionLayer as a container for selection backgrounds
  */
-.cm-editor .cm-selectionBackground {
-	background: var(--text-selection);
+.cm-editor .cm-selectionLayer .cm-selectionBackground {
+	background-color: var(--text-selection) !important;
 }
 
 /*
  * Reduce opacity when editor loses focus
  * This indicates inactive state while maintaining visibility
+ * IMPORTANT: By default, CodeMirror 6 hides the selection layer when not focused
+ * We need to force it to stay visible
  */
-.cm-editor:not(.cm-focused) .cm-selectionBackground {
+.cm-editor:not(.cm-focused) .cm-selectionLayer {
+	display: block !important; /* Override default hiding behavior */
+}
+
+.cm-editor:not(.cm-focused) .cm-selectionLayer .cm-selectionBackground {
+	background-color: var(--text-selection) !important;
 	opacity: 0.7; /* Slightly more transparent to indicate inactive state */
 }
 
@@ -55,7 +63,7 @@
  * Mobile-specific adjustments
  * Ensure selection remains visible on mobile devices
  */
-.is-mobile .cm-editor:not(.cm-focused) .cm-selectionBackground {
+.is-mobile .cm-editor:not(.cm-focused) .cm-selectionLayer .cm-selectionBackground {
 	opacity: 0.6; /* More transparent on mobile for clearer visual distinction */
 }
 
