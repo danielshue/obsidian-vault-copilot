@@ -41,3 +41,5 @@ azure-functions/dist/
 azure-functions/node_modules/
 azure-functions/deploy.zip
 azure-functions/local.settings.json
+
+release-notes.txt
