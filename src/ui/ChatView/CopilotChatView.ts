@@ -157,6 +157,8 @@ export class CopilotChatView extends ItemView {
 	private cachedSelectionRects: DOMRectList | null = null;
 	private cachedEditorRect: DOMRect | null = null;
 	private cachedCmEditor: HTMLElement | null = null;
+	private selectionCacheTimeout: NodeJS.Timeout | null = null;
+	private selectionChangeHandler: (() => void) | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, githubCopilotCliService: GitHubCopilotCliService | null) {
 		super(leaf);
@@ -569,13 +571,25 @@ export class CopilotChatView extends ItemView {
 		// Event listeners
 		
 		// Preserve editor selection when clicking into chat input
-		// Use capture phase to get selection BEFORE it's cleared by the click
-		this.inputEl.addEventListener("mousedown", (e) => {
-			// Cache the selection rectangles before the click clears them
-			this.cacheEditorSelection();
-		}, true); // Use capture phase
+		// Strategy: Listen globally for selection changes and cache them proactively
+		// Then create the visual overlay when input gains focus
 		
-		// Create the visual highlight after the input gains focus
+		// Cache selection whenever it changes (debounced to avoid excessive calls)
+		this.selectionChangeHandler = () => {
+			if (this.selectionCacheTimeout) {
+				clearTimeout(this.selectionCacheTimeout);
+			}
+			this.selectionCacheTimeout = setTimeout(() => {
+				// Only cache if the chat view is visible and selection exists
+				const selection = window.getSelection();
+				if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+					this.cacheEditorSelection();
+				}
+			}, 100); // Debounce 100ms
+		};
+		document.addEventListener("selectionchange", this.selectionChangeHandler);
+		
+		// Create the visual highlight when the input gains focus
 		this.inputEl.addEventListener("focus", () => {
 			this.createSelectionHighlightFromCache();
 		});
@@ -2564,6 +2578,18 @@ export class CopilotChatView extends ItemView {
 		}
 		// Cleanup editor selection highlight
 		this.clearEditorSelectionHighlight();
+		
+		// Clean up selection change listener
+		if (this.selectionChangeHandler) {
+			document.removeEventListener("selectionchange", this.selectionChangeHandler);
+			this.selectionChangeHandler = null;
+		}
+		
+		// Clean up selection cache timeout
+		if (this.selectionCacheTimeout) {
+			clearTimeout(this.selectionCacheTimeout);
+			this.selectionCacheTimeout = null;
+		}
 	}
 
 	private async loadMessages(): Promise<void> {
