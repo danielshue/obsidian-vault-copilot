@@ -72,6 +72,7 @@ import { renderWelcomeMessage } from "./renderers/WelcomeMessage";
 import { PromptPicker } from "./pickers/PromptPicker";
 import { ContextPicker } from "./pickers/ContextPicker";
 import { PromptProcessor } from "./PromptProcessor";
+import { ContextAugmentation } from "./ContextAugmentation";
 import { MessageRenderer, UsedReference } from "./renderers/MessageRenderer";
 import { SessionManager } from "./SessionManager";
 import { ToolExecutionRenderer } from "./renderers/ToolExecutionRenderer";
@@ -118,6 +119,7 @@ export class CopilotChatView extends ItemView {
 	private modelSelectorEl: HTMLButtonElement | null = null;
 	private toolCatalog: ToolCatalog | null = null;
 	private promptProcessor: PromptProcessor;
+	private contextAugmentation: ContextAugmentation;
 	private messageRenderer: MessageRenderer;
 	private sessionManager: SessionManager;
 	private toolExecutionRenderer: ToolExecutionRenderer;
@@ -156,6 +158,7 @@ export class CopilotChatView extends ItemView {
 		this.githubCopilotCliService = githubCopilotCliService as GitHubCopilotCliService; // Type assertion for backward compatibility
 		this.toolCatalog = new ToolCatalog(plugin.skillRegistry, plugin.mcpManager);
 		this.promptProcessor = new PromptProcessor(plugin.app);
+		this.contextAugmentation = new ContextAugmentation(plugin.app);
 		this.messageRenderer = new MessageRenderer(plugin.app, this);
 		
 		// Initialize SessionManager with callbacks
@@ -2871,6 +2874,24 @@ export class CopilotChatView extends ItemView {
 				fullMessage = `${attachmentContext.join("\n\n")}\n\nUser question about the above note(s):\n${processedMessage}`;
 			}
 		}
+		
+		// Gather and add implicit context (selected text, active file, open tabs)
+		const implicitContext = await this.contextAugmentation.gatherImplicitContext();
+		
+		// Early return if no implicit context to add (performance optimization)
+		const hasImplicitContext = 
+			implicitContext.selectedText !== null || 
+			implicitContext.activeFile !== null || 
+			implicitContext.openTabs.length > 0;
+		
+		if (hasImplicitContext) {
+			const implicitContextFormatted = this.contextAugmentation.formatImplicitContext(implicitContext);
+			
+			if (implicitContextFormatted.trim().length > 0) {
+				// Add implicit context before the message
+				fullMessage = `${implicitContextFormatted}\n\nUser message:\n${fullMessage}`;
+			}
+		}
 
 		// Collect all used references for display
 		const usedReferences: UsedReference[] = [];
@@ -2930,6 +2951,33 @@ export class CopilotChatView extends ItemView {
 				type: "context",
 				name: file.basename,
 				path: file.path
+			});
+		}
+		
+		// Add implicit context sources (selected text, active file, open tabs)
+		if (implicitContext.selectedText) {
+			usedReferences.push({
+				type: "context",
+				name: `Selected text from ${implicitContext.selectedText.file.basename}`,
+				path: implicitContext.selectedText.file.path
+			});
+		}
+		
+		if (implicitContext.activeFile) {
+			usedReferences.push({
+				type: "context",
+				name: `Active file: ${implicitContext.activeFile.basename}`,
+				path: implicitContext.activeFile.path
+			});
+		}
+		
+		// Add other open tabs (excluding active file to avoid duplication)
+		const otherTabs = this.contextAugmentation.getOtherOpenTabs(implicitContext);
+		for (const tab of otherTabs) {
+			usedReferences.push({
+				type: "context",
+				name: `Open tab: ${tab.file.basename}`,
+				path: tab.file.path
 			});
 		}
 
