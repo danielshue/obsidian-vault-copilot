@@ -1,5 +1,6 @@
 # Vault Copilot
 ![Vault Copilot](assets/images/logo-full.png)
+
 Vault Copilot is an unofficial Obsidian plugin that brings AI-powered assistance to your entire vault. It uses the GitHub Copilot CLI SDK as its foundation, which allows the plugin to communicate with your GitHub Copilot account and execute advanced operations through a skill-based architecture.
 
 Vault Copilot is more than a simple bridge to your notes. It provides an extensible skill system that lets the AI interact with your Obsidian workspace, including searching notes, reading and modifying content, generating new files, organizing information, and working with structured or unstructured context from across your vault.

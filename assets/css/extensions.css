@@ -1373,7 +1373,7 @@ body {
 /* Large Hero Section */
 .hero-large {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1.4fr;
   gap: var(--spacing-xl);
   align-items: center;
   padding: var(--spacing-xl) 0;
@@ -1405,7 +1405,7 @@ body {
 
 .hero-image img {
   width: 100%;
-  max-width: 600px;
+  max-width: 900px;
   height: auto;
   border-radius: var(--border-radius);
   border: 1px solid var(--color-border);
