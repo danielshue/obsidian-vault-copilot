@@ -253,7 +253,7 @@ export class ContextAugmentation {
 		}
 
 		// Add other open tabs (excluding the active file to avoid duplication)
-		const otherTabs = context.openTabs.filter(tab => !tab.isActive);
+		const otherTabs = this.getOtherOpenTabs(context);
 		if (otherTabs.length > 0) {
 			parts.push(`--- Other Open Tabs (${otherTabs.length}) ---`);
 			
@@ -261,7 +261,7 @@ export class ContextAugmentation {
 				const content = context.openTabsContent.get(tab.file.path);
 				if (content) {
 					parts.push('');
-					parts.push(`File: "${tab.file.path}"`);
+					parts.push(`File: "${tab.file.basename}"`); // Use basename for better readability
 					parts.push(content);
 				}
 			}
@@ -297,11 +297,23 @@ export class ContextAugmentation {
 			summary.push(`Active file: ${context.activeFile.basename}`);
 		}
 
-		const otherTabs = context.openTabs.filter(tab => !tab.isActive);
+		const otherTabs = this.getOtherOpenTabs(context);
 		if (otherTabs.length > 0) {
 			summary.push(`${otherTabs.length} other open tab${otherTabs.length === 1 ? '' : 's'}`);
 		}
 
 		return summary;
+	}
+
+	/**
+	 * Get open tabs excluding the active file to avoid duplication
+	 * 
+	 * @param context The implicit context
+	 * @returns Array of non-active open tabs
+	 * 
+	 * @internal
+	 */
+	getOtherOpenTabs(context: ImplicitContext): OpenTabInfo[] {
+		return context.openTabs.filter(tab => !tab.isActive);
 	}
 }

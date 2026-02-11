@@ -266,7 +266,7 @@ describe('ContextAugmentation', () => {
 			expect(result).toContain('Active File');
 			expect(result).toContain('file1.md');
 			expect(result).toContain('Other Open Tabs (1)');
-			expect(result).toContain('file2.md');
+			expect(result).toContain('file2'); // Now using basename, not full path
 			expect(result).toContain('Content 2');
 		});
 	});
@@ -297,6 +297,51 @@ describe('ContextAugmentation', () => {
 			expect(result[0]).toContain('18 chars');
 			expect(result[1]).toContain('Active file: file1');
 			expect(result[2]).toContain('1 other open tab');
+		});
+	});
+
+	describe('getOtherOpenTabs', () => {
+		it('should return only non-active tabs', () => {
+			const file1 = new TFile('file1.md');
+			const file2 = new TFile('file2.md');
+			const file3 = new TFile('file3.md');
+
+			const context = {
+				activeFile: file1,
+				activeFileContent: 'Content 1',
+				selectedText: null,
+				openTabs: [
+					{ file: file1, isActive: true },
+					{ file: file2, isActive: false },
+					{ file: file3, isActive: false },
+				],
+				openTabsContent: new Map(),
+			};
+
+			const result = contextAugmentation.getOtherOpenTabs(context);
+
+			expect(result).toHaveLength(2);
+			expect(result[0]?.file.path).toBe('file2.md');
+			expect(result[1]?.file.path).toBe('file3.md');
+			expect(result.every(tab => !tab.isActive)).toBe(true);
+		});
+
+		it('should return empty array when only active tab is open', () => {
+			const file1 = new TFile('file1.md');
+
+			const context = {
+				activeFile: file1,
+				activeFileContent: 'Content 1',
+				selectedText: null,
+				openTabs: [
+					{ file: file1, isActive: true },
+				],
+				openTabsContent: new Map(),
+			};
+
+			const result = contextAugmentation.getOtherOpenTabs(context);
+
+			expect(result).toHaveLength(0);
 		});
 	});
 });

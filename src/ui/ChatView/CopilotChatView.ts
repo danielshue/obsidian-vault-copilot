@@ -2877,11 +2877,20 @@ export class CopilotChatView extends ItemView {
 		
 		// Gather and add implicit context (selected text, active file, open tabs)
 		const implicitContext = await this.contextAugmentation.gatherImplicitContext();
-		const implicitContextFormatted = this.contextAugmentation.formatImplicitContext(implicitContext);
 		
-		if (implicitContextFormatted.trim().length > 0) {
-			// Add implicit context before the message
-			fullMessage = `${implicitContextFormatted}\n\nUser message:\n${fullMessage}`;
+		// Early return if no implicit context to add (performance optimization)
+		const hasImplicitContext = 
+			implicitContext.selectedText !== null || 
+			implicitContext.activeFile !== null || 
+			implicitContext.openTabs.length > 0;
+		
+		if (hasImplicitContext) {
+			const implicitContextFormatted = this.contextAugmentation.formatImplicitContext(implicitContext);
+			
+			if (implicitContextFormatted.trim().length > 0) {
+				// Add implicit context before the message
+				fullMessage = `${implicitContextFormatted}\n\nUser message:\n${fullMessage}`;
+			}
 		}
 
 		// Collect all used references for display
@@ -2963,7 +2972,7 @@ export class CopilotChatView extends ItemView {
 		}
 		
 		// Add other open tabs (excluding active file to avoid duplication)
-		const otherTabs = implicitContext.openTabs.filter(tab => !tab.isActive);
+		const otherTabs = this.contextAugmentation.getOtherOpenTabs(implicitContext);
 		for (const tab of otherTabs) {
 			usedReferences.push({
 				type: "context",
