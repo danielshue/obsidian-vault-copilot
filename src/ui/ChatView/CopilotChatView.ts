@@ -151,6 +151,7 @@ export class CopilotChatView extends ItemView {
 	private savedCurrentInput = '';  // Save current input when navigating
 	
 	// Editor selection preservation - maintains visual highlight when focus moves to chat input
+	private static readonly SELECTION_PREVIEW_MAX_LENGTH = 100;
 	private selectionHighlightOverlay: HTMLElement | null = null;
 	private preservedSelectionText: string = '';
 	private editorSelectionCleanup: (() => void) | null = null;
@@ -2872,7 +2873,15 @@ export class CopilotChatView extends ItemView {
 		// Add preserved editor selection as implicit workspace context (if available)
 		// This captures selected text that was highlighted when user clicked into chat input
 		if (this.preservedSelectionText) {
-			fullMessage = `[Selected text from editor]\n${this.preservedSelectionText}\n[End selected text]\n\nUser message:\n${fullMessage}`;
+			const selectionContext = [
+				'[Selected text from editor]',
+				this.preservedSelectionText,
+				'[End selected text]',
+				'',
+				'User message:',
+				fullMessage
+			].join('\n');
+			fullMessage = selectionContext;
 		}
 		
 		// Add selected agent instructions as context (prepended to message)
@@ -2936,10 +2945,13 @@ export class CopilotChatView extends ItemView {
 		
 		// Add preserved editor selection as a reference (if it was used)
 		if (this.preservedSelectionText) {
+			const preview = this.preservedSelectionText.length > CopilotChatView.SELECTION_PREVIEW_MAX_LENGTH
+				? this.preservedSelectionText.substring(0, CopilotChatView.SELECTION_PREVIEW_MAX_LENGTH) + '...'
+				: this.preservedSelectionText;
 			usedReferences.push({
 				type: "workspace",
 				name: "Selected text from editor",
-				path: `${this.preservedSelectionText.substring(0, 100)}${this.preservedSelectionText.length > 100 ? '...' : ''}`
+				path: preview
 			});
 		}
 		
