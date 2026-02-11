@@ -3385,7 +3385,7 @@ export class CopilotChatView extends ItemView {
 		console.log('[VC Selection Debug] Overlay created and appended to editor');
 		
 		// Handle window resize to reposition the overlay
-		// Store original rects relative to their positions so we can recalculate on resize
+		// Store original selection rects (viewport coordinates) for recalculation on resize
 		const originalRects = Array.from(rects);
 		const originalEditorRect = editorRect;
 		
@@ -3403,16 +3403,16 @@ export class CopilotChatView extends ItemView {
 			// Get the new editor position
 			const newEditorRect = cmEditor.getBoundingClientRect();
 			
-			// Update each highlight rectangle
+			// Update each highlight rectangle position
 			const highlights = this.selectionHighlightOverlay.querySelectorAll('.vc-selection-highlight');
-			highlights.forEach((highlight, i) => {
+			highlights.forEach((element, i) => {
 				const originalRect = originalRects[i];
 				if (!originalRect) return;
 				
 				// Calculate new position based on the new editor position
-				const htmlHighlight = highlight as HTMLElement;
-				htmlHighlight.style.left = `${originalRect.left - newEditorRect.left}px`;
-				htmlHighlight.style.top = `${originalRect.top - newEditorRect.top}px`;
+				const highlightElement = element as HTMLElement;
+				highlightElement.style.left = `${originalRect.left - newEditorRect.left}px`;
+				highlightElement.style.top = `${originalRect.top - newEditorRect.top}px`;
 			});
 		};
 		
