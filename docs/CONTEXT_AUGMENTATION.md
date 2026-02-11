@@ -104,7 +104,7 @@ User message:
 
 **Usage:**
 1. Click the agent selector dropdown in the toolbar
-2. Select an agent (e.g., "Code Reviewer", "Documentation Writer")
+2. Select an agent (e.g., "Research Assistant", "Writing Coach")
 3. All subsequent messages include the agent's instructions
 4. Select "Default" to remove agent instructions
 
@@ -422,45 +422,45 @@ User message:
 
 ## Practical Examples
 
-### Example 1: Code Review with Multiple Context Sources
+### Example 1: Academic Research with Multiple Context Sources
 
 **Input:**
 ```
-Agent: Code Reviewer selected
-Open tabs: api.ts, tests.spec.ts
-Message: Review this implementation [[design-doc]] #fetch https://bestpractices.dev/api-design
+Agent: Research Assistant selected
+Open tabs: literature-review.md, methodology-notes.md
+Message: Synthesize the key findings from [[seminal-paper-smith-2023]] and compare with #fetch https://journal.com/recent-study
 ```
 
 **Context included:**
-1. Code Reviewer agent instructions
-2. Content from design-doc.md
-3. Content from https://bestpractices.dev/api-design
-4. Content of api.ts (active file)
-5. Content of tests.spec.ts (open tab)
+1. Research Assistant agent instructions
+2. Content from seminal-paper-smith-2023.md
+3. Content from https://journal.com/recent-study
+4. Content of literature-review.md (active file)
+5. Content of methodology-notes.md (open tab)
 
-### Example 2: Documentation with Variables
+### Example 2: Essay Writing with Variables
 
 **Input:**
 ```
-File: mymodule.ts (active)
-Selection: class UserService { ... }
-Message: Document this class from ${fileBasename}:
+File: chapter-3-analysis.md (active)
+Selection: The primary argument suggests that cultural factors...
+Message: Expand on this excerpt from ${fileBasename}:
 
 ${selection}
 
-Follow our style guide [[docs/style-guide]]
+Consider the framework in [[theoretical-approach]]
 ```
 
 **Context included:**
-1. Content from docs/style-guide.md
-2. Active file content (mymodule.ts)
+1. Content from theoretical-approach.md
+2. Active file content (chapter-3-analysis.md)
 3. Message with variables replaced:
    ```
-   Document this class from mymodule.ts:
+   Expand on this excerpt from chapter-3-analysis.md:
    
-   class UserService { ... }
+   The primary argument suggests that cultural factors...
    
-   Follow our style guide [[docs/style-guide]]
+   Consider the framework in [[theoretical-approach]]
    ```
 
 ### Example 3: Research with Explicit Attachments
@@ -530,33 +530,33 @@ In the chat interface, the "Used References" section (below each message) shows 
 
 ## Use Cases
 
-### Code Review Across Files
+### Academic Research Synthesis
 
-When working on a feature that spans multiple files:
+When synthesizing findings from multiple research sources:
 
-1. Open all relevant files in tabs
-2. Ask the AI to review the implementation
-3. The AI automatically sees all open files and can provide cross-file insights
+1. Open all relevant research notes in tabs
+2. Ask the AI to identify patterns or connections
+3. The AI automatically sees all research materials and can provide cross-source insights
 
-### Documentation Writing
+### Creative Writing
 
-When documenting code:
+When working on a story or article:
 
-1. Open the source code file(s) in tabs
-2. Open your documentation file as the active tab
-3. Select specific code sections
-4. Ask the AI to explain or document the code
-5. The AI has full context of both code and documentation
+1. Open your character notes or outline files in tabs
+2. Open your writing file as the active tab
+3. Select specific passages you want to improve
+4. Ask the AI to suggest revisions or continuations
+5. The AI has full context of both your writing and supporting materials
 
-### Debugging
+### Project Planning
 
-When troubleshooting an issue:
+When organizing a complex project:
 
-1. Open the problematic file
-2. Select the problematic code section
-3. Open related files in tabs (dependencies, tests, etc.)
-4. Ask for debugging help
-5. The AI sees the full context to provide better solutions
+1. Open the main project plan file
+2. Select sections that need refinement
+3. Open related files in tabs (timelines, resources, stakeholder notes)
+4. Ask for planning help or risk analysis
+5. The AI sees the full context to provide comprehensive insights
 
 ### Research and Note Taking
 
@@ -847,42 +847,42 @@ Planned enhancements include:
 
 ### Combining Multiple Context Sources
 
-**Example: Comprehensive code review**
+**Example: Comprehensive research analysis**
 ```
-Agent: Code Reviewer
-Open tabs: api.ts, api.spec.ts, types.ts
-Attached: [[architecture-decisions]]
-Message: Review the API implementation using our coding standards #fetch https://company.com/standards
+Agent: Research Assistant
+Open tabs: literature-review.md, data-analysis.md, hypothesis.md
+Attached: [[theoretical-framework]]
+Message: Analyze these findings in the context of our framework #fetch https://journal.edu/related-study
 ```
 
 **Result:** AI receives:
-- Code Reviewer instructions
-- Content from architecture-decisions.md
-- Web page from company standards
-- All three open files (api.ts, api.spec.ts, types.ts)
+- Research Assistant instructions
+- Content from theoretical-framework.md
+- Web page from related study
+- All three open files (literature-review.md, data-analysis.md, hypothesis.md)
 - Your message
 
 ### Using Variables with Other Context
 
 **Example: Templated analysis**
 ```
-Selection: function calculateTotal() {...}
-Message: Analyze this function from ${fileBasename}:
+Selection: The study revealed significant correlations between...
+Message: Analyze this finding from ${fileBasename}:
 
 ${selection}
 
-Compare it to the pattern in [[design-patterns/calculator]]
+Compare it to the methodology in [[research-methods/statistical-analysis]]
 ```
 
 **Result:** Variables replaced first, then wikilink content added
 
 ### Strategic Context Management
 
-**For large codebases:**
+**For large research projects:**
 1. Use explicit attachments instead of keeping many files open
 2. Leverage variables for file metadata without full content
 3. Use agents to provide context rules once instead of repeatedly
-4. Combine wikilinks for documentation with open tabs for code
+4. Combine wikilinks for literature reviews with open tabs for active writing
 
 **For research:**
 1. Keep all reference materials open as tabs
