@@ -55,17 +55,30 @@ Write a concise release body that includes:
 
 Save the notes to a temporary file (e.g., `release-notes.txt`).
 
-### Step 6: Create Release
-Use `execute/runInTerminal` to create the GitHub release with the `gh` CLI using your crafted notes:
+### Step 6: Build Plugin
+Build the plugin to generate fresh release artifacts:
 
 ```bash
-gh release create X.Y.Z --repo danielshue/obsidian-vault-copilot --title "Release X.Y.Z" --notes-file release-notes.txt
+npm run build
 ```
 
-This command will:
+This generates:
+- `main.js` - Bundled plugin code
+- `manifest.json` - Plugin metadata (already updated in Step 4)
+- `styles.css` - Plugin styles
+
+### Step 7: Create Release and Upload Assets
+Use `execute/runInTerminal` to create the GitHub release and upload assets:
+
+```bash
+gh release create X.Y.Z --repo danielshue/obsidian-vault-copilot --title "X.Y.Z" --notes-file release-notes.txt
+gh release upload X.Y.Z main.js manifest.json styles.css --repo danielshue/obsidian-vault-copilot --clobber
+```
+
+This will:
 - Create a new tag `X.Y.Z` (no 'v' prefix per Obsidian conventions)
 - Create a GitHub release with your curated notes
-- The release workflow in `.github/workflows/release.yml` will automatically attach build artifacts
+- Upload the three required Obsidian plugin files as release assets
 
 ## Output Format
 
@@ -81,3 +94,4 @@ After completing the release, provide:
 - The `versions.json` maps plugin versions to minimum Obsidian app versions
 - Always verify the current version before bumping to avoid conflicts
 - Ensure GitHub CLI (`gh`) is installed and authenticated
+- **Required release assets**: `main.js`, `manifest.json`, `styles.css` - these must be uploaded for users to install the plugin
