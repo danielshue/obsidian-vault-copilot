@@ -3333,7 +3333,8 @@ export class CopilotChatView extends ItemView {
 		this.selectionHighlightOverlay.className = 'vc-selection-highlight-overlay';
 		this.selectionHighlightOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
 		
-		// Create highlight rects for each line of the selection
+		// Create highlight rects for each line of the selection and store references
+		const highlightElements: HTMLElement[] = [];
 		for (let i = 0; i < rects.length; i++) {
 			const rect = rects[i];
 			if (!rect) continue;
@@ -3351,6 +3352,7 @@ export class CopilotChatView extends ItemView {
 				border-radius: 2px;
 			`;
 			this.selectionHighlightOverlay.appendChild(highlight);
+			highlightElements.push(highlight);
 		}
 		
 		// Insert the overlay into the editor
@@ -3360,22 +3362,16 @@ export class CopilotChatView extends ItemView {
 		// Handle window resize to reposition the overlay
 		this.windowResizeHandler = () => {
 			if (!this.selectionHighlightOverlay || !cmEditor.contains(this.selectionHighlightOverlay)) {
-				// Overlay was removed, stop listening
-				if (this.windowResizeHandler) {
-					window.removeEventListener('resize', this.windowResizeHandler);
-					this.windowResizeHandler = null;
-				}
+				// Overlay was removed, clean up
 				return;
 			}
 			
 			// Get the new editor position
 			const newEditorRect = cmEditor.getBoundingClientRect();
 			
-			// Update each highlight rectangle position
-			// Highlights are in the same order as rects since they were appended sequentially
-			const highlights = this.selectionHighlightOverlay.querySelectorAll('.vc-selection-highlight');
-			for (let i = 0; i < highlights.length && i < rects.length; i++) {
-				const highlightElement = highlights[i] as HTMLElement;
+			// Update each highlight rectangle position using cached element references
+			for (let i = 0; i < highlightElements.length && i < rects.length; i++) {
+				const highlightElement = highlightElements[i];
 				const originalRect = rects[i];
 				
 				// Recalculate position relative to new editor position
