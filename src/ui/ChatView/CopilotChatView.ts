@@ -3360,9 +3360,11 @@ export class CopilotChatView extends ItemView {
 		cmEditor.appendChild(this.selectionHighlightOverlay);
 		
 		// Handle window resize to reposition the overlay
-		this.windowResizeHandler = () => {
+		const resizeHandler = () => {
 			if (!this.selectionHighlightOverlay || !cmEditor.contains(this.selectionHighlightOverlay)) {
-				// Overlay was removed, clean up
+				// Overlay was removed, clean up this listener
+				window.removeEventListener('resize', resizeHandler);
+				this.windowResizeHandler = null;
 				return;
 			}
 			
@@ -3370,7 +3372,7 @@ export class CopilotChatView extends ItemView {
 			const newEditorRect = cmEditor.getBoundingClientRect();
 			
 			// Update each highlight rectangle position using cached element references
-			for (let i = 0; i < highlightElements.length && i < rects.length; i++) {
+			for (let i = 0; i < highlightElements.length; i++) {
 				const highlightElement = highlightElements[i];
 				const originalRect = rects[i];
 				
@@ -3380,7 +3382,8 @@ export class CopilotChatView extends ItemView {
 			}
 		};
 		
-		window.addEventListener('resize', this.windowResizeHandler);
+		this.windowResizeHandler = resizeHandler;
+		window.addEventListener('resize', resizeHandler);
 		
 		// Set up cleanup when focus returns to editor
 		const cleanupHandler = () => {
