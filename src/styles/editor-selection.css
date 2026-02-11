@@ -39,23 +39,25 @@
 /*
  * Ensure selection background remains visible in all editor states
  * CodeMirror 6 uses .cm-selectionLayer as a container for selection backgrounds
+ * Apply base color for both focused and unfocused states
  */
 .cm-editor .cm-selectionLayer .cm-selectionBackground {
-	background-color: var(--text-selection) !important;
+	background-color: var(--text-selection);
 }
 
 /*
- * Reduce opacity when editor loses focus
- * This indicates inactive state while maintaining visibility
+ * Keep selection layer visible when editor loses focus
  * IMPORTANT: By default, CodeMirror 6 hides the selection layer when not focused
- * We need to force it to stay visible
+ * We override this to maintain visual feedback for context augmentation
  */
 .cm-editor:not(.cm-focused) .cm-selectionLayer {
-	display: block !important; /* Override default hiding behavior */
+	display: block !important;
 }
 
+/*
+ * Reduce opacity when editor loses focus to indicate inactive state
+ */
 .cm-editor:not(.cm-focused) .cm-selectionLayer .cm-selectionBackground {
-	background-color: var(--text-selection) !important;
 	opacity: 0.7; /* Slightly more transparent to indicate inactive state */
 }
 
