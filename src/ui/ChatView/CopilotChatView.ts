@@ -3325,10 +3325,7 @@ export class CopilotChatView extends ItemView {
 	private createSelectionHighlightFromCache(): void {
 		console.log('[VC Selection Debug] createSelectionHighlightFromCache() called');
 		
-		// Clean up any existing highlight
-		this.clearEditorSelectionHighlight();
-		
-		// Check if we have cached selection data
+		// Check if we have cached selection data FIRST, before any cleanup
 		if (!this.cachedSelectionRects || !this.cachedEditorRect || !this.cachedCmEditor) {
 			console.log('[VC Selection Debug] No cached selection data available');
 			console.log('[VC Selection Debug] - cachedSelectionRects:', this.cachedSelectionRects);
@@ -3337,9 +3334,21 @@ export class CopilotChatView extends ItemView {
 			return;
 		}
 		
+		// Save cached values to local variables BEFORE any cleanup
 		const rects = this.cachedSelectionRects;
 		const editorRect = this.cachedEditorRect;
 		const cmEditor = this.cachedCmEditor;
+		
+		// NOW we can clean up any existing highlight (but don't clear the cache yet)
+		if (this.selectionHighlightOverlay) {
+			console.log('[VC Selection Debug] Removing existing overlay');
+			this.selectionHighlightOverlay.remove();
+			this.selectionHighlightOverlay = null;
+		}
+		if (this.editorSelectionCleanup) {
+			this.editorSelectionCleanup();
+			this.editorSelectionCleanup = null;
+		}
 		
 		console.log('[VC Selection Debug] Creating overlay with', rects.length, 'rectangles');
 		
