@@ -159,6 +159,7 @@ export class CopilotChatView extends ItemView {
 	private cachedCmEditor: HTMLElement | null = null;
 	private selectionCacheTimeout: NodeJS.Timeout | null = null;
 	private selectionChangeHandler: (() => void) | null = null;
+	private windowResizeHandler: (() => void) | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, githubCopilotCliService: GitHubCopilotCliService | null) {
 		super(leaf);
@@ -3383,6 +3384,40 @@ export class CopilotChatView extends ItemView {
 		
 		console.log('[VC Selection Debug] Overlay created and appended to editor');
 		
+		// Handle window resize to reposition the overlay
+		// Store original rects relative to their positions so we can recalculate on resize
+		const originalRects = Array.from(rects);
+		const originalEditorRect = editorRect;
+		
+		this.windowResizeHandler = () => {
+			console.log('[VC Selection Debug] Window resized, updating overlay positions');
+			if (!this.selectionHighlightOverlay || !cmEditor.contains(this.selectionHighlightOverlay)) {
+				// Overlay was removed, stop listening
+				if (this.windowResizeHandler) {
+					window.removeEventListener('resize', this.windowResizeHandler);
+					this.windowResizeHandler = null;
+				}
+				return;
+			}
+			
+			// Get the new editor position
+			const newEditorRect = cmEditor.getBoundingClientRect();
+			
+			// Update each highlight rectangle
+			const highlights = this.selectionHighlightOverlay.querySelectorAll('.vc-selection-highlight');
+			highlights.forEach((highlight, i) => {
+				const originalRect = originalRects[i];
+				if (!originalRect) return;
+				
+				// Calculate new position based on the new editor position
+				const htmlHighlight = highlight as HTMLElement;
+				htmlHighlight.style.left = `${originalRect.left - newEditorRect.left}px`;
+				htmlHighlight.style.top = `${originalRect.top - newEditorRect.top}px`;
+			});
+		};
+		
+		window.addEventListener('resize', this.windowResizeHandler);
+		
 		// Set up cleanup when focus returns to editor
 		const cleanupHandler = () => {
 			console.log('[VC Selection Debug] Editor regained focus, cleaning up highlight');
@@ -3394,6 +3429,11 @@ export class CopilotChatView extends ItemView {
 		
 		this.editorSelectionCleanup = () => {
 			cmEditor.removeEventListener('focusin', cleanupHandler);
+			// Also clean up resize handler
+			if (this.windowResizeHandler) {
+				window.removeEventListener('resize', this.windowResizeHandler);
+				this.windowResizeHandler = null;
+			}
 		};
 		
 		// Clear the cache after using it
@@ -3428,6 +3468,11 @@ export class CopilotChatView extends ItemView {
 		if (this.editorSelectionCleanup) {
 			this.editorSelectionCleanup();
 			this.editorSelectionCleanup = null;
+		}
+		// Clean up window resize handler
+		if (this.windowResizeHandler) {
+			window.removeEventListener('resize', this.windowResizeHandler);
+			this.windowResizeHandler = null;
 		}
 		this.preservedSelectionText = '';
 		// Also clear any cached selection data
