@@ -151,6 +151,18 @@ export class CopilotChatView extends ItemView {
 	private inputHistory: string[] = [];
 	private historyIndex = -1;  // -1 means not navigating history
 	private savedCurrentInput = '';  // Save current input when navigating
+	
+	// Editor selection preservation - maintains visual highlight when focus moves to chat input
+	private static readonly SELECTION_PREVIEW_MAX_LENGTH = 100;
+	private selectionHighlightOverlay: HTMLElement | null = null;
+	private preservedSelectionText: string = '';
+	private editorSelectionCleanup: (() => void) | null = null;
+	private cachedSelectionRects: DOMRectList | null = null;
+	private cachedEditorRect: DOMRect | null = null;
+	private cachedCmEditor: HTMLElement | null = null;
+	private selectionCacheTimeout: NodeJS.Timeout | null = null;
+	private selectionChangeHandler: (() => void) | null = null;
+	private windowResizeHandler: (() => void) | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, githubCopilotCliService: GitHubCopilotCliService | null) {
 		super(leaf);
@@ -562,6 +574,31 @@ export class CopilotChatView extends ItemView {
 		this.sendButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>`;
 
 		// Event listeners
+		
+		// Preserve editor selection when clicking into chat input
+		// Strategy: Listen globally for selection changes and cache them proactively
+		// Then create the visual overlay when input gains focus
+		
+		// Cache selection whenever it changes (debounced to avoid excessive calls)
+		this.selectionChangeHandler = () => {
+			if (this.selectionCacheTimeout) {
+				clearTimeout(this.selectionCacheTimeout);
+			}
+			this.selectionCacheTimeout = setTimeout(() => {
+				// Only cache if the chat view is visible and selection exists
+				const selection = window.getSelection();
+				if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+					this.cacheEditorSelection();
+				}
+			}, 100); // Debounce 100ms
+		};
+		document.addEventListener("selectionchange", this.selectionChangeHandler);
+		
+		// Create the visual highlight when the input gains focus
+		this.inputEl.addEventListener("focus", () => {
+			this.createSelectionHighlightFromCache();
+		});
+		
 		this.inputEl.addEventListener("keydown", (e) => {
 			// Handle context picker navigation (for #)
 			if (this.contextPicker?.handleKeyDown(e)) {
@@ -2544,6 +2581,20 @@ export class CopilotChatView extends ItemView {
 			this.noProviderPlaceholder.destroy();
 			this.noProviderPlaceholder = null;
 		}
+		// Cleanup editor selection highlight
+		this.clearEditorSelectionHighlight();
+		
+		// Clean up selection change listener
+		if (this.selectionChangeHandler) {
+			document.removeEventListener("selectionchange", this.selectionChangeHandler);
+			this.selectionChangeHandler = null;
+		}
+		
+		// Clean up selection cache timeout
+		if (this.selectionCacheTimeout) {
+			clearTimeout(this.selectionCacheTimeout);
+			this.selectionCacheTimeout = null;
+		}
 	}
 
 	private async loadMessages(): Promise<void> {
@@ -2741,6 +2792,9 @@ export class CopilotChatView extends ItemView {
 		const { text: message, chipFilePaths } = this.extractInputContent();
 		if (!message || this.isProcessing) return;
 
+		// Clear editor selection highlight when sending
+		this.clearEditorSelectionHighlight();
+
 		// Add to input history (avoid duplicates of last entry)
 		if (this.inputHistory.length === 0 || this.inputHistory[this.inputHistory.length - 1] !== message) {
 			this.inputHistory.push(message);
@@ -2819,6 +2873,20 @@ export class CopilotChatView extends ItemView {
 		// Build message with attached notes context
 		let fullMessage = processedMessage;
 		
+		// Add preserved editor selection as implicit workspace context (if available)
+		// This captures selected text that was highlighted when user clicked into chat input
+		if (this.preservedSelectionText) {
+			const selectionContext = [
+				'[Selected text from editor]',
+				this.preservedSelectionText,
+				'[End selected text]',
+				'',
+				'User message:',
+				fullMessage
+			].join('\n');
+			fullMessage = selectionContext;
+		}
+		
 		// Add selected agent instructions as context (prepended to message)
 		let agentInstructions: string | null = null;
 		if (this.selectedAgent) {
@@ -2895,6 +2963,18 @@ export class CopilotChatView extends ItemView {
 
 		// Collect all used references for display
 		const usedReferences: UsedReference[] = [];
+		
+		// Add preserved editor selection as a reference (if it was used)
+		if (this.preservedSelectionText) {
+			const preview = this.preservedSelectionText.length > CopilotChatView.SELECTION_PREVIEW_MAX_LENGTH
+				? this.preservedSelectionText.substring(0, CopilotChatView.SELECTION_PREVIEW_MAX_LENGTH) + '...'
+				: this.preservedSelectionText;
+			usedReferences.push({
+				type: "workspace",
+				name: "Selected text from editor",
+				path: preview
+			});
+		}
 		
 		// Add selected agent as a reference
 		if (this.selectedAgent) {
@@ -3219,6 +3299,229 @@ export class CopilotChatView extends ItemView {
 	}
 
 	/**
+	 * Capture the current editor selection and create a visual highlight overlay
+	 * This preserves the selection visually when focus moves to the chat input
+	 */
+	/**
+	 * Cache the current editor selection rectangles
+	 * Called in capture phase of mousedown, BEFORE the selection is cleared
+	 */
+	private cacheEditorSelection(): void {
+		// Get the active markdown view
+		const activeLeaf = this.app.workspace.getActiveViewOfType(ItemView);
+		if (!activeLeaf || !('editor' in activeLeaf)) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
+		
+		const editor = (activeLeaf as any).editor;
+		if (!editor || typeof editor.getSelection !== 'function') {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
+		
+		const selectedText = editor.getSelection();
+		if (!selectedText) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
+		
+		// Store the selected text for context
+		this.preservedSelectionText = selectedText;
+		
+		// Find the CodeMirror editor container
+		const viewContentEl = (activeLeaf as any).contentEl as HTMLElement;
+		if (!viewContentEl) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
+		
+		const cmEditor = viewContentEl.querySelector('.cm-editor') as HTMLElement;
+		if (!cmEditor) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
+		
+		// Get the selection rects from the browser
+		const windowSelection = window.getSelection();
+		if (!windowSelection || windowSelection.rangeCount === 0) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
+		
+		const range = windowSelection.getRangeAt(0);
+		const rects = range.getClientRects();
+		if (rects.length === 0) {
+			this.cachedSelectionRects = null;
+			this.cachedEditorRect = null;
+			this.cachedCmEditor = null;
+			return;
+		}
+		
+		// Cache everything we need for later
+		this.cachedSelectionRects = rects;
+		this.cachedEditorRect = cmEditor.getBoundingClientRect();
+		this.cachedCmEditor = cmEditor;
+	}
+	
+	/**
+	 * Create the visual selection highlight from cached rectangles
+	 * Called after the input gains focus and the selection has been cleared
+	 */
+	private createSelectionHighlightFromCache(): void {
+		
+		// Check if we have cached selection data FIRST, before any cleanup
+		if (!this.cachedSelectionRects || !this.cachedEditorRect || !this.cachedCmEditor) {
+			return;
+		}
+		
+		// Save cached values to local variables BEFORE any cleanup
+		const rects = this.cachedSelectionRects;
+		const editorRect = this.cachedEditorRect;
+		const cmEditor = this.cachedCmEditor;
+		
+		// NOW we can clean up any existing highlight (but don't clear the cache yet)
+		if (this.selectionHighlightOverlay) {
+			this.selectionHighlightOverlay.remove();
+			this.selectionHighlightOverlay = null;
+		}
+		if (this.editorSelectionCleanup) {
+			this.editorSelectionCleanup();
+			this.editorSelectionCleanup = null;
+		}
+		
+		
+		// Create overlay container
+		this.selectionHighlightOverlay = document.createElement('div');
+		this.selectionHighlightOverlay.className = 'vc-selection-highlight-overlay';
+		this.selectionHighlightOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
+		
+		// Create highlight rects for each line of the selection and store references for resize handling
+		const highlightElements: HTMLElement[] = [];
+		for (let i = 0; i < rects.length; i++) {
+			const rect = rects[i];
+			if (!rect) continue;
+			
+			const highlight = document.createElement('div');
+			highlight.className = 'vc-selection-highlight';
+			highlight.style.cssText = `
+				position: absolute;
+				left: ${rect.left - editorRect.left}px;
+				top: ${rect.top - editorRect.top}px;
+				width: ${rect.width}px;
+				height: ${rect.height}px;
+				background-color: var(--text-selection, rgba(0, 122, 255, 0.15));
+				pointer-events: none;
+				border-radius: 2px;
+			`;
+			this.selectionHighlightOverlay.appendChild(highlight);
+			highlightElements.push(highlight);
+		}
+		
+		// Insert the overlay into the editor
+		cmEditor.style.position = 'relative';
+		cmEditor.appendChild(this.selectionHighlightOverlay);
+		
+		// Handle window resize to reposition the overlay
+		const resizeHandler = () => {
+			if (!this.selectionHighlightOverlay || !cmEditor.contains(this.selectionHighlightOverlay)) {
+				// Overlay was removed, clean up this listener
+				window.removeEventListener('resize', resizeHandler);
+				this.windowResizeHandler = null;
+				return;
+			}
+			
+			// Get the new editor position
+			const newEditorRect = cmEditor.getBoundingClientRect();
+			
+			// Update each highlight rectangle position using cached element references
+			// Use the smaller length to handle potential edge cases defensively
+			const count = Math.min(highlightElements.length, rects.length);
+			for (let i = 0; i < count; i++) {
+				const highlightElement = highlightElements[i];
+				const originalRect = rects[i];
+				if (!highlightElement || !originalRect) continue;
+				
+				// Recalculate position relative to new editor position
+				highlightElement.style.left = `${originalRect.left - newEditorRect.left}px`;
+				highlightElement.style.top = `${originalRect.top - newEditorRect.top}px`;
+			}
+		};
+		
+		this.windowResizeHandler = resizeHandler;
+		window.addEventListener('resize', resizeHandler);
+		
+		// Set up cleanup when focus returns to editor
+		const cleanupHandler = () => {
+			this.clearEditorSelectionHighlight();
+		};
+		
+		// Listen for focus returning to the editor
+		cmEditor.addEventListener('focusin', cleanupHandler, { once: true });
+		
+		this.editorSelectionCleanup = () => {
+			cmEditor.removeEventListener('focusin', cleanupHandler);
+			// Also clean up resize handler
+			if (this.windowResizeHandler) {
+				window.removeEventListener('resize', this.windowResizeHandler);
+				this.windowResizeHandler = null;
+			}
+		};
+		
+		// Clear the cache after using it
+		this.cachedSelectionRects = null;
+		this.cachedEditorRect = null;
+		this.cachedCmEditor = null;
+		
+	}
+	
+	
+	/**
+	 * Legacy method kept for compatibility
+	 * Now delegates to the new two-step process
+	 */
+	private preserveEditorSelection(): void {
+		this.cacheEditorSelection();
+		this.createSelectionHighlightFromCache();
+	}
+	
+	/**
+	 * Clear the editor selection highlight overlay
+	 */
+	private clearEditorSelectionHighlight(): void {
+		if (this.selectionHighlightOverlay) {
+			this.selectionHighlightOverlay.remove();
+			this.selectionHighlightOverlay = null;
+		}
+		if (this.editorSelectionCleanup) {
+			this.editorSelectionCleanup();
+			this.editorSelectionCleanup = null;
+		}
+		// Clean up window resize handler
+		if (this.windowResizeHandler) {
+			window.removeEventListener('resize', this.windowResizeHandler);
+			this.windowResizeHandler = null;
+		}
+		this.preservedSelectionText = '';
+		// Also clear any cached selection data
+		this.cachedSelectionRects = null;
+		this.cachedEditorRect = null;
+		this.cachedCmEditor = null;
+	}
+
+	/**
 	 * Execute a custom prompt with additional user arguments
 	 * This is called when user types /prompt-name additional text here
 	 */
@@ -3302,7 +3605,8 @@ export class CopilotChatView extends ItemView {
 		
 		try {
 			// Process the prompt content with VS Code compatible variable replacement
-			let content = await this.promptProcessor.processVariables(fullPrompt.content, fullPrompt.path);
+			// Pass preserved selection text in case editor has lost focus
+			let content = await this.promptProcessor.processVariables(fullPrompt.content, fullPrompt.path, this.preservedSelectionText);
 			
 			// Process ${userInput} - simple replacement with user's additional input
 			content = content.replace(/\$\{userInput\}/g, userArgs || '[No input provided]');
@@ -3546,7 +3850,8 @@ export class CopilotChatView extends ItemView {
 			this.scrollToBottom();
 			
 			// Process the prompt content with VS Code compatible variable replacement
-			let content = await this.promptProcessor.processVariables(fullPrompt.content, fullPrompt.path);
+			// Pass preserved selection text in case editor has lost focus
+			let content = await this.promptProcessor.processVariables(fullPrompt.content, fullPrompt.path, this.preservedSelectionText);
 			
 			// Process Markdown file links - resolve and include referenced content
 			content = await this.promptProcessor.resolveMarkdownFileLinks(content, fullPrompt.path);

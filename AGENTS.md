@@ -78,6 +78,7 @@ Styles are split into modular component files under `src/styles/` and bundled by
 
 | File | Purpose |
 |------|---------|
+| `editor-selection.css` | Editor text selection preservation (inactive highlight) |
 | `chat.css` | Chat container and header layout |
 | `welcome.css` | Welcome message and capabilities card |
 | `messages.css` | Message styles, errors, thinking indicator |
