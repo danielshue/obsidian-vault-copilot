@@ -6,7 +6,7 @@ import { ChatMessage } from "../../../copilot/providers/GitHubCopilotCliService"
  */
 export interface UsedReference {
 	/** Type of reference */
-	type: "agent" | "instruction" | "context" | "url";
+	type: "agent" | "instruction" | "context" | "url" | "workspace";
 	/** Display name */
 	name: string;
 	/** File path (for files) or URL (for web) */
