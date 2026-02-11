@@ -55,7 +55,7 @@
  * Ensure selection remains visible on mobile devices
  */
 .is-mobile .cm-editor:not(.cm-focused) .cm-selectionBackground {
-	opacity: 0.6; /* Slightly less opaque on mobile for clearer visual distinction */
+	opacity: 0.6; /* More transparent on mobile for clearer visual distinction */
 }
 
 /*
