@@ -3333,8 +3333,8 @@ export class CopilotChatView extends ItemView {
 		this.selectionHighlightOverlay.className = 'vc-selection-highlight-overlay';
 		this.selectionHighlightOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
 		
-		// Create highlight rects for each line of the selection and store references
-		const highlightElements: HTMLElement[] = [];
+		// Create highlight rects for each line of the selection and store references for resize handling
+		const cachedHighlightElements: HTMLElement[] = [];
 		for (let i = 0; i < rects.length; i++) {
 			const rect = rects[i];
 			if (!rect) continue;
@@ -3352,7 +3352,7 @@ export class CopilotChatView extends ItemView {
 				border-radius: 2px;
 			`;
 			this.selectionHighlightOverlay.appendChild(highlight);
-			highlightElements.push(highlight);
+			cachedHighlightElements.push(highlight);
 		}
 		
 		// Insert the overlay into the editor
@@ -3372,8 +3372,9 @@ export class CopilotChatView extends ItemView {
 			const newEditorRect = cmEditor.getBoundingClientRect();
 			
 			// Update each highlight rectangle position using cached element references
-			for (let i = 0; i < highlightElements.length; i++) {
-				const highlightElement = highlightElements[i];
+			// Both arrays have the same length by construction (one element per rect)
+			for (let i = 0; i < cachedHighlightElements.length; i++) {
+				const highlightElement = cachedHighlightElements[i];
 				const originalRect = rects[i];
 				if (!highlightElement || !originalRect) continue;
 				
