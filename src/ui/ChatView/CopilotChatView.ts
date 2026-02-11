@@ -149,6 +149,11 @@ export class CopilotChatView extends ItemView {
 	private inputHistory: string[] = [];
 	private historyIndex = -1;  // -1 means not navigating history
 	private savedCurrentInput = '';  // Save current input when navigating
+	
+	// Editor selection preservation - maintains visual highlight when focus moves to chat input
+	private selectionHighlightOverlay: HTMLElement | null = null;
+	private preservedSelectionText: string = '';
+	private editorSelectionCleanup: (() => void) | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: CopilotPlugin, githubCopilotCliService: GitHubCopilotCliService | null) {
 		super(leaf);
@@ -559,6 +564,13 @@ export class CopilotChatView extends ItemView {
 		this.sendButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>`;
 
 		// Event listeners
+		
+		// Preserve editor selection when clicking into chat input
+		// This captures the selection BEFORE focus changes to the input
+		this.inputEl.addEventListener("mousedown", () => {
+			this.preserveEditorSelection();
+		});
+		
 		this.inputEl.addEventListener("keydown", (e) => {
 			// Handle context picker navigation (for #)
 			if (this.contextPicker?.handleKeyDown(e)) {
@@ -2541,6 +2553,8 @@ export class CopilotChatView extends ItemView {
 			this.noProviderPlaceholder.destroy();
 			this.noProviderPlaceholder = null;
 		}
+		// Cleanup editor selection highlight
+		this.clearEditorSelectionHighlight();
 	}
 
 	private async loadMessages(): Promise<void> {
@@ -2737,6 +2751,9 @@ export class CopilotChatView extends ItemView {
 		// Extract text and inline chip file paths from contenteditable
 		const { text: message, chipFilePaths } = this.extractInputContent();
 		if (!message || this.isProcessing) return;
+
+		// Clear editor selection highlight when sending
+		this.clearEditorSelectionHighlight();
 
 		// Add to input history (avoid duplicates of last entry)
 		if (this.inputHistory.length === 0 || this.inputHistory[this.inputHistory.length - 1] !== message) {
@@ -3168,6 +3185,102 @@ export class CopilotChatView extends ItemView {
 		this.inputEl.style.height = "auto";
 		const newHeight = Math.min(this.inputEl.scrollHeight, 200);
 		this.inputEl.style.height = newHeight + "px";
+	}
+
+	/**
+	 * Capture the current editor selection and create a visual highlight overlay
+	 * This preserves the selection visually when focus moves to the chat input
+	 */
+	private preserveEditorSelection(): void {
+		// Clean up any existing highlight
+		this.clearEditorSelectionHighlight();
+		
+		// Get the active markdown view
+		const activeLeaf = this.app.workspace.getActiveViewOfType(ItemView);
+		if (!activeLeaf || !('editor' in activeLeaf)) return;
+		
+		const editor = (activeLeaf as any).editor;
+		if (!editor || typeof editor.getSelection !== 'function') return;
+		
+		const selectedText = editor.getSelection();
+		if (!selectedText) return;
+		
+		// Store the selected text for context
+		this.preservedSelectionText = selectedText;
+		
+		// Find the CodeMirror editor container
+		const viewContentEl = (activeLeaf as any).contentEl as HTMLElement;
+		if (!viewContentEl) return;
+		
+		const cmEditor = viewContentEl.querySelector('.cm-editor') as HTMLElement;
+		if (!cmEditor) return;
+		
+		// Get the selection rects from the browser
+		const windowSelection = window.getSelection();
+		if (!windowSelection || windowSelection.rangeCount === 0) return;
+		
+		const range = windowSelection.getRangeAt(0);
+		const rects = range.getClientRects();
+		if (rects.length === 0) return;
+		
+		// Get the editor's bounding rect for positioning
+		const editorRect = cmEditor.getBoundingClientRect();
+		
+		// Create overlay container
+		this.selectionHighlightOverlay = document.createElement('div');
+		this.selectionHighlightOverlay.className = 'vc-selection-highlight-overlay';
+		this.selectionHighlightOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;';
+		
+		// Create highlight rects for each line of the selection
+		for (let i = 0; i < rects.length; i++) {
+			const rect = rects[i];
+			if (!rect) continue;
+			
+			const highlight = document.createElement('div');
+			highlight.className = 'vc-selection-highlight';
+			highlight.style.cssText = `
+				position: absolute;
+				left: ${rect.left - editorRect.left}px;
+				top: ${rect.top - editorRect.top}px;
+				width: ${rect.width}px;
+				height: ${rect.height}px;
+				background-color: var(--text-selection, rgba(0, 122, 255, 0.15));
+				pointer-events: none;
+				border-radius: 2px;
+			`;
+			this.selectionHighlightOverlay.appendChild(highlight);
+		}
+		
+		// Insert the overlay into the editor
+		cmEditor.style.position = 'relative';
+		cmEditor.appendChild(this.selectionHighlightOverlay);
+		
+		// Set up cleanup when focus returns to editor
+		const cleanupHandler = () => {
+			this.clearEditorSelectionHighlight();
+		};
+		
+		// Listen for focus returning to the editor
+		cmEditor.addEventListener('focusin', cleanupHandler, { once: true });
+		
+		this.editorSelectionCleanup = () => {
+			cmEditor.removeEventListener('focusin', cleanupHandler);
+		};
+	}
+	
+	/**
+	 * Clear the editor selection highlight overlay
+	 */
+	private clearEditorSelectionHighlight(): void {
+		if (this.selectionHighlightOverlay) {
+			this.selectionHighlightOverlay.remove();
+			this.selectionHighlightOverlay = null;
+		}
+		if (this.editorSelectionCleanup) {
+			this.editorSelectionCleanup();
+			this.editorSelectionCleanup = null;
+		}
+		this.preservedSelectionText = '';
 	}
 
 	/**

@@ -13,14 +13,40 @@
  * - Showing users what text will be included as context
  * - Making implicit context augmentation more transparent
  * - Maintaining visual feedback across focus changes
+ * 
+ * Key approach: JavaScript creates overlay divs that mirror the selection
+ * position, since CodeMirror 6 clears its selection layer on focus loss.
  */
 
+/*
+ * Selection highlight overlay container
+ * Created programmatically by CopilotChatView.preserveEditorSelection()
+ */
+.vc-selection-highlight-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	pointer-events: none;
+	z-index: 10;
+}
+
+/*
+ * Individual selection highlight rectangles
+ * One is created for each line of the selection
+ */
+.vc-selection-highlight {
+	position: absolute;
+	background-color: var(--text-selection, rgba(0, 122, 255, 0.15));
+	pointer-events: none;
+	border-radius: 2px;
+	transition: opacity 0.15s ease;
+}
+
 /* 
- * Preserve selection highlighting in unfocused/inactive editor elements
+ * CSS fallbacks for native selection styling (used as backup)
  * Uses ::selection pseudo-element to style text selection appearance
- * Works across all editor elements in the workspace
- * 
- * IMPORTANT: Use fallback color in case --text-selection is not defined
  */
 .workspace-leaf-content ::selection {
 	background: var(--text-selection, rgba(0, 122, 255, 0.2));
@@ -28,48 +54,11 @@
 }
 
 /* 
- * CodeMirror 6 selection preservation
- * Obsidian uses CodeMirror 6 for the editor
- * CodeMirror 6 renders selections using a .cm-selectionLayer with .cm-selectionBackground divs
+ * CodeMirror 6 selection preservation (backup for native selection)
  */
 .cm-editor .cm-content ::selection,
 .cm-editor .cm-line ::selection {
 	background: var(--text-selection, rgba(0, 122, 255, 0.2));
-}
-
-/*
- * Ensure selection background remains visible in all editor states
- * CodeMirror 6 uses .cm-selectionLayer as a container for selection backgrounds
- * Apply base color for both focused and unfocused states
- * Use !important to override CodeMirror's inline styles
- */
-.cm-editor .cm-selectionLayer .cm-selectionBackground {
-	background-color: var(--text-selection, rgba(0, 122, 255, 0.2)) !important;
-}
-
-/*
- * Keep selection layer visible when editor loses focus
- * IMPORTANT: By default, CodeMirror 6 hides the selection layer when not focused
- * We override this to maintain visual feedback for context augmentation
- */
-.cm-editor:not(.cm-focused) .cm-selectionLayer {
-	display: block !important;
-	visibility: visible !important;
-}
-
-/*
- * Reduce opacity when editor loses focus to indicate inactive state
- */
-.cm-editor:not(.cm-focused) .cm-selectionLayer .cm-selectionBackground {
-	opacity: 0.7 !important; /* Slightly more transparent to indicate inactive state */
-}
-
-/*
- * Mobile-specific adjustments
- * Ensure selection remains visible on mobile devices
- */
-.is-mobile .cm-editor:not(.cm-focused) .cm-selectionLayer .cm-selectionBackground {
-	opacity: 0.6 !important; /* More transparent on mobile for clearer visual distinction */
 }
 
 /*
