@@ -2869,6 +2869,12 @@ export class CopilotChatView extends ItemView {
 		// Build message with attached notes context
 		let fullMessage = processedMessage;
 		
+		// Add preserved editor selection as implicit workspace context (if available)
+		// This captures selected text that was highlighted when user clicked into chat input
+		if (this.preservedSelectionText) {
+			fullMessage = `[Selected text from editor]\n${this.preservedSelectionText}\n[End selected text]\n\nUser message:\n${fullMessage}`;
+		}
+		
 		// Add selected agent instructions as context (prepended to message)
 		let agentInstructions: string | null = null;
 		if (this.selectedAgent) {
@@ -2927,6 +2933,15 @@ export class CopilotChatView extends ItemView {
 
 		// Collect all used references for display
 		const usedReferences: UsedReference[] = [];
+		
+		// Add preserved editor selection as a reference (if it was used)
+		if (this.preservedSelectionText) {
+			usedReferences.push({
+				type: "workspace",
+				name: "Selected text from editor",
+				path: `${this.preservedSelectionText.substring(0, 100)}${this.preservedSelectionText.length > 100 ? '...' : ''}`
+			});
+		}
 		
 		// Add selected agent as a reference
 		if (this.selectedAgent) {
@@ -3530,7 +3545,8 @@ export class CopilotChatView extends ItemView {
 		
 		try {
 			// Process the prompt content with VS Code compatible variable replacement
-			let content = await this.promptProcessor.processVariables(fullPrompt.content, fullPrompt.path);
+			// Pass preserved selection text in case editor has lost focus
+			let content = await this.promptProcessor.processVariables(fullPrompt.content, fullPrompt.path, this.preservedSelectionText);
 			
 			// Process ${userInput} - simple replacement with user's additional input
 			content = content.replace(/\$\{userInput\}/g, userArgs || '[No input provided]');
@@ -3774,7 +3790,8 @@ export class CopilotChatView extends ItemView {
 			this.scrollToBottom();
 			
 			// Process the prompt content with VS Code compatible variable replacement
-			let content = await this.promptProcessor.processVariables(fullPrompt.content, fullPrompt.path);
+			// Pass preserved selection text in case editor has lost focus
+			let content = await this.promptProcessor.processVariables(fullPrompt.content, fullPrompt.path, this.preservedSelectionText);
 			
 			// Process Markdown file links - resolve and include referenced content
 			content = await this.promptProcessor.resolveMarkdownFileLinks(content, fullPrompt.path);

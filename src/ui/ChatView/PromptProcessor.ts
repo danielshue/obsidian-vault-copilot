@@ -21,8 +21,11 @@ export class PromptProcessor {
 
 	/**
 	 * Process prompt variables using VS Code compatible ${var} syntax
+	 * @param content - The prompt content with variables
+	 * @param promptPath - Path to the prompt file  
+	 * @param preservedSelection - Optional preserved selection text (used when editor has lost focus)
 	 */
-	async processVariables(content: string, promptPath: string): Promise<string> {
+	async processVariables(content: string, promptPath: string, preservedSelection?: string): Promise<string> {
 		const activeFile = this.app.workspace.getActiveFile();
 		const vaultPath = (this.app.vault.adapter as any).basePath || '';
 		
@@ -48,7 +51,7 @@ export class PromptProcessor {
 					const noteContent = await this.app.vault.cachedRead(activeFile);
 					content = content.replace(/\$\{activeNoteContent\}/g, noteContent);
 				} catch {
-					content = content.replace(/\$\{activeNoteContent\}/g, '[Could not read note content]');
+					content = content.replace(/\$\{activeNoteContent\}/g, '[Error reading file]');
 				}
 			}
 		} else {
@@ -69,12 +72,15 @@ export class PromptProcessor {
 		
 		// Selection variables
 		// ${selection} / ${selectedText} - Currently selected text in the editor
-		const activeView = this.app.workspace.getActiveViewOfType(ItemView);
-		let selectedText = '';
-		if (activeView && 'editor' in activeView) {
-			const editor = (activeView as any).editor;
-			if (editor && typeof editor.getSelection === 'function') {
-				selectedText = editor.getSelection() || '';
+		// Use preservedSelection if provided (for when editor has lost focus), otherwise get current selection
+		let selectedText = preservedSelection || '';
+		if (!selectedText) {
+			const activeView = this.app.workspace.getActiveViewOfType(ItemView);
+			if (activeView && 'editor' in activeView) {
+				const editor = (activeView as any).editor;
+				if (editor && typeof editor.getSelection === 'function') {
+					selectedText = editor.getSelection() || '';
+				}
 			}
 		}
 		content = content.replace(/\$\{selection\}/g, selectedText || '[No selection]');
