@@ -582,8 +582,12 @@ export class CopilotChatView extends ItemView {
 			this.selectionCacheTimeout = setTimeout(() => {
 				// Only cache if the chat view is visible and selection exists
 				const selection = window.getSelection();
+				console.log('[VC Selection Debug] selectionchange event fired, selection:', selection);
 				if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+					console.log('[VC Selection Debug] Selection is valid, caching...');
 					this.cacheEditorSelection();
+				} else {
+					console.log('[VC Selection Debug] Selection is collapsed or invalid, not caching');
 				}
 			}, 100); // Debounce 100ms
 		};
@@ -591,6 +595,7 @@ export class CopilotChatView extends ItemView {
 		
 		// Create the visual highlight when the input gains focus
 		this.inputEl.addEventListener("focus", () => {
+			console.log('[VC Selection Debug] Input gained focus, creating highlight from cache');
 			this.createSelectionHighlightFromCache();
 		});
 		
@@ -3231,9 +3236,12 @@ export class CopilotChatView extends ItemView {
 	 * Called in capture phase of mousedown, BEFORE the selection is cleared
 	 */
 	private cacheEditorSelection(): void {
+		console.log('[VC Selection Debug] cacheEditorSelection() called');
+		
 		// Get the active markdown view
 		const activeLeaf = this.app.workspace.getActiveViewOfType(ItemView);
 		if (!activeLeaf || !('editor' in activeLeaf)) {
+			console.log('[VC Selection Debug] No active editor view found');
 			this.cachedSelectionRects = null;
 			this.cachedEditorRect = null;
 			this.cachedCmEditor = null;
@@ -3242,6 +3250,7 @@ export class CopilotChatView extends ItemView {
 		
 		const editor = (activeLeaf as any).editor;
 		if (!editor || typeof editor.getSelection !== 'function') {
+			console.log('[VC Selection Debug] Editor or getSelection not available');
 			this.cachedSelectionRects = null;
 			this.cachedEditorRect = null;
 			this.cachedCmEditor = null;
@@ -3250,11 +3259,14 @@ export class CopilotChatView extends ItemView {
 		
 		const selectedText = editor.getSelection();
 		if (!selectedText) {
+			console.log('[VC Selection Debug] No selected text in editor');
 			this.cachedSelectionRects = null;
 			this.cachedEditorRect = null;
 			this.cachedCmEditor = null;
 			return;
 		}
+		
+		console.log('[VC Selection Debug] Selected text:', selectedText.substring(0, 50) + (selectedText.length > 50 ? '...' : ''));
 		
 		// Store the selected text for context
 		this.preservedSelectionText = selectedText;
@@ -3262,6 +3274,7 @@ export class CopilotChatView extends ItemView {
 		// Find the CodeMirror editor container
 		const viewContentEl = (activeLeaf as any).contentEl as HTMLElement;
 		if (!viewContentEl) {
+			console.log('[VC Selection Debug] No view content element');
 			this.cachedSelectionRects = null;
 			this.cachedEditorRect = null;
 			this.cachedCmEditor = null;
@@ -3270,6 +3283,7 @@ export class CopilotChatView extends ItemView {
 		
 		const cmEditor = viewContentEl.querySelector('.cm-editor') as HTMLElement;
 		if (!cmEditor) {
+			console.log('[VC Selection Debug] No .cm-editor element found');
 			this.cachedSelectionRects = null;
 			this.cachedEditorRect = null;
 			this.cachedCmEditor = null;
@@ -3279,6 +3293,7 @@ export class CopilotChatView extends ItemView {
 		// Get the selection rects from the browser - THIS MUST HAPPEN BEFORE FOCUS CHANGES
 		const windowSelection = window.getSelection();
 		if (!windowSelection || windowSelection.rangeCount === 0) {
+			console.log('[VC Selection Debug] No window selection or ranges');
 			this.cachedSelectionRects = null;
 			this.cachedEditorRect = null;
 			this.cachedCmEditor = null;
@@ -3288,11 +3303,14 @@ export class CopilotChatView extends ItemView {
 		const range = windowSelection.getRangeAt(0);
 		const rects = range.getClientRects();
 		if (rects.length === 0) {
+			console.log('[VC Selection Debug] No client rects from range');
 			this.cachedSelectionRects = null;
 			this.cachedEditorRect = null;
 			this.cachedCmEditor = null;
 			return;
 		}
+		
+		console.log('[VC Selection Debug] Successfully cached', rects.length, 'selection rectangles');
 		
 		// Cache everything we need for later
 		this.cachedSelectionRects = rects;
@@ -3305,17 +3323,25 @@ export class CopilotChatView extends ItemView {
 	 * Called after the input gains focus and the selection has been cleared
 	 */
 	private createSelectionHighlightFromCache(): void {
+		console.log('[VC Selection Debug] createSelectionHighlightFromCache() called');
+		
 		// Clean up any existing highlight
 		this.clearEditorSelectionHighlight();
 		
 		// Check if we have cached selection data
 		if (!this.cachedSelectionRects || !this.cachedEditorRect || !this.cachedCmEditor) {
+			console.log('[VC Selection Debug] No cached selection data available');
+			console.log('[VC Selection Debug] - cachedSelectionRects:', this.cachedSelectionRects);
+			console.log('[VC Selection Debug] - cachedEditorRect:', this.cachedEditorRect);
+			console.log('[VC Selection Debug] - cachedCmEditor:', this.cachedCmEditor);
 			return;
 		}
 		
 		const rects = this.cachedSelectionRects;
 		const editorRect = this.cachedEditorRect;
 		const cmEditor = this.cachedCmEditor;
+		
+		console.log('[VC Selection Debug] Creating overlay with', rects.length, 'rectangles');
 		
 		// Create overlay container
 		this.selectionHighlightOverlay = document.createElement('div');
@@ -3346,8 +3372,11 @@ export class CopilotChatView extends ItemView {
 		cmEditor.style.position = 'relative';
 		cmEditor.appendChild(this.selectionHighlightOverlay);
 		
+		console.log('[VC Selection Debug] Overlay created and appended to editor');
+		
 		// Set up cleanup when focus returns to editor
 		const cleanupHandler = () => {
+			console.log('[VC Selection Debug] Editor regained focus, cleaning up highlight');
 			this.clearEditorSelectionHighlight();
 		};
 		
@@ -3362,6 +3391,8 @@ export class CopilotChatView extends ItemView {
 		this.cachedSelectionRects = null;
 		this.cachedEditorRect = null;
 		this.cachedCmEditor = null;
+		
+		console.log('[VC Selection Debug] Cache cleared after creating overlay');
 	}
 	
 	
@@ -3378,7 +3409,10 @@ export class CopilotChatView extends ItemView {
 	 * Clear the editor selection highlight overlay
 	 */
 	private clearEditorSelectionHighlight(): void {
+		console.log('[VC Selection Debug] clearEditorSelectionHighlight() called');
+		
 		if (this.selectionHighlightOverlay) {
+			console.log('[VC Selection Debug] Removing overlay element');
 			this.selectionHighlightOverlay.remove();
 			this.selectionHighlightOverlay = null;
 		}
