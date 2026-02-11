@@ -51,7 +51,7 @@ export class PromptProcessor {
 					const noteContent = await this.app.vault.cachedRead(activeFile);
 					content = content.replace(/\$\{activeNoteContent\}/g, noteContent);
 				} catch {
-					content = content.replace(/\$\{activeNoteContent\}/g, '[Error reading file]');
+					content = content.replace(/\$\{activeNoteContent\}/g, '[Could not read note content]');
 				}
 			}
 		} else {
