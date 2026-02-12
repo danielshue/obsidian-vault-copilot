@@ -102,6 +102,9 @@ export class CopilotChatView extends ItemView {
 	private sessionPanelVisible = false;
 	private resizerEl: HTMLElement | null = null;
 	private sessionToggleBtnEl: HTMLElement | null = null;
+	private isExpanded = false;
+	private expandBtnEl: HTMLElement | null = null;
+	private originalRightSplitSize: number | null = null;
 	private isResizing = false;
 	private promptPickerEl: HTMLElement | null = null;
 	private promptCacheUnsubscribe: (() => void) | null = null;
@@ -365,6 +368,25 @@ export class CopilotChatView extends ItemView {
 		});
 		setIcon(this.sessionToggleBtnEl, "panel-right");
 		this.sessionToggleBtnEl.addEventListener("click", () => this.toggleSessionPanel());
+
+		// Divider before expand/close buttons
+		headerActions.createSpan({ cls: "vc-header-divider" });
+
+		// Expand/shrink button
+		this.expandBtnEl = headerActions.createEl("button", {
+			cls: "vc-header-btn",
+			attr: { "aria-label": "Expand chat" }
+		});
+		setIcon(this.expandBtnEl, "maximize");
+		this.expandBtnEl.addEventListener("click", () => this.toggleExpandChat());
+
+		// Close chat pane button
+		const closePaneBtn = headerActions.createEl("button", {
+			cls: "vc-header-btn",
+			attr: { "aria-label": "Close chat" }
+		});
+		setIcon(closePaneBtn, "x");
+		closePaneBtn.addEventListener("click", () => this.closeChatPane());
 
 		// Messages container
 		this.messagesContainer = this.mainViewEl.createDiv({ cls: "vc-messages" });
@@ -687,6 +709,51 @@ export class CopilotChatView extends ItemView {
 	}
 
 	/**
+	 * Toggle expanded mode — collapse the left sidebar and resize chat to fill.
+	 * Pressing again restores the original layout.
+	 */
+	private toggleExpandChat(): void {
+		const { workspace } = this.app;
+		const rightSplit = (workspace as any).rightSplit;
+		this.isExpanded = !this.isExpanded;
+
+		if (this.isExpanded) {
+			// Save original size before expanding
+			this.originalRightSplitSize = rightSplit?.containerEl?.offsetWidth ?? null;
+			(workspace as any).leftSplit?.collapse();
+			rightSplit?.setSize?.(window.innerWidth * 0.85);
+		} else {
+			(workspace as any).leftSplit?.expand();
+			if (this.originalRightSplitSize != null) {
+				rightSplit?.setSize?.(this.originalRightSplitSize);
+				this.originalRightSplitSize = null;
+			}
+		}
+
+		if (this.expandBtnEl) {
+			setIcon(this.expandBtnEl, this.isExpanded ? "minimize" : "maximize");
+			this.expandBtnEl.setAttribute("aria-label", this.isExpanded ? "Shrink chat" : "Expand chat");
+		}
+	}
+
+	/**
+	 * Close the chat pane (detach the leaf).
+	 */
+	private closeChatPane(): void {
+		// Restore layout if expanded
+		if (this.isExpanded) {
+			const { workspace } = this.app;
+			(workspace as any).leftSplit?.expand();
+			if (this.originalRightSplitSize != null) {
+				(workspace as any).rightSplit?.setSize?.(this.originalRightSplitSize);
+				this.originalRightSplitSize = null;
+			}
+			this.isExpanded = false;
+		}
+		this.leaf.detach();
+	}
+
+	/**
 	 * Setup the resizer drag functionality
 	 */
 	private setupResizer(): void {
@@ -779,6 +846,16 @@ export class CopilotChatView extends ItemView {
 	}
 
 	async onClose(): Promise<void> {
+		// Restore layout if expanded
+		if (this.isExpanded) {
+			const { workspace } = this.app;
+			(workspace as any).leftSplit?.expand();
+			if (this.originalRightSplitSize != null) {
+				(workspace as any).rightSplit?.setSize?.(this.originalRightSplitSize);
+				this.originalRightSplitSize = null;
+			}
+			this.isExpanded = false;
+		}
 		// Cleanup toolbar
 		this.toolbarManager.destroy();
 		// Cleanup prompt cache subscription

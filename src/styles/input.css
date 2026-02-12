@@ -1,6 +1,6 @@
 /* Input Area */
 .vc-input-area {
-	padding: 8px 2px 8px 2px;
+	padding: 8px 12px 36px 12px;
 	border-top: none;
 	background: var(--background-secondary);
 	flex-shrink: 0;

@@ -7,6 +7,7 @@
 	height: 100%;
 	background: var(--background-secondary);
 	overflow: hidden;
+	padding: 0 !important;
 }
 
 /* Header */
@@ -14,7 +15,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
-	padding: 8px 12px;
+	padding: 0 8px;
 	border-bottom: 1px solid var(--background-modifier-border);
 	background: var(--background-secondary);
 }
@@ -29,6 +30,14 @@
 .vc-header-actions {
 	display: flex;
 	gap: 8px;
+	align-items: center;
+}
+
+.vc-header-divider {
+	width: 1px;
+	height: 16px;
+	background: var(--background-modifier-border);
+	flex-shrink: 0;
 }
 
 .vc-header-btn {
