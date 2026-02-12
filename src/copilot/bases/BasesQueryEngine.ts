@@ -8,7 +8,7 @@
  */
 
 import type { App, TFile } from "obsidian";
-import type { BaseFilter, BaseSchema, QueryResult } from "./types";
+import type { BaseFilterGroup, BaseSchema, ParsedFilterCondition, ParsedFilterFunction, QueryResult } from "./types";
 
 /**
  * Parse frontmatter from markdown content
@@ -20,6 +20,7 @@ function parseFrontmatter(content: string): Record<string, any> | null {
 	try {
 		// Simple YAML parser for frontmatter
 		const yaml = match[1];
+		if (!yaml) return null;
 		const lines = yaml.split("\n");
 		const result: Record<string, any> = {};
 		let currentKey = "";
@@ -30,7 +31,7 @@ function parseFrontmatter(content: string): Record<string, any> | null {
 
 			if (trimmed.includes(":")) {
 				const parts = trimmed.split(":");
-				const key = parts[0].trim();
+				const key = parts[0]?.trim() ?? "";
 				const value = parts.slice(1).join(":").trim();
 				currentKey = key;
 
@@ -76,72 +77,152 @@ function parseValue(value: string): any {
 }
 
 /**
- * Evaluate a single filter against a note's properties
+ * Parse a filter expression string into a structured condition or function call.
+ * 
+ * Supports:
+ *   'status != "archived"'  →  comparison
+ *   file.inFolder("Projects")  →  function call
+ *   file.hasTag("book")  →  function call
  */
-function evaluateFilter(filter: BaseFilter, properties: Record<string, any>): boolean {
-	const value = properties[filter.property];
+function parseFilterExpression(expr: string): ParsedFilterCondition | ParsedFilterFunction | null {
+	const trimmed = expr.trim();
 
-	switch (filter.operator) {
-		case "is":
-			return value === filter.value;
+	// Check for function-style: file.inFolder("X"), file.hasTag("X"), etc.
+	const fnMatch = trimmed.match(/^file\.(\w+)\(\s*"([^"]*)"\s*\)$/);
+	if (fnMatch && fnMatch[1] && fnMatch[2] !== undefined) {
+		return { fn: fnMatch[1], args: [fnMatch[2]] };
+	}
 
-		case "is not":
-			return value !== filter.value;
+	// Check for comparison: property op value
+	// Operators: ==, !=, >=, <=, >, <
+	const compMatch = trimmed.match(/^(.+?)\s*(!=|==|>=|<=|>|<)\s*(.+)$/);
+	if (compMatch && compMatch[1] && compMatch[2] && compMatch[3]) {
+		const property = compMatch[1].trim();
+		const operator = compMatch[2] as ParsedFilterCondition["operator"];
+		let rawValue = compMatch[3].trim();
 
-		case "contains":
-			if (typeof value === "string") {
-				return value.includes(String(filter.value));
-			}
-			if (Array.isArray(value)) {
-				return value.includes(filter.value);
-			}
-			return false;
+		// Parse the value
+		let value: string | number | boolean;
+		if ((rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+			(rawValue.startsWith("'") && rawValue.endsWith("'"))) {
+			value = rawValue.slice(1, -1);
+		} else if (rawValue === "true") {
+			value = true;
+		} else if (rawValue === "false") {
+			value = false;
+		} else if (rawValue === "null") {
+			value = "";
+		} else if (/^-?\d+(\.\d+)?$/.test(rawValue)) {
+			value = Number(rawValue);
+		} else {
+			value = rawValue;
+		}
 
-		case "does not contain":
-			if (typeof value === "string") {
-				return !value.includes(String(filter.value));
-			}
-			if (Array.isArray(value)) {
-				return !value.includes(filter.value);
-			}
-			return true;
+		return { property, operator, value };
+	}
 
-		case "starts with":
-			return typeof value === "string" && value.startsWith(String(filter.value));
+	console.warn(`BasesQueryEngine: Could not parse filter expression: ${expr}`);
+	return null;
+}
 
-		case "ends with":
-			return typeof value === "string" && value.endsWith(String(filter.value));
+/**
+ * Evaluate a parsed filter condition against a note's properties
+ */
+function evaluateCondition(condition: ParsedFilterCondition, properties: Record<string, any>): boolean {
+	const value = properties[condition.property];
 
-		case "is empty":
-			return value === null || value === undefined || value === "";
-
-		case "is not empty":
-			return value !== null && value !== undefined && value !== "";
-
-		case "greater than":
-			return typeof value === "number" && value > Number(filter.value);
-
-		case "less than":
-			return typeof value === "number" && value < Number(filter.value);
-
-		case "before":
-		case "after":
-			// Date comparison would require date parsing
-			// For POC, basic string comparison
-			return true;
-
+	switch (condition.operator) {
+		case "==":
+			return value === condition.value;
+		case "!=":
+			return value !== condition.value;
+		case ">":
+			return typeof value === "number" && value > Number(condition.value);
+		case "<":
+			return typeof value === "number" && value < Number(condition.value);
+		case ">=":
+			return typeof value === "number" && value >= Number(condition.value);
+		case "<=":
+			return typeof value === "number" && value <= Number(condition.value);
 		default:
-			console.warn(`Unknown filter operator: ${filter.operator}`);
 			return true;
 	}
 }
 
 /**
- * Check if a note's folder matches a filter
+ * Evaluate a parsed function filter against a note's properties and path
  */
-function matchesFolderFilter(notePath: string, folderValue: string): boolean {
-	const noteFolder = notePath.substring(0, notePath.lastIndexOf("/"));
-	return noteFolder === folderValue || noteFolder.startsWith(folderValue + "/");
+function evaluateFunction(fn: ParsedFilterFunction, filePath: string, properties: Record<string, any>): boolean {
+	switch (fn.fn) {
+		case "inFolder": {
+			const noteFolder = filePath.substring(0, filePath.lastIndexOf("/"));
+			const target = fn.args[0] ?? "";
+			return noteFolder === target || noteFolder.startsWith(target + "/");
+		}
+		case "hasTag": {
+			const tags = properties["tags"];
+			const target = fn.args[0] ?? "";
+			if (Array.isArray(tags)) {
+				return tags.includes(target) || tags.includes("#" + target);
+			}
+			if (typeof tags === "string") {
+				return tags === target || tags === "#" + target;
+			}
+			return false;
+		}
+		case "hasLink": {
+			// For POC, check if content contains a link to the target
+			return false;
+		}
+		default:
+			console.warn(`BasesQueryEngine: Unknown function: file.${fn.fn}`);
+			return true;
+	}
+}
+
+/**
+ * Evaluate a single filter expression string
+ */
+function evaluateExpression(expr: string, properties: Record<string, any>, filePath: string): boolean {
+	const parsed = parseFilterExpression(expr);
+	if (!parsed) return true; // Unknown expressions pass through
+
+	if ("fn" in parsed) {
+		return evaluateFunction(parsed, filePath, properties);
+	}
+	return evaluateCondition(parsed, properties);
+}
+
+/**
+ * Evaluate a filter group (and/or/not) against a note's properties
+ */
+function evaluateFilterGroup(
+	group: BaseFilterGroup,
+	properties: Record<string, any>,
+	filePath: string
+): boolean {
+	if (group.and) {
+		return group.and.every((item) =>
+			typeof item === "string"
+				? evaluateExpression(item, properties, filePath)
+				: evaluateFilterGroup(item, properties, filePath)
+		);
+	}
+	if (group.or) {
+		return group.or.some((item) =>
+			typeof item === "string"
+				? evaluateExpression(item, properties, filePath)
+				: evaluateFilterGroup(item, properties, filePath)
+		);
+	}
+	if (group.not) {
+		const inner = group.not;
+		return typeof inner === "string"
+			? !evaluateExpression(inner, properties, filePath)
+			: !evaluateFilterGroup(inner, properties, filePath);
+	}
+	// No filter keys — everything matches
+	return true;
 }
 
 /**
@@ -158,7 +239,7 @@ export async function queryBase(
 	limit: number = 50
 ): Promise<QueryResult[]> {
 	const results: QueryResult[] = [];
-	const files = app.vault.getMarkdownFiles();
+	const files = app.vault.getFiles();
 
 	for (const file of files) {
 		// Check if we've hit the limit
@@ -166,37 +247,25 @@ export async function queryBase(
 			break;
 		}
 
-		// Read file content
-		const content = await app.vault.read(file);
-		const frontmatter = parseFrontmatter(content);
-
-		if (!frontmatter) {
-			continue;
+		// Only parse frontmatter for markdown files; skip binary/non-md content
+		let frontmatter: Record<string, any> = {};
+		if (file.extension === "md") {
+			const content = await app.vault.read(file);
+			frontmatter = parseFrontmatter(content) || {};
 		}
 
 		// Add file.folder as a special property
-		const properties = {
+		const properties: Record<string, any> = {
 			...frontmatter,
 			"file.folder": file.parent?.path || "",
 			"file.name": file.basename,
 			"file.path": file.path,
 		};
 
-		// Evaluate all filters (AND logic)
+		// Evaluate filter group
 		let matches = true;
-		if (schema.filters && schema.filters.length > 0) {
-			for (const filter of schema.filters) {
-				// Handle special file.* properties
-				if (filter.property === "file.folder") {
-					if (!matchesFolderFilter(file.path, String(filter.value))) {
-						matches = false;
-						break;
-					}
-				} else if (!evaluateFilter(filter, properties)) {
-					matches = false;
-					break;
-				}
-			}
+		if (schema.filters) {
+			matches = evaluateFilterGroup(schema.filters, properties, file.path);
 		}
 
 		if (matches) {
@@ -238,7 +307,7 @@ export function formatQueryResults(results: QueryResult[], schema: BaseSchema): 
 		const sortedProps = Object.entries(schema.properties)
 			.sort(([, a], [, b]) => (a.position || 0) - (b.position || 0));
 		columns.push(...sortedProps.map(([name]) => name));
-	} else if (results.length > 0) {
+	} else if (results.length > 0 && results[0]) {
 		columns.push(...Object.keys(results[0].properties));
 	}
 

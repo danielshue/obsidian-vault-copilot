@@ -1,12 +1,7 @@
----
 filters:
-  - property: status
-    operator: is not
-    value: archived
-  - property: file.folder
-    operator: is
-    value: Projects
-
+  and:
+    - status != "archived"
+    - file.inFolder("Projects")
 properties:
   status:
     width: 120
@@ -20,15 +15,7 @@ properties:
   due_date:
     width: 120
     position: 3
-
-summaries:
-  priority:
-    - type: count
-
 views:
-  - name: All Projects
-    type: table
-    sort:
-      - property: priority
-        order: asc
----
+  - type: table
+    name: All Projects
+    sort: []

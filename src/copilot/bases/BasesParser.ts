@@ -1,37 +1,64 @@
 /**
  * BasesParser - Parse .base files into structured BaseSchema objects
  * 
- * A .base file is a markdown file with YAML frontmatter that defines a view.
+ * A .base file is a YAML file that defines a view (not markdown with frontmatter).
  * It contains NO data - only the view definition (filters, properties, formulas, etc.)
  */
 
 import { parseYaml } from "obsidian";
-import type { BaseSchema } from "./types";
+import type { BaseFilterGroup, BaseSchema } from "./types";
 
 /**
- * Parse a .base file's content into a typed BaseSchema object
+ * Count the number of leaf filters in a filter group
+ */
+function countFilters(group: BaseFilterGroup): number {
+	let count = 0;
+	if (group.and) {
+		for (const item of group.and) {
+			count += typeof item === "string" ? 1 : countFilters(item);
+		}
+	}
+	if (group.or) {
+		for (const item of group.or) {
+			count += typeof item === "string" ? 1 : countFilters(item);
+		}
+	}
+	if (group.not) {
+		count += typeof group.not === "string" ? 1 : countFilters(group.not);
+	}
+	return count;
+}
+
+/**
+ * Parse a .base file's content into a typed BaseSchema object.
  * 
- * @param content - The raw markdown content of the .base file
+ * Obsidian .base files are raw YAML (no frontmatter delimiters).
+ * This parser also handles legacy files wrapped in --- delimiters for compatibility.
+ * 
+ * @param content - The raw content of the .base file
  * @returns Parsed BaseSchema or null if parsing fails
  */
 export function parseBaseFile(content: string): BaseSchema | null {
 	try {
-		// Extract YAML frontmatter from markdown
-		const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
-		
-		if (!frontmatterMatch) {
-			console.error("BasesParser: No YAML frontmatter found in .base file");
-			return null;
+		let yamlContent = content;
+
+		// If content is wrapped in --- frontmatter delimiters, extract the inner YAML
+		const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---\s*$/);
+		if (frontmatterMatch && frontmatterMatch[1]) {
+			yamlContent = frontmatterMatch[1];
 		}
 
-		const yamlContent = frontmatterMatch[1];
-		
+		// Empty .base files are valid — they mean "show all notes"
+		if (!yamlContent.trim()) {
+			return {};
+		}
+
 		// Parse YAML using Obsidian's built-in parser
 		const parsed = parseYaml(yamlContent) as BaseSchema;
 		
 		if (!parsed || typeof parsed !== "object") {
-			console.error("BasesParser: Invalid YAML structure");
-			return null;
+			// parseYaml can return null for empty/whitespace content
+			return {};
 		}
 
 		return parsed;
@@ -54,7 +81,7 @@ export function validateBaseSchema(schema: BaseSchema): boolean {
 
 	// At minimum, a Base should have properties or filters or views
 	const hasProperties = schema.properties && Object.keys(schema.properties).length > 0;
-	const hasFilters = schema.filters && Array.isArray(schema.filters) && schema.filters.length > 0;
+	const hasFilters = schema.filters && typeof schema.filters === "object" && (schema.filters.and || schema.filters.or || schema.filters.not);
 	const hasViews = schema.views && Array.isArray(schema.views) && schema.views.length > 0;
 	const hasFormulas = schema.formulas && Object.keys(schema.formulas).length > 0;
 	const hasSummaries = schema.summaries && Object.keys(schema.summaries).length > 0;
@@ -71,8 +98,11 @@ export function validateBaseSchema(schema: BaseSchema): boolean {
 export function summarizeBaseSchema(schema: BaseSchema): string {
 	const parts: string[] = [];
 
-	if (schema.filters && schema.filters.length > 0) {
-		parts.push(`${schema.filters.length} filter(s)`);
+	if (schema.filters) {
+		const filterCount = countFilters(schema.filters);
+		if (filterCount > 0) {
+			parts.push(`${filterCount} filter(s)`);
+		}
 	}
 
 	if (schema.properties) {

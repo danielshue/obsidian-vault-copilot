@@ -6,9 +6,8 @@ describe("BasesParser", () => {
 		it("should parse a valid .base file with all sections", () => {
 			const content = `---
 filters:
-  - property: status
-    operator: is not
-    value: archived
+  and:
+    - 'status != "archived"'
 
 properties:
   status:
@@ -30,10 +29,8 @@ views:
 			const result = parseBaseFile(content);
 
 			expect(result).not.toBeNull();
-			expect(result?.filters).toHaveLength(1);
-			expect(result?.filters?.[0].property).toBe("status");
-			expect(result?.filters?.[0].operator).toBe("is not");
-			expect(result?.filters?.[0].value).toBe("archived");
+			expect(result?.filters?.and).toHaveLength(1);
+			expect(result?.filters?.and?.[0]).toBe('status != "archived"');
 
 			expect(result?.properties).toBeDefined();
 			expect(result?.properties?.status?.width).toBe(120);
@@ -78,20 +75,18 @@ properties:
 		it("should parse filters with different operators", () => {
 			const content = `---
 filters:
-  - property: priority
-    operator: greater than
-    value: 3
+  and:
+    - "priority > 3"
 ---`;
 
 			const result = parseBaseFile(content);
 
 			expect(result).not.toBeNull();
 			expect(result?.filters).toBeDefined();
-			expect(Array.isArray(result?.filters)).toBe(true);
-			if (result?.filters) {
-				expect(result.filters.length).toBeGreaterThan(0);
-				expect(result.filters[0].property).toBe("priority");
-				expect(result.filters[0].operator).toBe("greater than");
+			expect(result?.filters?.and).toBeDefined();
+			if (result?.filters?.and) {
+				expect(result.filters.and.length).toBeGreaterThan(0);
+				expect(result.filters.and[0]).toBe("priority > 3");
 			}
 		});
 
@@ -143,9 +138,11 @@ views:
 
 		it("should validate a schema with filters", () => {
 			const schema = {
-				filters: [
-					{ property: "status", operator: "is" as const, value: "active" }
-				]
+				filters: {
+					and: [
+						'status == "active"'
+					]
+				}
 			};
 
 			expect(validateBaseSchema(schema)).toBe(true);
@@ -175,9 +172,11 @@ views:
 	describe("summarizeBaseSchema", () => {
 		it("should summarize a complete schema", () => {
 			const schema = {
-				filters: [
-					{ property: "status", operator: "is" as const, value: "active" }
-				],
+				filters: {
+					and: [
+						'status == "active"'
+					]
+				},
 				properties: {
 					status: { width: 120 },
 					priority: { width: 100 }

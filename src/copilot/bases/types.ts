@@ -7,29 +7,45 @@
  */
 
 /**
- * Filter operator types supported in Bases
+ * Filter operator types supported in Bases expressions
  */
 export type FilterOperator =
-	| "is"
-	| "is not"
-	| "contains"
-	| "does not contain"
-	| "starts with"
-	| "ends with"
-	| "is empty"
-	| "is not empty"
-	| "before"
-	| "after"
-	| "greater than"
-	| "less than";
+	| "=="
+	| "!="
+	| ">"
+	| "<"
+	| ">="
+	| "<=";
 
 /**
- * A single filter condition in a Base
+ * A single filter condition in a Base, parsed from an expression string.
+ * Used internally by the query engine after parsing expressions like:
+ *   'status != "archived"'  →  { property: "status", operator: "!=", value: "archived" }
+ *   file.inFolder("Projects")  →  { fn: "inFolder", args: ["Projects"] }
  */
-export interface BaseFilter {
+export interface ParsedFilterCondition {
 	property: string;
 	operator: FilterOperator;
-	value?: string | number | boolean;
+	value: string | number | boolean;
+}
+
+/**
+ * A parsed function-style filter like file.inFolder("X") or file.hasTag("Y")
+ */
+export interface ParsedFilterFunction {
+	fn: string;
+	args: string[];
+}
+
+/**
+ * Boolean filter group used by Obsidian Bases.
+ * Filters must be wrapped in an "and", "or", or "not" key.
+ * Items are expression strings or nested filter groups.
+ */
+export interface BaseFilterGroup {
+	and?: (string | BaseFilterGroup)[];
+	or?: (string | BaseFilterGroup)[];
+	not?: string | BaseFilterGroup;
 }
 
 /**
@@ -71,14 +87,14 @@ export interface BaseView {
 	name: string;
 	type: "table" | "card" | "list" | "map";
 	sort?: BaseSort[];
-	filters?: BaseFilter[];
+	filters?: BaseFilterGroup;
 }
 
 /**
  * Complete Base schema parsed from a .base file
  */
 export interface BaseSchema {
-	filters?: BaseFilter[];
+	filters?: BaseFilterGroup;
 	properties?: Record<string, BaseProperty>;
 	formulas?: BaseFormula;
 	summaries?: Record<string, BaseSummary[]>;
@@ -96,7 +112,7 @@ export interface BaseSpec {
 		type: "text" | "number" | "date" | "checkbox" | "list" | "tags";
 		width?: number;
 	}>;
-	filters?: BaseFilter[];
+	filters?: BaseFilterGroup;
 	views?: BaseView[];
 }
 

@@ -53,26 +53,9 @@ export const BASES_TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
 			},
 			records: {
 				type: "array",
-				description: "Array of records to create. Each record becomes a note.",
+				description: "Array of records to create. Each record becomes a note. Each item is an object with title (string, required), properties (object with frontmatter key-values, required), and content (optional string for body).",
 				items: {
 					type: "object",
-					properties: {
-						title: {
-							type: "string",
-							description: "Title/name of the note to create",
-						},
-						properties: {
-							type: "object",
-							description:
-								"Frontmatter properties for the note. Should match the Base's property schema.",
-							additionalProperties: true,
-						},
-						content: {
-							type: "string",
-							description: "Optional body content for the note (below frontmatter)",
-						},
-					},
-					required: ["title", "properties"],
 				},
 			},
 			folder: {

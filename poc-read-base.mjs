@@ -168,6 +168,41 @@ function parseBaseFile(content) {
 }
 
 /**
+ * Display a filter group recursively
+ */
+function displayFilterGroup(group, indent) {
+	let idx = 1;
+	if (group.and) {
+		console.log(`${indent}AND:`);
+		for (const item of group.and) {
+			if (typeof item === "string") {
+				console.log(`${indent}  ${idx++}. ${item}`);
+			} else {
+				displayFilterGroup(item, indent + "  ");
+			}
+		}
+	}
+	if (group.or) {
+		console.log(`${indent}OR:`);
+		for (const item of group.or) {
+			if (typeof item === "string") {
+				console.log(`${indent}  ${idx++}. ${item}`);
+			} else {
+				displayFilterGroup(item, indent + "  ");
+			}
+		}
+	}
+	if (group.not) {
+		console.log(`${indent}NOT:`);
+		if (typeof group.not === "string") {
+			console.log(`${indent}  ${group.not}`);
+		} else {
+			displayFilterGroup(group.not, indent + "  ");
+		}
+	}
+}
+
+/**
  * Display the parsed Base schema in a readable format
  */
 function displayBaseSchema(schema) {
@@ -175,11 +210,9 @@ function displayBaseSchema(schema) {
 	console.log("=" .repeat(60));
 
 	// Display filters
-	if (schema.filters && schema.filters.length > 0) {
+	if (schema.filters) {
 		console.log("\n🔍 FILTERS:");
-		schema.filters.forEach((filter, idx) => {
-			console.log(`  ${idx + 1}. ${filter.property} ${filter.operator} ${filter.value || '(empty)'}`);
-		});
+		displayFilterGroup(schema.filters, "  ");
 	}
 
 	// Display properties

@@ -13,9 +13,11 @@ export class TFile {
 
 	constructor(path: string) {
 		this.path = path;
-		this.basename = path.split("/").pop()?.replace(".md", "") || "";
-		this.extension = "md";
-		this.name = path.split("/").pop() || "";
+		const fileName = path.split("/").pop() || "";
+		const dotIndex = fileName.lastIndexOf(".");
+		this.extension = dotIndex >= 0 ? fileName.slice(dotIndex + 1) : "";
+		this.basename = dotIndex >= 0 ? fileName.slice(0, dotIndex) : fileName;
+		this.name = fileName;
 	}
 }
 
@@ -58,6 +60,10 @@ export class Vault {
 	}
 
 	getMarkdownFiles(): TFile[] {
+		return Array.from(this.files.keys()).map((path) => new TFile(path));
+	}
+
+	getFiles(): TFile[] {
 		return Array.from(this.files.keys()).map((path) => new TFile(path));
 	}
 
@@ -297,6 +303,7 @@ export function parseYaml(yaml: string): any {
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
+			if (!line) continue;
 			const trimmed = line.trim();
 
 			// Skip empty lines and comments
@@ -306,7 +313,7 @@ export function parseYaml(yaml: string): any {
 
 			// Handle multiline strings (pipe |)
 			if (trimmed.includes(": |")) {
-				const key = trimmed.split(":")[0].trim();
+				const key = trimmed.split(":")[0]?.trim() ?? "";
 				multilineKey = key;
 				inMultiline = true;
 				multilineContent = "";
@@ -345,7 +352,7 @@ export function parseYaml(yaml: string): any {
 					// Object in array
 					const obj: any = {};
 					const parts = content.split(":");
-					const key = parts[0].trim();
+					const key = parts[0]?.trim() ?? "";
 					const value = parts.slice(1).join(":").trim();
 					obj[key] = parseValue(value);
 
@@ -365,7 +372,7 @@ export function parseYaml(yaml: string): any {
 			} else if (trimmed.includes(":")) {
 				// Key-value pair
 				const parts = trimmed.split(":");
-				const key = parts[0].trim();
+				const key = parts[0]?.trim() ?? "";
 				const value = parts.slice(1).join(":").trim();
 
 				// Adjust stack based on indentation

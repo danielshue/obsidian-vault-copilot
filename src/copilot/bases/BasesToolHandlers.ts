@@ -6,10 +6,38 @@
  * to the appropriate Bases service modules.
  */
 
-import type { App } from "obsidian";
+import type { App, TFile } from "obsidian";
 import { parseBaseFile } from "./BasesParser";
 import { queryBase, formatQueryResults } from "./BasesQueryEngine";
 import type { QueryBaseParams, AddBaseRecordsParams } from "./BasesToolDefinitions";
+import type { BaseFilterGroup } from "./types";
+
+/**
+ * Recursively search a filter group for a file.inFolder() expression and extract the folder path
+ */
+function findFolderFromFilters(group: BaseFilterGroup): string | undefined {
+	const items = group.and || group.or;
+	if (items) {
+		for (const item of items) {
+			if (typeof item === "string") {
+				const match = item.match(/file\.inFolder\(\s*"([^"]*)"\s*\)/);
+				if (match && match[1] !== undefined) return match[1];
+			} else {
+				const found = findFolderFromFilters(item);
+				if (found) return found;
+			}
+		}
+	}
+	if (group.not) {
+		if (typeof group.not === "string") {
+			const match = group.not.match(/file\.inFolder\(\s*"([^"]*)"\s*\)/);
+			if (match && match[1] !== undefined) return match[1];
+		} else {
+			return findFolderFromFilters(group.not);
+		}
+	}
+	return undefined;
+}
 
 /**
  * Normalize a Base file path (similar to normalizeVaultPath but for .base files)
@@ -48,7 +76,7 @@ export async function handleQueryBase(
 			return `Error: Base file not found: ${basePath}`;
 		}
 
-		const content = await app.vault.read(baseFile);
+		const content = await app.vault.read(baseFile as TFile);
 		const schema = parseBaseFile(content);
 
 		if (!schema) {
@@ -104,7 +132,7 @@ export async function handleAddBaseRecords(
 			return `Error: Base file not found: ${basePath}`;
 		}
 
-		const content = await app.vault.read(baseFile);
+		const content = await app.vault.read(baseFile as TFile);
 		const schema = parseBaseFile(content);
 
 		if (!schema) {
@@ -114,11 +142,8 @@ export async function handleAddBaseRecords(
 		// Determine folder for new notes
 		let targetFolder = params.folder;
 		if (!targetFolder && schema.filters) {
-			// Try to infer folder from file.folder filter
-			const folderFilter = schema.filters.find((f) => f.property === "file.folder");
-			if (folderFilter && typeof folderFilter.value === "string") {
-				targetFolder = folderFilter.value;
-			}
+			// Try to infer folder from file.inFolder() expression in the filter group
+			targetFolder = findFolderFromFilters(schema.filters);
 		}
 		if (!targetFolder) {
 			targetFolder = "";
@@ -160,8 +185,8 @@ export async function handleAddBaseRecords(
 
 				// Ensure parent folder exists
 				if (targetFolder) {
-					const folderPath = targetFolder.split("/")[0];
-					let folder = app.vault.getAbstractFileByPath(folderPath);
+					const folderPath = targetFolder.split("/")[0] ?? targetFolder;
+					const folder = app.vault.getAbstractFileByPath(folderPath);
 					if (!folder) {
 						await app.vault.createFolder(targetFolder);
 					}
