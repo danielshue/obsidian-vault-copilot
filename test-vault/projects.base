@@ -1,0 +1,34 @@
+---
+filters:
+  - property: status
+    operator: is not
+    value: archived
+  - property: file.folder
+    operator: is
+    value: Projects
+
+properties:
+  status:
+    width: 120
+    position: 0
+  priority:
+    width: 100
+    position: 1
+  assignee:
+    width: 150
+    position: 2
+  due_date:
+    width: 120
+    position: 3
+
+summaries:
+  priority:
+    - type: count
+
+views:
+  - name: All Projects
+    type: table
+    sort:
+      - property: priority
+        order: asc
+---
