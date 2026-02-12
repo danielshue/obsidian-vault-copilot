@@ -53,3 +53,14 @@ exclude:
   - manifest.json
   - versions.json
   - README.md
+  - src
+  - test-vault
+  - test-func-scaffold
+  - azure-functions
+  - esbuild.config.mjs
+  - eslint.config.mts
+  - deploy.mjs
+  - version-bump.mjs
+  - main.js
+  - styles.css
+  - .github
