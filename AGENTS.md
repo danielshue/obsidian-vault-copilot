@@ -127,6 +127,100 @@ When adding new styles, create a new component file in `src/styles/` and add an 
   ```
 - Reload Obsidian and enable the plugin in **Settings → Community plugins**.
 
+## Obsidian CLI (v1.12+)
+
+Obsidian 1.12 introduced a CLI for controlling Obsidian from the terminal. This project integrates the CLI into the build/deploy workflow. The CLI requires Obsidian 1.12+ with the CLI enabled in **Settings → General → Command line interface** and a [Catalyst license](https://help.obsidian.md/catalyst) during early access.
+
+### Setup (Windows)
+1. Download `Obsidian.com` from the `#insider-desktop-release` channel on the Obsidian Discord.
+2. Place it in the Obsidian install directory (e.g. `C:\Users\<user>\AppData\Local\Programs\obsidian\`).
+3. Enable CLI in Obsidian: **Settings → General → Command line interface**.
+4. Restart your terminal for PATH changes.
+
+### Build → Deploy → Reload workflow
+
+The `deploy.mjs` script now automatically reloads the plugin via CLI after copying files:
+
+```bash
+npm run build:deploy   # Build, deploy to test-vault, and reload in Obsidian
+npm run deploy         # Deploy and reload (skip build)
+npm run deploy:no-reload  # Deploy without reloading (CLI unavailable or not wanted)
+```
+
+### Developer commands (npm scripts)
+
+| Script | Command | Purpose |
+|--------|---------|---------|
+| `npm run plugin:reload` | `obsidian plugin:reload id=obsidian-vault-copilot` | Hot-reload the plugin |
+| `npm run plugin:info` | `obsidian plugin id=obsidian-vault-copilot` | Show plugin status/info |
+| `npm run dev:errors` | `obsidian dev:errors` | Show captured JS errors |
+| `npm run dev:console` | `obsidian dev:console limit=100` | Show console messages |
+| `npm run dev:screenshot` | `obsidian dev:screenshot path=screenshot.png` | Take a quick screenshot |
+| `npm run dev:screenshot:docs` | Captures all plugin views | Screenshots for documentation |
+| `npm run dev:screenshot:docs:mobile` | Captures all views in mobile mode | Mobile screenshots for documentation |
+| `npm run dev:mobile` | `obsidian dev:mobile on` | Enable mobile emulation |
+| `npm run dev:mobile:off` | `obsidian dev:mobile off` | Disable mobile emulation |
+
+### Documentation screenshots
+
+The `scripts/capture-screenshots.mjs` script automates capturing screenshots of each plugin view for documentation. Screenshots are saved to `docs/images/screenshots/`.
+
+```bash
+# Capture all plugin screens (overwrites existing)
+npm run dev:screenshot:docs
+
+# Capture in mobile emulation mode
+npm run dev:screenshot:docs:mobile
+
+# Capture a specific view only
+node scripts/capture-screenshots.mjs chat --no-timestamp
+node scripts/capture-screenshots.mjs settings --no-timestamp
+
+# Capture with timestamps (for visual regression tracking)
+node scripts/capture-screenshots.mjs
+```
+
+Available targets: `chat`, `settings`, `extension-browser`. New targets can be added to the `SCREENSHOT_TARGETS` array in the script.
+
+### Developer commands (direct CLI)
+
+```bash
+# Toggle Electron DevTools
+obsidian devtools
+
+# Run JS in the app context (useful for debugging)
+obsidian eval code="app.vault.getFiles().length"
+
+# Inspect DOM elements
+obsidian dev:dom selector=".workspace-leaf-content" total
+
+# Inspect CSS with source locations
+obsidian dev:css selector=".chat-container" prop=background
+
+# Attach Chrome DevTools Protocol debugger
+obsidian dev:debug on
+
+# Run a CDP command
+obsidian dev:cdp method=Runtime.evaluate params='{"expression":"1+1"}'
+
+# Show captured console at specific log level
+obsidian dev:console level=error
+```
+
+### VS Code tasks
+
+The following Obsidian CLI tasks are available via **Terminal → Run Task**:
+
+- **Obsidian: Reload Plugin** — reload the plugin without rebuilding
+- **Obsidian: Show JS Errors** — view captured JavaScript errors
+- **Obsidian: Show Console** — view recent console output
+- **Obsidian: Take Screenshot** — save a screenshot to `screenshot.png`
+- **Obsidian: Toggle DevTools** — open/close Electron DevTools
+- **Obsidian: Toggle Mobile Emulation** — test mobile layout
+- **Obsidian: Plugin Info** — check plugin status
+- **Obsidian: Capture Doc Screenshots** — capture all plugin views for documentation
+- **Obsidian: Capture Doc Screenshots (Mobile)** — same, in mobile emulation mode
+
 ## AI Providers
 
 Vault Copilot supports multiple AI providers for chat functionality:

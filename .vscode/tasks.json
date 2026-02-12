@@ -9,20 +9,6 @@
 			"group": "build"
 		},
 		{
-			"label": "Build and Deploy Plugin",
-			"type": "shell",
-			"command": "npm run build && node deploy.mjs",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Build and Deploy Plugin",
-			"type": "shell",
-			"command": "npm run build && node deploy.mjs",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
 			"label": "Build with esbuild and Deploy",
 			"type": "shell",
 			"command": "node esbuild.config.mjs production && node deploy.mjs",
@@ -30,107 +16,79 @@
 			"group": "build"
 		},
 		{
-			"label": "Build and Deploy Plugin",
+			"label": "Deploy Only (no build)",
 			"type": "shell",
-			"command": "npm run build && node deploy.mjs",
+			"command": "node deploy.mjs",
 			"isBackground": false,
 			"group": "build"
 		},
 		{
-			"label": "Build and Deploy Plugin",
+			"label": "Obsidian: Reload Plugin",
 			"type": "shell",
-			"command": "node esbuild.config.mjs production && node deploy.mjs",
+			"command": "obsidian plugin:reload id=obsidian-vault-copilot",
 			"isBackground": false,
 			"group": "build"
 		},
 		{
-			"label": "Build and Deploy Plugin",
+			"label": "Obsidian: Show JS Errors",
 			"type": "shell",
-			"command": "npm run build && node deploy.mjs",
+			"command": "obsidian dev:errors",
 			"isBackground": false,
-			"group": "build"
+			"group": "test"
 		},
 		{
-			"label": "Sync with master and push",
+			"label": "Obsidian: Show Console",
 			"type": "shell",
-			"command": "git fetch origin master && git merge origin/master && git push origin copilot/add-mute-function-realtime-agent",
+			"command": "obsidian dev:console limit=100",
 			"isBackground": false,
-			"group": "build"
+			"group": "test"
 		},
 		{
-			"label": "Complete merge and push",
+			"label": "Obsidian: Take Screenshot",
 			"type": "shell",
-			"command": "git commit -m \"Merge master into copilot/add-mute-function-realtime-agent\" && git push origin copilot/add-mute-function-realtime-agent",
+			"command": "obsidian dev:screenshot path=screenshot.png",
 			"isBackground": false,
-			"group": "build"
+			"group": "test"
+		},
+		{
+			"label": "Obsidian: Toggle DevTools",
+			"type": "shell",
+			"command": "obsidian devtools",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Obsidian: Toggle Mobile Emulation",
+			"type": "shell",
+			"command": "obsidian dev:mobile on",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Obsidian: Plugin Info",
+			"type": "shell",
+			"command": "obsidian plugin id=obsidian-vault-copilot",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Obsidian: Capture Doc Screenshots",
+			"type": "shell",
+			"command": "node scripts/capture-screenshots.mjs --no-timestamp",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Obsidian: Capture Doc Screenshots (Mobile)",
+			"type": "shell",
+			"command": "node scripts/capture-screenshots.mjs --no-timestamp --mobile",
+			"isBackground": false,
+			"group": "test"
 		},
 		{
 			"label": "Check git status",
 			"type": "shell",
 			"command": "git status",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Complete merge and push",
-			"type": "shell",
-			"command": "git add -A && git commit --no-edit && git push origin copilot/add-mute-function-realtime-agent",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Complete merge",
-			"type": "shell",
-			"command": "git commit --no-edit && git push origin copilot/add-mute-function-realtime-agent",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Push branch",
-			"type": "shell",
-			"command": "git push origin copilot/add-mute-function-realtime-agent",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Merge PR",
-			"type": "shell",
-			"command": "gh pr merge 9 --squash --delete-branch",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Ready and merge PR",
-			"type": "shell",
-			"command": "gh pr ready 9 && gh pr merge 9 --squash --delete-branch",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Check PR status",
-			"type": "shell",
-			"command": "gh pr view 9",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Check git state",
-			"type": "shell",
-			"command": "git status && git log --oneline -5",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Build and Deploy Plugin",
-			"type": "shell",
-			"command": "npm run build && node deploy.mjs",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Build and Deploy Plugin",
-			"type": "shell",
-			"command": "npm run build && node deploy.mjs",
 			"isBackground": false,
 			"group": "build"
 		},
