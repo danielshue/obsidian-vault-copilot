@@ -1,5 +1,5 @@
 import { App, ItemView, TFile } from "obsidian";
-import * as VaultOps from "../../copilot/tools/VaultOperations";
+import * as VaultOps from "../../../copilot/tools/VaultOperations";
 
 /**
  * Result of resolving markdown file links

@@ -28,10 +28,10 @@ import crypto from "crypto";
 /* ── Configuration ────────────────────────────────────────────────── */
 
 /**
- * Skip smoke tests in CI unless explicitly enabled via RUN_SMOKE_TESTS=true.
+ * Skip smoke tests unless explicitly enabled via RUN_SMOKE_TESTS=true.
  * These tests hit a live API and should only run when the API is available.
  */
-const SKIP_SMOKE_TESTS = process.env.CI && process.env.RUN_SMOKE_TESTS !== "true";
+const SKIP_SMOKE_TESTS = process.env.RUN_SMOKE_TESTS !== "true";
 
 const BASE_URL =
 	process.env.SMOKE_API_URL ??

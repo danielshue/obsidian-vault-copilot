@@ -1,5 +1,5 @@
 import { CachedPromptInfo } from "../../../copilot/customization/PromptCache";
-import { SLASH_COMMANDS, SlashCommand } from "../SlashCommands";
+import { SLASH_COMMANDS, SlashCommand } from "../processing/SlashCommands";
 
 /**
  * Manages the prompt picker dropdown UI that appears when user types '/'

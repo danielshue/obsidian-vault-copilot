@@ -12,8 +12,8 @@
  */
 
 import { Menu, setIcon } from "obsidian";
-import CopilotPlugin from "../../main";
-import { CopilotSession } from "../../ui/settings";
+import CopilotPlugin from "../../../main";
+import { CopilotSession } from "../../../ui/settings";
 
 /**
  * Format a timestamp as a relative time string (e.g., "5 mins ago")

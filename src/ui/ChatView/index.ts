@@ -20,15 +20,30 @@
 // Main view component
 export { CopilotChatView, COPILOT_VIEW_TYPE } from "./CopilotChatView";
 
-// Session components
-export { SessionPanel } from "./SessionPanel";
-export type { SessionPanelCallbacks } from "./SessionPanel";
-export { SessionManager } from "./SessionManager";
-export type { SessionManagerCallbacks } from "./SessionManager";
+// Components
+export { SessionPanel } from "./components/SessionPanel";
+export type { SessionPanelCallbacks } from "./components/SessionPanel";
+export { NoProviderPlaceholder } from "./components/NoProviderPlaceholder";
+export type { NoProviderPlaceholderCallbacks } from "./components/NoProviderPlaceholder";
+export * from "./components/iconSvgs";
 
-// No provider placeholder
-export { NoProviderPlaceholder } from "./NoProviderPlaceholder";
-export type { NoProviderPlaceholderCallbacks } from "./NoProviderPlaceholder";
+// Managers
+export { SessionManager } from "./managers/SessionManager";
+export type { SessionManagerCallbacks } from "./managers/SessionManager";
+export { VoiceManager } from "./managers/VoiceManager";
+export type { VoiceManagerCallbacks } from "./managers/VoiceManager";
+export { RealtimeAgentManager } from "./managers/RealtimeAgentManager";
+export type { RealtimeAgentCallbacks } from "./managers/RealtimeAgentManager";
+export { ToolbarManager } from "./managers/ToolbarManager";
+export type { ToolbarCallbacks } from "./managers/ToolbarManager";
+export { PromptExecutor } from "./managers/PromptExecutor";
+export type { PromptExecutorCallbacks } from "./managers/PromptExecutor";
+export { InputAreaManager } from "./managers/InputAreaManager";
+
+// Processing
+export { PromptProcessor } from "./processing/PromptProcessor";
+export { SLASH_COMMANDS } from "./processing/SlashCommands";
+export type { SlashCommand } from "./processing/SlashCommands";
 
 // Modals
 export * from "./modals";
@@ -38,13 +53,3 @@ export * from "./pickers";
 
 // Renderers
 export * from "./renderers";
-
-// Processing utilities
-export { PromptProcessor } from "./PromptProcessor";
-
-// Utilities
-export { SLASH_COMMANDS } from "./SlashCommands";
-export type { SlashCommand } from "./SlashCommands";
-
-// Icons
-export * from "./iconSvgs";

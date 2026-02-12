@@ -11,8 +11,8 @@
  * @since 0.0.14
  */
 
-import { CopilotSession, CopilotPluginSettings } from "../../ui/settings";
-import { GitHubCopilotCliService, ChatMessage } from "../../copilot/providers/GitHubCopilotCliService";
+import { CopilotSession, CopilotPluginSettings } from "../../../ui/settings";
+import { GitHubCopilotCliService, ChatMessage } from "../../../copilot/providers/GitHubCopilotCliService";
 
 /**
  * Callback interface for SessionManager to notify the view of changes

@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ContextAugmentation } from '../../ui/ChatView/ContextAugmentation';
+import { ContextAugmentation } from '../../ui/ChatView/processing/ContextAugmentation';
 import { App, TFile, MarkdownView, Vault, Workspace, MetadataCache } from 'obsidian';
 
 describe('ContextAugmentation', () => {

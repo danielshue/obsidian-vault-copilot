@@ -23,7 +23,7 @@
  */
 
 import { App, setIcon } from "obsidian";
-import { isDesktop } from "../../utils/platform";
+import { isDesktop } from "../../../utils/platform";
 
 /**
  * Callbacks for NoProviderPlaceholder actions.

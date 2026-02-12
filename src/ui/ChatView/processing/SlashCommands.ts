@@ -3,7 +3,7 @@
  */
 
 // Forward reference to avoid circular dependency - will be imported dynamically
-import type { CopilotChatView } from "./CopilotChatView";
+import type { CopilotChatView } from "../CopilotChatView";
 
 /**
  * Interface for slash commands
