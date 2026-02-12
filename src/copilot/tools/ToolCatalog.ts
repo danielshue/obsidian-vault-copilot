@@ -38,6 +38,7 @@ import type { CopilotPluginSettings, CopilotSession } from "../../ui/settings";
 import type { SkillRegistry } from "../customization/SkillRegistry";
 import type { McpManager } from "../mcp/McpManager";
 import { TOOL_DESCRIPTIONS, TOOL_NAMES, type ToolName } from "./ToolDefinitions";
+import { BASES_TOOL_NAMES, BASES_TOOL_DESCRIPTIONS } from "../bases/BasesToolDefinitions";
 
 /**
  * Tool metadata used for UI display and enablement logic.
@@ -122,6 +123,22 @@ const BUILTIN_TOOLS: ToolInfo[] = [
 	createBuiltinTool(TOOL_NAMES.SHOW_MARKDOWN, "Show Markdown"),
 	createBuiltinTool(TOOL_NAMES.SPEAK, "Speak"),
 	createBuiltinTool(TOOL_NAMES.ASK_QUESTION, "Ask Question"),
+	
+	// Bases AI tools (POC)
+	{
+		id: BASES_TOOL_NAMES.QUERY_BASE,
+		displayName: "Query Base",
+		description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.QUERY_BASE],
+		source: "builtin",
+		enabledByDefault: true,
+	},
+	{
+		id: BASES_TOOL_NAMES.ADD_BASE_RECORDS,
+		displayName: "Add Base Records",
+		description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.ADD_BASE_RECORDS],
+		source: "builtin",
+		enabledByDefault: true,
+	},
 ];
 
 /**

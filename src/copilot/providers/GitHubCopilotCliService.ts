@@ -61,6 +61,8 @@ import * as VaultOps from "../tools/VaultOperations";
 import { getTracingService } from "../TracingService";
 import { TOOL_NAMES, TOOL_DESCRIPTIONS, TOOL_JSON_SCHEMAS } from "../tools/ToolDefinitions";
 import type { QuestionRequest, QuestionResponse } from "../../types/questions";
+import { BASES_TOOL_NAMES, BASES_TOOL_DESCRIPTIONS, BASES_TOOL_JSON_SCHEMAS, type QueryBaseParams, type AddBaseRecordsParams } from "../bases/BasesToolDefinitions";
+import { handleQueryBase, handleAddBaseRecords } from "../bases/BasesToolHandlers";
 
 export interface GitHubCopilotCliConfig {
 	model: string;
@@ -1497,6 +1499,23 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.FETCH_WEB_PAGE],
 				handler: async (args: { url: string }) => {
 					return await VaultOps.fetchWebPage(args.url);
+				},
+			}),
+
+			// Bases AI tools (POC)
+			defineTool(BASES_TOOL_NAMES.QUERY_BASE, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.QUERY_BASE],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.QUERY_BASE],
+				handler: async (args: QueryBaseParams) => {
+					return await handleQueryBase(this.app, args);
+				},
+			}),
+
+			defineTool(BASES_TOOL_NAMES.ADD_BASE_RECORDS, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.ADD_BASE_RECORDS],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.ADD_BASE_RECORDS],
+				handler: async (args: AddBaseRecordsParams) => {
+					return await handleAddBaseRecords(this.app, args);
 				},
 			}),
 		];
