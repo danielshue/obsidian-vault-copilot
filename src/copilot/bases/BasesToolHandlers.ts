@@ -9,8 +9,22 @@
 import type { App } from "obsidian";
 import { parseBaseFile } from "./BasesParser";
 import { queryBase, formatQueryResults } from "./BasesQueryEngine";
-import { normalizeVaultPath } from "../tools/VaultOperations";
 import type { QueryBaseParams, AddBaseRecordsParams } from "./BasesToolDefinitions";
+
+/**
+ * Normalize a Base file path (similar to normalizeVaultPath but for .base files)
+ */
+function normalizeBasePath(path: string): string {
+	// Replace backslashes with forward slashes
+	let normalized = path.replace(/\\/g, "/");
+	// Remove leading slashes
+	normalized = normalized.replace(/^\/+/, "");
+	// Ensure .base extension if not present
+	if (!normalized.endsWith(".base")) {
+		normalized += ".base";
+	}
+	return normalized;
+}
 
 /**
  * Handler for query_base tool
@@ -23,7 +37,7 @@ export async function handleQueryBase(
 ): Promise<string> {
 	try {
 		// Normalize and validate base path
-		const basePath = normalizeVaultPath(params.base_path);
+		const basePath = normalizeBasePath(params.base_path);
 		if (!basePath.endsWith(".base")) {
 			return `Error: Invalid Base file path. Must end with .base (got: ${params.base_path})`;
 		}
@@ -79,7 +93,7 @@ export async function handleAddBaseRecords(
 ): Promise<string> {
 	try {
 		// Normalize and validate base path
-		const basePath = normalizeVaultPath(params.base_path);
+		const basePath = normalizeBasePath(params.base_path);
 		if (!basePath.endsWith(".base")) {
 			return `Error: Invalid Base file path. Must end with .base (got: ${params.base_path})`;
 		}
