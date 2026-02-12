@@ -45,10 +45,14 @@ export class TAbstractFile {
 // Mock Vault
 export class Vault {
 	private files: Map<string, string> = new Map();
+	private folders: Set<string> = new Set();
 
 	getAbstractFileByPath(path: string): TFile | TFolder | null {
 		if (this.files.has(path)) {
 			return new TFile(path);
+		}
+		if (this.folders.has(path)) {
+			return new TFolder(path);
 		}
 		return null;
 	}
@@ -70,6 +74,16 @@ export class Vault {
 		return new TFile(path);
 	}
 
+	async createFolder(path: string): Promise<TFolder> {
+		this.folders.add(path);
+		return new TFolder(path);
+	}
+
+	async delete(file: TFile | TFolder): Promise<void> {
+		this.files.delete(file.path);
+		this.folders.delete(file.path);
+	}
+
 	// Test helpers
 	_setFile(path: string, content: string): void {
 		this.files.set(path, content);
@@ -81,6 +95,7 @@ export class Vault {
 
 	_clear(): void {
 		this.files.clear();
+		this.folders.clear();
 	}
 }
 

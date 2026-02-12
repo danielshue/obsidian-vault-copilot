@@ -72,6 +72,7 @@ describe("ExtensionManager", () => {
 			getAbstractFileByPath: vi.fn().mockReturnValue(null),
 			read: vi.fn(),
 			create: vi.fn(),
+			createFolder: vi.fn(),
 			modify: vi.fn(),
 			delete: vi.fn(),
 			adapter: mockAdapter,
