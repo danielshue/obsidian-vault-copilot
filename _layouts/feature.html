@@ -29,10 +29,12 @@
       </aside>
 
       <article class="docs-main">
-        {% if page.icon %}
-        <div class="feature-header-icon">{{ page.icon }}</div>
-        {% endif %}
-        <h1>{{ page.title }}</h1>
+        <div class="feature-title-row">
+          {% if page.icon %}
+          <div class="feature-header-icon">{{ page.icon }}</div>
+          {% endif %}
+          <h1>{{ page.title }}</h1>
+        </div>
         {% if page.subtitle %}
         <p class="feature-subtitle">{{ page.subtitle }}</p>
         {% endif %}

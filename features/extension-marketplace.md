@@ -10,6 +10,8 @@ permalink: /features/extension-marketplace/
 
 The **Extension Marketplace** is a growing catalog of community-contributed workflow packs, agent skills, and integrations. Expand your vault's capabilities by discovering and installing pre-built extensions, or share your own creations with the community.
 
+![Extension Marketplace overview showing the browse page with extension cards]({{ '/assets/images/features/marketplace-browse.png' | relative_url }})
+
 ## What Are Extensions?
 
 Extensions enhance Vault Copilot's capabilities in specific domains:
@@ -82,6 +84,8 @@ Find what you need:
 
 ### Extension Details
 
+![Extension detail page showing description, author, and install button]({{ '/assets/images/features/marketplace-extension-detail.png' | relative_url }})
+
 Each extension shows:
 
 - **Description**: What it does and why
@@ -95,6 +99,8 @@ Each extension shows:
 ## Installing Extensions
 
 ### One-Click Install
+
+![One-click install flow showing the install button and confirmation]({{ '/assets/images/features/marketplace-install.png' | relative_url }})
 
 Install extensions easily:
 
@@ -175,6 +181,8 @@ Package your extension:
 - **Screenshots**: Visual demonstrations
 
 ### Step 4: Submit to Marketplace
+
+![Submission wizard showing metadata form and preview]({{ '/assets/images/features/marketplace-submit-wizard.png' | relative_url }})
 
 Use the in-app submission wizard:
 

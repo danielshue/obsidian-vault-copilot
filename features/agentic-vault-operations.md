@@ -109,7 +109,6 @@ All vault operations go through permission gates:
 
 - **Preview changes**: See what will happen before approving
 - **Approve individually**: Approve each operation or batch approve
-- **Execution budgets**: Limit the number of operations per session
 - **Audit trails**: Review all actions taken by the AI
 
 ## Getting Started

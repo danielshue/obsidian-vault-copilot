@@ -248,17 +248,6 @@ Share only what's needed:
 ✅ "Include notes tagged #project/alpha and summarize status"
 ```
 
-### Review Before Sharing
-
-Preview context before sending:
-
-```plaintext
-1. Type your query
-2. Click "Preview Context"
-3. Review what will be sent
-4. Confirm or adjust
-```
-
 ### Use Excluded Folders
 
 Keep private notes separate:
