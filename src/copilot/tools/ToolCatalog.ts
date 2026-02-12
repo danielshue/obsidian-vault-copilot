@@ -124,7 +124,21 @@ const BUILTIN_TOOLS: ToolInfo[] = [
 	createBuiltinTool(TOOL_NAMES.SPEAK, "Speak"),
 	createBuiltinTool(TOOL_NAMES.ASK_QUESTION, "Ask Question"),
 	
-	// Bases AI tools (POC)
+	// Bases AI tools
+	{
+		id: BASES_TOOL_NAMES.CREATE_BASE,
+		displayName: "Create Base",
+		description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.CREATE_BASE],
+		source: "builtin",
+		enabledByDefault: true,
+	},
+	{
+		id: BASES_TOOL_NAMES.READ_BASE,
+		displayName: "Read Base",
+		description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.READ_BASE],
+		source: "builtin",
+		enabledByDefault: true,
+	},
 	{
 		id: BASES_TOOL_NAMES.QUERY_BASE,
 		displayName: "Query Base",
@@ -136,6 +150,20 @@ const BUILTIN_TOOLS: ToolInfo[] = [
 		id: BASES_TOOL_NAMES.ADD_BASE_RECORDS,
 		displayName: "Add Base Records",
 		description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.ADD_BASE_RECORDS],
+		source: "builtin",
+		enabledByDefault: true,
+	},
+	{
+		id: BASES_TOOL_NAMES.UPDATE_BASE_RECORDS,
+		displayName: "Update Base Records",
+		description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.UPDATE_BASE_RECORDS],
+		source: "builtin",
+		enabledByDefault: true,
+	},
+	{
+		id: BASES_TOOL_NAMES.EVOLVE_BASE_SCHEMA,
+		displayName: "Evolve Base Schema",
+		description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.EVOLVE_BASE_SCHEMA],
 		source: "builtin",
 		enabledByDefault: true,
 	},

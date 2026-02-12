@@ -61,8 +61,8 @@ import * as VaultOps from "../tools/VaultOperations";
 import { getTracingService } from "../TracingService";
 import { TOOL_NAMES, TOOL_DESCRIPTIONS, TOOL_JSON_SCHEMAS } from "../tools/ToolDefinitions";
 import type { QuestionRequest, QuestionResponse } from "../../types/questions";
-import { BASES_TOOL_NAMES, BASES_TOOL_DESCRIPTIONS, BASES_TOOL_JSON_SCHEMAS, type QueryBaseParams, type AddBaseRecordsParams } from "../bases/BasesToolDefinitions";
-import { handleQueryBase, handleAddBaseRecords } from "../bases/BasesToolHandlers";
+import { BASES_TOOL_NAMES, BASES_TOOL_DESCRIPTIONS, BASES_TOOL_JSON_SCHEMAS, type QueryBaseParams, type AddBaseRecordsParams, type CreateBaseParams, type ReadBaseParams, type UpdateBaseRecordsParams, type EvolveBaseSchemaParams } from "../bases/BasesToolDefinitions";
+import { handleQueryBase, handleAddBaseRecords, handleCreateBase, handleReadBase, handleUpdateBaseRecords, handleEvolveBaseSchema } from "../bases/BasesToolHandlers";
 
 export interface GitHubCopilotCliConfig {
 	model: string;
@@ -1502,7 +1502,23 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 				},
 			}),
 
-			// Bases AI tools (POC)
+			// Bases AI tools
+			defineTool(BASES_TOOL_NAMES.CREATE_BASE, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.CREATE_BASE],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.CREATE_BASE],
+				handler: async (args: CreateBaseParams) => {
+					return await handleCreateBase(this.app, args);
+				},
+			}),
+
+			defineTool(BASES_TOOL_NAMES.READ_BASE, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.READ_BASE],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.READ_BASE],
+				handler: async (args: ReadBaseParams) => {
+					return await handleReadBase(this.app, args);
+				},
+			}),
+
 			defineTool(BASES_TOOL_NAMES.QUERY_BASE, {
 				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.QUERY_BASE],
 				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.QUERY_BASE],
@@ -1516,6 +1532,22 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.ADD_BASE_RECORDS],
 				handler: async (args: AddBaseRecordsParams) => {
 					return await handleAddBaseRecords(this.app, args);
+				},
+			}),
+
+			defineTool(BASES_TOOL_NAMES.UPDATE_BASE_RECORDS, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.UPDATE_BASE_RECORDS],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.UPDATE_BASE_RECORDS],
+				handler: async (args: UpdateBaseRecordsParams) => {
+					return await handleUpdateBaseRecords(this.app, args);
+				},
+			}),
+
+			defineTool(BASES_TOOL_NAMES.EVOLVE_BASE_SCHEMA, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.EVOLVE_BASE_SCHEMA],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.EVOLVE_BASE_SCHEMA],
+				handler: async (args: EvolveBaseSchemaParams) => {
+					return await handleEvolveBaseSchema(this.app, args);
 				},
 			}),
 		];
