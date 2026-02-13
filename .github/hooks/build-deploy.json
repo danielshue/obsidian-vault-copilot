@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "pwsh -NoProfile -File scripts/hooks/post-edit-build-deploy.ps1",
+        "timeout": 60
+      }
+    ]
+  }
+}

@@ -13,9 +13,11 @@ export class TFile {
 
 	constructor(path: string) {
 		this.path = path;
-		this.basename = path.split("/").pop()?.replace(".md", "") || "";
-		this.extension = "md";
-		this.name = path.split("/").pop() || "";
+		const fileName = path.split("/").pop() || "";
+		const dotIndex = fileName.lastIndexOf(".");
+		this.extension = dotIndex >= 0 ? fileName.slice(dotIndex + 1) : "";
+		this.basename = dotIndex >= 0 ? fileName.slice(0, dotIndex) : fileName;
+		this.name = fileName;
 	}
 }
 
@@ -58,6 +60,10 @@ export class Vault {
 	}
 
 	getMarkdownFiles(): TFile[] {
+		return Array.from(this.files.keys()).map((path) => new TFile(path));
+	}
+
+	getFiles(): TFile[] {
 		return Array.from(this.files.keys()).map((path) => new TFile(path));
 	}
 
@@ -271,4 +277,156 @@ export class ButtonComponent {
 	setButtonText = vi.fn().mockReturnThis();
 	setCta = vi.fn().mockReturnThis();
 	onClick = vi.fn().mockReturnThis();
+}
+
+/**
+ * Mock parseYaml function
+ * Simple YAML parser for test environments
+ */
+export function parseYaml(yaml: string): any {
+	// Very simple YAML parser for testing
+	// This is a basic implementation that handles common YAML structures
+	try {
+		// Handle empty or null input
+		if (!yaml || yaml.trim() === "") {
+			return null;
+		}
+
+		const lines = yaml.split("\n");
+		const result: any = {};
+		const stack: any[] = [result];
+		let currentIndent = 0;
+		let currentKey = "";
+		let inMultiline = false;
+		let multilineContent = "";
+		let multilineKey = "";
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+			if (!line) continue;
+			const trimmed = line.trim();
+
+			// Skip empty lines and comments
+			if (!trimmed || trimmed.startsWith("#")) {
+				continue;
+			}
+
+			// Handle multiline strings (pipe |)
+			if (trimmed.includes(": |")) {
+				const key = trimmed.split(":")[0]?.trim() ?? "";
+				multilineKey = key;
+				inMultiline = true;
+				multilineContent = "";
+				continue;
+			}
+
+			if (inMultiline) {
+				if (line.startsWith("  ") || line.startsWith("\t")) {
+					multilineContent += line.trim() + "\n";
+					continue;
+				} else {
+					// End of multiline
+					inMultiline = false;
+					const current = stack[stack.length - 1];
+					current[multilineKey] = multilineContent.trim();
+					multilineContent = "";
+				}
+			}
+
+			const indent = line.search(/\S/);
+			const isArrayItem = trimmed.startsWith("- ");
+
+			if (isArrayItem) {
+				const content = trimmed.substring(2);
+				const arrayIndent = indent;
+
+				// Determine parent
+				while (stack.length > 1 && arrayIndent <= currentIndent) {
+					stack.pop();
+					currentIndent = Math.max(0, currentIndent - 2);
+				}
+
+				const parent = stack[stack.length - 1];
+
+				if (content.includes(":")) {
+					// Object in array
+					const obj: any = {};
+					const parts = content.split(":");
+					const key = parts[0]?.trim() ?? "";
+					const value = parts.slice(1).join(":").trim();
+					obj[key] = parseValue(value);
+
+					if (!Array.isArray(parent[currentKey])) {
+						parent[currentKey] = [];
+					}
+					parent[currentKey].push(obj);
+					stack.push(obj);
+					currentIndent = arrayIndent + 2;
+				} else {
+					// Simple value in array
+					if (!Array.isArray(parent[currentKey])) {
+						parent[currentKey] = [];
+					}
+					parent[currentKey].push(parseValue(content));
+				}
+			} else if (trimmed.includes(":")) {
+				// Key-value pair
+				const parts = trimmed.split(":");
+				const key = parts[0]?.trim() ?? "";
+				const value = parts.slice(1).join(":").trim();
+
+				// Adjust stack based on indentation
+				while (stack.length > 1 && indent < currentIndent) {
+					stack.pop();
+					currentIndent = Math.max(0, currentIndent - 2);
+				}
+
+				const current = stack[stack.length - 1];
+
+				if (!value || value === "") {
+					// New nested object or array coming
+					currentKey = key;
+					current[key] = current[key] || {};
+					stack.push(current[key]);
+					currentIndent = indent + 2;
+				} else {
+					current[key] = parseValue(value);
+					currentKey = key;
+				}
+			}
+		}
+
+		return result;
+	} catch (error) {
+		console.error("YAML parse error:", error);
+		return null;
+	}
+}
+
+function parseValue(value: string): any {
+	if (!value) return null;
+
+	const trimmed = value.trim();
+
+	// Boolean
+	if (trimmed === "true") return true;
+	if (trimmed === "false") return false;
+
+	// Null/undefined
+	if (trimmed === "null" || trimmed === "~") return null;
+
+	// Number
+	if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+		return Number(trimmed);
+	}
+
+	// String (remove quotes if present)
+	if (
+		(trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+		(trimmed.startsWith("'") && trimmed.endsWith("'"))
+	) {
+		return trimmed.slice(1, -1);
+	}
+
+	return trimmed;
 }

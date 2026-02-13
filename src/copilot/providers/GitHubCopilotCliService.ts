@@ -61,6 +61,8 @@ import * as VaultOps from "../tools/VaultOperations";
 import { getTracingService } from "../TracingService";
 import { TOOL_NAMES, TOOL_DESCRIPTIONS, TOOL_JSON_SCHEMAS } from "../tools/ToolDefinitions";
 import type { QuestionRequest, QuestionResponse } from "../../types/questions";
+import { BASES_TOOL_NAMES, BASES_TOOL_DESCRIPTIONS, BASES_TOOL_JSON_SCHEMAS, type QueryBaseParams, type AddBaseRecordsParams, type CreateBaseParams, type ReadBaseParams, type UpdateBaseRecordsParams, type EvolveBaseSchemaParams } from "../bases/BasesToolDefinitions";
+import { handleQueryBase, handleAddBaseRecords, handleCreateBase, handleReadBase, handleUpdateBaseRecords, handleEvolveBaseSchema } from "../bases/BasesToolHandlers";
 
 export interface GitHubCopilotCliConfig {
 	model: string;
@@ -1301,6 +1303,25 @@ await vc.getDailyNote(date?): Promise<{ success, path?, content?, exists, error?
 - If you're unsure about something, ask for clarification
 - When reading 10+ files, use batch_read_notes with aiSummarize=true to get AI-generated summaries instead of full content
 
+## Obsidian Bases (.base files)
+When the user asks you to create a Base, just call create_base with the path (and optionally name, description, and filters). The tool will automatically:
+1. Scan vault notes near the target path to discover frontmatter properties
+2. Present an interactive checkbox question to the user asking which properties to include as columns
+3. Ask the user to select a view type (table, card, list)
+4. Create the Base with the user's selections
+
+You do NOT need to scan notes yourself or present properties manually — the tool handles all of this via inline question UI. Just call create_base once.
+
+IMPORTANT: Do NOT pass a "properties" array unless the user has explicitly told you the exact property names. If you pass properties, the interactive discovery will be skipped and the user won't get to choose.
+
+### Bases filter syntax reference
+- Frontmatter property comparison: \`status != "archived"\` or \`priority == "high"\`
+- Folder scoping: \`file.inFolder("Projects/MBA")\`
+- Tag filtering: \`file.hasTag("lesson")\`
+- Operators: ==, !=, >, <, >=, <=
+- String values must be in double quotes
+- Filters go inside an \`and:\` or \`or:\` group
+
 ## Context
 You are running inside Obsidian and have access to the user's vault through the provided tools.
 
@@ -1497,6 +1518,55 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.FETCH_WEB_PAGE],
 				handler: async (args: { url: string }) => {
 					return await VaultOps.fetchWebPage(args.url);
+				},
+			}),
+
+			// Bases AI tools
+			defineTool(BASES_TOOL_NAMES.CREATE_BASE, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.CREATE_BASE],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.CREATE_BASE],
+				handler: async (args: CreateBaseParams) => {
+					return await handleCreateBase(this.app, args, this.questionCallback);
+				},
+			}),
+
+			defineTool(BASES_TOOL_NAMES.READ_BASE, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.READ_BASE],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.READ_BASE],
+				handler: async (args: ReadBaseParams) => {
+					return await handleReadBase(this.app, args);
+				},
+			}),
+
+			defineTool(BASES_TOOL_NAMES.QUERY_BASE, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.QUERY_BASE],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.QUERY_BASE],
+				handler: async (args: QueryBaseParams) => {
+					return await handleQueryBase(this.app, args);
+				},
+			}),
+
+			defineTool(BASES_TOOL_NAMES.ADD_BASE_RECORDS, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.ADD_BASE_RECORDS],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.ADD_BASE_RECORDS],
+				handler: async (args: AddBaseRecordsParams) => {
+					return await handleAddBaseRecords(this.app, args);
+				},
+			}),
+
+			defineTool(BASES_TOOL_NAMES.UPDATE_BASE_RECORDS, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.UPDATE_BASE_RECORDS],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.UPDATE_BASE_RECORDS],
+				handler: async (args: UpdateBaseRecordsParams) => {
+					return await handleUpdateBaseRecords(this.app, args);
+				},
+			}),
+
+			defineTool(BASES_TOOL_NAMES.EVOLVE_BASE_SCHEMA, {
+				description: BASES_TOOL_DESCRIPTIONS[BASES_TOOL_NAMES.EVOLVE_BASE_SCHEMA],
+				parameters: BASES_TOOL_JSON_SCHEMAS[BASES_TOOL_NAMES.EVOLVE_BASE_SCHEMA],
+				handler: async (args: EvolveBaseSchemaParams) => {
+					return await handleEvolveBaseSchema(this.app, args);
 				},
 			}),
 		];
