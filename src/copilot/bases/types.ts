@@ -86,6 +86,7 @@ export interface BaseSort {
 export interface BaseView {
 	name: string;
 	type: "table" | "card" | "list" | "map";
+	order?: string[];
 	sort?: BaseSort[];
 	filters?: BaseFilterGroup;
 }
@@ -132,4 +133,30 @@ export interface BaseInfo {
 	name: string;
 	path: string;
 	schema?: BaseSchema;
+}
+
+/**
+ * Extract all filter expression strings from a BaseFilterGroup recursively.
+ * @param group - The filter group to extract from
+ * @returns Flat array of expression strings
+ */
+export function getFilterExpressions(group: BaseFilterGroup): string[] {
+	const expressions: string[] = [];
+	if (group.and) {
+		for (const item of group.and) {
+			if (typeof item === "string") expressions.push(item);
+			else expressions.push(...getFilterExpressions(item));
+		}
+	}
+	if (group.or) {
+		for (const item of group.or) {
+			if (typeof item === "string") expressions.push(item);
+			else expressions.push(...getFilterExpressions(item));
+		}
+	}
+	if (group.not) {
+		if (typeof group.not === "string") expressions.push(group.not);
+		else expressions.push(...getFilterExpressions(group.not));
+	}
+	return expressions;
 }

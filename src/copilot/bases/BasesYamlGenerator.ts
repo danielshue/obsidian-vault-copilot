@@ -6,7 +6,8 @@
  * Obsidian can render.
  */
 
-import type { BaseSpec, BaseFilter, BaseView, BaseProperty } from "./types";
+import type { BaseSpec, BaseFilterGroup, BaseView, BaseProperty } from "./types";
+import { getFilterExpressions } from "./types";
 
 /**
  * Generate valid .base file content from a BaseSpec
@@ -15,26 +16,17 @@ import type { BaseSpec, BaseFilter, BaseView, BaseProperty } from "./types";
  * @returns Valid .base file content (markdown with YAML frontmatter)
  */
 export function generateBaseYaml(spec: BaseSpec): string {
-	const lines: string[] = ["---"];
+	const lines: string[] = [];
 
 	// Generate filters section
-	if (spec.filters && spec.filters.length > 0) {
-		lines.push("filters:");
-		for (const filter of spec.filters) {
-			lines.push(`  - property: ${filter.property}`);
-			lines.push(`    operator: ${filter.operator}`);
-			if (filter.value !== undefined && filter.value !== null) {
-				const value = typeof filter.value === "string" ? filter.value : String(filter.value);
-				lines.push(`    value: ${value}`);
-			}
-		}
-		lines.push("");
+	if (spec.filters) {
+		generateFilterGroupLines(lines, spec.filters, "");
 	}
 
 	// Generate properties section
 	if (spec.properties && spec.properties.length > 0) {
 		lines.push("properties:");
-		
+
 		// Sort by position if available, otherwise maintain order
 		const sortedProps = [...spec.properties].sort((a, b) => {
 			const aPos = a.width !== undefined ? spec.properties.indexOf(a) : 999;
@@ -52,7 +44,6 @@ export function generateBaseYaml(spec: BaseSpec): string {
 				lines.push(`    type: ${prop.type}`);
 			}
 		});
-		lines.push("");
 	}
 
 	// Generate views section
@@ -61,32 +52,64 @@ export function generateBaseYaml(spec: BaseSpec): string {
 		for (const view of spec.views) {
 			lines.push(`  - name: ${view.name}`);
 			lines.push(`    type: ${view.type}`);
-			
+			if (view.order && view.order.length > 0) {
+				lines.push("    order:");
+				for (const name of view.order) {
+					lines.push(`      - ${name}`);
+				}
+			}
 			if (view.sort && view.sort.length > 0) {
-				lines.push(`    sort:`);
+				lines.push("    sort:");
 				for (const sort of view.sort) {
 					lines.push(`      - property: ${sort.property}`);
 					lines.push(`        order: ${sort.order}`);
 				}
+			} else {
+				lines.push("    sort: []");
 			}
-			
-			if (view.filters && view.filters.length > 0) {
-				lines.push(`    filters:`);
-				for (const filter of view.filters) {
-					lines.push(`      - property: ${filter.property}`);
-					lines.push(`        operator: ${filter.operator}`);
-					if (filter.value !== undefined && filter.value !== null) {
-						lines.push(`        value: ${filter.value}`);
-					}
-				}
+
+			if (view.filters) {
+				generateFilterGroupLines(lines, view.filters, "    ");
 			}
 		}
-		lines.push("");
 	}
 
-	lines.push("---");
+	return lines.join("\n") + "\n";
+}
 
-	return lines.join("\n");
+/**
+ * Recursively generate YAML lines for a BaseFilterGroup.
+ * 
+ * @param lines - Output line array to append to
+ * @param group - The filter group
+ * @param indent - Current indentation prefix
+ * @internal
+ */
+function generateFilterGroupLines(lines: string[], group: BaseFilterGroup, indent: string): void {
+	if (group.and) {
+		lines.push(`${indent}filters:`);
+		lines.push(`${indent}  and:`);
+		for (const item of group.and) {
+			if (typeof item === "string") {
+				lines.push(`${indent}    - ${item}`);
+			} else {
+				// Nested group - inline as a YAML object item
+				lines.push(`${indent}    -`);
+				generateFilterGroupLines(lines, item, `${indent}      `);
+			}
+		}
+	} else if (group.or) {
+		lines.push(`${indent}filters:`);
+		lines.push(`${indent}  or:`);
+		for (const item of group.or) {
+			if (typeof item === "string") {
+				lines.push(`${indent}    - ${item}`);
+			} else {
+				lines.push(`${indent}    -`);
+				generateFilterGroupLines(lines, item, `${indent}      `);
+			}
+		}
+	}
 }
 
 /**
@@ -153,6 +176,7 @@ export function createDefaultBaseSpec(
 			{
 				name: "All",
 				type: "table",
+				order: properties.map(p => p.name),
 			},
 		],
 	};

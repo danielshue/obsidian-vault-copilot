@@ -106,7 +106,7 @@ export async function applyPropertyUpdates(
 				continue;
 			}
 
-			const frontmatterContent = frontmatterMatch[1];
+			const frontmatterContent = frontmatterMatch[1] ?? "";
 			const restOfContent = content.substring(frontmatterMatch[0].length);
 
 			// Parse existing frontmatter into object
@@ -179,16 +179,20 @@ export function formatMutationPreview(preview: MutationPreview): string {
 	lines.push(`**Preview: ${preview.totalAffected} note(s) will be affected**\n`);
 
 	if (preview.affectedNotes.length > 0) {
-		lines.push("**Changes:**");
-		for (const [key, value] of Object.entries(preview.affectedNotes[0].proposedChanges)) {
-			lines.push(`  - ${key} → ${value}`);
+		const firstNote = preview.affectedNotes[0];
+		if (firstNote) {
+			lines.push("**Changes:**");
+			for (const [key, value] of Object.entries(firstNote.proposedChanges)) {
+				lines.push(`  - ${key} → ${value}`);
+			}
+			lines.push("");
 		}
-		lines.push("");
 
 		lines.push("**Affected notes:**");
 		const displayLimit = Math.min(10, preview.affectedNotes.length);
 		for (let i = 0; i < displayLimit; i++) {
 			const note = preview.affectedNotes[i];
+			if (!note) continue;
 			lines.push(`  - ${note.basename}`);
 		}
 		if (preview.affectedNotes.length > displayLimit) {

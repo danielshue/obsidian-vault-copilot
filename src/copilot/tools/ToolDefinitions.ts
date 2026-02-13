@@ -341,7 +341,7 @@ export interface JsonSchemaProperty {
 	type: string;
 	description?: string;
 	enum?: string[];
-	items?: { type: string };
+	items?: { type: string; [key: string]: unknown };
 	[key: string]: unknown;  // Allow additional properties for SDK compatibility
 }
 

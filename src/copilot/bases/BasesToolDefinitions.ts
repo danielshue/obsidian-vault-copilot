@@ -29,7 +29,16 @@ export const BASES_TOOL_NAMES = {
  */
 export const BASES_TOOL_DESCRIPTIONS = {
 	[BASES_TOOL_NAMES.CREATE_BASE]:
-		"Create a new Obsidian Base (.base file) from a natural language description. Generates a valid Base with filters, properties, and views. Optionally creates sample notes to populate the Base.",
+		`Create a new Obsidian Base (.base file). When called, the tool automatically scans vault notes near the target path, discovers frontmatter properties, and presents an interactive question to the user asking which properties to include as columns and what view type to use. After the user answers, the Base is created with their selections.
+
+You only need to call this tool once — just provide the path (and optionally name/description/filters). The tool handles user confirmation internally via inline questions. Do NOT pass a properties array unless the user has already explicitly told you the exact property names they want. If you pass properties, the interactive discovery is skipped.
+
+FILTER SYNTAX RULES for Obsidian Bases:
+- Frontmatter property filters: property name directly, e.g. 'status != "archived"'
+- Folder filters: file.inFolder("FolderPath")
+- Tag filters: file.hasTag("tagname")
+- Valid operators: ==, !=, >, <, >=, <=
+- String values MUST be in double quotes`,
 	[BASES_TOOL_NAMES.READ_BASE]:
 		"Read an Obsidian Base's view definition (filters, properties, formulas, views) or list all Bases in the vault. Returns the Base schema, NOT data - the Base file only contains the view definition.",
 	[BASES_TOOL_NAMES.QUERY_BASE]:
@@ -51,11 +60,11 @@ export const BASES_TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
 		properties: {
 			path: {
 				type: "string",
-				description: "File path for the new .base file (e.g., 'projects.base' or 'CRM/contacts.base')",
+				description: "File path for the new .base file (e.g., 'projects.base' or 'CRM/contacts.base'). Optional — if omitted, a filename is auto-generated from the name or description.",
 			},
 			name: {
 				type: "string",
-				description: "Display name for the Base",
+				description: "Display name for the Base. Also used to generate the filename if path is not provided.",
 			},
 			description: {
 				type: "string",
@@ -80,23 +89,34 @@ export const BASES_TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
 			},
 			filters: {
 				type: "array",
-				description: "Optional filters to scope which notes appear in the Base",
+				description: "Filters to scope which notes appear in the Base. Each filter becomes an expression string in the .base YAML. For frontmatter properties use property name directly (e.g., property='status', operator='!=', value='archived'). For folder scoping use property='file.inFolder', value='FolderPath' (operator is ignored). For tag filtering use property='file.hasTag', value='tagname' (operator is ignored). IMPORTANT: Inspect actual vault notes before choosing filter properties.",
 				items: {
 					type: "object",
 					properties: {
-						property: { type: "string" },
-						operator: { type: "string" },
-						value: { type: "string" },
+						property: {
+							type: "string",
+							description: "Property name from note frontmatter (e.g., 'status', 'type', 'priority'), or a special function: 'file.inFolder' to filter by folder, 'file.hasTag' to filter by tag",
+						},
+						operator: {
+							type: "string",
+							enum: ["==", "!=", ">", "<", ">=", "<="],
+							description: "Comparison operator. Use == for equals, != for not-equals. Ignored for file.inFolder and file.hasTag.",
+						},
+						value: { type: "string", description: "Value to compare against, or folder path for file.inFolder, or tag name for file.hasTag" },
 					},
-					required: ["property", "operator"],
+					required: ["property"],
 				},
 			},
 			create_sample_notes: {
 				type: "boolean",
-				description: "Whether to create 2-3 sample notes with the Base schema (default: false)",
+				description: "DEPRECATED - Do not use. Always false. Only create the Base file itself, never sample notes.",
+			},
+			confirmed: {
+				type: "boolean",
+				description: "Ignored when the interactive question UI is available. Only used as a fallback for non-interactive providers. Do not set this — the tool decides automatically based on whether properties were provided.",
 			},
 		},
-		required: ["path", "properties"],
+		required: [],
 	},
 	[BASES_TOOL_NAMES.READ_BASE]: {
 		type: "object",
@@ -213,20 +233,21 @@ export const BASES_TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
  */
 
 export interface CreateBaseParams {
-	path: string;
+	path?: string;
 	name?: string;
 	description?: string;
-	properties: Array<{
+	properties?: Array<{
 		name: string;
 		type?: "text" | "number" | "date" | "checkbox" | "list" | "tags";
 		width?: number;
 	}>;
 	filters?: Array<{
 		property: string;
-		operator: string;
+		operator?: string;
 		value?: string;
 	}>;
 	create_sample_notes?: boolean;
+	confirmed?: boolean;
 }
 
 export interface ReadBaseParams {

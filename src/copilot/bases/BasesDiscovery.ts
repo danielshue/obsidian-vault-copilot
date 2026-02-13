@@ -7,6 +7,7 @@
 
 import type { App } from "obsidian";
 import type { BaseInfo, BaseSchema } from "./types";
+import { getFilterExpressions } from "./types";
 import { parseBaseFile } from "./BasesParser";
 
 /**
@@ -105,8 +106,11 @@ export function formatBasesList(bases: BaseInfo[], includeDetails: boolean = fal
 			const schema = base.schema;
 			const parts: string[] = [];
 
-			if (schema.filters && schema.filters.length > 0) {
-				parts.push(`${schema.filters.length} filter(s)`);
+			if (schema.filters) {
+				const filterExprs = getFilterExpressions(schema.filters);
+				if (filterExprs.length > 0) {
+					parts.push(`${filterExprs.length} filter(s)`);
+				}
 			}
 			if (schema.properties) {
 				parts.push(`${Object.keys(schema.properties).length} property(s)`);

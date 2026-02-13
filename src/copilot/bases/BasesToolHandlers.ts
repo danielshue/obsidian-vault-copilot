@@ -26,6 +26,74 @@ import type {
 	EvolveBaseSchemaParams,
 } from "./BasesToolDefinitions";
 import type { BaseFilterGroup } from "./types";
+import { getFilterExpressions } from "./types";
+import type { QuestionHandler } from "../../types/questions";
+
+/**
+ * Map of common natural-language operator names to valid Bases expression operators.
+ */
+const OPERATOR_ALIASES: Record<string, string> = {
+	"equals": "==",
+	"equal": "==",
+	"eq": "==",
+	"is": "==",
+	"not_equals": "!=",
+	"not_equal": "!=",
+	"ne": "!=",
+	"neq": "!=",
+	"isnt": "!=",
+	"is_not": "!=",
+	"greater_than": ">",
+	"gt": ">",
+	"less_than": "<",
+	"lt": "<",
+	"greater_than_or_equal": ">=",
+	"gte": ">=",
+	"ge": ">=",
+	"less_than_or_equal": "<=",
+	"lte": "<=",
+	"le": "<=",
+};
+
+/**
+ * Normalize a filter operator to valid Obsidian Bases syntax.
+ * Accepts both standard operators (==, !=) and natural-language aliases (equals, is).
+ * 
+ * @param op - The operator string from the AI
+ * @returns A valid Bases expression operator
+ * @internal
+ */
+function normalizeFilterOperator(op: string): string {
+	const trimmed = op.trim().toLowerCase();
+	return OPERATOR_ALIASES[trimmed] ?? op.trim();
+}
+
+/**
+ * Convert a structured filter parameter to a Bases expression string.
+ * Handles both property comparisons and function-style filters (file.inFolder, file.hasTag).
+ * 
+ * @param filter - The filter param from the AI tool call
+ * @returns A valid Bases filter expression string
+ * @internal
+ */
+function convertFilterParamToExpression(filter: { property: string; operator?: string; value?: string }): string {
+	const prop = filter.property.trim();
+
+	// Handle function-style filters
+	if (prop === "file.inFolder" || prop.toLowerCase() === "file.infolder") {
+		return `file.inFolder("${filter.value ?? ""}")`;
+	}
+	if (prop === "file.hasTag" || prop.toLowerCase() === "file.hastag") {
+		return `file.hasTag("${filter.value ?? ""}")`;
+	}
+
+	// Standard property comparison
+	const op = normalizeFilterOperator(filter.operator ?? "==");
+	if (filter.value !== undefined) {
+		return `${prop} ${op} "${filter.value}"`;
+	}
+	return `${prop} ${op} ""`;
+}
 
 /**
  * Recursively search a filter group for a file.inFolder() expression and extract the folder path
@@ -67,6 +135,30 @@ function normalizeBasePath(path: string): string {
 		normalized += ".base";
 	}
 	return normalized;
+}
+
+/**
+ * Derive a .base filename from name or description when no explicit path is provided.
+ * Converts to kebab-case and strips unsafe characters.
+ *
+ * @param name - Optional display name
+ * @param description - Optional description (fallback)
+ * @returns A reasonable filename (without .base extension)
+ * @internal
+ */
+function deriveBaseFilename(name?: string, description?: string): string {
+	const source = (name || description || "").trim();
+	if (!source) {
+		return `base-${Date.now()}`;
+	}
+	// Lowercase, replace spaces/underscores with hyphens, strip non-alphanumeric except hyphens and slashes
+	const slug = source
+		.toLowerCase()
+		.replace(/[\s_]+/g, "-")
+		.replace(/[^a-z0-9\-\/]/g, "")
+		.replace(/-{2,}/g, "-")
+		.replace(/^-+|-+$/g, "");
+	return slug || `base-${Date.now()}`;
 }
 
 /**
@@ -242,17 +334,52 @@ export async function handleAddBaseRecords(
 /**
  * Handler for create_base tool
  * 
- * Creates a new .base file from a specification
+ * Creates a new .base file from a specification.
+ * When a questionCallback is provided and confirmed is not set, the handler
+ * will scan vault notes, present discovered properties to the user via
+ * inline question UI, and proceed to create the base with the user's choices.
+ * 
+ * @param app - Obsidian App instance
+ * @param params - The create base parameters from the AI tool call
+ * @param questionCallback - Optional callback to show inline questions to the user
  */
-export async function handleCreateBase(app: App, params: CreateBaseParams): Promise<string> {
+export async function handleCreateBase(
+	app: App,
+	params: CreateBaseParams,
+	questionCallback?: QuestionHandler | null
+): Promise<string> {
 	try {
-		// Normalize path
-		const basePath = normalizeBasePath(params.path);
+		// Derive path from name/description if not explicitly provided
+		const rawPath = params.path || deriveBaseFilename(params.name, params.description);
+		const basePath = normalizeBasePath(rawPath);
 
 		// Check if file already exists
 		const existing = app.vault.getAbstractFileByPath(basePath);
 		if (existing) {
 			return `Error: Base file already exists at ${basePath}. Use a different path or evolve_base_schema to modify it.`;
+		}
+
+		// ── Discovery phase: scan vault and ask user via inline questions ──
+		// Always run interactive discovery when a question callback is available,
+		// unless the AI already provided explicit properties from the user.
+		const hasExplicitProperties = params.properties && params.properties.length > 0;
+		if (questionCallback && !hasExplicitProperties) {
+			const discoveryResult = await discoverAndAskProperties(app, basePath, params, questionCallback);
+			if (discoveryResult.cancelled) {
+				return discoveryResult.message;
+			}
+			// Use the user's selections to proceed
+			params = { ...params, ...discoveryResult.resolvedParams, confirmed: true };
+		}
+
+		// ── Fallback discovery (no question callback and no properties): return text summary ──
+		if (!params.confirmed && !questionCallback && !hasExplicitProperties) {
+			return await discoverPropertiesForBase(app, basePath, params);
+		}
+
+		// ── Confirmed phase: actually create the Base ──
+		if (!params.properties || params.properties.length === 0) {
+			return "Error: No properties provided. Please specify which properties to include as columns.";
 		}
 
 		// Create BaseSpec
@@ -262,9 +389,11 @@ export async function handleCreateBase(app: App, params: CreateBaseParams): Prom
 			params.description
 		);
 
-		// Add filters if provided
+		// Add filters if provided - convert from param format to BaseFilterGroup
 		if (params.filters && params.filters.length > 0) {
-			spec.filters = params.filters as any;
+			spec.filters = {
+				and: params.filters.map(f => convertFilterParamToExpression(f)),
+			};
 		}
 
 		// Validate spec
@@ -291,46 +420,344 @@ export async function handleCreateBase(app: App, params: CreateBaseParams): Prom
 		let response = `Successfully created Base: ${basePath}\n\n`;
 		response += `Properties: ${params.properties.map((p) => p.name).join(", ")}`;
 
-		// Optionally create sample notes
-		if (params.create_sample_notes) {
-			const sampleRecords: AddBaseRecordsParams["records"] = [];
-			
-			// Create 2-3 sample records
-			for (let i = 1; i <= 2; i++) {
-				const sampleProps: Record<string, any> = {};
-				for (const prop of params.properties) {
-					// Generate sample values based on type
-					if (prop.type === "number") {
-						sampleProps[prop.name] = i;
-					} else if (prop.type === "checkbox") {
-						sampleProps[prop.name] = i === 1;
-					} else if (prop.type === "date") {
-						sampleProps[prop.name] = new Date().toISOString().split("T")[0];
-					} else {
-						sampleProps[prop.name] = `Sample ${prop.name} ${i}`;
-					}
-				}
-
-				sampleRecords.push({
-					title: `Sample ${spec.name} ${i}`,
-					properties: sampleProps,
-					content: `\n\nThis is a sample record for the ${spec.name} Base.`,
-				});
-			}
-
-			const addResult = await handleAddBaseRecords(app, {
-				base_path: basePath,
-				records: sampleRecords,
-			});
-
-			response += `\n\n${addResult}`;
-		}
-
 		return response;
 	} catch (error) {
 		console.error("Error in handleCreateBase:", error);
 		return `Error creating Base: ${error instanceof Error ? error.message : String(error)}`;
 	}
+}
+
+/**
+ * Result from the interactive discovery flow
+ * @internal
+ */
+interface DiscoveryResult {
+	cancelled: boolean;
+	message: string;
+	resolvedParams: Partial<CreateBaseParams>;
+}
+
+/**
+ * Scan vault notes near the target path, discover frontmatter properties,
+ * then ask the user via inline question UI to select columns and view type.
+ * Returns the resolved parameters to use for base creation.
+ * 
+ * @param app - Obsidian App instance
+ * @param basePath - The intended .base file path
+ * @param params - The original create params
+ * @param questionCallback - Callback to render inline questions
+ * @returns DiscoveryResult with user's selections or cancellation
+ * @internal
+ */
+async function discoverAndAskProperties(
+	app: App,
+	basePath: string,
+	params: CreateBaseParams,
+	questionCallback: QuestionHandler
+): Promise<DiscoveryResult> {
+	// Determine the folder to scan
+	const folderPath = basePath.includes("/")
+		? basePath.substring(0, basePath.lastIndexOf("/"))
+		: "";
+
+	// Gather markdown files in the target folder
+	const allFiles = app.vault.getFiles();
+	const mdFiles = allFiles.filter(f => {
+		if (!f.path.endsWith(".md")) return false;
+		if (folderPath) return f.path.startsWith(folderPath + "/");
+		return !f.path.includes("/");
+	});
+
+	// Broaden search if nothing found in the exact folder
+	let scannedFiles = mdFiles;
+	if (mdFiles.length === 0 && folderPath) {
+		const parentFolder = folderPath.includes("/")
+			? folderPath.substring(0, folderPath.lastIndexOf("/"))
+			: "";
+		scannedFiles = allFiles.filter(f => {
+			if (!f.path.endsWith(".md")) return false;
+			if (parentFolder) return f.path.startsWith(parentFolder + "/");
+			return true;
+		});
+	}
+
+	// No notes found — ask if user wants to proceed anyway
+	if (scannedFiles.length === 0) {
+		const response = await questionCallback({
+			id: `base_empty_${Date.now()}`,
+			type: "radio",
+			question: `No notes found near "${basePath}". Create the Base anyway with custom properties?`,
+			context: "There are no .md files in or near this folder to discover properties from.",
+			options: ["Yes, I'll specify properties manually", "No, cancel"],
+			required: true,
+		});
+
+		if (!response || response.type !== "radio" || response.selected[0]?.startsWith("No")) {
+			return { cancelled: true, message: "Base creation cancelled — no notes found to discover properties from.", resolvedParams: {} };
+		}
+
+		// Let the AI proceed with whatever properties were passed
+		return { cancelled: false, message: "", resolvedParams: { confirmed: true } };
+	}
+
+	// Read up to 5 sample files to discover frontmatter properties
+	const sampleCount = Math.min(5, scannedFiles.length);
+	const sampleFiles = scannedFiles.slice(0, sampleCount);
+
+	const propertyMap = new Map<string, { values: Set<string>; count: number; type: string }>();
+
+	for (const file of sampleFiles) {
+		try {
+			const content = await app.vault.read(file);
+			const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+			if (!fmMatch || !fmMatch[1]) continue;
+
+			const fmLines = fmMatch[1].split("\n");
+			for (const line of fmLines) {
+				const trimmed = line.trim();
+				if (!trimmed || !trimmed.includes(":")) continue;
+
+				const colonIdx = trimmed.indexOf(":");
+				const key = trimmed.substring(0, colonIdx).trim();
+				const rawValue = trimmed.substring(colonIdx + 1).trim();
+
+				if (!key || key.startsWith("#")) continue;
+
+				const entry = propertyMap.get(key) || { values: new Set<string>(), count: 0, type: "text" };
+				entry.count++;
+				if (rawValue && rawValue !== "''") {
+					entry.values.add(rawValue.replace(/^['"]|['"]$/g, ""));
+				}
+
+				// Detect type heuristics
+				if (/^\d{4}-\d{2}-\d{2}/.test(rawValue)) {
+					entry.type = "date";
+				} else if (rawValue === "true" || rawValue === "false") {
+					entry.type = "checkbox";
+				} else if (/^\d+(\.\d+)?$/.test(rawValue) && rawValue !== "") {
+					entry.type = "number";
+				} else if (rawValue.startsWith("[") || rawValue.startsWith("-")) {
+					entry.type = "list";
+				}
+
+				propertyMap.set(key, entry);
+			}
+		} catch {
+			// Skip files that can't be read
+		}
+	}
+
+	// No frontmatter found — let AI proceed with whatever it has
+	if (propertyMap.size === 0) {
+		return { cancelled: false, message: "", resolvedParams: { confirmed: true } };
+	}
+
+	// Sort by frequency (most common first) and build option labels
+	const sortedProps = [...propertyMap.entries()].sort((a, b) => b[1].count - a[1].count);
+	const options: string[] = [];
+
+	for (const [key, info] of sortedProps) {
+		const sampleValues = [...info.values].slice(0, 2).map(v =>
+			v.length > 25 ? v.substring(0, 25) + "…" : v
+		);
+		const sampleStr = sampleValues.length > 0 ? ` — e.g. "${sampleValues.join('", "')}"` : "";
+		const label = `${key} (${info.type})${sampleStr}`;
+		options.push(label);
+	}
+
+	// ── Ask the user which properties to include ──
+	// Pre-check all discovered properties; user deselects ones they don't want
+	const propResponse = await questionCallback({
+		id: `base_props_${Date.now()}`,
+		type: "multipleChoice",
+		question: `Found ${propertyMap.size} properties in ${sampleCount} notes near "${basePath}". Which ones should be columns?`,
+		context: `${scannedFiles.length} total note(s) in folder. All properties are selected — deselect any you don't need.`,
+		options,
+		allowMultiple: true,
+		defaultSelected: options,
+		required: true,
+	});
+
+	if (!propResponse || propResponse.type !== "multipleChoice" || propResponse.selected.length === 0) {
+		return { cancelled: true, message: "Base creation cancelled — no properties selected.", resolvedParams: {} };
+	}
+
+	// Parse selected property names from the labels
+	const selectedProperties: CreateBaseParams["properties"] = propResponse.selected.map(label => {
+		const name = label.split(" (")[0] ?? label;
+		const propInfo = propertyMap.get(name);
+		return {
+			name,
+			type: (propInfo?.type || "text") as "text" | "number" | "date" | "checkbox" | "list" | "tags",
+		};
+	});
+
+	// ── Ask for view type ──
+	const viewResponse = await questionCallback({
+		id: `base_view_${Date.now()}`,
+		type: "radio",
+		question: "What view type should the Base use?",
+		options: ["Table", "Card", "List"],
+		defaultSelected: "Table",
+		required: false,
+	});
+
+	// Default to table if skipped
+	// (view type is used for display but the current generator always uses table — 
+	//  this captures intent for future use)
+
+	// Auto-add a file.inFolder filter if no filters were provided and we know the folder
+	const resolvedFilters = params.filters && params.filters.length > 0
+		? params.filters
+		: folderPath
+			? [{ property: "file.inFolder", value: folderPath }]
+			: undefined;
+
+	return {
+		cancelled: false,
+		message: "",
+		resolvedParams: {
+			properties: selectedProperties,
+			filters: resolvedFilters,
+			confirmed: true,
+		},
+	};
+}
+
+/**
+ * Discover frontmatter properties from vault notes near the target Base path.
+ * Returns a formatted message for the AI to present to the user for confirmation.
+ * 
+ * @param app - Obsidian App instance
+ * @param basePath - The intended .base file path
+ * @param params - The original create params (may have partial info)
+ * @returns A discovery summary message
+ * @internal
+ */
+async function discoverPropertiesForBase(app: App, basePath: string, params: CreateBaseParams): Promise<string> {
+	// Determine the folder to scan — use the base file's parent folder, or vault root
+	const folderPath = basePath.includes("/")
+		? basePath.substring(0, basePath.lastIndexOf("/"))
+		: "";
+
+	// Gather markdown files in the target folder (non-recursive first level)
+	const allFiles = app.vault.getFiles();
+	const mdFiles = allFiles.filter(f => {
+		if (!f.path.endsWith(".md")) return false;
+		if (folderPath) {
+			return f.path.startsWith(folderPath + "/");
+		}
+		// Vault root: only top-level .md files
+		return !f.path.includes("/");
+	});
+
+	// If no files in exact folder, try a broader search
+	let searchFolder = folderPath;
+	let scannedFiles = mdFiles;
+	if (mdFiles.length === 0 && folderPath) {
+		// Search recursively under parent
+		const parentFolder = folderPath.includes("/")
+			? folderPath.substring(0, folderPath.lastIndexOf("/"))
+			: "";
+		scannedFiles = allFiles.filter(f => {
+			if (!f.path.endsWith(".md")) return false;
+			if (parentFolder) return f.path.startsWith(parentFolder + "/");
+			return true;
+		});
+		searchFolder = parentFolder || "(vault root)";
+	}
+
+	if (scannedFiles.length === 0) {
+		return `**No notes found** near \`${basePath}\`.\n\n` +
+			`There are no .md files in or near the folder \`${folderPath || "(vault root)"}\`.\n\n` +
+			`Would you like me to create the Base anyway and add some sample notes to populate it? ` +
+			`If so, tell me what kind of data this Base should track and I'll create both the Base and sample notes.\n\n` +
+			`_To proceed, call create_base again with confirmed=true and the desired properties._`;
+	}
+
+	// Read up to 5 sample files to discover frontmatter properties
+	const sampleCount = Math.min(5, scannedFiles.length);
+	const sampleFiles = scannedFiles.slice(0, sampleCount);
+
+	// Collect all frontmatter properties across sample files
+	const propertyMap = new Map<string, { values: Set<string>; count: number; type: string }>();
+
+	for (const file of sampleFiles) {
+		try {
+			const content = await app.vault.read(file);
+			const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+			if (!fmMatch || !fmMatch[1]) continue;
+
+			const fmLines = fmMatch[1].split("\n");
+			for (const line of fmLines) {
+				const trimmed = line.trim();
+				if (!trimmed || !trimmed.includes(":")) continue;
+
+				const colonIdx = trimmed.indexOf(":");
+				const key = trimmed.substring(0, colonIdx).trim();
+				const rawValue = trimmed.substring(colonIdx + 1).trim();
+
+				if (!key || key.startsWith("#")) continue;
+
+				const entry = propertyMap.get(key) || { values: new Set<string>(), count: 0, type: "text" };
+				entry.count++;
+				if (rawValue && rawValue !== "''") {
+					entry.values.add(rawValue.replace(/^['"]|['"]$/g, ""));
+				}
+
+				// Detect type heuristics
+				if (/^\d{4}-\d{2}-\d{2}/.test(rawValue)) {
+					entry.type = "date";
+				} else if (rawValue === "true" || rawValue === "false") {
+					entry.type = "checkbox";
+				} else if (/^\d+(\.\d+)?$/.test(rawValue) && rawValue !== "") {
+					entry.type = "number";
+				} else if (rawValue.startsWith("[") || rawValue.startsWith("-")) {
+					entry.type = "list";
+				}
+
+				propertyMap.set(key, entry);
+			}
+		} catch {
+			// Skip files that can't be read
+		}
+	}
+
+	if (propertyMap.size === 0) {
+		return `**Found ${scannedFiles.length} notes** in \`${searchFolder || "(vault root)"}\`, but none have frontmatter properties.\n\n` +
+			`Would you like me to create the Base with custom properties? Tell me what columns you'd like.\n\n` +
+			`_To proceed, call create_base again with confirmed=true and the desired properties._`;
+	}
+
+	// Build the discovery message
+	const lines: string[] = [];
+	lines.push(`**Discovered ${propertyMap.size} frontmatter properties** from ${sampleCount} sample notes in \`${searchFolder || "(vault root)"}\`:\n`);
+
+	// Sort by frequency (most common first)
+	const sortedProps = [...propertyMap.entries()].sort((a, b) => b[1].count - a[1].count);
+
+	let idx = 1;
+	for (const [key, info] of sortedProps) {
+		const sampleValues = [...info.values].slice(0, 2).map(v =>
+			v.length > 30 ? v.substring(0, 30) + "…" : v
+		);
+		const sampleStr = sampleValues.length > 0 ? ` — e.g. "${sampleValues.join('", "')}"` : "";
+		// Recommend properties that appear in most sample files
+		const recommended = info.count >= Math.ceil(sampleCount / 2);
+		const icon = recommended ? "✅" : "⬜";
+		lines.push(`${idx}. ${icon} **${key}** (${info.type})${sampleStr}`);
+		idx++;
+	}
+
+	lines.push("");
+	lines.push(`Total notes in folder: ${scannedFiles.length}`);
+	lines.push("");
+	lines.push("**Please ask the user which properties they want as columns in the Base.**");
+	lines.push("Also suggest appropriate filters (e.g., folder scoping, property-based filtering) and a view type (table, card, list).");
+	lines.push("");
+	lines.push("_After the user confirms, call create_base again with `confirmed: true` and the chosen properties and filters._");
+
+	return lines.join("\n");
 }
 
 /**
@@ -365,10 +792,13 @@ export async function handleReadBase(app: App, params: ReadBaseParams): Promise<
 		const lines: string[] = [];
 		lines.push(`**Base: ${basePath}**\n`);
 
-		if (schema.filters && schema.filters.length > 0) {
-			lines.push(`**Filters (${schema.filters.length}):**`);
-			for (const filter of schema.filters) {
-				lines.push(`  - ${filter.property} ${filter.operator} ${filter.value || "(empty)"}`);
+		if (schema.filters) {
+			const filterExprs = getFilterExpressions(schema.filters);
+			if (filterExprs.length > 0) {
+				lines.push(`**Filters (${filterExprs.length}):**`);
+				for (const expr of filterExprs) {
+					lines.push(`  - ${expr}`);
+				}
 			}
 			lines.push("");
 		}
