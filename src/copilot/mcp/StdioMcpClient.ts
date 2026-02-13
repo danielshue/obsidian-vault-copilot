@@ -51,6 +51,7 @@
 import { spawn, ChildProcess } from "child_process";
 import { Platform } from "obsidian";
 import { StdioMcpServerConfig, McpTool, McpConnectionStatus } from "./McpTypes";
+import { expandHomePath } from "../../utils/pathUtils";
 
 /**
  * JSON-RPC 2.0 message types
@@ -289,16 +290,24 @@ export class StdioMcpClient {
 		return new Promise((resolve, reject) => {
 			const { command, args = [], env, cwd } = this.config;
 
+			// Expand ~/... in paths (cross-platform home directory support)
+			const expandedCommand = expandHomePath(command);
+			const expandedArgs = args.map(a => expandHomePath(a));
+			const expandedCwd = cwd ? expandHomePath(cwd) : undefined;
+			const expandedEnv = env
+				? Object.fromEntries(Object.entries(env).map(([k, v]) => [k, expandHomePath(v)]))
+				: undefined;
+
 			// Prepare environment
 			const processEnv = {
 				...process.env,
-				...env,
+				...expandedEnv,
 			};
 
 			// Determine shell based on platform
 			const spawnOptions: Parameters<typeof spawn>[2] = {
 				env: processEnv,
-				cwd: cwd || process.cwd(),
+				cwd: expandedCwd || process.cwd(),
 				stdio: ["pipe", "pipe", "pipe"],
 			};
 
@@ -307,10 +316,10 @@ export class StdioMcpClient {
 				spawnOptions.shell = true;
 			}
 
-			console.log(`[StdioMcpClient] Spawning: ${command} ${args.join(" ")}`);
+			console.log(`[StdioMcpClient] Spawning: ${expandedCommand} ${expandedArgs.join(" ")}`);
 
 			try {
-				this.process = spawn(command, args, spawnOptions);
+				this.process = spawn(expandedCommand, expandedArgs, spawnOptions);
 			} catch (error) {
 				reject(new Error(`Failed to spawn process: ${error}`));
 				return;

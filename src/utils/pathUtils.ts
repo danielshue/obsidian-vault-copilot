@@ -15,9 +15,16 @@
  * Obsidian's vault API always expects forward slashes, so these utilities
  * normalize paths for consistent behavior.
  * 
+ * ## Home Directory Expansion
+ * 
+ * The `expandHomePath()` function expands `~/` prefixes to the user's home
+ * directory, enabling cross-platform path specifications in settings and configs.
+ * This works on Windows (`C:\Users\<user>`), macOS (`/Users/<user>`), and
+ * Linux (`/home/<user>`).
+ * 
  * @example
  * ```typescript
- * import { normalizeVaultPath, ensureMarkdownExtension, pathsEqual } from "./utils/pathUtils";
+ * import { normalizeVaultPath, ensureMarkdownExtension, pathsEqual, expandHomePath } from "./utils/pathUtils";
  * 
  * // Windows path converted to vault format
  * const path = normalizeVaultPath("Notes\\Projects\\README");
@@ -29,11 +36,17 @@
  * 
  * // Compare paths
  * pathsEqual("Notes/Daily", "notes/daily"); // true (case-insensitive)
+ * 
+ * // Expand home directory
+ * expandHomePath("~/.copilot/skills"); // "C:/Users/me/.copilot/skills" (Windows)
+ * expandHomePath("~/Documents/notes"); // "/Users/me/Documents/notes" (macOS)
  * ```
  * 
  * @see {@link VaultOperations} for vault file operations
  * @since 0.0.14
  */
+
+import { isDesktop } from "./platform";
 
 /**
  * Normalize a path for use with Obsidian's vault API.
@@ -173,4 +186,63 @@ export function toVaultRelativePath(absolutePath: string, vaultBasePath: string)
 export function isVaultRoot(path: string): boolean {
 	const normalized = normalizeVaultPath(path);
 	return normalized === '' || normalized === '.' || normalized === '/';
+}
+
+/**
+ * Expand a leading `~/` or `~\` in a path to the user's home directory.
+ * 
+ * This enables cross-platform path specifications in settings and configs.
+ * On desktop, uses `os.homedir()` for expansion. On mobile (where Node.js
+ * `os` module is unavailable), returns the path unchanged.
+ * 
+ * Only expands the `~` when it appears as the first character followed by
+ * a path separator (or is the entire string). Does **not** expand `~user/`
+ * syntax.
+ * 
+ * @param inputPath - The path that may start with `~/`
+ * @returns The path with `~/` expanded to the home directory, or unchanged
+ * 
+ * @example
+ * ```typescript
+ * // On Windows (home = C:\Users\me)
+ * expandHomePath("~/.copilot/skills"); // "C:\\Users\\me/.copilot/skills"
+ * expandHomePath("~/Documents");       // "C:\\Users\\me/Documents"
+ * expandHomePath("~");                 // "C:\\Users\\me"
+ * 
+ * // Non-tilde paths pass through unchanged
+ * expandHomePath("/absolute/path");    // "/absolute/path"
+ * expandHomePath("relative/path");     // "relative/path"
+ * ```
+ * 
+ * @see {@link normalizeVaultPath} for vault-relative path normalization
+ * @since 0.0.27
+ */
+export function expandHomePath(inputPath: string): string {
+	if (!inputPath) return inputPath;
+
+	const trimmed = inputPath.trim();
+
+	// Only expand ~/... or ~\... or bare ~
+	if (trimmed === "~" || trimmed.startsWith("~/") || trimmed.startsWith("~\\")) {
+		if (!isDesktop) {
+			// os.homedir() is not available on mobile
+			return inputPath;
+		}
+		try {
+			// Dynamic require to avoid issues on mobile where os module doesn't exist
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const os = require("os") as typeof import("os");
+			const home = os.homedir();
+			if (trimmed === "~") {
+				return home;
+			}
+			// Replace leading ~ with home dir, keeping the rest of the path
+			return home + trimmed.slice(1);
+		} catch {
+			// If os module unavailable, return unchanged
+			return inputPath;
+		}
+	}
+
+	return inputPath;
 }

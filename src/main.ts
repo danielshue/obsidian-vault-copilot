@@ -73,6 +73,7 @@ import { AIProviderType, AIProvider } from "./copilot/providers/AIProvider";
 import { getTracingService } from "./copilot/TracingService";
 import { MainVaultAssistant } from "./copilot/realtime-agent/MainVaultAssistant";
 import { isMobile, supportsLocalProcesses } from "./utils/platform";
+import { expandHomePath } from "./utils/pathUtils";
 import * as VaultOps from "./copilot/tools/VaultOperations";
 import { loadAuthorInfo } from "./ui/extensions/Submission/utils";
 
@@ -638,7 +639,7 @@ export default class CopilotPlugin extends Plugin {
 		if (supportsLocalProcesses()) {
 			this.githubCopilotCliService = new GitHubCopilotCliService(this.app, this.getServiceConfig());
 			// Initialize CLI manager for status checking
-			this.cliManager = new GitHubCopilotCliManager(this.settings.cliPath || undefined);
+			this.cliManager = new GitHubCopilotCliManager(this.settings.cliPath ? expandHomePath(this.settings.cliPath) : undefined);
 		}
 		
 		// Initialize OpenAI/Azure services for mobile or desktop alternative providers
@@ -909,7 +910,7 @@ export default class CopilotPlugin extends Plugin {
 	 * Discover available models from CLI (runs in background, doesn't block startup)
 	 */
 	private async discoverModels(): Promise<void> {
-		const githubCopilotCliManager = new GitHubCopilotCliManager(this.settings.cliPath || undefined);
+		const githubCopilotCliManager = new GitHubCopilotCliManager(this.settings.cliPath ? expandHomePath(this.settings.cliPath) : undefined);
 		const status = await githubCopilotCliManager.getStatus();
 		
 		if (!status.installed) {
@@ -964,7 +965,7 @@ export default class CopilotPlugin extends Plugin {
 		
 		// Update CLI manager path if changed
 		if (this.cliManager) {
-			this.cliManager.setCliPath(this.settings.cliPath || "copilot");
+			this.cliManager.setCliPath(expandHomePath(this.settings.cliPath) || "copilot");
 		}
 		
 		// Notify settings change listeners immediately
@@ -1010,6 +1011,8 @@ export default class CopilotPlugin extends Plugin {
 		const resolvePaths = (paths: string[]): string[] => {
 			if (!vaultPath) return paths;
 			return paths.map(p => {
+				// Expand ~/... to user home directory (cross-platform)
+				p = expandHomePath(p);
 				// If already absolute, use as-is
 				if (p.startsWith('/') || p.match(/^[A-Za-z]:\\/)) {
 					return p;
@@ -1021,7 +1024,7 @@ export default class CopilotPlugin extends Plugin {
 
 		return {
 			model: this.settings.model,
-			cliPath: this.settings.cliPath || undefined,
+			cliPath: this.settings.cliPath ? expandHomePath(this.settings.cliPath) : undefined,
 			cliUrl: this.settings.cliUrl || undefined,
 			streaming: this.settings.streaming,
 			vaultPath: vaultPath,

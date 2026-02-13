@@ -2629,7 +2629,7 @@ console.log("Discovering models...");
 		const addRow = wrapper.createDiv({ cls: "vc-directory-add" });
 		const input = addRow.createEl("input", {
 			type: "text",
-			placeholder: ".copilot/skills or /absolute/path",
+			placeholder: "~/.copilot/skills, relative/path, or /absolute/path",
 			cls: "vc-directory-input"
 		});
 		

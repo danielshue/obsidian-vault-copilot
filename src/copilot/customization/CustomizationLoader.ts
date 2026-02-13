@@ -13,7 +13,7 @@
  */
 
 import { App, TFile, TFolder, FileSystemAdapter } from "obsidian";
-import { normalizeVaultPath, isVaultRoot, toVaultRelativePath } from "../../utils/pathUtils";
+import { normalizeVaultPath, isVaultRoot, toVaultRelativePath, expandHomePath } from "../../utils/pathUtils";
 
 /**
  * Parsed agent from .agent.md file
@@ -202,6 +202,9 @@ export class CustomizationLoader {
  * Cross-platform compatible (Windows, Mac, Linux)
  */
 private getFolderFromPath(dir: string): TFolder | null {
+	// Expand ~/... to user home directory (cross-platform)
+	dir = expandHomePath(dir);
+
 	const vaultBasePath = this.getVaultBasePath();
 	
 	// Handle vault root cases first
