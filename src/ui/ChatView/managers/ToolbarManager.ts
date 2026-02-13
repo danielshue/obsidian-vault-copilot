@@ -143,7 +143,11 @@ export class ToolbarManager {
 	createToolbarRight(toolbarRightEl: HTMLDivElement, sendButton: HTMLButtonElement): void {
 		this.toolbarRightEl = toolbarRightEl;
 		this.sendButton = sendButton;
+
+		// Detach send button, add voice/agent buttons, then re-append send at the end
+		sendButton.remove();
 		this.createVoiceButtons();
+		toolbarRightEl.appendChild(sendButton);
 	}
 
 	/**
