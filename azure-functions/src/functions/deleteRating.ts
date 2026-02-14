@@ -17,6 +17,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { TableStorageService } from "../services/TableStorageService.js";
 import { validateExtensionId, validateUserHash } from "../utils/validation.js";
+import { handlePreflight, withCors } from "../utils/cors.js";
 
 /**
  * Handle DELETE /api/ratings/{extensionId}/{userHash}.
@@ -26,6 +27,7 @@ import { validateExtensionId, validateUserHash } from "../utils/validation.js";
  * @returns An {@link HttpResponseInit} confirming deletion.
  */
 async function deleteRating(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    if (request.method === "OPTIONS") return handlePreflight(request);
     context.log("Processing deleteRating request");
 
     const extensionId = request.params.extensionId;
@@ -35,27 +37,27 @@ async function deleteRating(request: HttpRequest, context: InvocationContext): P
     // Validate required parameters
     const extensionIdResult = validateExtensionId(extensionId);
     if (!extensionIdResult.valid) {
-        return {
+        return withCors(request, {
             status: 400,
             jsonBody: { error: extensionIdResult.error },
-        };
+        });
     }
 
     const userHashResult = validateUserHash(userHash);
     if (!userHashResult.valid) {
-        return {
+        return withCors(request, {
             status: 400,
             jsonBody: { error: userHashResult.error },
-        };
+        });
     }
 
     // Authorization: Only the user themselves can delete their rating
     if (!authenticatedUserHash || authenticatedUserHash !== userHash) {
         context.warn(`Unauthorized delete attempt: authenticated=${authenticatedUserHash}, target=${userHash}`);
-        return {
+        return withCors(request, {
             status: 403,
             jsonBody: { error: "Forbidden: You can only delete your own ratings" },
-        };
+        });
     }
 
     try {
@@ -68,7 +70,7 @@ async function deleteRating(request: HttpRequest, context: InvocationContext): P
 
         context.log(`Successfully deleted rating for extension ${extensionId} by user ${userHash}`);
 
-        return {
+        return withCors(request, {
             status: 200,
             jsonBody: {
                 success: true,
@@ -76,18 +78,18 @@ async function deleteRating(request: HttpRequest, context: InvocationContext): P
                 aggregateRating: metrics.averageRating,
                 ratingCount: metrics.ratingCount,
             },
-        };
+        });
     } catch (err) {
         context.error("Error deleting rating:", err);
-        return {
+        return withCors(request, {
             status: 500,
             jsonBody: { error: "Failed to delete rating" },
-        };
+        });
     }
 }
 
 app.http("deleteRating", {
-    methods: ["DELETE"],
+    methods: ["DELETE", "OPTIONS"],
     authLevel: "anonymous",
     route: "ratings/{extensionId}/{userHash}",
     handler: deleteRating,

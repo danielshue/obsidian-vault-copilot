@@ -19,6 +19,7 @@
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { TableStorageService } from "../services/TableStorageService.js";
+import { handlePreflight, withCors } from "../utils/cors.js";
 
 /**
  * Handler for GET /api/ratings/{extensionId}.
@@ -31,38 +32,39 @@ async function handler(
     request: HttpRequest,
     context: InvocationContext,
 ): Promise<HttpResponseInit> {
+    if (request.method === "OPTIONS") return handlePreflight(request);
+
     const extensionId = request.params.extensionId;
 
     if (!extensionId || extensionId.trim().length === 0) {
-        return {
+        return withCors(request, {
             status: 400,
             jsonBody: { error: "extensionId parameter is required" },
-        };
+        });
     }
 
     try {
         const svc = TableStorageService.getInstance();
         const ratings = await svc.getExtensionRatings(extensionId);
 
-        return {
+        return withCors(request, {
             status: 200,
             jsonBody: ratings,
             headers: {
-                "Access-Control-Allow-Origin": "*",
                 "Cache-Control": "public, max-age=60",
             },
-        };
+        });
     } catch (error) {
         context.error(`Failed to fetch ratings for ${extensionId}:`, error);
-        return {
+        return withCors(request, {
             status: 500,
             jsonBody: { error: "Internal server error" },
-        };
+        });
     }
 }
 
 app.http("getExtensionRatings", {
-    methods: ["GET"],
+    methods: ["GET", "OPTIONS"],
     authLevel: "anonymous",
     route: "ratings/{extensionId}",
     handler,

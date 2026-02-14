@@ -15,6 +15,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { TableStorageService } from "../services/TableStorageService.js";
 import { validateUserHash } from "../utils/validation.js";
+import { handlePreflight, withCors } from "../utils/cors.js";
 
 /**
  * Handle GET /api/user/{userHash}/data.
@@ -24,31 +25,32 @@ import { validateUserHash } from "../utils/validation.js";
  * @returns An {@link HttpResponseInit} containing all user data.
  */
 async function getUserData(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    if (request.method === "OPTIONS") return handlePreflight(request);
     context.log("Processing getUserData request");
 
     const userHash = request.params.userHash;
 
     const userHashResult = validateUserHash(userHash);
     if (!userHashResult.valid) {
-        return { status: 400, jsonBody: { error: userHashResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: userHashResult.error } });
     }
 
     try {
         const svc = TableStorageService.getInstance();
         const data = await svc.getUserData(userHash as string);
 
-        return {
+        return withCors(request, {
             status: 200,
             jsonBody: data,
-        };
+        });
     } catch (err) {
         context.error("Error getting user data:", err);
-        return { status: 500, jsonBody: { error: "Internal server error" } };
+        return withCors(request, { status: 500, jsonBody: { error: "Internal server error" } });
     }
 }
 
 app.http("getUserData", {
-    methods: ["GET"],
+    methods: ["GET", "OPTIONS"],
     authLevel: "anonymous",
     route: "user/{userHash}/data",
     handler: getUserData,
