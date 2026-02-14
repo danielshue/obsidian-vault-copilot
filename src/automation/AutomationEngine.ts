@@ -601,12 +601,18 @@ export class AutomationEngine {
 		
 		// Replace input variables if provided
 		if (input) {
-			const { previousOutput, ...rest } = input as Record<string, unknown>;
-			if (this.isPlainObject(rest) && Object.keys(rest).length > 0) {
-				for (const [key, value] of Object.entries(rest)) {
-					const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
-					content = content.replace(new RegExp(`\\{${key}\\}`, 'g'), valueStr);
-					content = content.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), valueStr);
+			if (typeof input === 'string') {
+				// String input is treated as userInput
+				content = content.replace(/\{userInput\}/g, input);
+				content = content.replace(/\$\{userInput\}/g, input);
+			} else {
+				const { previousOutput, ...rest } = input as Record<string, unknown>;
+				if (this.isPlainObject(rest) && Object.keys(rest).length > 0) {
+					for (const [key, value] of Object.entries(rest)) {
+						const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
+						content = content.replace(new RegExp(`\\{${key}\\}`, 'g'), valueStr);
+						content = content.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), valueStr);
+					}
 				}
 			}
 		}

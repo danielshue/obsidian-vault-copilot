@@ -68,6 +68,7 @@ let engine: AutomationEngine;
 let context: AutomationExecutionContext;
 
 beforeEach(() => {
+vi.clearAllMocks();
 engine = new AutomationEngine(mockApp, mockPlugin);
 context = {
 automation: {
@@ -85,6 +86,15 @@ type: 'schedule',
 schedule: '0 0 * * *',
 },
 		previousResults: [],
+input: { task: 'Test task' },
+};
+});
+
+describe("executeRunAgent", () => {
+it("should execute an agent action", async () => {
+const action = {
+type: 'run-agent' as const,
+agentId: 'test-agent',
 input: { task: 'Test task' },
 };
 
