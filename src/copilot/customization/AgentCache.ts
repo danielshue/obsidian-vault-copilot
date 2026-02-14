@@ -5,6 +5,7 @@
 
 import { App, TFile, TFolder, TAbstractFile, EventRef } from "obsidian";
 import { CustomizationLoader, CustomAgent } from "./CustomizationLoader";
+import { parseYamlKeyValues } from "./YamlParser";
 
 /**
  * Lightweight agent info for caching (excludes the full instructions)
@@ -296,32 +297,7 @@ export class AgentCache {
 		if (!match) return null;
 
 		const yamlStr = match[1] || '';
-		const frontmatter: Record<string, unknown> = {};
-
-		// Simple YAML parser
-		const lines = yamlStr.split(/\r?\n/);
-		for (const line of lines) {
-			const colonIndex = line.indexOf(':');
-			if (colonIndex === -1) continue;
-
-			const key = line.slice(0, colonIndex).trim();
-			let value: unknown = line.slice(colonIndex + 1).trim();
-
-			// Handle arrays like ["read", "search", "edit"]
-			if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
-				try {
-					value = JSON.parse(value.replace(/'/g, '"'));
-				} catch {
-					// Keep as string
-				}
-			}
-			// Handle quoted strings
-			else if (typeof value === 'string' && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
-				value = value.slice(1, -1);
-			}
-
-			frontmatter[key] = value;
-		}
+		const frontmatter = parseYamlKeyValues(yamlStr);
 
 		if (frontmatter.name && frontmatter.description) {
 			return {

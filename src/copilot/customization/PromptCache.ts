@@ -5,6 +5,7 @@
 
 import { App, TFile, TAbstractFile, EventRef } from "obsidian";
 import { CustomizationLoader, CustomPrompt } from "./CustomizationLoader";
+import { parseYamlKeyValues } from "./YamlParser";
 
 /**
  * Lightweight prompt info for caching (same as CustomPrompt but can be extended)
@@ -292,35 +293,11 @@ export class PromptCache {
 	 */
 	private parsePromptFile(path: string, basename: string, content: string): CachedPromptInfo | null {
 		const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-		const frontmatter: Record<string, unknown> = {};
+		let frontmatter: Record<string, unknown> = {};
 
 		if (match) {
 			const yamlStr = match[1] || '';
-
-			// Simple YAML parser
-			const lines = yamlStr.split(/\r?\n/);
-			for (const line of lines) {
-				const colonIndex = line.indexOf(':');
-				if (colonIndex === -1) continue;
-
-				const key = line.slice(0, colonIndex).trim();
-				let value: unknown = line.slice(colonIndex + 1).trim();
-
-				// Handle arrays like ["read", "search", "edit"]
-				if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
-					try {
-						value = JSON.parse(value.replace(/'/g, '"'));
-					} catch {
-						// Keep as string
-					}
-				}
-				// Handle quoted strings
-				else if (typeof value === 'string' && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
-					value = value.slice(1, -1);
-				}
-
-				frontmatter[key] = value;
-			}
+			frontmatter = parseYamlKeyValues(yamlStr);
 		}
 
 		// Extract name from frontmatter or filename

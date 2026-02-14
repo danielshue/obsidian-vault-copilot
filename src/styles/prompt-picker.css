@@ -40,6 +40,35 @@
 	background: var(--background-modifier-hover);
 }
 
+.vc-prompt-picker-left {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-shrink: 0;
+	max-width: 50%;
+	overflow: hidden;
+}
+
+.vc-prompt-picker-badge {
+	font-size: 10px;
+	padding: 1px 5px;
+	border-radius: 3px;
+	font-weight: 500;
+	white-space: nowrap;
+	line-height: 1.4;
+}
+
+.vc-badge-prompt {
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+
+.vc-badge-skill {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	opacity: 0.85;
+}
+
 .vc-prompt-picker-name {
 	flex-shrink: 0;
 	color: var(--text-normal);
@@ -47,7 +76,6 @@
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	max-width: 50%;
 }
 
 .vc-prompt-picker-desc {
@@ -58,6 +86,13 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	text-align: right;
+}
+
+/* Ghost hint text shown after selecting a command with argumentHint */
+.vc-prompt-picker-hint {
+	color: var(--text-faint);
+	pointer-events: none;
+	user-select: none;
 }
 
 /* Scrollbar styling for prompt picker */

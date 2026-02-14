@@ -353,7 +353,7 @@ export class PromptProcessor {
 		// If prompt has tools specified in frontmatter, add that context too
 		if (promptTools && promptTools.length > 0) {
 			const availableTools = promptTools.join(', ');
-			content = content + `\n[Available tools for this prompt: ${availableTools}]\n`;
+			content = content + `\n[IMPORTANT: This prompt restricts tool usage to ONLY the following tools: ${availableTools}. Do not use any other tools.]\n`;
 		}
 		
 		return content;

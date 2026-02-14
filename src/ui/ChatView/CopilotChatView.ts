@@ -509,6 +509,7 @@ export class CopilotChatView extends ItemView {
 				containerEl: this.promptPickerEl,
 				inputEl: this.inputEl,
 				getPrompts: () => this.plugin.promptCache.getPrompts(),
+				getSkills: () => this.plugin.skillCache.getSkills(),
 				onSelect: (prompt) => this.promptExecutor.executePrompt(prompt),
 			});
 		}
@@ -992,6 +993,15 @@ export class CopilotChatView extends ItemView {
 		const command = SLASH_COMMANDS.find(c => c.name === normalizedCommand);
 		
 		if (!command) {
+			// Check skills before showing "unknown command"
+			const skillInfo = this.plugin.skillCache.getSkills().find(
+				s => s.name.toLowerCase().replace(/\s+/g, '-') === normalizedCommand ||
+				     s.name.toLowerCase() === normalizedCommand
+			);
+			if (skillInfo) {
+				return await this.executeSkillSlashCommand(skillInfo, args?.trim() || "", message);
+			}
+
 			await this.messageRenderer.renderMessage(this.messagesContainer, { role: "user", content: message, timestamp: new Date() });
 			const helpMsg = `Unknown command: /${commandName}\n\nType **/help** to see available commands.`;
 			await this.messageRenderer.renderMessage(this.messagesContainer, { role: "assistant", content: helpMsg, timestamp: new Date() });
@@ -1012,6 +1022,65 @@ export class CopilotChatView extends ItemView {
 			}
 		} catch (error) {
 			this.addErrorMessage(`Command failed: ${error}`);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Execute a skill as a slash command by prepending skill instructions to the user message
+	 */
+	private async executeSkillSlashCommand(skillInfo: { name: string; path: string }, userArgs: string, originalMessage: string): Promise<boolean> {
+		const fullSkill = await this.plugin.skillCache.getFullSkill(skillInfo.name);
+		if (!fullSkill) {
+			this.addErrorMessage(`Could not load skill: ${skillInfo.name}`);
+			return true;
+		}
+
+		// Prepend skill instructions as context prefix
+		const skillPrefix = `[Skill: ${fullSkill.name}]\n${fullSkill.instructions}\n\n---\n\n`;
+		const enhancedMessage = skillPrefix + (userArgs || `Use the ${fullSkill.name} skill.`);
+
+		await this.messageRenderer.renderMessage(this.messagesContainer, { role: "user", content: originalMessage, timestamp: new Date() });
+		const userMsgEl = this.messagesContainer.lastElementChild as HTMLElement;
+		if (userMsgEl) this.scrollMessageToTop(userMsgEl);
+
+		this.isProcessing = true;
+		this.updateUIState();
+		this.showThinkingIndicator();
+
+		try {
+			const msgEl = this.messageRenderer.createMessageElement(this.messagesContainer, "assistant", "");
+
+			if (this.plugin.settings.streaming) {
+				let isFirstDelta = true;
+				await this.githubCopilotCliService.sendMessageStreaming(
+					enhancedMessage,
+					(delta: string) => {
+						if (isFirstDelta) {
+							this.hideThinkingIndicator();
+							isFirstDelta = false;
+						}
+						const contentEl = msgEl.querySelector(".vc-message-content");
+						if (contentEl) contentEl.textContent += delta;
+					},
+					async (fullContent: string) => {
+						await this.messageRenderer.renderMarkdownContent(msgEl, fullContent);
+						this.messageRenderer.addCopyButton(msgEl);
+					}
+				);
+			} else {
+				this.hideThinkingIndicator();
+				const response = await this.githubCopilotCliService.sendMessage(enhancedMessage);
+				await this.messageRenderer.renderMarkdownContent(msgEl, response);
+				this.messageRenderer.addCopyButton(msgEl);
+			}
+		} catch (error) {
+			this.addErrorMessage(`Skill execution failed: ${error}`);
+		} finally {
+			this.isProcessing = false;
+			this.updateUIState();
+			this.hideThinkingIndicator();
 		}
 
 		return true;

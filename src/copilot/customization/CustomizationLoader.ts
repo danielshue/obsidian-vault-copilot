@@ -15,6 +15,7 @@
 import { App, TFile, TFolder, FileSystemAdapter } from "obsidian";
 import { normalizeVaultPath, isVaultRoot, toVaultRelativePath, expandHomePath } from "../../utils/pathUtils";
 import { isDesktop } from "../../utils/platform";
+import { parseYamlKeyValues, parseFrontmatter } from "./YamlParser";
 
 /**
  * Parsed agent from .agent.md file
@@ -117,53 +118,7 @@ export interface VoiceAgentDefinition {
 	instructions: string;
 }
 
-/**
- * Simple YAML key-value parser
- */
-function parseYamlKeyValues(yamlStr: string): Record<string, unknown> {
-	const frontmatter: Record<string, unknown> = {};
-	const lines = yamlStr.split(/\r?\n/);
-	
-	for (const line of lines) {
-		const colonIndex = line.indexOf(':');
-		if (colonIndex === -1) continue;
-
-		const key = line.slice(0, colonIndex).trim();
-		let value: unknown = line.slice(colonIndex + 1).trim();
-
-		// Handle arrays like ["read", "search", "edit"]
-		if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
-			try {
-				value = JSON.parse(value.replace(/'/g, '"'));
-			} catch {
-				// Keep as string if parsing fails
-			}
-		}
-		// Handle quoted strings
-		else if (typeof value === 'string' && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
-			value = value.slice(1, -1);
-		}
-
-		frontmatter[key] = value;
-	}
-	
-	return frontmatter;
-}
-
-/**
- * Parse YAML frontmatter from markdown content
- */
-function parseFrontmatter(content: string): { frontmatter: Record<string, unknown>; body: string } {
-	const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-	if (!match) {
-		return { frontmatter: {}, body: content };
-	}
-
-	const yamlStr = match[1] || '';
-	const body = match[2] || '';
-
-	return { frontmatter: parseYamlKeyValues(yamlStr), body: body.trim() };
-}
+// parseYamlKeyValues and parseFrontmatter are imported from YamlParser.ts
 
 /**
  * Parse content from a code block (e.g., ```skill ... ```)
