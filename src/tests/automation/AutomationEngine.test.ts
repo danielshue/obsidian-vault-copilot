@@ -15,7 +15,7 @@ import { AutomationExecutionContext } from "../../automation/types";
 // Mock the main plugin
 const mockPlugin = {
 settings: {
-aiProvider: 'copilot',
+aiProvider: 'copilot' as 'copilot' | 'openai' | 'azure-openai',
 },
 githubCopilotCliService: {
 isConnected: vi.fn(() => true),

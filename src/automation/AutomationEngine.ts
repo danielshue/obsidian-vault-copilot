@@ -428,6 +428,13 @@ export class AutomationEngine {
 	}
 
 	/**
+	 * Check if a value is a plain object (not null, not array)
+	 */
+	private isPlainObject(value: unknown): value is Record<string, unknown> {
+		return typeof value === 'object' && value !== null && !Array.isArray(value);
+	}
+
+	/**
 	 * Send a message to the active AI provider, connecting if necessary
 	 */
 	private async sendToAIProvider(message: string): Promise<string> {
@@ -502,7 +509,7 @@ export class AutomationEngine {
 		
 		// Replace input variables if provided
 		if (input) {
-			if (typeof input === 'object' && !Array.isArray(input)) {
+			if (this.isPlainObject(input)) {
 				for (const [key, value] of Object.entries(input)) {
 					const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
 					content = content.replace(new RegExp(`\\{${key}\\}`, 'g'), valueStr);
@@ -527,9 +534,7 @@ export class AutomationEngine {
 		console.log(`AutomationEngine: Running skill '${skillId}' with input:`, input);
 		
 		// Prepare arguments for the skill
-		const args = (input && typeof input === 'object' && !Array.isArray(input)) 
-			? input as Record<string, unknown>
-			: {};
+		const args = this.isPlainObject(input) ? input : {};
 		
 		// Execute the skill
 		const result = await this.plugin.skillRegistry.executeSkill(skillId, args);
