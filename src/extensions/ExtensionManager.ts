@@ -60,6 +60,7 @@ interface TrackingFileData {
  */
 export class ExtensionManager {
 	private app: App;
+	private plugin: any; // VaultCopilotPlugin - using any to avoid circular dependency
 	private trackingFilePath: string;
 	private installedExtensionsMap: Map<string, LocalExtensionRecord>;
 	/** Analytics service for tracking installs/uninstalls/ratings */
@@ -75,9 +76,10 @@ export class ExtensionManager {
 	 * Creates a new ExtensionManager.
 	 * 
 	 * @param app - Obsidian App instance
-	 * @param options - Optional configuration for analytics
+	 * @param options - Optional configuration for analytics and plugin reference
 	 */
 	constructor(app: App, options?: {
+		plugin?: any; // VaultCopilotPlugin
 		enableAnalytics?: boolean;
 		analyticsEndpoint?: string;
 		githubUsername?: string;
@@ -85,6 +87,7 @@ export class ExtensionManager {
 		pluginVersion?: string;
 	}) {
 		this.app = app;
+		this.plugin = options?.plugin;
 		this.trackingFilePath = ".obsidian/obsidian-vault-copilot-extensions.json";
 		this.installedExtensionsMap = new Map();
 		this.analyticsEnabled = options?.enableAnalytics !== false;
@@ -304,6 +307,7 @@ export class ExtensionManager {
 			// Update tracking file
 			const record: LocalExtensionRecord = {
 				extensionId: manifest.uniqueId,
+				extensionKind: manifest.kind,
 				installedVersion: manifest.semanticVersion,
 				installationTimestamp: new Date().toISOString(),
 				installedFilePaths: installedPaths,
@@ -314,6 +318,17 @@ export class ExtensionManager {
 			await this.saveTrackingFile();
 			
 			console.log(`[ExtensionManager] Installation of ${manifest.uniqueId} completed successfully`);
+			
+			// Handle automation extension registration
+			if (manifest.kind === 'automation' && this.plugin) {
+				try {
+					const { handleAutomationInstall } = await import('../automation/AutomationIntegration');
+					await handleAutomationInstall(this.app, this.plugin, manifest);
+				} catch (error) {
+					console.error(`[ExtensionManager] Failed to register automation:`, error);
+					// Don't fail the installation, but warn the user
+				}
+			}
 			
 			// Track install analytics (fire-and-forget, don't fail installation)
 			this.trackInstallAnalytics(manifest.uniqueId, manifest.semanticVersion)
@@ -378,6 +393,17 @@ export class ExtensionManager {
 					modifiedFilePaths: [],
 					errorDetails: `Cannot uninstall: Required by ${dependents.join(", ")}`,
 				};
+			}
+			
+			// Handle automation extension unregistration BEFORE removing files
+			if (record.extensionKind === 'automation' && this.plugin) {
+				try {
+					const { handleAutomationUninstall } = await import('../automation/AutomationIntegration');
+					await handleAutomationUninstall(this.app, this.plugin, extensionId);
+				} catch (error) {
+					console.error(`[ExtensionManager] Failed to unregister automation:`, error);
+					// Continue with uninstall even if unregistration fails
+				}
 			}
 			
 			// Remove all installed files

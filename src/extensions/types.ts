@@ -21,7 +21,8 @@ export type VaultExtensionKind =
 	| "voice-agent" 
 	| "prompt" 
 	| "skill" 
-	| "mcp-server";
+	| "mcp-server"
+	| "automation";
 
 /**
  * Creator information for an extension.
@@ -273,6 +274,9 @@ export interface CatalogManifest {
 export interface LocalExtensionRecord {
 	/** ID of the installed extension */
 	extensionId: string;
+	
+	/** Type of extension (agent, voice-agent, prompt, skill, mcp-server, automation) */
+	extensionKind: VaultExtensionKind;
 	
 	/** Version currently installed */
 	installedVersion: string;
