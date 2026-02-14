@@ -44,8 +44,16 @@ az containerapp update `
     --output none
 Write-Host "✓ Container App updated`n" -ForegroundColor Green
 
-# Step 4: Configure CORS policy on ingress
-Write-Host "Step 4: Configuring CORS policy..." -ForegroundColor Cyan
+# Step 4: Ensure storage account public network access is enabled
+Write-Host "Step 4: Verifying storage account network access..." -ForegroundColor Cyan
+az storage account update `
+    -n $storageAccount `
+    --public-network-access Enabled `
+    --output none
+Write-Host "✓ Storage account public network access enabled`n" -ForegroundColor Green
+
+# Step 5: Configure CORS policy on ingress
+Write-Host "Step 5: Configuring CORS policy..." -ForegroundColor Cyan
 az containerapp ingress cors enable `
     --name $appName `
     --resource-group $resourceGroup `
@@ -56,8 +64,8 @@ az containerapp ingress cors enable `
     --output none
 Write-Host "✓ CORS policy applied`n" -ForegroundColor Green
 
-# Step 5: Test
-Write-Host "Step 5: Testing deployment..." -ForegroundColor Cyan
+# Step 6: Test
+Write-Host "Step 6: Testing deployment..." -ForegroundColor Cyan
 $fqdn = az containerapp show `
     --name $appName `
     --resource-group $resourceGroup `
