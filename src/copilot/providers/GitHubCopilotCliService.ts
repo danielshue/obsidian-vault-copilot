@@ -696,7 +696,8 @@ export class GitHubCopilotCliService {
 				},
 			});
 			
-			tools.push(tool);
+			// Cast needed: defineTool returns Tool<T> with varying T per handler signature
+			tools.push(tool as any);
 		}
 
 		return tools;
@@ -735,7 +736,8 @@ export class GitHubCopilotCliService {
 				},
 			});
 
-			tools.push(sdkTool);
+			// Cast needed: defineTool returns Tool<T> with varying T per handler signature
+			tools.push(sdkTool as any);
 		}
 
 		return tools;
@@ -1569,11 +1571,142 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 					return await handleEvolveBaseSchema(this.app, args);
 				},
 			}),
+
+			// Introspection tools
+			defineTool(TOOL_NAMES.LIST_AVAILABLE_TOOLS, {
+				description: TOOL_DESCRIPTIONS[TOOL_NAMES.LIST_AVAILABLE_TOOLS],
+				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.LIST_AVAILABLE_TOOLS],
+				handler: async (args: { source?: string }) => {
+					const source = args.source || "all";
+					const catalog = new (await import("../tools/ToolCatalog")).ToolCatalog(
+						this.config.skillRegistry,
+						this.config.mcpManager
+					);
+					const allTools = catalog.getAllTools();
+					const filtered = source === "all"
+						? allTools
+						: allTools.filter(t => t.source === source);
+					return {
+						count: filtered.length,
+						source,
+						tools: filtered.map(t => ({
+							id: t.id,
+							displayName: t.displayName,
+							description: t.description,
+							source: t.source,
+							...(t.serverName ? { serverName: t.serverName } : {}),
+						})),
+					};
+				},
+			}),
+
+			defineTool(TOOL_NAMES.LIST_AVAILABLE_SKILLS, {
+				description: TOOL_DESCRIPTIONS[TOOL_NAMES.LIST_AVAILABLE_SKILLS],
+				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.LIST_AVAILABLE_SKILLS],
+				handler: async (args: { source?: string }) => {
+					const source = args.source || "all";
+					const results: Array<{ name: string; description: string; source: string; path?: string }> = [];
+
+					// File-based skills from CustomizationLoader
+					if (source === "all" || source === "file") {
+						const dirs = this.config.skillDirectories ?? [];
+						const fileSkills = await this.customizationLoader.loadSkills(dirs);
+						for (const skill of fileSkills) {
+							results.push({
+								name: skill.name,
+								description: skill.description,
+								source: "file",
+								path: skill.path,
+							});
+						}
+					}
+
+					// Runtime skills from SkillRegistry
+					if (source === "all" || source === "runtime") {
+						if (this.config.skillRegistry) {
+							for (const skill of this.config.skillRegistry.listSkills()) {
+								results.push({
+									name: skill.name,
+									description: skill.description,
+									source: "runtime",
+								});
+							}
+						}
+					}
+
+					return { count: results.length, source, skills: results };
+				},
+			}),
+
+			defineTool(TOOL_NAMES.LIST_AVAILABLE_AGENTS, {
+				description: TOOL_DESCRIPTIONS[TOOL_NAMES.LIST_AVAILABLE_AGENTS],
+				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.LIST_AVAILABLE_AGENTS],
+				handler: async (args: { name?: string }) => {
+					const dirs = this.config.agentDirectories ?? [];
+					const agents = await this.customizationLoader.loadAgents(dirs);
+					const filtered = args.name
+						? agents.filter(a => a.name.toLowerCase().includes(args.name!.toLowerCase()))
+						: agents;
+					return {
+						count: filtered.length,
+						agents: filtered.map(a => ({
+							name: a.name,
+							description: a.description,
+							tools: a.tools ?? [],
+							path: a.path,
+						})),
+					};
+				},
+			}),
+
+			defineTool(TOOL_NAMES.LIST_AVAILABLE_PROMPTS, {
+				description: TOOL_DESCRIPTIONS[TOOL_NAMES.LIST_AVAILABLE_PROMPTS],
+				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.LIST_AVAILABLE_PROMPTS],
+				handler: async (args: { name?: string }) => {
+					const dirs = this.config.promptDirectories ?? [];
+					const prompts = await this.customizationLoader.loadPrompts(dirs);
+					const filtered = args.name
+						? prompts.filter(p => p.name.toLowerCase().includes(args.name!.toLowerCase()))
+						: prompts;
+					return {
+						count: filtered.length,
+						prompts: filtered.map(p => ({
+							name: p.name,
+							description: p.description,
+							tools: p.tools ?? [],
+							model: p.model,
+							agent: p.agent,
+							path: p.path,
+						})),
+					};
+				},
+			}),
+
+			defineTool(TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS, {
+				description: TOOL_DESCRIPTIONS[TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS],
+				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS],
+				handler: async (args: { applyTo?: string }) => {
+					const dirs = this.config.instructionDirectories ?? [];
+					const instructions = await this.customizationLoader.loadInstructions(dirs);
+					const filtered = args.applyTo
+						? instructions.filter(i => i.applyTo?.toLowerCase().includes(args.applyTo!.toLowerCase()))
+						: instructions;
+					return {
+						count: filtered.length,
+						instructions: filtered.map(i => ({
+							name: i.name,
+							applyTo: i.applyTo,
+							path: i.path,
+						})),
+					};
+				},
+			}),
 		];
 
 		// Add ask_question tool if question callback is available
 		if (this.questionCallback) {
 			const callback = this.questionCallback;
+			// Cast needed: defineTool returns Tool<T> with varying T per handler signature
 			tools.push(
 				defineTool(TOOL_NAMES.ASK_QUESTION, {
 					description: TOOL_DESCRIPTIONS[TOOL_NAMES.ASK_QUESTION],
@@ -1670,7 +1803,7 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 							};
 						}
 					},
-				})
+				}) as any
 			);
 		}
 

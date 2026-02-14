@@ -123,6 +123,13 @@ const BUILTIN_TOOLS: ToolInfo[] = [
 	createBuiltinTool(TOOL_NAMES.SHOW_MARKDOWN, "Show Markdown"),
 	createBuiltinTool(TOOL_NAMES.SPEAK, "Speak"),
 	createBuiltinTool(TOOL_NAMES.ASK_QUESTION, "Ask Question"),
+
+	// Introspection tools
+	createBuiltinTool(TOOL_NAMES.LIST_AVAILABLE_TOOLS, "List Available Tools"),
+	createBuiltinTool(TOOL_NAMES.LIST_AVAILABLE_SKILLS, "List Available Skills"),
+	createBuiltinTool(TOOL_NAMES.LIST_AVAILABLE_AGENTS, "List Available Agents"),
+	createBuiltinTool(TOOL_NAMES.LIST_AVAILABLE_PROMPTS, "List Available Prompts"),
+	createBuiltinTool(TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS, "List Available Instructions"),
 	
 	// Bases AI tools
 	{

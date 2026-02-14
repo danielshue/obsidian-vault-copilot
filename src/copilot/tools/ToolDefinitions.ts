@@ -125,6 +125,13 @@ export const TOOL_NAMES = {
 
 	// Question operations
 	ASK_QUESTION: "ask_question",
+
+	// Introspection operations
+	LIST_AVAILABLE_TOOLS: "list_available_tools",
+	LIST_AVAILABLE_SKILLS: "list_available_skills",
+	LIST_AVAILABLE_AGENTS: "list_available_agents",
+	LIST_AVAILABLE_PROMPTS: "list_available_prompts",
+	LIST_AVAILABLE_INSTRUCTIONS: "list_available_instructions",
 } as const;
 
 export type ToolName = typeof TOOL_NAMES[keyof typeof TOOL_NAMES];
@@ -169,6 +176,11 @@ export const TOOL_DESCRIPTIONS = {
 	[TOOL_NAMES.SHOW_MARKDOWN]: "Display markdown content to the user in a modal",
 	[TOOL_NAMES.SPEAK]: "Speak text to the user using text-to-speech",
 	[TOOL_NAMES.ASK_QUESTION]: "Ask the user a question and get their response. Supports text input, multiple choice, radio buttons, and mixed (choice + text) questions. Use this when you need clarification, additional information, or user preferences to complete a task.",
+	[TOOL_NAMES.LIST_AVAILABLE_TOOLS]: "List all available tools in the current environment. Returns tool names, descriptions, and sources (builtin, plugin, mcp). Use source parameter to filter by origin.",
+	[TOOL_NAMES.LIST_AVAILABLE_SKILLS]: "List all available skills (both file-based SKILL.md and runtime-registered). Returns skill names, descriptions, and sources. Use source parameter to filter.",
+	[TOOL_NAMES.LIST_AVAILABLE_AGENTS]: "List all available custom agents loaded from .agent.md files. Returns agent names, descriptions, configured tools, and file paths.",
+	[TOOL_NAMES.LIST_AVAILABLE_PROMPTS]: "List all available prompt templates loaded from .prompt.md files. Returns prompt names, descriptions, configured tools, models, and file paths.",
+	[TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS]: "List all available instruction files loaded from .instructions.md files. Returns instruction names, applyTo patterns, and file paths.",
 } as const;
 
 // ============================================================================
@@ -331,6 +343,36 @@ export interface ShowMarkdownParams {
 export interface SpeakParams {
 	/** The text to speak */
 	text: string;
+}
+
+/** Parameters for list_available_tools */
+export interface ListAvailableToolsParams {
+	/** Filter by source: 'builtin', 'plugin', 'mcp', or 'all' (default: 'all') */
+	source?: string;
+}
+
+/** Parameters for list_available_skills */
+export interface ListAvailableSkillsParams {
+	/** Filter by source: 'file' (SKILL.md), 'runtime' (SkillRegistry), or 'all' (default: 'all') */
+	source?: string;
+}
+
+/** Parameters for list_available_agents */
+export interface ListAvailableAgentsParams {
+	/** Optional name filter (substring match) */
+	name?: string;
+}
+
+/** Parameters for list_available_prompts */
+export interface ListAvailablePromptsParams {
+	/** Optional name filter (substring match) */
+	name?: string;
+}
+
+/** Parameters for list_available_instructions */
+export interface ListAvailableInstructionsParams {
+	/** Optional applyTo pattern filter */
+	applyTo?: string;
 }
 
 // ============================================================================
@@ -604,6 +646,63 @@ export const TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
 			}
 		},
 		required: ["type", "question"]
+	},
+
+	[TOOL_NAMES.LIST_AVAILABLE_TOOLS]: {
+		type: "object",
+		properties: {
+			source: {
+				type: "string",
+				enum: ["all", "builtin", "plugin", "mcp"],
+				description: "Filter tools by source (default: 'all')"
+			}
+		},
+		required: []
+	},
+
+	[TOOL_NAMES.LIST_AVAILABLE_SKILLS]: {
+		type: "object",
+		properties: {
+			source: {
+				type: "string",
+				enum: ["all", "file", "runtime"],
+				description: "Filter skills by source: 'file' for SKILL.md files, 'runtime' for SkillRegistry, 'all' for both (default: 'all')"
+			}
+		},
+		required: []
+	},
+
+	[TOOL_NAMES.LIST_AVAILABLE_AGENTS]: {
+		type: "object",
+		properties: {
+			name: {
+				type: "string",
+				description: "Optional name filter (case-insensitive substring match)"
+			}
+		},
+		required: []
+	},
+
+	[TOOL_NAMES.LIST_AVAILABLE_PROMPTS]: {
+		type: "object",
+		properties: {
+			name: {
+				type: "string",
+				description: "Optional name filter (case-insensitive substring match)"
+			}
+		},
+		required: []
+	},
+
+	[TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS]: {
+		type: "object",
+		properties: {
+			applyTo: {
+				type: "string",
+				description: "Optional applyTo pattern filter (substring match)"
+			}
+		},
+		required: []
 	}
 } as const;
 
@@ -787,6 +886,13 @@ export const TOOL_CATEGORIES = {
 		TOOL_NAMES.SHOW_MARKDOWN,
 		TOOL_NAMES.SPEAK,
 		TOOL_NAMES.ASK_QUESTION,
+	],
+	INTROSPECTION: [
+		TOOL_NAMES.LIST_AVAILABLE_TOOLS,
+		TOOL_NAMES.LIST_AVAILABLE_SKILLS,
+		TOOL_NAMES.LIST_AVAILABLE_AGENTS,
+		TOOL_NAMES.LIST_AVAILABLE_PROMPTS,
+		TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS,
 	],
 } as const;
 

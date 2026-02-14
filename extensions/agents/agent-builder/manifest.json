@@ -1,0 +1,19 @@
+{
+  "id": "agent-builder",
+  "name": "Agent Builder",
+  "version": "1.0.0",
+  "type": "agent",
+  "description": "Interactive assistant that guides you through creating custom .agent.md files with best practices, dynamic tool/skill discovery, and quality validation.",
+  "author": "Vault Copilot",
+  "license": "MIT",
+  "minAppVersion": "0.0.14",
+  "files": [
+    "agent-builder.agent.md"
+  ],
+  "tags": [
+    "agent",
+    "builder",
+    "meta",
+    "customization"
+  ]
+}
