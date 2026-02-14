@@ -22,6 +22,7 @@ import { DiscoveredMcpServer, isStdioConfig, McpConnectionStatus, McpServerSourc
 import { getSourceLabel, getSourceIcon } from "../../copilot/mcp/McpManager";
 import { ToolCatalog } from "../../copilot/tools/ToolCatalog";
 import { ToolPickerModal, CopilotChatView, COPILOT_VIEW_TYPE } from "../ChatView";
+import { EXTENSION_BROWSER_VIEW_TYPE } from "../extensions/ExtensionBrowserView";
 import { FileSuggest } from "../FileSuggest";
 import { getOpenAIApiKey } from "../../copilot/providers/AIProvider";
 import { RealtimeVoice, TurnDetectionMode, DEFAULT_TOOL_CONFIG } from "../../copilot/voice-chat";
@@ -2555,14 +2556,17 @@ console.log("Discovering models...");
 					.setButtonText("Browse Automations")
 					.onClick(async () => {
 						// Open extension browser filtered to automations
-						const leaves = this.app.workspace.getLeavesOfType("extension-browser");
+						const viewState = {
+							type: EXTENSION_BROWSER_VIEW_TYPE,
+							active: true,
+							state: { filterByKind: "automation" },
+						};
+						const leaves = this.app.workspace.getLeavesOfType(EXTENSION_BROWSER_VIEW_TYPE);
 						if (leaves.length > 0 && leaves[0]) {
+							await leaves[0].setViewState(viewState);
 							this.app.workspace.revealLeaf(leaves[0]);
 						} else {
-							await this.app.workspace.getLeaf(true).setViewState({
-								type: "extension-browser",
-								active: true,
-							});
+							await this.app.workspace.getLeaf(true).setViewState(viewState);
 						}
 					}));
 			return;

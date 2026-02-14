@@ -11,7 +11,7 @@
  * extensions from the marketplace catalog.
  */
 
-import { ItemView, WorkspaceLeaf, setIcon, Menu } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, Menu, ViewStateResult } from "obsidian";
 import type CopilotPlugin from "../../main";
 import { ExtensionCatalogService } from "../../extensions/ExtensionCatalogService";
 import { ExtensionManager } from "../../extensions/ExtensionManager";
@@ -83,6 +83,28 @@ export class ExtensionBrowserView extends ItemView {
 	
 	async onClose(): Promise<void> {
 		// Cleanup handled by parent class
+	}
+
+	/**
+	 * Returns the current view state including active filter.
+	 */
+	getState(): Record<string, unknown> {
+		return {
+			filterByKind: this.activeTypeFilter || undefined,
+		};
+	}
+
+	/**
+	 * Restores view state, applying any initial type filter.
+	 * @param state - Persisted state with optional filterByKind
+	 */
+	async setState(state: unknown, result: ViewStateResult): Promise<void> {
+		const s = state as Record<string, unknown> | null;
+		if (s?.filterByKind && typeof s.filterByKind === "string") {
+			this.activeTypeFilter = s.filterByKind;
+			await this.renderSections();
+		}
+		await super.setState(state, result);
 	}
 	
 	/**
@@ -199,6 +221,7 @@ export class ExtensionBrowserView extends ItemView {
 		const types: { label: string; value: string; icon: string }[] = [
 			{ label: "All Types", value: "", icon: "list" },
 			{ label: "Agents", value: "agent", icon: "bot" },
+			{ label: "Automations", value: "automation", icon: "timer" },
 			{ label: "Voice Agents", value: "voice-agent", icon: "mic" },
 			{ label: "Prompts", value: "prompt", icon: "file-text" },
 			{ label: "Skills", value: "skill", icon: "wrench" },
