@@ -18,6 +18,16 @@
         "extensions/agents/daily-journal-agent/daily-journal-agent.agent.md"
       ],
       "linkedDependencies": []
+    },
+    "agent-builder": {
+      "extensionId": "agent-builder",
+      "extensionKind": "agent",
+      "installedVersion": "1.0.0",
+      "installationTimestamp": "2026-02-14T03:08:35.991Z",
+      "installedFilePaths": [
+        "Reference/Agents/agent-builder.agent.md"
+      ],
+      "linkedDependencies": []
     }
   }
 }
