@@ -7,7 +7,7 @@ version: "1.0.0"
 description: "Interactive assistant that guides you through creating custom .agent.md files with best practices, dynamic tool/skill discovery, and quality validation."
 author: "Vault Copilot"
 tags: ["agent", "builder", "meta", "customization"]
-size: "8.4 KB"
+size: "10.6 KB"
 ---
 
 ## What it does
