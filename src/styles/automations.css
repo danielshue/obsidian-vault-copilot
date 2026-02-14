@@ -61,8 +61,8 @@
 }
 
 .vc-status-enabled {
-	background: var(--interactive-success);
-	color: var(--text-on-accent);
+	background: var(--interactive-success, #4caf50);
+	color: #fff;
 }
 
 .vc-status-disabled {
