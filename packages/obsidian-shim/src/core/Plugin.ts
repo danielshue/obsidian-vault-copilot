@@ -74,15 +74,16 @@ export class Plugin extends Component {
 		title: string,
 		callback: (evt: MouseEvent) => any,
 	): HTMLElement {
-		const ribbon = document.querySelector(".workspace-ribbon");
+		const container = document.querySelector(".workspace-ribbon.mod-left")
+			|| document.querySelector(".workspace-ribbon");
 		const btn = document.createElement("div");
 		btn.addClass("side-dock-ribbon-action");
 		btn.setAttribute("aria-label", title);
 		btn.setAttribute("title", title);
 		setIcon(btn, icon);
 		btn.addEventListener("click", callback);
-		if (ribbon) {
-			ribbon.appendChild(btn);
+		if (container) {
+			container.appendChild(btn);
 		}
 		return btn;
 	}
@@ -101,6 +102,7 @@ export class Plugin extends Component {
 	/** Register a settings tab. */
 	addSettingTab(settingTab: PluginSettingTab): void {
 		this._settingTabs.push(settingTab);
+		this.app._settingTabs.push(settingTab);
 	}
 
 	/** Get all registered setting tabs. */

@@ -148,6 +148,15 @@ export function initDomExtensions(): void {
 		this.classList.toggle(cls, force);
 	};
 
+	// setAttr — Obsidian's setAttribute shorthand
+	(HTMLElement.prototype as any).setAttr = function (
+		this: HTMLElement,
+		name: string,
+		value: string,
+	): void {
+		this.setAttribute(name, value);
+	};
+
 	// HTMLInputElement.trigger — dispatches a synthetic event
 	(HTMLInputElement.prototype as any).trigger = function (
 		this: HTMLInputElement,
@@ -168,6 +177,7 @@ declare global {
 		removeClass(...cls: string[]): void;
 		setText(text: string): void;
 		toggleClass(cls: string, force?: boolean): void;
+		setAttr(name: string, value: string): void;
 	}
 	interface HTMLInputElement {
 		trigger(eventType: string): void;

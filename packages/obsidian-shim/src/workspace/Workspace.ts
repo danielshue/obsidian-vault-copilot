@@ -109,7 +109,9 @@ export class Workspace extends Events {
 		if (existing && !shouldSplit) return existing;
 		const leaf = this._createLeaf("left");
 		this._leaves.push(leaf);
-		this.leftSplit.appendChild(leaf.containerEl);
+		// Append to .ws-left-content if available, otherwise leftSplit directly
+		const target = this.leftSplit.querySelector(".ws-left-content") || this.leftSplit;
+		target.appendChild(leaf.containerEl);
 		return leaf;
 	}
 
@@ -147,8 +149,24 @@ export class Workspace extends Events {
 		return null;
 	}
 
+	/** Whether layout-ready has been triggered. */
+	private _layoutReady = false;
+
 	/** Trigger the layout-ready event (called after bootstrap). */
 	layoutReady(): void {
+		this._layoutReady = true;
 		this.trigger("layout-ready");
+	}
+
+	/**
+	 * Register a callback for when the layout is ready.
+	 * If already ready, calls the callback immediately.
+	 */
+	onLayoutReady(callback: () => void): void {
+		if (this._layoutReady) {
+			callback();
+		} else {
+			this.on("layout-ready", callback);
+		}
 	}
 }

@@ -20,6 +20,7 @@ import CopilotPlugin from "../../main";
 import { GitHubCopilotCliManager, CliStatus } from "../../copilot/providers/GitHubCopilotCliManager";
 import { ToolCatalog } from "../../copilot/tools/ToolCatalog";
 import { CopilotChatView, COPILOT_VIEW_TYPE } from "../ChatView";
+import { isDesktop } from "../../utils/platform";
 
 import type { SettingSectionContext } from "./sections/SectionHelpers";
 import {
@@ -90,8 +91,10 @@ export class CopilotSettingTab extends PluginSettingTab {
 		// ── Periodic Notes ────────────────────────────────────────────
 		renderPeriodicNotesSection(containerEl, ctx);
 
-		// ── Whisper.cpp ───────────────────────────────────────────────
-		renderWhisperCppSection(containerEl, ctx);
+		// ── Whisper.cpp (desktop only — requires Node.js) ────────────
+		if (isDesktop) {
+			renderWhisperCppSection(containerEl, ctx);
+		}
 
 		// ── Voice Input ───────────────────────────────────────────────
 		renderVoiceInputSection(containerEl, ctx);

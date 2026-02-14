@@ -59,7 +59,7 @@ import {
 } from "../mcp-apps";
 import { SLASH_COMMANDS } from "./processing/SlashCommands";
 import { InlineQuestionRenderer } from "./renderers/InlineQuestionRenderer";
-import { renderWelcomeMessage } from "./renderers/WelcomeMessage";
+import { renderWelcomeMessage, WelcomeMessageHandle } from "./renderers/WelcomeMessage";
 import { PromptPicker } from "./pickers/PromptPicker";
 import { ContextPicker } from "./pickers/ContextPicker";
 import { PromptProcessor } from "./processing/PromptProcessor";
@@ -71,9 +71,7 @@ import { VoiceChatService } from "../../copilot/voice-chat";
 import type { QuestionRequest, QuestionResponse } from "../../types/questions";
 import { AIProvider } from "../../copilot/providers/AIProvider";
 import { getSecretValue } from "../../utils/secrets";
-import { NoProviderPlaceholder } from "./components/NoProviderPlaceholder";
 import { checkAnyProviderAvailable } from "../../utils/providerAvailability";
-import { isDesktop } from "../../utils/platform";
 import { EditorSelectionManager } from "./components/EditorSelectionManager";
 import { VoiceConversationStore } from "./components/VoiceConversationStore";
 import { MessageContextBuilder } from "./processing/MessageContextBuilder";
@@ -135,8 +133,8 @@ export class CopilotChatView extends ItemView {
 	// Thinking indicator
 	private thinkingIndicatorEl: HTMLElement | null = null;
 	
-	// No provider placeholder
-	private noProviderPlaceholder: NoProviderPlaceholder | null = null;
+	// Welcome message handle for provider warning
+	private welcomeMessageHandle: WelcomeMessageHandle | null = null;
 	private settingsChangeUnsubscribe: (() => void) | null = null;
 
 	// Editor selection preservation
@@ -154,11 +152,13 @@ export class CopilotChatView extends ItemView {
 		this.voiceConversationStore = new VoiceConversationStore(plugin.settings, () => plugin.saveSettings());
 		
 		const activeService = this.getActiveAIService();
-		this.wireQuestionCallback(activeService);
+		if (activeService) {
+			this.wireQuestionCallback(activeService);
+		}
 
 		this.sessionManager = new SessionManager(
 			plugin.settings,
-			activeService as GitHubCopilotCliService,
+			(activeService ?? null) as GitHubCopilotCliService,
 			() => plugin.saveSettings(),
 			{
 				onSessionCreated: () => {
@@ -197,7 +197,7 @@ export class CopilotChatView extends ItemView {
 			plugin,
 			this.promptProcessor,
 			this.contextAugmentation,
-			activeService as GitHubCopilotCliService
+			(activeService ?? null) as GitHubCopilotCliService
 		);
 
 		// Initialize ToolbarManager
@@ -300,11 +300,11 @@ export class CopilotChatView extends ItemView {
 	/**
 	 * Get the active AI service (Copilot, OpenAI, or Azure)
 	 */
-	private getActiveAIService(): GitHubCopilotCliService | AIProvider {
+	private getActiveAIService(): GitHubCopilotCliService | AIProvider | null {
 		const activeService = this.plugin.getActiveService();
 		if (activeService) return activeService as GitHubCopilotCliService;
 		if (this.githubCopilotCliService) return this.githubCopilotCliService;
-		throw new Error("No AI service is configured. Please configure an API key in settings.");
+		return null;
 	}
 
 	getViewType(): string {
@@ -527,7 +527,7 @@ export class CopilotChatView extends ItemView {
 
 		await this.loadMessages();
 
-		if (this.githubCopilotCliService.getMessageHistory().length === 0) {
+		if (!this.githubCopilotCliService || this.githubCopilotCliService.getMessageHistory().length === 0) {
 			this.addWelcomeMessage();
 		}
 
@@ -553,27 +553,10 @@ export class CopilotChatView extends ItemView {
 
 		if (status.available) {
 			if (this.inputArea) this.inputArea.style.display = "";
-			if (this.noProviderPlaceholder) this.noProviderPlaceholder.hide();
+			if (this.welcomeMessageHandle) this.welcomeMessageHandle.setProviderWarningVisible(false);
 		} else {
 			if (this.inputArea) this.inputArea.style.display = "none";
-			
-			if (!this.noProviderPlaceholder && this.mainViewEl) {
-				this.noProviderPlaceholder = new NoProviderPlaceholder(
-					this.mainViewEl,
-					this.app,
-					{
-						onOpenSettings: () => {
-							(this.app as any).setting.open();
-							(this.app as any).setting.openTabById("obsidian-vault-copilot");
-						},
-						onInstallCli: isDesktop ? () => {
-							window.open("https://docs.github.com/en/copilot/how-tos/copilot-cli/install-copilot-cli", "_blank");
-						} : undefined,
-					}
-				);
-			} else if (this.noProviderPlaceholder) {
-				this.noProviderPlaceholder.show();
-			}
+			if (this.welcomeMessageHandle) this.welcomeMessageHandle.setProviderWarningVisible(true);
 		}
 	}
 
@@ -669,6 +652,7 @@ export class CopilotChatView extends ItemView {
 
 	private async startService(): Promise<void> {
 		try {
+			if (!this.githubCopilotCliService) return;
 			if (!this.githubCopilotCliService.isConnected()) {
 				await this.githubCopilotCliService.start();
 				
@@ -879,16 +863,14 @@ export class CopilotChatView extends ItemView {
 			this.settingsChangeUnsubscribe();
 			this.settingsChangeUnsubscribe = null;
 		}
-		// Cleanup no provider placeholder
-		if (this.noProviderPlaceholder) {
-			this.noProviderPlaceholder.destroy();
-			this.noProviderPlaceholder = null;
-		}
+		// Reset welcome message handle
+		this.welcomeMessageHandle = null;
 		// Cleanup editor selection
 		this.editorSelectionManager.destroy();
 	}
 
 	private async loadMessages(): Promise<void> {
+		if (!this.githubCopilotCliService) return;
 		const history = this.githubCopilotCliService.getMessageHistory();
 		for (const message of history) {
 			await this.messageRenderer.renderMessage(this.messagesContainer, message);
@@ -897,10 +879,19 @@ export class CopilotChatView extends ItemView {
 	}
 
 	private addWelcomeMessage(): void {
-		renderWelcomeMessage(this.messagesContainer, (text) => {
-			this.inputEl.innerText = text;
-			this.sendMessage();
-		});
+		this.welcomeMessageHandle = renderWelcomeMessage(
+			this.messagesContainer,
+			(text) => {
+				this.inputEl.innerText = text;
+				this.sendMessage();
+			},
+			{
+				onOpenSettings: () => {
+					(this.app as any).setting.open();
+					(this.app as any).setting.openTabById("obsidian-vault-copilot");
+				},
+			}
+		);
 	}
 
 	/**

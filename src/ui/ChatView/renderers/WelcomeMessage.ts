@@ -2,9 +2,30 @@
  * Welcome message rendering for the chat view
  */
 
+import { setIcon } from "obsidian";
+import { isDesktop } from "../../../utils/platform";
+
 export interface WelcomeExample {
 	icon: string;
 	text: string;
+}
+
+/**
+ * Options for rendering the welcome message
+ */
+export interface WelcomeMessageOptions {
+	/** Whether an AI provider is currently available */
+	providerAvailable?: boolean;
+	/** Callback when user clicks "Open Settings" in the provider warning */
+	onOpenSettings?: () => void;
+}
+
+/**
+ * Handle returned by renderWelcomeMessage to update provider warning visibility
+ */
+export interface WelcomeMessageHandle {
+	/** Show or hide the provider warning section */
+	setProviderWarningVisible(visible: boolean): void;
 }
 
 /**
@@ -59,11 +80,14 @@ export const WELCOME_EXAMPLES: WelcomeExample[] = [
  * Render the welcome message into a container
  * @param containerEl - The container to render into
  * @param onExampleClick - Callback when an example is clicked
+ * @param options - Optional configuration for provider warning display
+ * @returns Handle to update provider warning visibility
  */
 export function renderWelcomeMessage(
 	containerEl: HTMLElement,
-	onExampleClick: (text: string) => void
-): void {
+	onExampleClick: (text: string) => void,
+	options?: WelcomeMessageOptions
+): WelcomeMessageHandle {
 	const welcomeEl = containerEl.createDiv({ cls: "vc-welcome" });
 	
 	// Logo section
@@ -123,4 +147,39 @@ export function renderWelcomeMessage(
 		btn.createSpan({ text, cls: "vc-example-text" });
 		btn.addEventListener("click", () => onExampleClick(text));
 	}
+
+	// Provider warning section (shown when no AI provider is configured)
+	const warningEl = welcomeEl.createDiv({ cls: "vc-welcome-provider-warning" });
+	if (options?.providerAvailable !== false) {
+		warningEl.style.display = "none";
+	}
+	
+	const warningHeader = warningEl.createDiv({ cls: "vc-welcome-provider-warning-header" });
+	const warningIcon = warningHeader.createSpan({ cls: "vc-welcome-provider-warning-icon" });
+	setIcon(warningIcon, "alert-triangle");
+	warningHeader.createSpan({
+		cls: "vc-welcome-provider-warning-title",
+		text: "No AI Provider Configured"
+	});
+
+	const warningDesc = warningEl.createDiv({ cls: "vc-welcome-provider-warning-description" });
+	warningDesc.createSpan({ text: "To use chat, set up one of these:" });
+
+	const optionsList = warningEl.createEl("ul", { cls: "vc-welcome-provider-warning-options" });
+	optionsList.createEl("li", { text: "OpenAI API key" });
+	optionsList.createEl("li", { text: "Azure OpenAI API key" });
+
+	if (options?.onOpenSettings) {
+		const settingsBtn = warningEl.createEl("button", {
+			cls: "vc-welcome-provider-warning-btn",
+			text: "Open Settings"
+		});
+		settingsBtn.addEventListener("click", () => options.onOpenSettings?.());
+	}
+
+	return {
+		setProviderWarningVisible(visible: boolean): void {
+			warningEl.style.display = visible ? "" : "none";
+		}
+	};
 }

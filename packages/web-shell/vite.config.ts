@@ -5,6 +5,11 @@ const stub = (name: string) => path.resolve(__dirname, `src/stubs/${name}.ts`);
 
 export default defineConfig({
 	root: "src",
+	server: {
+		fs: {
+			allow: [path.resolve(__dirname, "../..")],
+		},
+	},
 	resolve: {
 		alias: {
 			obsidian: path.resolve(__dirname, "../obsidian-shim/src/index.ts"),
