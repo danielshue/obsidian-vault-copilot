@@ -44,8 +44,20 @@ az containerapp update `
     --output none
 Write-Host "✓ Container App updated`n" -ForegroundColor Green
 
-# Step 4: Test
-Write-Host "Step 4: Testing deployment..." -ForegroundColor Cyan
+# Step 4: Configure CORS policy on ingress
+Write-Host "Step 4: Configuring CORS policy..." -ForegroundColor Cyan
+az containerapp ingress cors enable `
+    --name $appName `
+    --resource-group $resourceGroup `
+    --allowed-origins "https://danielshue.github.io" "app://obsidian.md" "http://localhost" "http://localhost:3000" "http://127.0.0.1" `
+    --allowed-methods "GET" "POST" "PUT" "DELETE" "OPTIONS" `
+    --allowed-headers "Content-Type" "x-user-hash" `
+    --max-age 86400 `
+    --output none
+Write-Host "✓ CORS policy applied`n" -ForegroundColor Green
+
+# Step 5: Test
+Write-Host "Step 5: Testing deployment..." -ForegroundColor Cyan
 $fqdn = az containerapp show `
     --name $appName `
     --resource-group $resourceGroup `
