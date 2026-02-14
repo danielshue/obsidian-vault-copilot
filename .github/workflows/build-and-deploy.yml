@@ -1,4 +1,4 @@
-name: Build Catalog and Deploy Pages
+name: Build Website and Deploy Extension Catalog
 
 on:
   push:
