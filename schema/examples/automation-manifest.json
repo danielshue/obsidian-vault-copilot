@@ -1,0 +1,45 @@
+{
+  "$schema": "../manifest.schema.json",
+  "id": "daily-note-automation",
+  "name": "Daily Note Automation",
+  "version": "1.0.0",
+  "type": "automation",
+  "description": "Automatically creates and populates daily notes each morning with a template and yesterday's summary",
+  "author": {
+    "name": "Vault Community",
+    "url": "https://github.com/danielshue/vault-copilot-extensions"
+  },
+  "files": [
+    {
+      "source": "daily-note-automation.json",
+      "installPath": ".obsidian/automations/"
+    }
+  ],
+  "repository": "https://github.com/danielshue/vault-copilot-extensions",
+  "license": "MIT",
+  "minVaultCopilotVersion": "0.1.0",
+  "categories": ["Productivity", "Journaling"],
+  "tags": ["automation", "daily-notes", "templates", "scheduling"],
+  "tools": ["create_note", "read_note", "search_vault"],
+  "preview": "preview.png",
+  "automation": {
+    "triggers": [
+      {
+        "type": "schedule",
+        "schedule": "0 6 * * *"
+      }
+    ],
+    "actions": [
+      {
+        "type": "run-agent",
+        "agentId": "daily-journal",
+        "input": {
+          "mode": "create",
+          "includeYesterdaySummary": true
+        }
+      }
+    ],
+    "enabled": false,
+    "runOnInstall": false
+  }
+}

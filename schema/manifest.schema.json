@@ -30,8 +30,8 @@
     },
     "type": {
       "type": "string",
-      "enum": ["agent", "voice-agent", "prompt", "skill", "mcp-server"],
-      "description": "The type of extension. Determines installation location and behavior: 'agent' for AI agents, 'voice-agent' for voice-enabled agents, 'prompt' for reusable prompts, 'skill' for Copilot skills, 'mcp-server' for Model Context Protocol server integrations."
+      "enum": ["agent", "voice-agent", "prompt", "skill", "mcp-server", "automation"],
+      "description": "The type of extension. Determines installation location and behavior: 'agent' for AI agents, 'voice-agent' for voice-enabled agents, 'prompt' for reusable prompts, 'skill' for Copilot skills, 'mcp-server' for Model Context Protocol server integrations, 'automation' for scheduled or event-triggered workflows."
     },
     "description": {
       "type": "string",
@@ -216,6 +216,105 @@
       "type": "string",
       "description": "GitHub username of the person who submitted or last updated this extension. Used for update validation to ensure only the original submitter can update the extension.",
       "examples": ["danielshue", "janedeveloper", "github-username"]
+    },
+    "automation": {
+      "type": "object",
+      "description": "Automation-specific configuration. Required when type is 'automation'. Defines triggers and actions for scheduled or event-based workflows.",
+      "properties": {
+        "triggers": {
+          "type": "array",
+          "description": "List of triggers that activate this automation.",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["schedule", "file-created", "file-modified", "file-deleted", "vault-opened", "tag-added", "startup"],
+                "description": "Type of trigger: 'schedule' for time-based (cron), 'file-created'/'file-modified'/'file-deleted' for file events, 'vault-opened' when vault opens, 'tag-added' when a tag is added to a note, 'startup' when plugin loads."
+              },
+              "schedule": {
+                "type": "string",
+                "description": "Cron expression for schedule triggers (e.g., '0 9 * * *' for daily at 9am). Uses standard cron syntax.",
+                "examples": ["0 9 * * *", "0 */2 * * *", "0 0 * * 1"]
+              },
+              "pattern": {
+                "type": "string",
+                "description": "File path pattern for file-based triggers. Supports wildcards (* and **).",
+                "examples": ["Daily Notes/*.md", "Projects/**/*.md", "*.md"]
+              },
+              "tag": {
+                "type": "string",
+                "description": "Tag name for tag-added triggers.",
+                "examples": ["#todo", "#review", "#automated"]
+              },
+              "delay": {
+                "type": "number",
+                "description": "Delay in milliseconds before executing actions after trigger fires.",
+                "minimum": 0,
+                "examples": [0, 1000, 5000]
+              }
+            }
+          }
+        },
+        "actions": {
+          "type": "array",
+          "description": "List of actions to execute when triggered.",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["run-agent", "run-prompt", "run-skill", "create-note", "update-note", "run-command"],
+                "description": "Type of action to execute."
+              },
+              "agentId": {
+                "type": "string",
+                "description": "ID of agent to run (for run-agent action)."
+              },
+              "promptId": {
+                "type": "string",
+                "description": "ID of prompt to run (for run-prompt action)."
+              },
+              "skillId": {
+                "type": "string",
+                "description": "ID of skill to run (for run-skill action)."
+              },
+              "template": {
+                "type": "string",
+                "description": "Template content or path for note creation."
+              },
+              "path": {
+                "type": "string",
+                "description": "Target path for note operations."
+              },
+              "commandId": {
+                "type": "string",
+                "description": "Obsidian command ID to execute (for run-command action)."
+              },
+              "input": {
+                "type": "object",
+                "description": "Input parameters to pass to the action.",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the automation is enabled by default after installation."
+        },
+        "runOnInstall": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to run the automation immediately upon installation."
+        }
+      },
+      "required": ["triggers", "actions"]
     }
   }
 }
