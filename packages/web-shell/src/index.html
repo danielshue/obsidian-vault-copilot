@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vault Copilot</title>
+  <link rel="stylesheet" href="./theme.css" />
+  <link rel="stylesheet" href="../../../src/styles/styles.css" />
+</head>
+<body class="theme-light">
+  <div class="app-container">
+    <div class="workspace">
+      <div class="workspace-ribbon side-dock-ribbon"></div>
+      <div class="workspace-split mod-left-split"></div>
+      <div class="workspace-split mod-root"></div>
+      <div class="workspace-split mod-right-split"></div>
+    </div>
+    <div class="status-bar"></div>
+  </div>
+
+  <!-- Folder picker shown before vault is loaded -->
+  <div id="vault-picker" class="vault-picker">
+    <div class="vault-picker-content">
+      <h1>Vault Copilot</h1>
+      <p>Select a local folder to use as your vault.</p>
+      <button id="pick-folder-btn" class="mod-cta">Open folder</button>
+      <p id="picker-error" class="picker-error" style="display:none"></p>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
