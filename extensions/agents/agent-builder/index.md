@@ -9,7 +9,7 @@ author: "Dan Shue"
 author_url: "https://github.com/danielshue"
 categories: ["Productivity", "Utility"]
 tags: ["agent", "builder", "meta", "customization"]
-size: "11.4 KB"
+size: "11.7 KB"
 versions:
   - version: "1.0.0"
     date: "2026-02-13"
