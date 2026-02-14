@@ -364,6 +364,12 @@ export class OpenAIService extends AIProvider {
 		if (askQuestionTool) {
 			allTools.push(askQuestionTool);
 		}
+
+		// Add run_subagent tool if agent infrastructure is available
+		const subagentTool = this.createRunSubagentToolDefinition();
+		if (subagentTool) {
+			allTools.push(subagentTool);
+		}
 		
 		return allTools.map((tool) => ({
 			type: "function" as const,
@@ -381,49 +387,52 @@ export class OpenAIService extends AIProvider {
 	private async executeToolCalls(
 		toolCalls: OpenAIToolCall[]
 	): Promise<Array<{ tool_call_id: string; result: unknown }>> {
-		const results: Array<{ tool_call_id: string; result: unknown }> = [];
-
 		// Build complete tool list for lookup (same sources as buildTools)
 		const allTools = [...this.tools, ...this.convertMcpToolsToToolDefinitions()];
 		const askQuestionTool = this.createAskQuestionToolDefinition();
 		if (askQuestionTool) {
 			allTools.push(askQuestionTool);
 		}
+		const subagentTool = this.createRunSubagentToolDefinition();
+		if (subagentTool) {
+			allTools.push(subagentTool);
+		}
 
-		for (const toolCall of toolCalls) {
-			const toolName = toolCall.function.name;
-			const tool = allTools.find((t) => t.name === toolName);
+		const results = await Promise.all(
+			toolCalls.map(async (toolCall) => {
+				const toolName = toolCall.function.name;
+				const tool = allTools.find((t) => t.name === toolName);
 
-			if (!tool) {
-				results.push({
-					tool_call_id: toolCall.id,
-					result: { error: `Unknown tool: ${toolName}` },
-				});
-				continue;
-			}
-
-			try {
-				let args: Record<string, unknown> = {};
-				try {
-					args = JSON.parse(toolCall.function.arguments || "{}");
-				} catch {
-					// If parsing fails, use empty args
+				if (!tool) {
+					return {
+						tool_call_id: toolCall.id,
+						result: { error: `Unknown tool: ${toolName}` },
+					};
 				}
 
-				console.log(`[OpenAIService] Executing tool: ${toolName}`, args);
-				const result = await tool.handler(args);
-				results.push({
-					tool_call_id: toolCall.id,
-					result,
-				});
-			} catch (error) {
-				console.error(`[OpenAIService] Tool execution error (${toolName}):`, error);
-				results.push({
-					tool_call_id: toolCall.id,
-					result: { error: error instanceof Error ? error.message : String(error) },
-				});
-			}
-		}
+				try {
+					let args: Record<string, unknown> = {};
+					try {
+						args = JSON.parse(toolCall.function.arguments || "{}");
+					} catch {
+						// If parsing fails, use empty args
+					}
+
+					console.log(`[OpenAIService] Executing tool: ${toolName}`, args);
+					const result = await tool.handler(args);
+					return {
+						tool_call_id: toolCall.id,
+						result,
+					};
+				} catch (error) {
+					console.error(`[OpenAIService] Tool execution error (${toolName}):`, error);
+					return {
+						tool_call_id: toolCall.id,
+						result: { error: error instanceof Error ? error.message : String(error) },
+					};
+				}
+			})
+		);
 
 		return results;
 	}

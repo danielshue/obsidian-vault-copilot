@@ -452,7 +452,7 @@ export class ToolbarManager {
 				if (this.selectedAgent === null) item.setChecked(true);
 			});
 
-			const agents = this.plugin.agentCache.getAgents();
+			const agents = this.plugin.agentCache.getAgents().filter(a => a.userInvokable !== false);
 
 			if (agents.length > 0) {
 				menu.addSeparator();

@@ -65,6 +65,7 @@ import {
 } from "./copilot/customization/SkillRegistry";
 import { McpManager } from "./copilot/mcp/McpManager";
 import { AgentCache, CachedAgentInfo } from "./copilot/customization/AgentCache";
+import { CustomizationLoader } from "./copilot/customization/CustomizationLoader";
 import { PromptCache, CachedPromptInfo } from "./copilot/customization/PromptCache";
 import { SkillCache, CachedSkillInfo } from "./copilot/customization/SkillCache";
 import { CustomPrompt } from "./copilot/customization/CustomizationLoader";
@@ -478,6 +479,10 @@ export default class CopilotPlugin extends Plugin {
 				baseURL: profile.baseURL,
 				mcpManager: this.mcpManager,
 			});
+			if (this.agentCache) {
+				this.openaiService.setAgentCache(this.agentCache);
+				this.openaiService.setCustomizationLoader(new CustomizationLoader(this.app));
+			}
 		} catch (error) {
 			console.error("[VaultCopilot] Failed to initialize OpenAI service:", error);
 		}
@@ -499,6 +504,10 @@ export default class CopilotPlugin extends Plugin {
 				apiVersion: profile.apiVersion,
 				mcpManager: this.mcpManager,
 			});
+			if (this.agentCache) {
+				this.azureOpenaiService.setAgentCache(this.agentCache);
+				this.azureOpenaiService.setCustomizationLoader(new CustomizationLoader(this.app));
+			}
 		} catch (error) {
 			console.error("[VaultCopilot] Failed to initialize Azure service:", error);
 		}
@@ -1063,6 +1072,7 @@ export default class CopilotPlugin extends Plugin {
 			agentDirectories: resolvePaths(this.settings.agentDirectories),
 			instructionDirectories: resolvePaths(this.settings.instructionDirectories),
 			promptDirectories: resolvePaths(this.settings.promptDirectories),
+			agentCache: this.agentCache,
 		};
 	}
 

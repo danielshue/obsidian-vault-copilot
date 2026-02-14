@@ -26,6 +26,14 @@ export interface CustomAgent {
 	description: string;
 	/** Tools the agent can use */
 	tools?: string[];
+	/** Allowlist of agent names this agent can invoke as subagents */
+	agents?: string[];
+	/** Model override(s) for this agent */
+	model?: string | string[];
+	/** Whether this agent appears in the user-facing agent selector (default: true) */
+	userInvokable?: boolean;
+	/** Whether the model can autonomously invoke this agent as a subagent (default: false) */
+	disableModelInvocation?: boolean;
 	/** Full path to the agent file */
 	path: string;
 	/** Raw content of the agent file (without frontmatter) */
@@ -272,6 +280,12 @@ private getFolderFromPath(dir: string): TFolder | null {
 								name: String(frontmatter.name),
 								description: String(frontmatter.description),
 								tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
+								agents: Array.isArray(frontmatter.agents) ? frontmatter.agents.map(String) : undefined,
+								model: Array.isArray(frontmatter.model)
+									? frontmatter.model.map(String)
+									: frontmatter.model ? String(frontmatter.model) : undefined,
+								userInvokable: frontmatter['user-invokable'] === 'false' || frontmatter['user-invokable'] === false ? false : undefined,
+								disableModelInvocation: frontmatter['disable-model-invocation'] === 'true' || frontmatter['disable-model-invocation'] === true ? true : undefined,
 								path: child.path,
 								instructions: body,
 							});

@@ -16,7 +16,7 @@
 import { Setting } from "obsidian";
 import type { AutomationInstance } from "../../../automation/types";
 import { EXTENSION_BROWSER_VIEW_TYPE } from "../../extensions/ExtensionBrowserView";
-import { AutomationScheduleModal } from "../modals";
+import { AutomationScheduleModal, AutomationHistoryModal } from "../modals";
 import { AutomationDetailsModal } from "../modals/AutomationDetailsModal";
 import { createCollapsibleSection, type SettingSectionContext } from "./SectionHelpers";
 
@@ -58,6 +58,14 @@ export function renderAutomationsSection(containerEl: HTMLElement, ctx: SettingS
 					ctx.app.workspace.revealLeaf(leaves[0]);
 				} else {
 					await ctx.app.workspace.getLeaf(true).setViewState(viewState);
+				}
+		}))
+		.addButton(button => button
+			.setButtonText("View History")
+			.onClick(() => {
+				const engine = ctx.plugin.automationEngine;
+				if (engine) {
+					new AutomationHistoryModal(ctx.app, engine).open();
 				}
 			}));
 
@@ -209,7 +217,7 @@ function formatTimeAgo(date: Date): string {
 
 /** @internal */
 function showAutomationDetails(automation: AutomationInstance, ctx: SettingSectionContext): void {
-	const modal = new AutomationDetailsModal(ctx.app, automation);
+	const modal = new AutomationDetailsModal(ctx.app, automation, ctx.plugin.automationEngine);
 	modal.open();
 }
 

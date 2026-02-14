@@ -63,6 +63,7 @@ export class AutomationEngine {
 	private eventRegistrations: Map<string, () => void> = new Map();
 	private maxHistoryEntries = 100;
 	private stateFilePath = '.obsidian/vault-copilot-automations.json';
+	private auditLogPath = '.obsidian/plugins/obsidian-vault-copilot/automation-audit.md';
 
 	constructor(app: App, plugin: VaultCopilotPlugin) {
 		this.app = app;
@@ -258,6 +259,20 @@ export class AutomationEngine {
 	}
 
 	/**
+	 * Get execution history for a specific automation
+	 *
+	 * @param automationId - ID of the automation to filter by
+	 * @param limit - Maximum number of entries to return
+	 * @returns History entries for the specified automation, most recent first
+	 */
+	getHistoryForAutomation(automationId: string, limit?: number): AutomationHistoryEntry[] {
+		const filtered = [...this.state.history]
+			.filter(entry => entry.automationId === automationId)
+			.reverse();
+		return limit ? filtered.slice(0, limit) : filtered;
+	}
+
+	/**
 	 * Clear execution history
 	 */
 	async clearHistory(): Promise<void> {
@@ -406,10 +421,17 @@ export class AutomationEngine {
 
 		await this.saveState();
 
+		// Append to persistent audit log
+		await this.appendAuditLog(automation, result);
+
+		const totalDuration = actionResults.reduce((sum, r) => sum + r.duration, 0);
 		if (overallSuccess) {
-			new Notice(`Automation '${automation.name}' completed successfully`);
+			new Notice(
+				`Automation '${automation.name}' completed successfully (${actionResults.length} action${actionResults.length !== 1 ? 's' : ''}, ${totalDuration}ms)`,
+				8000
+			);
 		} else {
-			new Notice(`Automation '${automation.name}' failed: ${overallError}`);
+			new Notice(`Automation '${automation.name}' failed: ${overallError}`, 8000);
 		}
 
 		return result;
@@ -892,6 +914,78 @@ export class AutomationEngine {
 	 */
 	private sleep(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	/**
+	 * Append an execution result to the persistent markdown audit log.
+	 *
+	 * Creates the log file if it doesn't exist. Each entry is formatted as a
+	 * human-readable markdown section with action outputs.
+	 *
+	 * @param automation - The automation that was executed
+	 * @param result - The execution result to log
+	 *
+	 * @internal
+	 */
+	private async appendAuditLog(automation: AutomationInstance, result: AutomationExecutionResult): Promise<void> {
+		try {
+			const date = new Date(result.timestamp);
+			const dateStr = date.toLocaleString();
+			const statusIcon = result.success ? '✓' : '✗';
+			const statusText = result.success ? 'Success' : 'Failed';
+			const totalDuration = result.actionResults.reduce((sum, r) => sum + r.duration, 0);
+
+			let entry = `\n## ${automation.name} — ${dateStr}\n\n`;
+			entry += `- **Status**: ${statusIcon} ${statusText}\n`;
+			entry += `- **Trigger**: ${result.trigger.type}`;
+			if (result.trigger.type === 'schedule' && 'schedule' in result.trigger) {
+				entry += ` (${result.trigger.schedule})`;
+			}
+			entry += `\n`;
+			entry += `- **Duration**: ${totalDuration}ms\n`;
+
+			if (result.error) {
+				entry += `- **Error**: ${result.error}\n`;
+			}
+
+			for (let i = 0; i < result.actionResults.length; i++) {
+				const ar = result.actionResults[i];
+				if (!ar) continue;
+				const actionIcon = ar.success ? '✓' : '✗';
+				const actionLabel = ar.action.type;
+				let actionTarget = '';
+				if ('agentId' in ar.action) actionTarget = ` (${ar.action.agentId})`;
+				else if ('promptId' in ar.action) actionTarget = ` (${ar.action.promptId})`;
+				else if ('skillId' in ar.action) actionTarget = ` (${ar.action.skillId})`;
+				else if ('path' in ar.action) actionTarget = ` (${ar.action.path})`;
+				else if ('command' in ar.action) actionTarget = ` (${ar.action.command})`;
+
+				entry += `\n### Action ${i + 1}: ${actionLabel}${actionTarget}\n`;
+				entry += `- **Status**: ${actionIcon} ${ar.success ? 'Success' : 'Failed'} (${ar.duration}ms)\n`;
+
+				if (ar.error) {
+					entry += `- **Error**: ${ar.error}\n`;
+				}
+
+				if (ar.result !== undefined && ar.result !== null) {
+					const outputStr = typeof ar.result === 'string' ? ar.result : JSON.stringify(ar.result, null, 2);
+					const blockquoted = outputStr.split('\n').map(line => `> ${line}`).join('\n');
+					entry += `- **Output**:\n${blockquoted}\n`;
+				}
+			}
+
+			entry += `\n---\n`;
+
+			const exists = await this.app.vault.adapter.exists(this.auditLogPath);
+			if (!exists) {
+				await this.app.vault.adapter.write(this.auditLogPath, `# Automation Audit Log\n${entry}`);
+			} else {
+				const existing = await this.app.vault.adapter.read(this.auditLogPath);
+				await this.app.vault.adapter.write(this.auditLogPath, existing + entry);
+			}
+		} catch (error) {
+			console.error('AutomationEngine: Failed to write audit log:', error);
+		}
 	}
 
 	/**
