@@ -96,5 +96,6 @@
         "Removed the documented optional behavior to set `status: complete` in frontmatter when finishing the day."
       ]
     }
-  ]
+  ],
+  "submittedBy": "danielshue"
 }

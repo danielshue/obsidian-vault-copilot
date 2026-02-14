@@ -42,6 +42,34 @@ jobs:
         env:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
       
+      - name: Stamp submittedBy in extension manifests
+        if: steps.validate.outcome == 'success' && github.event_name == 'pull_request'
+        run: |
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          CHANGED=false
+
+          for manifest in $(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD -- 'extensions/*/*/manifest.json'); do
+            if [ -f "$manifest" ]; then
+              node -e "
+                const fs = require('fs');
+                const m = JSON.parse(fs.readFileSync('$manifest', 'utf8'));
+                if (m.submittedBy !== '$PR_AUTHOR') {
+                  m.submittedBy = '$PR_AUTHOR';
+                  fs.writeFileSync('$manifest', JSON.stringify(m, null, 2) + '\n');
+                  console.log('Stamped submittedBy=$PR_AUTHOR in $manifest');
+                  process.exit(1); // signal that a change was made
+                }
+              " || { git add "$manifest"; CHANGED=true; }
+            fi
+          done
+
+          if [ "$CHANGED" = true ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: stamp submittedBy for extension submissions"
+            git push
+          fi
+
       - name: Check validation result
         if: steps.validate.outcome == 'failure'
         run: exit 1

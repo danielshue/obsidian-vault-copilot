@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated": "2026-02-14T01:33:56.791Z",
+  "generated": "2026-02-14T01:43:46.199Z",
   "totalExtensions": 6,
   "extensions": [
     {
@@ -26,8 +26,8 @@
       "downloads": 0,
       "rating": null,
       "ratingCount": 0,
-      "publishedAt": "2026-02-14T01:33:51.560Z",
-      "updatedAt": "2026-02-14T01:33:51.560Z",
+      "publishedAt": "2026-02-14T01:38:18.047Z",
+      "updatedAt": "2026-02-14T01:38:18.047Z",
       "size": "5.9 KB",
       "sizeBytes": 6060,
       "minVaultCopilotVersion": "0.0.14",
@@ -70,7 +70,7 @@
           ]
         }
       ],
-      "submittedBy": null
+      "submittedBy": "danielshue"
     },
     {
       "id": "daily-journal-agent",
@@ -97,8 +97,8 @@
       "downloads": 0,
       "rating": null,
       "ratingCount": 0,
-      "publishedAt": "2026-02-10T16:29:16.212Z",
-      "updatedAt": "2026-02-10T16:29:16.212Z",
+      "publishedAt": "2026-02-14T01:38:18.067Z",
+      "updatedAt": "2026-02-14T01:38:18.067Z",
       "size": "18.3 KB",
       "sizeBytes": 18729,
       "minVaultCopilotVersion": "0.0.1",
@@ -187,7 +187,7 @@
           ]
         }
       ],
-      "submittedBy": null
+      "submittedBy": "danielshue"
     },
     {
       "id": "meeting-notes-agent",
@@ -215,7 +215,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-09T15:19:34.270Z",
+      "updatedAt": "2026-02-14T01:38:18.059Z",
       "size": "2.5 KB",
       "sizeBytes": 2577,
       "minVaultCopilotVersion": "0.1.0",
@@ -254,7 +254,7 @@
           ]
         }
       ],
-      "submittedBy": null
+      "submittedBy": "danielshue"
     },
     {
       "id": "task-management-prompt",
@@ -282,7 +282,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T04:23:50.230Z",
+      "updatedAt": "2026-02-14T01:38:18.068Z",
       "size": "1.5 KB",
       "sizeBytes": 1526,
       "minVaultCopilotVersion": "0.1.0",
@@ -320,7 +320,7 @@
           ]
         }
       ],
-      "submittedBy": null
+      "submittedBy": "danielshue"
     },
     {
       "id": "example-weather-mcp",
@@ -348,7 +348,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-06T04:23:50.228Z",
+      "updatedAt": "2026-02-14T01:38:18.067Z",
       "size": "0.2 KB",
       "sizeBytes": 252,
       "minVaultCopilotVersion": "0.1.0",
@@ -384,7 +384,7 @@
           ]
         }
       ],
-      "submittedBy": null
+      "submittedBy": "danielshue"
     },
     {
       "id": "weekly-review-agent",
@@ -412,7 +412,7 @@
       "rating": null,
       "ratingCount": 0,
       "publishedAt": "2026-02-01T00:00:00Z",
-      "updatedAt": "2026-02-09T15:19:34.264Z",
+      "updatedAt": "2026-02-14T01:38:18.067Z",
       "size": "3.5 KB",
       "sizeBytes": 3597,
       "minVaultCopilotVersion": "0.1.0",
@@ -451,7 +451,7 @@
           ]
         }
       ],
-      "submittedBy": null
+      "submittedBy": "danielshue"
     }
   ],
   "categories": [

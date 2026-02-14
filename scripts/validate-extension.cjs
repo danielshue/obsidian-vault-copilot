@@ -667,10 +667,9 @@ function validateSubmitter(extensionId, prAuthor, manifest) {
     return issues;
   }
 
-  // For new extensions, record the submitter in the manifest
+  // For new extensions, submittedBy is not yet set in the manifest.
+  // The build-catalog script auto-populates it from git history.
   if (!manifest.submittedBy) {
-    // This is a new extension submission - no validation needed
-    // The build process will add submittedBy field automatically
     return issues;
   }
 
