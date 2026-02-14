@@ -841,6 +841,11 @@ export default class CopilotPlugin extends Plugin {
 			this.settings.analyticsEndpoint = DEFAULT_SETTINGS.analyticsEndpoint;
 		}
 
+		// Migration: Fix stale extension catalog URL from before repo split
+		if (this.settings.extensionCatalogUrl?.includes('obsidian-vault-copilot/catalog/catalog.json')) {
+			this.settings.extensionCatalogUrl = DEFAULT_SETTINGS.extensionCatalogUrl;
+		}
+
 		// Migration: Create a profile from existing voice settings if no profiles exist
 		await this.migrateVoiceSettingsToProfiles();
 		
