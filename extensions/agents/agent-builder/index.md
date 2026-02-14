@@ -5,9 +5,19 @@ title: "Agent Builder"
 type: agent
 version: "1.0.0"
 description: "Interactive assistant that guides you through creating custom .agent.md files with best practices, dynamic tool/skill discovery, and quality validation."
-author: "Vault Copilot"
+author: "Dan Shue"
+author_url: "https://github.com/danielshue"
+categories: ["Productivity", "Utility"]
 tags: ["agent", "builder", "meta", "customization"]
-size: "10.6 KB"
+size: "11.4 KB"
+versions:
+  - version: "1.0.0"
+    date: "2026-02-13"
+    changes:
+      - "Initial release"
+      - "8-phase agent creation workflow"
+      - "Dynamic tool and skill discovery via introspection"
+      - "Quality validation and best practices enforcement"
 ---
 
 ## What it does

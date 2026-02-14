@@ -10,7 +10,7 @@ author_url: "https://danielshue.com"
 icon: "extensions/prompts/task-management-prompt/icon.svg"
 categories: ["Productivity", "Task Management"]
 tags: ["tasks", "todo", "gtd", "eisenhower", "priority", "planning"]
-size: "66.3 KB"
+size: "66.4 KB"
 versions:
   - version: "1.0.0"
     date: "2026-02-01"
