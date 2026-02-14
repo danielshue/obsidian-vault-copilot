@@ -431,28 +431,134 @@ export class AutomationEngine {
 	 * Execute run-agent action
 	 */
 	private async executeRunAgent(action: Extract<AutomationAction, { type: 'run-agent' }>, context: AutomationExecutionContext): Promise<unknown> {
-		// TODO: Implement agent execution
-		// This would integrate with the agent system to run the specified agent
-		console.log(`AutomationEngine: Running agent '${action.agentId}' with input:`, action.input);
-		throw new Error('Agent execution not yet implemented');
+		const { agentId, input } = action;
+		console.log(`AutomationEngine: Running agent '${agentId}' with input:`, input);
+		
+		// Get the agent from cache
+		const agent = this.plugin.agentCache.getAgentByName(agentId);
+		if (!agent) {
+			throw new Error(`Agent '${agentId}' not found`);
+		}
+		
+		// Load full agent details
+		const fullAgent = await this.plugin.agentCache.getFullAgent(agentId);
+		if (!fullAgent) {
+			throw new Error(`Failed to load agent '${agentId}'`);
+		}
+		
+		// Prepare the prompt with agent instructions
+		let prompt = fullAgent.instructions || '';
+		
+		// Add input to the prompt if provided
+		if (input) {
+			const inputStr = typeof input === 'string' ? input : JSON.stringify(input);
+			prompt += `\n\nInput: ${inputStr}`;
+		}
+		
+		// Get the active AI provider and check if it's ready
+		let response: string;
+		
+		if (this.plugin.settings.aiProvider === 'copilot') {
+			const service = this.plugin.githubCopilotCliService;
+			if (!service) {
+				throw new Error('GitHub Copilot CLI service not available');
+			}
+			if (!service.isConnected()) {
+				await this.plugin.connectCopilot();
+			}
+			response = await service.sendMessage(prompt);
+		} else {
+			const service = this.plugin.openaiService || this.plugin.azureOpenaiService;
+			if (!service) {
+				throw new Error('No AI provider available');
+			}
+			if (!service.isReady()) {
+				await this.plugin.connectCopilot();
+			}
+			response = await service.sendMessage(prompt);
+		}
+		
+		return response;
 	}
 
 	/**
 	 * Execute run-prompt action
 	 */
 	private async executeRunPrompt(action: Extract<AutomationAction, { type: 'run-prompt' }>, context: AutomationExecutionContext): Promise<unknown> {
-		// TODO: Implement prompt execution
-		console.log(`AutomationEngine: Running prompt '${action.promptId}' with input:`, action.input);
-		throw new Error('Prompt execution not yet implemented');
+		const { promptId, input } = action;
+		console.log(`AutomationEngine: Running prompt '${promptId}' with input:`, input);
+		
+		// Get the prompt from cache
+		const prompt = await this.plugin.promptCache.getFullPrompt(promptId);
+		if (!prompt) {
+			throw new Error(`Prompt '${promptId}' not found`);
+		}
+		
+		// Replace variables in the prompt content
+		let content = prompt.content;
+		
+		// Replace input variables if provided
+		if (input) {
+			if (typeof input === 'object' && !Array.isArray(input)) {
+				for (const [key, value] of Object.entries(input)) {
+					const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
+					content = content.replace(new RegExp(`\\{${key}\\}`, 'g'), valueStr);
+					content = content.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), valueStr);
+				}
+			} else {
+				// If input is a string or other type, replace ${userInput} placeholder
+				const inputStr = typeof input === 'string' ? input : JSON.stringify(input);
+				content = content.replace(/\$\{userInput\}/g, inputStr);
+				content = content.replace(/\{userInput\}/g, inputStr);
+			}
+		}
+		
+		// Get the active AI provider and check if it's ready
+		let response: string;
+		
+		if (this.plugin.settings.aiProvider === 'copilot') {
+			const service = this.plugin.githubCopilotCliService;
+			if (!service) {
+				throw new Error('GitHub Copilot CLI service not available');
+			}
+			if (!service.isConnected()) {
+				await this.plugin.connectCopilot();
+			}
+			response = await service.sendMessage(content);
+		} else {
+			const service = this.plugin.openaiService || this.plugin.azureOpenaiService;
+			if (!service) {
+				throw new Error('No AI provider available');
+			}
+			if (!service.isReady()) {
+				await this.plugin.connectCopilot();
+			}
+			response = await service.sendMessage(content);
+		}
+		
+		return response;
 	}
 
 	/**
 	 * Execute run-skill action
 	 */
 	private async executeRunSkill(action: Extract<AutomationAction, { type: 'run-skill' }>, context: AutomationExecutionContext): Promise<unknown> {
-		// TODO: Implement skill execution
-		console.log(`AutomationEngine: Running skill '${action.skillId}' with input:`, action.input);
-		throw new Error('Skill execution not yet implemented');
+		const { skillId, input } = action;
+		console.log(`AutomationEngine: Running skill '${skillId}' with input:`, input);
+		
+		// Prepare arguments for the skill
+		const args = (input && typeof input === 'object' && !Array.isArray(input)) 
+			? input as Record<string, unknown>
+			: {};
+		
+		// Execute the skill
+		const result = await this.plugin.skillRegistry.executeSkill(skillId, args);
+		
+		if (!result.success) {
+			throw new Error(result.error || `Skill '${skillId}' execution failed`);
+		}
+		
+		return result.data;
 	}
 
 	/**
