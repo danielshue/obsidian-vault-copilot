@@ -67,7 +67,7 @@ export interface AutomationTriggerBase {
  * { type: 'schedule', schedule: '0 9 * * *' }
  * 
  * // Every 2 hours
- * { type: 'schedule', schedule: '0 */2 * * *' }
+ * { type: 'schedule', schedule: '0 *\/2 * * *' }
  * 
  * // Every Monday at midnight
  * { type: 'schedule', schedule: '0 0 * * 1' }
@@ -88,7 +88,7 @@ export interface ScheduleTrigger extends AutomationTriggerBase {
  * { type: 'file-created', pattern: 'Daily Notes/*.md' }
  * 
  * // Trigger on any file in Projects
- * { type: 'file-modified', pattern: 'Projects/**/*' }
+ * { type: 'file-modified', pattern: 'Projects/**\/*' }
  * ```
  */
 export interface FileTrigger extends AutomationTriggerBase {

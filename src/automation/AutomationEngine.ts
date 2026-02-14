@@ -37,7 +37,7 @@
  */
 
 import { App, TFile, Notice } from 'obsidian';
-import { parseExpression } from 'cron-parser';
+import CronExpressionParser from 'cron-parser';
 import type VaultCopilotPlugin from '../main';
 import {
 	AutomationInstance,
@@ -272,7 +272,7 @@ export class AutomationEngine {
 	 */
 	private scheduleAutomation(automationId: string, trigger: ScheduleTrigger): void {
 		try {
-			const interval = parseExpression(trigger.schedule);
+			const interval = CronExpressionParser.parse(trigger.schedule);
 			const nextRun = interval.next().toDate();
 			const automation = this.state.automations[automationId];
 			
@@ -544,12 +544,10 @@ export class AutomationEngine {
 			})
 		);
 
-		// Vault opened (use workspace ready event)
-		this.plugin.registerEvent(
-			this.app.workspace.on('layout-ready', () => {
-				this.handleVaultOpened();
-			})
-		);
+		// Vault opened (use app ready event)
+		this.app.workspace.onLayoutReady(() => {
+			this.handleVaultOpened();
+		});
 	}
 
 	/**
