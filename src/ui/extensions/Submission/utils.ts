@@ -402,7 +402,7 @@ export async function validateExtensionId(extensionId: string): Promise<Extensio
 	}
 	
 	try {
-		const catalogUrl = "https://raw.githubusercontent.com/danielshue/vault-copilot-extensions/master/catalog/catalog.json";
+		const catalogUrl = "https://raw.githubusercontent.com/danielshue/vault-copilot-extensions/main/catalog/catalog.json";
 		
 		const response = await fetch(catalogUrl);
 		if (!response.ok) {
@@ -534,7 +534,7 @@ export async function fetchPreviousExtensionData(
 	extensionId: string,
 	extensionType: ExtensionType
 ): Promise<PreviousExtensionData> {
-	const baseUrl = "https://raw.githubusercontent.com/danielshue/vault-copilot-extensions/master/extensions";
+	const baseUrl = "https://raw.githubusercontent.com/danielshue/vault-copilot-extensions/main/extensions";
 	const typeFolder = `${extensionType}s`;
 
 	const readmeUrl = `${baseUrl}/${typeFolder}/${extensionId}/README.md`;

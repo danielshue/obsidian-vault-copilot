@@ -1350,7 +1350,7 @@ export class ExtensionSubmissionModal extends Modal {
 		const service = new GitHubSubmissionService({
 			upstreamOwner: "danielshue",
 			upstreamRepo: "vault-copilot-extensions",
-			targetBranch: "master",
+			targetBranch: "main",
 			forkOwner: data.githubUsername || undefined,
 		});
 		this.activeSubmissionService = service;

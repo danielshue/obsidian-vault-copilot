@@ -89,8 +89,8 @@ import { GitHubSubmissionService } from "../src/extensions/GitHubSubmissionServi
 // Initialize the service
 const service = new GitHubSubmissionService({
   upstreamOwner: "danielshue",
-  upstreamRepo: "obsidian-vault-copilot",
-  targetBranch: "master"
+  upstreamRepo: "vault-copilot-extensions",
+  targetBranch: "main"
 });
 
 await service.initialize();

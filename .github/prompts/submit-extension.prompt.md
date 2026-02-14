@@ -27,8 +27,8 @@ Given my description of the extension I want to submit (or update), help me:
 When I explicitly say I want to submit (or resubmit) an extension:
 
 1. Confirm the extension type and vault path I intend to use.
-2. Confirm that I understand this will create a PR against `master` of
-   `danielshue/obsidian-vault-copilot` via the plugin's automated workflow.
+2. Confirm that I understand this will create a PR against `main` of
+   `danielshue/vault-copilot-extensions` via the plugin's automated workflow.
 3. If anything is unclear or risky, ask concise clarification questions first.
 4. Then outline the concrete steps I should perform inside Obsidian:
    - Open the **Submit Extension to Catalog** command

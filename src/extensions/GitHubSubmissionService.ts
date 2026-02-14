@@ -57,7 +57,7 @@ const execFileAsync = promisify(execFile);
  * const config: GitHubSubmissionConfig = {
  *   upstreamOwner: "danielshue",
  *   upstreamRepo: "vault-copilot-extensions",
- *   targetBranch: "master"
+ *   targetBranch: "main"
  * };
  * ```
  */
@@ -68,7 +68,7 @@ export interface GitHubSubmissionConfig {
 	/** Name of the upstream repository */
 	upstreamRepo: string;
 	
-	/** Target branch to create PR against (default: "master") */
+	/** Target branch to create PR against (default: "main") */
 	targetBranch?: string;
 	
 	/** Custom fork owner (if different from authenticated user) */
@@ -204,7 +204,7 @@ export class GitHubSubmissionService {
 	 */
 	constructor(config: GitHubSubmissionConfig) {
 		this.config = {
-			targetBranch: "master",
+			targetBranch: "main",
 			...config,
 		};
 	}
@@ -547,11 +547,11 @@ export class GitHubSubmissionService {
 			fs.writeFileSync(sparseCheckoutFile, "extensions/\n", "utf-8");
 			
 			// Fetch only the target branch with depth 1
-			await runGit(["fetch", "--depth=1", "origin", targetBranch || "master"], repoDir);
+			await runGit(["fetch", "--depth=1", "origin", targetBranch || "main"], repoDir);
 			
 			// Step 6: Create branch
 			console.log("[GitHubSubmission] Creating branch:", params.branchName);
-			await runGit(["checkout", "-B", params.branchName, `origin/${targetBranch || "master"}`], repoDir);
+			await runGit(["checkout", "-B", params.branchName, `origin/${targetBranch || "main"}`], repoDir);
 
 			// Step 7: Copy files
 			const targetPath = path.join(
@@ -630,7 +630,7 @@ export class GitHubSubmissionService {
 			"pr", "create",
 			"--repo", `${upstreamOwner}/${upstreamRepo}`,
 			"--title", prTitle,
-			"--base", targetBranch || "master",
+			"--base", targetBranch || "main",
 			"--head", headRef,
 			"--body-file", prBodyFile
 		], repoDir);

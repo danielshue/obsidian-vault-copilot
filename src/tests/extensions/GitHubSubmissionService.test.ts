@@ -72,7 +72,7 @@ describe("GitHubSubmissionService", () => {
 		config = {
 			upstreamOwner: "danielshue",
 			upstreamRepo: "vault-copilot-extensions",
-			targetBranch: "master",
+			targetBranch: "main",
 		};
 
 		service = new GitHubSubmissionService(config);
