@@ -131,7 +131,7 @@ export function renderSelectExtensionScreen(
 	diffLink.querySelector("a")?.addEventListener("click", (e) => {
 		e.preventDefault();
 		// Can open docs or show a tooltip in the future
-		window.open("https://github.com/danielshue/obsidian-vault-copilot/blob/master/docs/EXTENSION_SUBMISSION.md", "_blank");
+		window.open("https://github.com/danielshue/vault-copilot-extensions/blob/master/docs/EXTENSION_SUBMISSION.md", "_blank");
 	});
 
 	// — Extension Location card —

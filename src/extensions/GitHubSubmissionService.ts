@@ -5,7 +5,7 @@
 
 /**
  * @module extensions/GitHubSubmissionService
- * @description Service for submitting extensions to the obsidian-vault-copilot repository via GitHub.
+ * @description Service for submitting extensions to the vault-copilot-extensions repository via GitHub.
  * 
  * This service orchestrates the complete workflow for submitting an extension to the
  * official marketplace catalog, including validation, GitHub setup, branch creation,
@@ -56,7 +56,7 @@ const execFileAsync = promisify(execFile);
  * ```typescript
  * const config: GitHubSubmissionConfig = {
  *   upstreamOwner: "danielshue",
- *   upstreamRepo: "obsidian-vault-copilot",
+ *   upstreamRepo: "vault-copilot-extensions",
  *   targetBranch: "master"
  * };
  * ```
@@ -122,7 +122,7 @@ export interface ExtensionSubmissionParams {
  * ```typescript
  * const result: ExtensionSubmissionResult = {
  *   success: true,
- *   pullRequestUrl: "https://github.com/danielshue/obsidian-vault-copilot/pull/42",
+ *   pullRequestUrl: "https://github.com/danielshue/vault-copilot-extensions/pull/42",
  *   pullRequestNumber: 42,
  *   branchName: "add-my-agent-1.0.0",
  *   validationErrors: []
@@ -174,7 +174,7 @@ interface ValidationResult {
  * ```typescript
  * const service = new GitHubSubmissionService({
  *   upstreamOwner: "danielshue",
- *   upstreamRepo: "obsidian-vault-copilot"
+ *   upstreamRepo: "vault-copilot-extensions"
  * });
  * 
  * await service.initialize();
@@ -197,7 +197,7 @@ export class GitHubSubmissionService {
 	 * ```typescript
 	 * const service = new GitHubSubmissionService({
 	 *   upstreamOwner: "danielshue",
-	 *   upstreamRepo: "obsidian-vault-copilot",
+	 *   upstreamRepo: "vault-copilot-extensions",
 	 *   targetBranch: "main"
 	 * });
 	 * ```
