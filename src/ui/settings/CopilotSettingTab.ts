@@ -51,7 +51,7 @@ import {
 	getAzureProfileApiKey,
 } from "./profiles";
 import { getModelDisplayName, getAvailableModels } from "./utils";
-import { AIProviderProfileModal, AddHttpMcpServerModal } from "./modals";
+import { AIProviderProfileModal, AddHttpMcpServerModal, AutomationScheduleModal } from "./modals";
 import { AutomationDetailsModal } from "./modals/AutomationDetailsModal";
 
 export class CopilotSettingTab extends PluginSettingTab {
@@ -132,13 +132,37 @@ export class CopilotSettingTab extends PluginSettingTab {
 		return hasProfiles || hasSelectedProfiles || hasOpenAiKey || hasVoiceEnabled;
 	}
 
+	/**
+	 * Create a collapsible section using <details>/<summary>.
+	 * Returns the content container inside the details element.
+	 *
+	 * @param container - Parent element to append to
+	 * @param title - Section heading text
+	 * @param extraClasses - Additional CSS classes for the details element
+	 * @param headingLevel - Heading level (default "h3")
+	 * @returns Object with section (details element) and content container
+	 * @internal
+	 */
+	private createCollapsibleSection(
+		container: HTMLElement,
+		title: string,
+		extraClasses?: string,
+		headingLevel: keyof HTMLElementTagNameMap = "h3"
+	): { details: HTMLDetailsElement; content: HTMLDivElement } {
+		const cls = "vc-settings-section vc-collapsible" + (extraClasses ? " " + extraClasses : "");
+		const details = container.createEl("details", { cls });
+		const summary = details.createEl("summary", { cls: "vc-section-summary" });
+		summary.createEl(headingLevel, { text: title });
+		const content = details.createDiv({ cls: "vc-section-content" });
+		return { details, content };
+	}
+
 	private renderCliStatusSection(containerEl: HTMLElement): void {
-		const section = containerEl.createDiv({ cls: "vc-settings-section" });
+		const { details, content: section } = this.createCollapsibleSection(containerEl, "GitHub Copilot Connection Status");
 		
-		const sectionHeader = section.createDiv({ cls: "vc-section-header" });
-		sectionHeader.createEl("h3", { text: "GitHub Copilot Connection Status" });
-		
-		const refreshBtn = sectionHeader.createEl("button", { 
+		// Place refresh button in the summary so it's visible when collapsed
+		const summary = details.querySelector("summary")!;
+		const refreshBtn = summary.createEl("button", { 
 			cls: "vc-refresh-btn",
 			attr: { "aria-label": "Refresh status" }
 		});
@@ -294,8 +318,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 		this.mainSettingsContainer.empty();
 
 		// Chat Preferences Section
-		const section = this.mainSettingsContainer.createDiv({ cls: "vc-settings-section" });
-		section.createEl("h3", { text: "Chat Preferences" });
+		const { content: section } = this.createCollapsibleSection(this.mainSettingsContainer, "Chat Preferences");
 
 		// Ensure built-in profiles exist
 		ensureBuiltInProfiles(this.plugin.settings);
@@ -641,8 +664,7 @@ console.log("Discovering models...");
 		this.renderDateTimeSettings(this.mainSettingsContainer);
 
 		// Tool Selection Defaults Section
-		const toolSection = this.mainSettingsContainer.createDiv({ cls: "vc-settings-section" });
-		toolSection.createEl("h3", { text: "Tool Selection" });
+		const { content: toolSection } = this.createCollapsibleSection(this.mainSettingsContainer, "Tool Selection");
 		
 		const toolDesc = toolSection.createEl("p", { 
 			text: "Configure which tools are available to the AI by default. Built-in tools are enabled by default, MCP tools are disabled.",
@@ -694,8 +716,7 @@ console.log("Discovering models...");
 	 * Render AI Provider Profiles management section
 	 */
 	private renderAIProviderProfilesSection(container: HTMLElement): void {
-		const section = container.createDiv({ cls: "vc-settings-section" });
-		section.createEl("h3", { text: "AI Provider Profiles" });
+		const { content: section } = this.createCollapsibleSection(container, "AI Provider Profiles");
 		
 		section.createEl("p", { 
 			text: "Configure AI provider profiles for Chat and Voice services. GitHub Copilot CLI is built-in. Create additional profiles for OpenAI, Azure OpenAI, or local Whisper servers.",
@@ -870,8 +891,7 @@ console.log("Discovering models...");
 	}
 
 	private renderDateTimeSettings(container: HTMLElement): void {
-		const section = container.createDiv({ cls: "vc-settings-section" });
-		section.createEl("h3", { text: "Date & Time" });
+		const { content: section } = this.createCollapsibleSection(container, "Date & Time");
 		
 		section.createEl("p", { 
 			text: "Configure your preferred timezone and week start day. These settings are used throughout Vault Copilot for date calculations and AI context.",
@@ -999,8 +1019,7 @@ console.log("Discovering models...");
 	}
 
 	private renderPeriodicNotesSettings(container: HTMLElement): void {
-		const section = container.createDiv({ cls: "vc-settings-section" });
-		section.createEl("h3", { text: "Periodic Notes" });
+		const { content: section } = this.createCollapsibleSection(container, "Periodic Notes");
 		
 		section.createEl("p", { 
 			text: "Configure periodic notes (daily, weekly, monthly, quarterly, yearly) with custom folders, date formats, and templates. These settings are used by the Note Manager voice agent.",
@@ -1177,8 +1196,7 @@ console.log("Discovering models...");
 	 * Render Whisper.cpp management section
 	 */
 	private renderWhisperCppSection(container: HTMLElement): void {
-		const section = container.createDiv({ cls: "vc-settings-section vc-whisper-section" });
-		section.createEl("h3", { text: "Whisper.cpp Local Server" });
+		const { content: section } = this.createCollapsibleSection(container, "Whisper.cpp Local Server", "vc-whisper-section");
 		
 		section.createEl("p", { 
 			text: "Download and run whisper.cpp locally for offline speech-to-text. No API keys or cloud services required.",
@@ -1574,8 +1592,7 @@ console.log("Discovering models...");
 		}
 
 		// Voice Input Section
-		const voiceSection = container.createDiv({ cls: "vc-settings-section" });
-		voiceSection.createEl("h3", { text: "Voice Input" });
+		const { content: voiceSection } = this.createCollapsibleSection(container, "Voice Input");
 		
 		voiceSection.createEl("p", { 
 			text: "Configure voice-to-text for hands-free chat input.",
@@ -1609,8 +1626,7 @@ console.log("Discovering models...");
 	 * Render Realtime Voice Agent as a separate section
 	 */
 	private renderRealtimeAgentSection(container: HTMLElement): void {
-		const section = container.createDiv({ cls: "vc-settings-section" });
-		section.createEl("h3", { text: "Realtime Voice Agent (Experimental)" });
+		const { content: section } = this.createCollapsibleSection(container, "Realtime Voice Agent (Experimental)");
 		
 		section.createEl("p", { 
 			text: "Enable two-way voice conversations with an AI agent that can access your notes.",
@@ -2247,10 +2263,7 @@ console.log("Discovering models...");
 	}
 
 	private renderRegisteredSkillsSection(containerEl: HTMLElement): void {
-		const section = containerEl.createDiv({ cls: "vc-settings-section vc-skills-section" });
-		
-		const sectionHeader = section.createDiv({ cls: "vc-section-header" });
-		sectionHeader.createEl("h3", { text: "Registered Skills & MCP Servers" });
+		const { content: section } = this.createCollapsibleSection(containerEl, "Registered Skills & MCP Servers", "vc-skills-section");
 		
 		this.skillsContainer = section.createDiv({ cls: "vc-skills-container" });
 		
@@ -2529,10 +2542,7 @@ console.log("Discovering models...");
 	}
 
 	private renderAutomationsSection(containerEl: HTMLElement): void {
-		const section = containerEl.createDiv({ cls: "vc-settings-section vc-automations-section" });
-		
-		const sectionHeader = section.createDiv({ cls: "vc-section-header" });
-		sectionHeader.createEl("h3", { text: "Automations" });
+		const { content: section } = this.createCollapsibleSection(containerEl, "Automations", "vc-automations-section");
 		
 		const desc = section.createEl("p", { 
 			text: "Manage scheduled and event-triggered workflows. Automations can execute agents, prompts, skills, or vault operations automatically.",
@@ -2542,36 +2552,38 @@ console.log("Discovering models...");
 		// Get automations from engine
 		const automations = this.plugin.automationEngine?.getAllAutomations() || [];
 		
+		// Add "Create Automation" button (always visible)
+		new Setting(section)
+			.addButton(button => button
+				.setButtonText("Create Automation")
+				.onClick(() => this.openScheduleModal(null)))
+			.addButton(button => button
+				.setButtonText("Browse Automations")
+				.onClick(async () => {
+					const viewState = {
+						type: EXTENSION_BROWSER_VIEW_TYPE,
+						active: true,
+						state: { filterByKind: "automation" },
+					};
+					const leaves = this.app.workspace.getLeavesOfType(EXTENSION_BROWSER_VIEW_TYPE);
+					if (leaves.length > 0 && leaves[0]) {
+						await leaves[0].setViewState(viewState);
+						this.app.workspace.revealLeaf(leaves[0]);
+					} else {
+						await this.app.workspace.getLeaf(true).setViewState(viewState);
+					}
+				}));
+
 		if (automations.length === 0) {
 			const emptyState = section.createDiv({ cls: "vc-empty-state" });
 			emptyState.createEl("p", { text: "No automations installed yet." });
 			emptyState.createEl("p", { 
-				text: "Install automation extensions from the Extension Browser to get started.",
+				text: "Install automation extensions from the Extension Browser or create one manually.",
 				cls: "vc-status-desc"
 			});
-			
-			// Add button to open extension browser
-			new Setting(section)
-				.addButton(button => button
-					.setButtonText("Browse Automations")
-					.onClick(async () => {
-						// Open extension browser filtered to automations
-						const viewState = {
-							type: EXTENSION_BROWSER_VIEW_TYPE,
-							active: true,
-							state: { filterByKind: "automation" },
-						};
-						const leaves = this.app.workspace.getLeavesOfType(EXTENSION_BROWSER_VIEW_TYPE);
-						if (leaves.length > 0 && leaves[0]) {
-							await leaves[0].setViewState(viewState);
-							this.app.workspace.revealLeaf(leaves[0]);
-						} else {
-							await this.app.workspace.getLeaf(true).setViewState(viewState);
-						}
-					}));
 			return;
 		}
-		
+
 		// Render automations table
 		this.renderAutomationsTable(section, automations);
 	}
@@ -2657,6 +2669,15 @@ console.log("Discovering models...");
 				}
 			};
 			
+			// Schedule button
+			const scheduleBtn = actionsCell.createEl("button", { 
+				cls: "vc-btn vc-btn-small",
+				text: "Schedule"
+			});
+			scheduleBtn.onclick = () => {
+				this.openScheduleModal(automation);
+			};
+
 			// View details button
 			const detailsBtn = actionsCell.createEl("button", { 
 				cls: "vc-btn vc-btn-small",
@@ -2691,10 +2712,43 @@ console.log("Discovering models...");
 		modal.open();
 	}
 
+	/**
+	 * Open the schedule modal in create or edit mode.
+	 *
+	 * @param automation - existing automation to edit, or null to create
+	 */
+	private openScheduleModal(automation: import('../../automation/types').AutomationInstance | null): void {
+		const modal = new AutomationScheduleModal(
+			this.app,
+			this.plugin,
+			automation,
+			async (existingId, name, config) => {
+				const engine = this.plugin.automationEngine;
+				if (!engine) return;
+
+				if (existingId) {
+					// Edit mode – update existing automation
+					await engine.updateAutomation(existingId, { config });
+				} else {
+					// Create mode – register new automation
+					const id = `user-${Date.now()}`;
+					await engine.registerAutomation({
+						id,
+						name,
+						config,
+						enabled: true,
+						executionCount: 0,
+					});
+				}
+
+				this.display(); // Refresh the settings tab
+			},
+		);
+		modal.open();
+	}
+
 	private renderAdvancedSettings(containerEl: HTMLElement): void {
-		const section = containerEl.createDiv({ cls: "vc-settings-section vc-settings-advanced" });
-		
-		section.createEl("h2", { text: "Assistant Customization" });
+		const { content: section } = this.createCollapsibleSection(containerEl, "Assistant Customization", "vc-settings-advanced", "h2");
 		
 		const content = section.createDiv({ cls: "vc-advanced-content" });
 
@@ -2839,8 +2893,7 @@ console.log("Discovering models...");
 			return;
 		}
 
-		const section = containerEl.createDiv({ cls: "vc-settings-section" });
-		section.createEl("h3", { text: "Vault Setup" });
+		const { content: section } = this.createCollapsibleSection(containerEl, "Vault Setup");
 		
 		const desc = section.createEl("p", { 
 			text: "Initialize GitHub Copilot for this vault to enable context-aware assistance.",
@@ -2872,11 +2925,9 @@ console.log("Discovering models...");
 	}
 
 	private renderHelpSection(containerEl: HTMLElement): void {
-		const section = containerEl.createDiv({ cls: "vc-settings-section vc-settings-help" });
+		const { content: section } = this.createCollapsibleSection(containerEl, "About Vault Copilot", "vc-settings-help", "h4");
 		
 		const helpContent = section.createDiv({ cls: "vc-help-content" });
-		
-		helpContent.createEl("h4", { text: "About Vault Copilot" });
 		helpContent.createEl("p", {
 			text: `Version ${this.plugin.manifest.version}`,
 			cls: "vc-version-info"

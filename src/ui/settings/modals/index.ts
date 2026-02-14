@@ -25,3 +25,4 @@
 export { SecretCreationModal, type SecretCreationOptions } from "./SecretCreationModal";
 export { AIProviderProfileModal } from "./AIProviderProfileModal";
 export { AddHttpMcpServerModal } from "./AddHttpMcpServerModal";
+export { AutomationScheduleModal } from "./AutomationScheduleModal";

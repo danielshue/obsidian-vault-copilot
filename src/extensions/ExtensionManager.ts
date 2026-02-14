@@ -803,19 +803,31 @@ export class ExtensionManager {
 			// Path exists but is not a file (probably a folder)
 			throw new Error(`Path exists but is not a file: ${path}`);
 		} else {
-			// Create new file (Obsidian creates parent folders automatically)
+			// Create new file
 			console.log(`[ExtensionManager] Creating new file: ${path}`);
-				// Ensure parent directories exist
-				const pathParts = path.split('/');
-				const parentPath = pathParts.slice(0, -1).join('/');
-				if (parentPath) {
-					const parentExists = this.app.vault.getAbstractFileByPath(parentPath);
-					if (!parentExists) {
-						console.log(`[ExtensionManager] Creating parent folders: ${parentPath}`);
+			// Ensure parent directories exist.
+			// Use adapter.exists() instead of vault.getAbstractFileByPath() because
+			// the vault API doesn't see hidden folders like .obsidian/.
+			const pathParts = path.split('/');
+			const parentPath = pathParts.slice(0, -1).join('/');
+			if (parentPath) {
+				const exists = await this.app.vault.adapter.exists(parentPath);
+				if (!exists) {
+					console.log(`[ExtensionManager] Creating parent folders: ${parentPath}`);
+					try {
 						await this.app.vault.createFolder(parentPath);
+					} catch {
+						// Folder may have been created concurrently — ignore
 					}
 				}
+			}
+
+			if (path.startsWith('.obsidian/')) {
+				// Hidden config paths – write via adapter to avoid vault API issues
+				await this.app.vault.adapter.write(path, content);
+			} else {
 				await this.app.vault.create(path, content);
+			}
 		}
 	}
 	

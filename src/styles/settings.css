@@ -278,6 +278,60 @@
 	border: 1px solid var(--background-modifier-border);
 }
 
+/* Collapsible sections (details/summary) */
+details.vc-collapsible {
+	/* Inherits .vc-settings-section styles above */
+}
+
+details.vc-collapsible > summary.vc-section-summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	cursor: pointer;
+	list-style: none;
+	user-select: none;
+}
+
+details.vc-collapsible > summary.vc-section-summary::-webkit-details-marker {
+	display: none;
+}
+
+details.vc-collapsible > summary.vc-section-summary::before {
+	content: "";
+	display: inline-block;
+	width: 0;
+	height: 0;
+	margin-right: 8px;
+	border-top: 5px solid transparent;
+	border-bottom: 5px solid transparent;
+	border-left: 6px solid var(--text-muted);
+	flex-shrink: 0;
+	transition: transform 150ms ease;
+}
+
+details.vc-collapsible[open] > summary.vc-section-summary::before {
+	transform: rotate(90deg);
+}
+
+details.vc-collapsible > summary.vc-section-summary h2,
+details.vc-collapsible > summary.vc-section-summary h3,
+details.vc-collapsible > summary.vc-section-summary h4 {
+	margin: 0;
+	padding-left: 0;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text-normal);
+	flex: 1;
+}
+
+details.vc-collapsible > summary.vc-section-summary h2 {
+	font-size: 18px;
+}
+
+details.vc-collapsible > .vc-section-content {
+	margin-top: 12px;
+}
+
 .vc-section-header {
 	display: flex;
 	align-items: center;

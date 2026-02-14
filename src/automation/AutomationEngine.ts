@@ -206,6 +206,43 @@ export class AutomationEngine {
 	}
 
 	/**
+	 * Update an existing automation's configuration
+	 * 
+	 * Re-schedules timers if the automation is enabled and triggers changed.
+	 * 
+	 * @param automationId - ID of automation to update
+	 * @param updates - Partial automation instance fields to merge
+	 * @throws {Error} If automation not found
+	 */
+	async updateAutomation(automationId: string, updates: Partial<Pick<AutomationInstance, 'name' | 'config' | 'enabled'>>): Promise<void> {
+		const automation = this.state.automations[automationId];
+		if (!automation) {
+			throw new Error(`Automation ${automationId} not found`);
+		}
+
+		// Deactivate before updating so timers/listeners are refreshed
+		await this.deactivateAutomation(automationId);
+
+		if (updates.name !== undefined) {
+			automation.name = updates.name;
+		}
+		if (updates.config !== undefined) {
+			automation.config = updates.config;
+		}
+		if (updates.enabled !== undefined) {
+			automation.enabled = updates.enabled;
+		}
+
+		// Re-activate if enabled
+		if (automation.enabled) {
+			await this.activateAutomation(automationId);
+		}
+
+		await this.saveState();
+		new Notice(`Automation '${automation.name}' updated`);
+	}
+
+	/**
 	 * Get automation by ID
 	 */
 	getAutomation(automationId: string): AutomationInstance | undefined {

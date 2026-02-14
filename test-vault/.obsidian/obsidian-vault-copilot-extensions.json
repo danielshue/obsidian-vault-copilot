@@ -28,6 +28,16 @@
         "Reference/Agents/agent-builder.agent.md"
       ],
       "linkedDependencies": []
+    },
+    "daily-note-automation": {
+      "extensionId": "daily-note-automation",
+      "extensionKind": "automation",
+      "installedVersion": "1.0.0",
+      "installationTimestamp": "2026-02-14T08:23:49.028Z",
+      "installedFilePaths": [
+        ".obsidian/automations/automation-config.json"
+      ],
+      "linkedDependencies": []
     }
   }
 }
