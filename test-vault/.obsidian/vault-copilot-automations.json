@@ -1,4 +1,26 @@
 {
-  "automations": {},
+  "automations": {
+    "user-1771059634242": {
+      "id": "user-1771059634242",
+      "name": "Weekly",
+      "config": {
+        "triggers": [
+          {
+            "type": "schedule",
+            "schedule": "0 6 * * *"
+          }
+        ],
+        "actions": [
+          {
+            "type": "run-agent",
+            "agentId": "Daily Journal Agent"
+          }
+        ],
+        "enabled": true
+      },
+      "enabled": true,
+      "executionCount": 0
+    }
+  },
   "history": []
 }
