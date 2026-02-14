@@ -347,6 +347,7 @@ export class AutomationEngine {
 			automation,
 			trigger,
 			startTime: Date.now(),
+			previousResults: [],
 		};
 
 		const actionResults: ActionExecutionResult[] = [];
@@ -358,11 +359,13 @@ export class AutomationEngine {
 			await this.sleep(trigger.delay);
 		}
 
-		// Execute each action in sequence
+		// Execute each action in sequence, piping output forward
 		for (const action of automation.config.actions) {
 			try {
-				const result = await this.executeAction(action, context);
+				const enrichedAction = this.enrichActionInput(action, context.previousResults);
+				const result = await this.executeAction(enrichedAction, context);
 				actionResults.push(result);
+				context.previousResults.push(result);
 				if (!result.success) {
 					overallSuccess = false;
 				}
@@ -440,8 +443,8 @@ export class AutomationEngine {
 				case 'update-note':
 					result = await this.executeUpdateNote(action, context);
 					break;
-				case 'run-command':
-					result = await this.executeRunCommand(action, context);
+				case 'run-shell':
+					result = await this.executeRunShell(action, context);
 					break;
 				default:
 					throw new Error(`Unknown action type: ${(action as AutomationAction).type}`);
@@ -462,6 +465,38 @@ export class AutomationEngine {
 				duration: Date.now() - startTime,
 			};
 		}
+	}
+
+	/**
+	 * Enrich an action's input with the output from the previous step in the pipeline.
+	 *
+	 * If there are previous results, the last result's output is added as `previousOutput`
+	 * in the action's input. If the action already has input, the previous output is merged
+	 * alongside it. If the action has no input, a new input object is created.
+	 *
+	 * @param action - The action to enrich
+	 * @param previousResults - Results from earlier steps
+	 * @returns The action with enriched input (or original if first step)
+	 *
+	 * @internal
+	 */
+	private enrichActionInput(action: AutomationAction, previousResults: ActionExecutionResult[]): AutomationAction {
+		if (previousResults.length === 0) return action;
+
+		const lastResult = previousResults[previousResults.length - 1];
+		if (!lastResult || !lastResult.success || lastResult.result === undefined) return action;
+
+		const previousOutput = typeof lastResult.result === 'string'
+			? lastResult.result
+			: JSON.stringify(lastResult.result);
+
+		return {
+			...action,
+			input: {
+				...(action.input || {}),
+				previousOutput,
+			},
+		} as AutomationAction;
 	}
 
 	/**
@@ -519,10 +554,19 @@ export class AutomationEngine {
 		// Prepare the prompt with agent instructions
 		let prompt = fullAgent.instructions || '';
 		
-		// Add input to the prompt if provided
+		// Add previous step output if present
+		if (input && typeof input === 'object' && 'previousOutput' in input && input.previousOutput) {
+			prompt += `\n\nContext from previous step:\n${String(input.previousOutput)}`;
+		}
+		
+		// Add user input if provided
 		if (input) {
-			const inputStr = typeof input === 'string' ? input : JSON.stringify(input);
-			prompt += `\n\nInput: ${inputStr}`;
+			const { previousOutput, ...rest } = input as Record<string, unknown>;
+			const hasRest = Object.keys(rest).length > 0;
+			if (hasRest) {
+				const inputStr = rest.userInput ? String(rest.userInput) : JSON.stringify(rest);
+				prompt += `\n\nInput: ${inputStr}`;
+			}
 		}
 		
 		return await this.sendToAIProvider(prompt);
@@ -544,19 +588,26 @@ export class AutomationEngine {
 		// Replace variables in the prompt content
 		let content = prompt.content;
 		
+		// Inject previous step output as a variable
+		if (input && typeof input === 'object' && 'previousOutput' in input && input.previousOutput) {
+			const prevStr = String(input.previousOutput);
+			content = content.replace(/\$\{previousOutput\}/g, prevStr);
+			content = content.replace(/\{previousOutput\}/g, prevStr);
+			// If no placeholder was found, append it
+			if (!content.includes(prevStr)) {
+				content += `\n\nContext from previous step:\n${prevStr}`;
+			}
+		}
+		
 		// Replace input variables if provided
 		if (input) {
-			if (this.isPlainObject(input)) {
-				for (const [key, value] of Object.entries(input)) {
+			const { previousOutput, ...rest } = input as Record<string, unknown>;
+			if (this.isPlainObject(rest) && Object.keys(rest).length > 0) {
+				for (const [key, value] of Object.entries(rest)) {
 					const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
 					content = content.replace(new RegExp(`\\{${key}\\}`, 'g'), valueStr);
 					content = content.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), valueStr);
 				}
-			} else {
-				// If input is a string or other type, replace ${userInput} placeholder
-				const inputStr = typeof input === 'string' ? input : JSON.stringify(input);
-				content = content.replace(/\$\{userInput\}/g, inputStr);
-				content = content.replace(/\{userInput\}/g, inputStr);
 			}
 		}
 		
@@ -625,20 +676,47 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Execute run-command action
+	 * Execute run-shell action (desktop only)
+	 *
+	 * Spawns the shell command via Node.js child_process.
+	 * Returns stdout on success.
 	 */
-	private async executeRunCommand(action: Extract<AutomationAction, { type: 'run-command' }>, context: AutomationExecutionContext): Promise<boolean> {
-		const { commandId } = action;
-		console.log(`AutomationEngine: Running command '${commandId}'`);
-		
-		// Execute the command
-		const success = (this.app as any).commands.executeCommandById(commandId);
-		
-		if (!success) {
-			throw new Error(`Command '${commandId}' failed or not found`);
+	private async executeRunShell(action: Extract<AutomationAction, { type: 'run-shell' }>, context: AutomationExecutionContext): Promise<string> {
+		const { command, input } = action;
+		console.log(`AutomationEngine: Running shell command '${command}'`);
+
+		// Desktop-only guard
+		if (!(this.app as any).vault.adapter.basePath) {
+			throw new Error('Shell commands are only available on desktop');
 		}
-		
-		return true;
+
+		const { exec } = require('child_process') as typeof import('child_process');
+
+		// Build the final command — append previousOutput from input if present
+		let finalCommand = command;
+		if (input && typeof input === 'object' && 'previousOutput' in input && input.previousOutput) {
+			// Make previous output available as env var
+			finalCommand = command;
+		}
+
+		return new Promise<string>((resolve, reject) => {
+			const cwd = (this.app.vault.adapter as any).basePath as string;
+			const env = { ...process.env };
+			if (input && typeof input === 'object' && 'previousOutput' in input) {
+				env.PREVIOUS_OUTPUT = String(input.previousOutput);
+			}
+			if (input && typeof input === 'object' && 'userInput' in input) {
+				env.USER_INPUT = String(input.userInput);
+			}
+
+			exec(finalCommand, { cwd, env, timeout: 30000 }, (error, stdout, stderr) => {
+				if (error) {
+					reject(new Error(`Shell command failed: ${stderr || error.message}`));
+				} else {
+					resolve(stdout.trim());
+				}
+			});
+		});
 	}
 
 	/**

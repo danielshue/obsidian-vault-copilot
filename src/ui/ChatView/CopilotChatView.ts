@@ -146,7 +146,7 @@ export class CopilotChatView extends ItemView {
 		super(leaf);
 		this.plugin = plugin;
 		this.githubCopilotCliService = githubCopilotCliService as GitHubCopilotCliService;
-		this.toolCatalog = new ToolCatalog(plugin.skillRegistry, plugin.mcpManager);
+		this.toolCatalog = new ToolCatalog(plugin.skillRegistry, plugin.mcpManager, plugin.skillCache);
 		this.promptProcessor = new PromptProcessor(plugin.app);
 		this.contextAugmentation = new ContextAugmentation(plugin.app);
 		this.messageRenderer = new MessageRenderer(plugin.app, this);

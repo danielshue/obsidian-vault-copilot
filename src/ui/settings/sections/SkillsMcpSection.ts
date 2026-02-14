@@ -12,6 +12,7 @@
 
 import { Setting } from "obsidian";
 import { SkillInfo, McpServerConfig } from "../../../copilot/customization/SkillRegistry";
+import { CachedSkillInfo } from "../../../copilot/customization/SkillCache";
 import { DiscoveredMcpServer, isStdioConfig, McpConnectionStatus, McpServerSource } from "../../../copilot/mcp/McpTypes";
 import { getSourceLabel, getSourceIcon } from "../../../copilot/mcp/McpManager";
 import { isMobile } from "../../../utils/platform";
@@ -40,16 +41,27 @@ export function renderSkillsMcpSection(containerEl: HTMLElement, ctx: SettingSec
 	const skillsContainer = section.createDiv({ cls: "vc-skills-container" });
 
 	let unsubscribe: (() => void) | null = null;
+	let unsubscribeSkillCache: (() => void) | null = null;
 
 	// Subscribe to skill registry changes
 	unsubscribe = ctx.plugin.skillRegistry.onSkillChange(() => {
 		updateSkillsDisplay();
 	});
 
+	// Subscribe to skill cache changes (file-based skills)
+	if (ctx.plugin.skillCache) {
+		unsubscribeSkillCache = ctx.plugin.skillCache.onCacheChange(() => {
+			updateSkillsDisplay();
+		});
+	}
+
 	function updateSkillsDisplay(): void {
 		skillsContainer.empty();
-		const skills = ctx.plugin.skillRegistry.listSkills();
-		renderSkillsTable(skillsContainer, skills);
+		// Merge runtime-registered skills with file-based skills from cache
+		const runtimeSkills = ctx.plugin.skillRegistry.listSkills();
+		const cachedSkills = ctx.plugin.skillCache?.getSkills() ?? [];
+		const mergedSkills = mergeSkills(runtimeSkills, cachedSkills);
+		renderSkillsTable(skillsContainer, mergedSkills);
 		renderMcpServersSection(skillsContainer, ctx);
 	}
 
@@ -71,8 +83,51 @@ export function createSkillRegistrySubscription(ctx: SettingSectionContext, onCh
 	return ctx.plugin.skillRegistry.onSkillChange(onChanged);
 }
 
+/**
+ * Unified skill entry for display in the table.
+ * @internal
+ */
+interface DisplaySkill {
+	name: string;
+	description: string;
+	source: string;
+	category?: string;
+}
+
+/**
+ * Merge runtime-registered skills with file-based cached skills, deduplicating by name.
+ * @internal
+ */
+function mergeSkills(runtimeSkills: SkillInfo[], cachedSkills: CachedSkillInfo[]): DisplaySkill[] {
+	const seen = new Set<string>();
+	const result: DisplaySkill[] = [];
+
+	for (const s of runtimeSkills) {
+		seen.add(s.name);
+		result.push({
+			name: s.name,
+			description: s.description,
+			source: s.pluginId || 'plugin',
+			category: s.category || 'general',
+		});
+	}
+
+	for (const s of cachedSkills) {
+		if (seen.has(s.name)) continue;
+		seen.add(s.name);
+		result.push({
+			name: s.name,
+			description: s.description,
+			source: 'file',
+			category: undefined,
+		});
+	}
+
+	return result;
+}
+
 /** @internal */
-function renderSkillsTable(container: HTMLElement, skills: SkillInfo[]): void {
+function renderSkillsTable(container: HTMLElement, skills: DisplaySkill[]): void {
 	const skillsSection = container.createDiv({ cls: "vc-skills-subsection" });
 	skillsSection.createEl("h4", { text: "Skills" });
 
@@ -80,7 +135,7 @@ function renderSkillsTable(container: HTMLElement, skills: SkillInfo[]): void {
 		const emptyState = skillsSection.createDiv({ cls: "vc-empty-state" });
 		emptyState.createEl("p", { text: "No skills registered yet." });
 		emptyState.createEl("p", {
-			text: "Skills can be registered by other plugins using the Vault Copilot API.",
+			text: "Skills can be registered by plugins or loaded from skill directories.",
 			cls: "vc-status-desc"
 		});
 		return;
@@ -91,7 +146,7 @@ function renderSkillsTable(container: HTMLElement, skills: SkillInfo[]): void {
 	const headerRow = thead.createEl("tr");
 	headerRow.createEl("th", { text: "Name" });
 	headerRow.createEl("th", { text: "Description" });
-	headerRow.createEl("th", { text: "Plugin" });
+	headerRow.createEl("th", { text: "Source" });
 	headerRow.createEl("th", { text: "Category" });
 
 	const tbody = table.createEl("tbody");
@@ -99,14 +154,13 @@ function renderSkillsTable(container: HTMLElement, skills: SkillInfo[]): void {
 		const row = tbody.createEl("tr");
 		row.createEl("td", { text: skill.name, cls: "vc-skill-name" });
 		row.createEl("td", { text: skill.description, cls: "vc-skill-desc" });
-		row.createEl("td", { text: skill.pluginId, cls: "vc-skill-plugin" });
-		row.createEl("td", { text: skill.category || "general", cls: "vc-skill-category" });
+		row.createEl("td", { text: skill.source, cls: "vc-skill-plugin" });
+		row.createEl("td", { text: skill.category || "—", cls: "vc-skill-category" });
 	}
 
 	const summary = skillsSection.createDiv({ cls: "vc-table-summary" });
-	const pluginCount = new Set(skills.map(s => s.pluginId)).size;
 	summary.createEl("span", {
-		text: `${skills.length} skill${skills.length !== 1 ? "s" : ""} from ${pluginCount} plugin${pluginCount !== 1 ? "s" : ""}`
+		text: `${skills.length} skill${skills.length !== 1 ? "s" : ""}`
 	});
 }
 

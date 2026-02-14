@@ -100,8 +100,8 @@ export class AutomationDetailsModal extends Modal {
 				details = `Skill: ${action.skillId}`;
 			} else if ((action.type === 'create-note' || action.type === 'update-note') && 'path' in action) {
 				details = `Path: ${action.path}`;
-			} else if (action.type === 'run-command' && 'commandId' in action) {
-				details = `Command: ${action.commandId}`;
+			} else if (action.type === 'run-shell' && 'command' in action) {
+				details = `Command: ${action.command}`;
 			}
 			
 			if (details) {

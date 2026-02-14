@@ -1,26 +1,74 @@
 {
-  "automations": {
-    "user-1771059634242": {
-      "id": "user-1771059634242",
-      "name": "Weekly",
-      "config": {
-        "triggers": [
+  "automations": {},
+  "history": [
+    {
+      "automationId": "user-1771059634242",
+      "result": {
+        "success": false,
+        "timestamp": 1771070290951,
+        "trigger": {
+          "type": "schedule",
+          "schedule": "0 6 * * *"
+        },
+        "actionResults": [
           {
-            "type": "schedule",
-            "schedule": "0 6 * * *"
+            "action": {
+              "type": "run-agent",
+              "agentId": "Daily Journal Agent"
+            },
+            "success": false,
+            "error": "Request timed out after 9999 seconds",
+            "duration": 10611852
           }
-        ],
-        "actions": [
-          {
-            "type": "run-agent",
-            "agentId": "Daily Journal Agent"
-          }
-        ],
-        "enabled": true
+        ]
       },
-      "enabled": true,
-      "executionCount": 0
+      "timestamp": 1771070290951
+    },
+    {
+      "automationId": "user-1771059634242",
+      "result": {
+        "success": false,
+        "timestamp": 1771070290971,
+        "trigger": {
+          "type": "schedule",
+          "schedule": "0 6 * * *"
+        },
+        "actionResults": [
+          {
+            "action": {
+              "type": "run-agent",
+              "agentId": "Daily Journal Agent"
+            },
+            "success": false,
+            "error": "Request timed out after 9999 seconds",
+            "duration": 10608585
+          }
+        ]
+      },
+      "timestamp": 1771070290971
+    },
+    {
+      "automationId": "user-1771059634242",
+      "result": {
+        "success": false,
+        "timestamp": 1771070290978,
+        "trigger": {
+          "type": "schedule",
+          "schedule": "0 6 * * *"
+        },
+        "actionResults": [
+          {
+            "action": {
+              "type": "run-agent",
+              "agentId": "Daily Journal Agent"
+            },
+            "success": false,
+            "error": "Request timed out after 9999 seconds",
+            "duration": 10606464
+          }
+        ]
+      },
+      "timestamp": 1771070290978
     }
-  },
-  "history": []
+  ]
 }

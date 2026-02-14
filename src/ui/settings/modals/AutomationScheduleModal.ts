@@ -29,6 +29,13 @@ interface ScheduleFields {
 	minute: number;      // 0-59
 }
 
+/** State for a single pipeline step */
+interface StepState {
+	actionType: AutomationAction['type'];
+	actionValue: string;
+	inputText: string;
+}
+
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const TIME_OPTIONS: { label: string; hour: number; minute: number }[] = (() => {
@@ -67,9 +74,7 @@ export class AutomationScheduleModal extends Modal {
 
 	// Form state
 	private name = '';
-	private actionType: AutomationAction['type'] = 'run-command';
-	private actionValue = '';
-	private inputParams: { key: string; value: string }[] = [];
+	private steps: StepState[] = [{ actionType: 'run-agent', actionValue: '', inputText: '' }];
 	private schedule: ScheduleFields = {
 		frequency: 'week',
 		dayOfWeek: 1,
@@ -79,8 +84,7 @@ export class AutomationScheduleModal extends Modal {
 	};
 
 	private conditionalContainer: HTMLElement | null = null;
-	private actionContainer: HTMLElement | null = null;
-	private paramsContainer: HTMLElement | null = null;
+	private stepsContainer: HTMLElement | null = null;
 
 	/**
 	 * @param app - Obsidian app
@@ -102,17 +106,15 @@ export class AutomationScheduleModal extends Modal {
 		if (automation) {
 			this.name = automation.name;
 			this.schedule = this.parseCronToFields(automation.config);
-			// Preserve existing action info
-			const firstAction = automation.config.actions[0];
-			if (firstAction) {
-				this.actionType = firstAction.type;
-				this.actionValue = this.getActionValue(firstAction);
-				// Load existing input params
-				if (firstAction.input) {
-					this.inputParams = Object.entries(firstAction.input).map(
-						([key, value]) => ({ key, value: String(value) })
-					);
-				}
+			// Load all actions as steps
+			if (automation.config.actions.length > 0) {
+				this.steps = automation.config.actions.map(action => ({
+					actionType: action.type,
+					actionValue: this.getActionValue(action),
+					inputText: action.input
+						? (typeof action.input === 'string' ? action.input : JSON.stringify(action.input))
+						: '',
+				}));
 			}
 		}
 	}
@@ -121,6 +123,11 @@ export class AutomationScheduleModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass('vc-schedule-modal');
+
+		// Refresh caches so dropdowns reflect current directory settings
+		this.plugin.agentCache?.refreshCache();
+		this.plugin.promptCache?.refreshCache();
+		this.plugin.skillCache?.refreshCache();
 
 		const isEdit = !!this.existingAutomation;
 		contentEl.createEl('h2', { text: isEdit ? 'Edit schedule' : 'Create automation' });
@@ -159,38 +166,24 @@ export class AutomationScheduleModal extends Modal {
 		this.conditionalContainer = contentEl.createDiv({ cls: 'vc-schedule-conditional' });
 		this.renderConditionalFields();
 
-		// ── Action ──
-		contentEl.createEl('h3', { text: 'Action', cls: 'vc-schedule-section-heading' });
-		contentEl.createEl('p', { text: 'What should this automation do?', cls: 'vc-schedule-desc' });
-
-		new Setting(contentEl)
-			.setName('Action type')
-			.addDropdown(dropdown => {
-				dropdown.addOption('run-command', 'Run command');
-				dropdown.addOption('run-agent', 'Run agent');
-				dropdown.addOption('run-prompt', 'Run prompt');
-				dropdown.addOption('run-skill', 'Run skill');
-				dropdown.addOption('create-note', 'Create note');
-				dropdown.addOption('update-note', 'Update note');
-				dropdown.setValue(this.actionType);
-				dropdown.onChange(v => {
-					this.actionType = v as AutomationAction['type'];
-					this.actionValue = '';
-					this.renderActionValueField();
-				});
-			});
-
-		this.actionContainer = contentEl.createDiv({ cls: 'vc-schedule-conditional' });
-		this.renderActionValueField();
-
-		// ── Parameters ──
-		contentEl.createEl('h3', { text: 'Parameters', cls: 'vc-schedule-section-heading' });
+		// ── Steps ──
+		contentEl.createEl('h3', { text: 'Steps', cls: 'vc-schedule-section-heading' });
 		contentEl.createEl('p', {
-			text: 'Key-value pairs passed to the action at execution time.',
+			text: 'Define one or more steps. Each step can use the previous step\'s output as its input.',
 			cls: 'vc-schedule-desc',
 		});
-		this.paramsContainer = contentEl.createDiv({ cls: 'vc-params-container' });
-		this.renderParamsEditor();
+
+		this.stepsContainer = contentEl.createDiv({ cls: 'vc-pipeline-steps' });
+		this.renderAllSteps();
+
+		// "Add Step" button
+		new Setting(contentEl)
+			.addButton(button => button
+				.setButtonText('+ Add step')
+				.onClick(() => {
+					this.steps.push({ actionType: 'run-agent', actionValue: '', inputText: '' });
+					this.renderAllSteps();
+				}));
 
 		// ── Buttons ──
 		const buttonRow = contentEl.createDiv({ cls: 'vc-modal-buttons' });
@@ -278,23 +271,105 @@ export class AutomationScheduleModal extends Modal {
 		}
 	}
 
-	// ─── Action value field ──────────────────────────────────────────────
+	// ─── Steps rendering ─────────────────────────────────────────────────
 
 	/**
-	 * Render the action value field based on the selected action type.
-	 * Shows a dynamic dropdown for agents/prompts/skills/commands, or a
-	 * text input for note paths.
+	 * Render all pipeline steps into the steps container.
 	 *
 	 * @internal
 	 */
-	private renderActionValueField(): void {
-		if (!this.actionContainer) return;
-		this.actionContainer.empty();
+	private renderAllSteps(): void {
+		if (!this.stepsContainer) return;
+		this.stepsContainer.empty();
 
-		switch (this.actionType) {
+		for (let i = 0; i < this.steps.length; i++) {
+			this.renderStep(this.stepsContainer, i);
+		}
+	}
+
+	/**
+	 * Render a single pipeline step card.
+	 *
+	 * @param container - Parent element
+	 * @param index - Step index (0-based)
+	 *
+	 * @internal
+	 */
+	private renderStep(container: HTMLElement, index: number): void {
+		const step = this.steps[index];
+		if (!step) return;
+
+		const card = container.createDiv({ cls: 'vc-pipeline-step' });
+
+		// Step header with label and remove button
+		const header = card.createDiv({ cls: 'vc-pipeline-step-header' });
+		header.createEl('span', { text: `Step ${index + 1}`, cls: 'vc-pipeline-step-label' });
+
+		if (this.steps.length > 1) {
+			const removeBtn = header.createEl('button', {
+				text: '✕',
+				cls: 'vc-btn vc-btn-small vc-btn-danger',
+				attr: { 'aria-label': `Remove step ${index + 1}` },
+			});
+			removeBtn.addEventListener('click', () => {
+				this.steps.splice(index, 1);
+				this.renderAllSteps();
+			});
+		}
+
+		// Action type dropdown
+		new Setting(card)
+			.setName('Action type')
+			.addDropdown(dropdown => {
+				dropdown.addOption('run-agent', 'Run agent');
+				dropdown.addOption('run-prompt', 'Run prompt');
+				dropdown.addOption('run-skill', 'Run skill');
+				dropdown.addOption('create-note', 'Create note');
+				dropdown.addOption('update-note', 'Update note');
+				dropdown.addOption('run-shell', 'Run shell command');
+				dropdown.setValue(step.actionType);
+				dropdown.onChange(v => {
+					step.actionType = v as AutomationAction['type'];
+					step.actionValue = '';
+					this.renderAllSteps();
+				});
+			});
+
+		// Action value (dropdown for agents/prompts/skills, text for note paths)
+		const actionContainer = card.createDiv({ cls: 'vc-schedule-conditional' });
+		this.renderStepActionValue(actionContainer, step);
+
+		// Input textarea
+		const inputDesc = index > 0
+			? 'Text passed to the action. Leave empty to use the previous step\'s output.'
+			: 'Text passed to the action at execution time';
+
+		new Setting(card)
+			.setName('Input')
+			.setDesc(inputDesc)
+			.addTextArea(text => {
+				text.setPlaceholder(
+					index > 0
+						? 'Leave empty to use previous step\'s output'
+						: 'e.g. Summarize my daily notes',
+				)
+					.setValue(step.inputText)
+					.onChange(v => { step.inputText = v; });
+				text.inputEl.style.width = '100%';
+				text.inputEl.rows = 3;
+			});
+	}
+
+	/**
+	 * Render the action value selector for a single step.
+	 *
+	 * @internal
+	 */
+	private renderStepActionValue(container: HTMLElement, step: StepState): void {
+		switch (step.actionType) {
 			case 'run-agent': {
 				const agents = this.plugin.agentCache?.getAgents() ?? [];
-				new Setting(this.actionContainer)
+				new Setting(container)
 					.setName('Agent')
 					.setDesc(agents.length ? 'Select which agent to run' : 'No agents found — add .agent.md files to your agent directories')
 					.addDropdown(dropdown => {
@@ -302,22 +377,22 @@ export class AutomationScheduleModal extends Modal {
 							dropdown.addOption('', '(none available)');
 						}
 						for (const a of agents) {
-							dropdown.addOption(a.name, a.description ? `${a.name} — ${a.description}` : a.name);
+							dropdown.addOption(a.name, a.name);
 						}
-						if (this.actionValue && agents.some(a => a.name === this.actionValue)) {
-							dropdown.setValue(this.actionValue);
+						if (step.actionValue && agents.some(a => a.name === step.actionValue)) {
+							dropdown.setValue(step.actionValue);
 						} else if (agents.length > 0 && agents[0]) {
-							this.actionValue = agents[0].name;
-							dropdown.setValue(this.actionValue);
+							step.actionValue = agents[0].name;
+							dropdown.setValue(step.actionValue);
 						}
-						dropdown.onChange(v => { this.actionValue = v; });
+						dropdown.onChange(v => { step.actionValue = v; });
 					});
 				break;
 			}
 
 			case 'run-prompt': {
 				const prompts = this.plugin.promptCache?.getPrompts() ?? [];
-				new Setting(this.actionContainer)
+				new Setting(container)
 					.setName('Prompt')
 					.setDesc(prompts.length ? 'Select which prompt to run' : 'No prompts found — add .prompt.md files to your prompt directories')
 					.addDropdown(dropdown => {
@@ -325,130 +400,73 @@ export class AutomationScheduleModal extends Modal {
 							dropdown.addOption('', '(none available)');
 						}
 						for (const p of prompts) {
-							dropdown.addOption(p.name, p.description ? `${p.name} — ${p.description}` : p.name);
+							dropdown.addOption(p.name, p.name);
 						}
-						if (this.actionValue && prompts.some(p => p.name === this.actionValue)) {
-							dropdown.setValue(this.actionValue);
+						if (step.actionValue && prompts.some(p => p.name === step.actionValue)) {
+							dropdown.setValue(step.actionValue);
 						} else if (prompts.length > 0 && prompts[0]) {
-							this.actionValue = prompts[0].name;
-							dropdown.setValue(this.actionValue);
+							step.actionValue = prompts[0].name;
+							dropdown.setValue(step.actionValue);
 						}
-						dropdown.onChange(v => { this.actionValue = v; });
+						dropdown.onChange(v => { step.actionValue = v; });
 					});
 				break;
 			}
 
 			case 'run-skill': {
-				const skills = this.plugin.skillRegistry?.listSkills() ?? [];
-				new Setting(this.actionContainer)
+				// Merge runtime-registered skills with file-based skills from cache
+				const runtimeSkills = this.plugin.skillRegistry?.listSkills() ?? [];
+				const cachedSkills = this.plugin.skillCache?.getSkills() ?? [];
+				const allSkillNames = new Map<string, string>();
+				for (const s of runtimeSkills) allSkillNames.set(s.name, s.description);
+				for (const s of cachedSkills) {
+					if (!allSkillNames.has(s.name)) allSkillNames.set(s.name, s.description);
+				}
+				const skills = Array.from(allSkillNames.entries()).map(([name, description]) => ({ name, description }));
+				new Setting(container)
 					.setName('Skill')
-					.setDesc(skills.length ? 'Select which skill to run' : 'No skills registered')
+					.setDesc(skills.length ? 'Select which skill to run' : 'No skills available')
 					.addDropdown(dropdown => {
 						if (skills.length === 0) {
 							dropdown.addOption('', '(none available)');
 						}
 						for (const s of skills) {
-							dropdown.addOption(s.name, s.description ? `${s.name} — ${s.description}` : s.name);
+							dropdown.addOption(s.name, s.name);
 						}
-						if (this.actionValue && skills.some(s => s.name === this.actionValue)) {
-							dropdown.setValue(this.actionValue);
+						if (step.actionValue && skills.some(s => s.name === step.actionValue)) {
+							dropdown.setValue(step.actionValue);
 						} else if (skills.length > 0 && skills[0]) {
-							this.actionValue = skills[0].name;
-							dropdown.setValue(this.actionValue);
+							step.actionValue = skills[0].name;
+							dropdown.setValue(step.actionValue);
 						}
-						dropdown.onChange(v => { this.actionValue = v; });
-					});
-				break;
-			}
-
-			case 'run-command': {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const commands: Record<string, { id: string; name: string }> = (this.app as any).commands?.commands ?? {};
-				const commandList = Object.values(commands).sort((a, b) => a.name.localeCompare(b.name));
-				new Setting(this.actionContainer)
-					.setName('Command')
-					.setDesc('Select an Obsidian command to run')
-					.addDropdown(dropdown => {
-						for (const cmd of commandList) {
-							dropdown.addOption(cmd.id, cmd.name);
-						}
-						if (this.actionValue && commandList.some(c => c.id === this.actionValue)) {
-							dropdown.setValue(this.actionValue);
-						} else if (commandList.length > 0 && commandList[0]) {
-							this.actionValue = commandList[0].id;
-							dropdown.setValue(this.actionValue);
-						}
-						dropdown.onChange(v => { this.actionValue = v; });
+						dropdown.onChange(v => { step.actionValue = v; });
 					});
 				break;
 			}
 
 			case 'create-note':
 			case 'update-note':
-				new Setting(this.actionContainer)
+				new Setting(container)
 					.setName('Note path')
 					.setDesc('Path to the note (e.g. Daily Notes/{{date}}.md)')
 					.addText(text => {
 						text.setPlaceholder('e.g. Daily Notes/{{date}}.md')
-							.setValue(this.actionValue)
-							.onChange(v => { this.actionValue = v; });
+							.setValue(step.actionValue)
+							.onChange(v => { step.actionValue = v; });
+					});
+				break;
+
+			case 'run-shell':
+				new Setting(container)
+					.setName('Shell command')
+					.setDesc('Command to execute (runs in vault root, desktop only). Use $PREVIOUS_OUTPUT and $USER_INPUT env vars.')
+					.addText(text => {
+						text.setPlaceholder('e.g. python scripts/summarize.py')
+							.setValue(step.actionValue)
+							.onChange(v => { step.actionValue = v; });
 					});
 				break;
 		}
-	}
-
-	// ─── Parameters editor ───────────────────────────────────────────────
-
-	/**
-	 * Render the key-value parameter editor for action input.
-	 *
-	 * @internal
-	 */
-	private renderParamsEditor(): void {
-		if (!this.paramsContainer) return;
-		this.paramsContainer.empty();
-
-		// Render existing params
-		for (let i = 0; i < this.inputParams.length; i++) {
-			const param = this.inputParams[i]!;
-			const row = this.paramsContainer.createDiv({ cls: 'vc-param-row' });
-
-			const keyInput = row.createEl('input', {
-				type: 'text',
-				cls: 'vc-param-key',
-				placeholder: 'key',
-				value: param.key,
-			});
-			keyInput.addEventListener('input', () => { param.key = keyInput.value; });
-
-			const valInput = row.createEl('input', {
-				type: 'text',
-				cls: 'vc-param-value',
-				placeholder: 'value',
-				value: param.value,
-			});
-			valInput.addEventListener('input', () => { param.value = valInput.value; });
-
-			const removeBtn = row.createEl('button', {
-				cls: 'vc-btn-icon vc-btn-remove',
-				attr: { 'aria-label': 'Remove parameter' },
-			});
-			removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-			removeBtn.addEventListener('click', () => {
-				this.inputParams.splice(i, 1);
-				this.renderParamsEditor();
-			});
-		}
-
-		// Add button
-		const addBtn = this.paramsContainer.createEl('button', {
-			text: '+ Add parameter',
-			cls: 'vc-btn-secondary vc-btn-sm',
-		});
-		addBtn.addEventListener('click', () => {
-			this.inputParams.push({ key: '', value: '' });
-			this.renderParamsEditor();
-		});
 	}
 
 	// ─── Submit ──────────────────────────────────────────────────────────
@@ -462,26 +480,22 @@ export class AutomationScheduleModal extends Modal {
 		const isEdit = !!this.existingAutomation;
 
 		if (!isEdit && !this.name.trim()) {
-			const existing = this.contentEl.querySelector('.vc-schedule-error');
-			if (!existing) {
-				const err = this.contentEl.createDiv({ cls: 'vc-schedule-error' });
-				err.setText('Please enter a name.');
-			}
+			this.showError('Please enter a name.');
 			return;
 		}
 
-		if (!this.actionValue.trim()) {
-			const existing = this.contentEl.querySelector('.vc-schedule-error');
-			if (!existing) {
-				const err = this.contentEl.createDiv({ cls: 'vc-schedule-error' });
-				err.setText('Please select an action.');
+		// Validate all steps have an action value
+		for (let i = 0; i < this.steps.length; i++) {
+			const step = this.steps[i];
+			if (!step || !step.actionValue.trim()) {
+				this.showError(`Please select an action for step ${i + 1}.`);
+				return;
 			}
-			return;
 		}
 
 		const cron = this.fieldsToCron(this.schedule);
 		const trigger: ScheduleTrigger = { type: 'schedule', schedule: cron };
-		const action = this.buildAction();
+		const actions = this.buildActions();
 
 		let config: AutomationConfig;
 		if (isEdit && this.existingAutomation) {
@@ -489,12 +503,12 @@ export class AutomationScheduleModal extends Modal {
 			config = {
 				...this.existingAutomation.config,
 				triggers: [...otherTriggers, trigger],
-				actions: [action],
+				actions,
 			};
 		} else {
 			config = {
 				triggers: [trigger],
-				actions: [action],
+				actions,
 				enabled: true,
 			};
 		}
@@ -507,24 +521,48 @@ export class AutomationScheduleModal extends Modal {
 		this.close();
 	}
 
-	// ─── Helpers ─────────────────────────────────────────────────────────
-
 	/**
-	 * Build an `AutomationAction` from the form state.
+	 * Show an error message in the modal.
 	 *
 	 * @internal
 	 */
-	private buildAction(): AutomationAction {
-		const val = this.actionValue.trim();
-		// Collect non-empty params into input object
-		const input: Record<string, unknown> = {};
-		for (const p of this.inputParams) {
-			const key = p.key.trim();
-			if (key) input[key] = p.value;
-		}
-		const hasInput = Object.keys(input).length > 0;
+	private showError(message: string): void {
+		const existing = this.contentEl.querySelector('.vc-schedule-error');
+		if (existing) existing.remove();
+		const err = this.contentEl.createDiv({ cls: 'vc-schedule-error' });
+		err.setText(message);
+	}
 
-		switch (this.actionType) {
+	// ─── Helpers ─────────────────────────────────────────────────────────
+
+	/**
+	 * Build an array of `AutomationAction` from the pipeline steps.
+	 *
+	 * @internal
+	 */
+	private buildActions(): AutomationAction[] {
+		return this.steps.map(step => this.buildStepAction(step));
+	}
+
+	/**
+	 * Build a single `AutomationAction` from a step's state.
+	 *
+	 * @internal
+	 */
+	private buildStepAction(step: StepState): AutomationAction {
+		const val = step.actionValue.trim();
+		const trimmed = step.inputText.trim();
+		let input: Record<string, unknown> | undefined;
+		if (trimmed) {
+			try {
+				input = JSON.parse(trimmed);
+			} catch {
+				input = { userInput: trimmed };
+			}
+		}
+		const hasInput = !!input;
+
+		switch (step.actionType) {
 			case 'run-agent':
 				return { type: 'run-agent', agentId: val, ...(hasInput && { input }) };
 			case 'run-prompt':
@@ -535,9 +573,10 @@ export class AutomationScheduleModal extends Modal {
 				return { type: 'create-note', path: val, ...(hasInput && { input }) };
 			case 'update-note':
 				return { type: 'update-note', path: val, ...(hasInput && { input }) };
-			case 'run-command':
+			case 'run-shell':
+				return { type: 'run-shell', command: val, ...(hasInput && { input }) };
 			default:
-				return { type: 'run-command', commandId: val, ...(hasInput && { input }) };
+				return { type: 'run-agent', agentId: val, ...(hasInput && { input }) };
 		}
 	}
 
@@ -617,7 +656,7 @@ export class AutomationScheduleModal extends Modal {
 			case 'run-skill': return action.skillId;
 			case 'create-note':
 			case 'update-note': return action.path;
-			case 'run-command': return action.commandId;
+			case 'run-shell': return action.command;
 			default: return '';
 		}
 	}

@@ -57,6 +57,7 @@ export function createCollapsibleSection(
 ): { details: HTMLDetailsElement; content: HTMLDivElement } {
 	const cls = "vc-settings-section vc-collapsible" + (extraClasses ? " " + extraClasses : "");
 	const details = container.createEl("details", { cls });
+	details.open = true;
 	const summary = details.createEl("summary", { cls: "vc-section-summary" });
 	summary.createEl(headingLevel, { text: title });
 	const content = details.createDiv({ cls: "vc-section-content" });

@@ -14,6 +14,7 @@
 
 import { App, TFile, TFolder, FileSystemAdapter } from "obsidian";
 import { normalizeVaultPath, isVaultRoot, toVaultRelativePath, expandHomePath } from "../../utils/pathUtils";
+import { isDesktop } from "../../utils/platform";
 
 /**
  * Parsed agent from .agent.md file
@@ -286,7 +287,8 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
-	 * Load all skills from the configured skill directories
+	 * Load all skills from the configured skill directories.
+	 * Tries vault API first, falls back to filesystem for out-of-vault directories.
 	 */
 	async loadSkills(directories: string[]): Promise<CustomSkill[]> {
 		const skills: CustomSkill[] = [];
@@ -294,6 +296,9 @@ private getFolderFromPath(dir: string): TFolder | null {
 		for (const dir of directories) {
 			const folder = this.getFolderFromPath(dir);
 			if (!folder) {
+				// Vault API failed — try filesystem fallback for out-of-vault dirs (desktop only)
+				const fsSkills = await this.loadSkillsFromFs(dir);
+				skills.push(...fsSkills);
 				continue;
 			}
 
@@ -305,26 +310,8 @@ private getFolderFromPath(dir: string): TFolder | null {
 					if (skillFile && skillFile instanceof TFile) {
 						try {
 							const content = await this.app.vault.read(skillFile);
-							
-							// Try parsing as code block first (```skill ... ```)
-							let parsed = parseCodeBlockContent(content, 'skill');
-							
-							// Fall back to regular frontmatter if not a code block
-							if (!parsed) {
-								parsed = parseFrontmatter(content);
-							}
-							
-							const { frontmatter, body } = parsed;
-
-							if (frontmatter.name && frontmatter.description) {
-								skills.push({
-									name: String(frontmatter.name),
-									description: String(frontmatter.description),
-									license: frontmatter.license ? String(frontmatter.license) : undefined,
-									path: child.path,
-									instructions: body,
-								});
-							}
+							const skill = this.parseSkillContent(content, child.path);
+							if (skill) skills.push(skill);
 						} catch (error) {
 							console.error(`Failed to load skill from ${skillFile.path}:`, error);
 						}
@@ -334,6 +321,86 @@ private getFolderFromPath(dir: string): TFolder | null {
 		}
 
 		return skills;
+	}
+
+	/**
+	 * Parse skill content from a SKILL.md file.
+	 * @internal
+	 */
+	private parseSkillContent(content: string, dirPath: string): CustomSkill | null {
+		// Try parsing as code block first (```skill ... ```)
+		let parsed = parseCodeBlockContent(content, 'skill');
+
+		// Fall back to regular frontmatter if not a code block
+		if (!parsed) {
+			parsed = parseFrontmatter(content);
+		}
+
+		const { frontmatter, body } = parsed;
+
+		if (frontmatter.name && frontmatter.description) {
+			return {
+				name: String(frontmatter.name),
+				description: String(frontmatter.description),
+				license: frontmatter.license ? String(frontmatter.license) : undefined,
+				path: dirPath,
+				instructions: body,
+			};
+		}
+		return null;
+	}
+
+	/**
+	 * Load skills from an absolute filesystem path (out-of-vault directories).
+	 * Desktop only — uses Node.js fs module.
+	 * @internal
+	 */
+	private async loadSkillsFromFs(dir: string): Promise<CustomSkill[]> {
+		if (!isDesktop) return [];
+
+		const expandedDir = expandHomePath(dir).replace(/\\/g, '/');
+
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const fs = require("fs") as typeof import("fs");
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const path = require("path") as typeof import("path");
+
+			if (!fs.existsSync(expandedDir)) {
+				console.log(`[VC] Skill directory not found on filesystem: "${expandedDir}"`);
+				return [];
+			}
+
+			const stat = fs.statSync(expandedDir);
+			if (!stat.isDirectory()) return [];
+
+			const skills: CustomSkill[] = [];
+			const entries = fs.readdirSync(expandedDir, { withFileTypes: true });
+
+			for (const entry of entries) {
+				if (!entry.isDirectory()) continue;
+
+				const skillFilePath = path.join(expandedDir, entry.name, 'SKILL.md');
+				if (!fs.existsSync(skillFilePath)) continue;
+
+				try {
+					const content = fs.readFileSync(skillFilePath, 'utf-8');
+					const skillDirPath = path.join(expandedDir, entry.name).replace(/\\/g, '/');
+					const skill = this.parseSkillContent(content, skillDirPath);
+					if (skill) {
+						skills.push(skill);
+					}
+				} catch (error) {
+					console.error(`Failed to load skill from ${skillFilePath}:`, error);
+				}
+			}
+
+			console.log(`[VC] Loaded ${skills.length} skills from filesystem: "${expandedDir}"`);
+			return skills;
+		} catch (error) {
+			console.error(`[VC] Failed to load skills from filesystem "${expandedDir}":`, error);
+			return [];
+		}
 	}
 
 	/**

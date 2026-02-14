@@ -52,11 +52,19 @@ export class CopilotSettingTab extends PluginSettingTab {
 		super(app, plugin);
 		this.plugin = plugin;
 		this.githubCopilotCliManager = new GitHubCopilotCliManager(plugin.settings.cliPath);
-		this.toolCatalog = new ToolCatalog(plugin.skillRegistry, plugin.mcpManager);
+		this.toolCatalog = new ToolCatalog(plugin.skillRegistry, plugin.mcpManager, plugin.skillCache);
 	}
 
 	display(): void {
 		const { containerEl } = this;
+
+		// Snapshot which collapsible sections are currently open
+		const openSections = new Set<string>();
+		containerEl.querySelectorAll("details.vc-collapsible[open]").forEach(el => {
+			const cls = el.className;
+			openSections.add(cls);
+		});
+
 		containerEl.empty();
 		containerEl.addClass("vc-settings");
 
@@ -120,6 +128,15 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 		// ── Help / About ──────────────────────────────────────────────
 		renderHelpSection(containerEl, ctx);
+
+		// ── Restore previously-open sections ──────────────────────────
+		if (openSections.size > 0) {
+			containerEl.querySelectorAll("details.vc-collapsible").forEach(el => {
+				if (openSections.has(el.className)) {
+					(el as HTMLDetailsElement).open = true;
+				}
+			});
+		}
 
 		// ── Async CLI status check ────────────────────────────────────
 		const hasUserConfig = this.hasUserConfiguration();

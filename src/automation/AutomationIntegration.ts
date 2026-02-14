@@ -189,9 +189,9 @@ function validateAutomationConfig(config: AutomationConfig): void {
 					throw new Error(`${action.type} action must have a path`);
 				}
 				break;
-			case 'run-command':
-				if (!(action as any).commandId) {
-					throw new Error('run-command action must have a commandId');
+			case 'run-shell':
+				if (!(action as any).command) {
+					throw new Error('run-shell action must have a command');
 				}
 				break;
 		}

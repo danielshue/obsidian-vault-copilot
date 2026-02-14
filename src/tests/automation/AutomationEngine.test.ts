@@ -84,21 +84,7 @@ trigger: {
 type: 'schedule',
 schedule: '0 0 * * *',
 },
-};
-
-// Reset mocks
-vi.clearAllMocks();
-});
-
-afterEach(() => {
-vi.restoreAllMocks();
-});
-
-describe("executeRunAgent", () => {
-it("should execute an agent with input", async () => {
-const action = {
-type: 'run-agent' as const,
-agentId: 'test-agent',
+		previousResults: [],
 input: { task: 'Test task' },
 };
 

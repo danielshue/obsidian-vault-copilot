@@ -81,6 +81,7 @@ function renderAutomationsTable(container: HTMLElement, automations: AutomationI
 	const thead = table.createEl("thead");
 	const headerRow = thead.createEl("tr");
 	headerRow.createEl("th", { text: "Name" });
+	headerRow.createEl("th", { text: "Steps" });
 	headerRow.createEl("th", { text: "Triggers" });
 	headerRow.createEl("th", { text: "Status" });
 	headerRow.createEl("th", { text: "Last Run" });
@@ -91,6 +92,21 @@ function renderAutomationsTable(container: HTMLElement, automations: AutomationI
 		const row = tbody.createEl("tr");
 
 		row.createEl("td", { text: automation.name, cls: "vc-automation-name" });
+
+		// Steps column — show pipeline of action types
+		const stepsCell = row.createEl("td", { cls: "vc-automation-steps" });
+		const actionTypes = automation.config.actions.map(a => {
+			switch (a.type) {
+				case 'run-agent': return 'Agent';
+				case 'run-prompt': return 'Prompt';
+				case 'run-skill': return 'Skill';
+				case 'create-note': return 'Create note';
+				case 'update-note': return 'Update note';
+				case 'run-shell': return 'Shell';
+				default: return (a as any).type;
+			}
+		});
+		stepsCell.createEl("span", { text: actionTypes.join(' → ') });
 
 		const triggersCell = row.createEl("td", { cls: "vc-automation-triggers" });
 		const triggerTypes = automation.config.triggers.map(t => t.type).join(", ");
@@ -160,6 +176,15 @@ function renderAutomationsTable(container: HTMLElement, automations: AutomationI
 		});
 		detailsBtn.onclick = () => {
 			showAutomationDetails(automation, ctx);
+		};
+
+		const deleteBtn = actionsCell.createEl("button", {
+			cls: "vc-btn vc-btn-small vc-btn-danger",
+			text: "Delete"
+		});
+		deleteBtn.onclick = async () => {
+			await ctx.plugin.automationEngine?.unregisterAutomation(automation.id);
+			ctx.refreshDisplay();
 		};
 	}
 
