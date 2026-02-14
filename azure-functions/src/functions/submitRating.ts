@@ -16,6 +16,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { TableStorageService } from "../services/TableStorageService.js";
 import { validateExtensionId, validateUserHash, validateRating, validateVersion } from "../utils/validation.js";
 import { checkRateLimit } from "../utils/rateLimiter.js";
+import { handlePreflight, withCors } from "../utils/cors.js";
 
 /**
  * Handle POST /api/ratings.
@@ -25,37 +26,38 @@ import { checkRateLimit } from "../utils/rateLimiter.js";
  * @returns An {@link HttpResponseInit} with the updated aggregate rating.
  */
 async function submitRating(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    if (request.method === "OPTIONS") return handlePreflight(request);
     context.log("Processing submitRating request");
 
     let body: Record<string, unknown>;
     try {
         body = (await request.json()) as Record<string, unknown>;
     } catch {
-        return { status: 400, jsonBody: { error: "Invalid JSON body" } };
+        return withCors(request, { status: 400, jsonBody: { error: "Invalid JSON body" } });
     }
 
     const extensionIdResult = validateExtensionId(body.extensionId);
     if (!extensionIdResult.valid) {
-        return { status: 400, jsonBody: { error: extensionIdResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: extensionIdResult.error } });
     }
 
     const userHashResult = validateUserHash(body.userHash);
     if (!userHashResult.valid) {
-        return { status: 400, jsonBody: { error: userHashResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: userHashResult.error } });
     }
 
     const ratingResult = validateRating(body.rating);
     if (!ratingResult.valid) {
-        return { status: 400, jsonBody: { error: ratingResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: ratingResult.error } });
     }
 
     const versionResult = validateVersion(body.version);
     if (!versionResult.valid) {
-        return { status: 400, jsonBody: { error: versionResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: versionResult.error } });
     }
 
     if (!checkRateLimit(body.userHash as string)) {
-        return { status: 429, jsonBody: { error: "Rate limit exceeded. Please try again later." } };
+        return withCors(request, { status: 429, jsonBody: { error: "Rate limit exceeded. Please try again later." } });
     }
 
     try {
@@ -68,22 +70,22 @@ async function submitRating(request: HttpRequest, context: InvocationContext): P
             version: body.version as string,
         });
 
-        return {
+        return withCors(request, {
             status: 200,
             jsonBody: {
                 message: "Rating submitted successfully",
                 averageRating: result.averageRating,
                 ratingCount: result.ratingCount,
             },
-        };
+        });
     } catch (err) {
         context.error("Error submitting rating:", err);
-        return { status: 500, jsonBody: { error: "Internal server error" } };
+        return withCors(request, { status: 500, jsonBody: { error: "Internal server error" } });
     }
 }
 
 app.http("submitRating", {
-    methods: ["POST"],
+    methods: ["POST", "OPTIONS"],
     authLevel: "anonymous",
     route: "ratings",
     handler: submitRating,

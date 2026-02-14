@@ -40,7 +40,7 @@ export interface ExtensionSubmissionData {
 	/** GitHub username */
 	githubUsername: string;
 	
-	/** Fork repository name (usually obsidian-vault-copilot) */
+	/** Fork repository name (usually vault-copilot-extensions) */
 	forkRepoName: string;
 	
 	/** Branch name for the submission */

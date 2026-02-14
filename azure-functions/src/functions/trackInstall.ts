@@ -16,6 +16,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { TableStorageService } from "../services/TableStorageService.js";
 import { validateExtensionId, validateUserHash, validateVersion, validatePlatform } from "../utils/validation.js";
 import { checkRateLimit } from "../utils/rateLimiter.js";
+import { handlePreflight, withCors } from "../utils/cors.js";
 
 /**
  * Handle POST /api/installs.
@@ -25,39 +26,40 @@ import { checkRateLimit } from "../utils/rateLimiter.js";
  * @returns An {@link HttpResponseInit} with status 201 on success.
  */
 async function trackInstall(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    if (request.method === "OPTIONS") return handlePreflight(request);
     context.log("Processing trackInstall request");
 
     let body: Record<string, unknown>;
     try {
         body = (await request.json()) as Record<string, unknown>;
     } catch {
-        return { status: 400, jsonBody: { error: "Invalid JSON body" } };
+        return withCors(request, { status: 400, jsonBody: { error: "Invalid JSON body" } });
     }
 
     // Validate fields
     const extensionIdResult = validateExtensionId(body.extensionId);
     if (!extensionIdResult.valid) {
-        return { status: 400, jsonBody: { error: extensionIdResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: extensionIdResult.error } });
     }
 
     const userHashResult = validateUserHash(body.userHash);
     if (!userHashResult.valid) {
-        return { status: 400, jsonBody: { error: userHashResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: userHashResult.error } });
     }
 
     const versionResult = validateVersion(body.version);
     if (!versionResult.valid) {
-        return { status: 400, jsonBody: { error: versionResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: versionResult.error } });
     }
 
     const platformResult = validatePlatform(body.platform);
     if (!platformResult.valid) {
-        return { status: 400, jsonBody: { error: platformResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: platformResult.error } });
     }
 
     // Rate limit
     if (!checkRateLimit(body.userHash as string)) {
-        return { status: 429, jsonBody: { error: "Rate limit exceeded. Please try again later." } };
+        return withCors(request, { status: 429, jsonBody: { error: "Rate limit exceeded. Please try again later." } });
     }
 
     try {
@@ -74,18 +76,18 @@ async function trackInstall(request: HttpRequest, context: InvocationContext): P
             vaultCopilotVersion: (body.vaultCopilotVersion as string) ?? "unknown",
         });
 
-        return {
+        return withCors(request, {
             status: 201,
             jsonBody: { message: "Install tracked successfully" },
-        };
+        });
     } catch (err) {
         context.error("Error tracking install:", err);
-        return { status: 500, jsonBody: { error: "Internal server error" } };
+        return withCors(request, { status: 500, jsonBody: { error: "Internal server error" } });
     }
 }
 
 app.http("trackInstall", {
-    methods: ["POST"],
+    methods: ["POST", "OPTIONS"],
     authLevel: "anonymous",
     route: "installs",
     handler: trackInstall,

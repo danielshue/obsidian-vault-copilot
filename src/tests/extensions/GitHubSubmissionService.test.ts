@@ -71,7 +71,7 @@ describe("GitHubSubmissionService", () => {
 	beforeEach(() => {
 		config = {
 			upstreamOwner: "danielshue",
-			upstreamRepo: "obsidian-vault-copilot",
+			upstreamRepo: "vault-copilot-extensions",
 			targetBranch: "master",
 		};
 

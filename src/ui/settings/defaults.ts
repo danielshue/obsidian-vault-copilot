@@ -112,7 +112,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	periodicNotes: { ...DEFAULT_PERIODIC_NOTES },
 	cliStatusChecked: false,
 	cliLastKnownStatus: null,
-	extensionCatalogUrl: "https://danielshue.github.io/obsidian-vault-copilot/catalog/catalog.json",
+	extensionCatalogUrl: "https://danielshue.github.io/vault-copilot-extensions/catalog/catalog.json",
 	enableAnalytics: true,
 	analyticsEndpoint: 'https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io',
 	githubUsername: '',

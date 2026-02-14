@@ -15,6 +15,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { TableStorageService } from "../services/TableStorageService.js";
 import { validateExtensionId } from "../utils/validation.js";
+import { handlePreflight, withCors } from "../utils/cors.js";
 
 /**
  * Handle GET /api/metrics/{extensionId}.
@@ -24,31 +25,32 @@ import { validateExtensionId } from "../utils/validation.js";
  * @returns An {@link HttpResponseInit} containing the extension metrics.
  */
 async function getMetrics(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    if (request.method === "OPTIONS") return handlePreflight(request);
     context.log("Processing getMetrics request");
 
     const extensionId = request.params.extensionId;
 
     const extensionIdResult = validateExtensionId(extensionId);
     if (!extensionIdResult.valid) {
-        return { status: 400, jsonBody: { error: extensionIdResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: extensionIdResult.error } });
     }
 
     try {
         const svc = TableStorageService.getInstance();
         const metrics = await svc.getMetrics(extensionId as string);
 
-        return {
+        return withCors(request, {
             status: 200,
             jsonBody: metrics,
-        };
+        });
     } catch (err) {
         context.error("Error getting metrics:", err);
-        return { status: 500, jsonBody: { error: "Internal server error" } };
+        return withCors(request, { status: 500, jsonBody: { error: "Internal server error" } });
     }
 }
 
 app.http("getMetrics", {
-    methods: ["GET"],
+    methods: ["GET", "OPTIONS"],
     authLevel: "anonymous",
     route: "metrics/{extensionId}",
     handler: getMetrics,

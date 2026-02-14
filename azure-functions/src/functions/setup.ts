@@ -17,6 +17,7 @@
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { TableStorageService } from "../services/TableStorageService.js";
+import { handlePreflight, withCors } from "../utils/cors.js";
 
 /**
  * Handle POST /api/setup.
@@ -26,6 +27,7 @@ import { TableStorageService } from "../services/TableStorageService.js";
  * @returns An {@link HttpResponseInit} with status 200 on success.
  */
 async function setup(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    if (request.method === "OPTIONS") return handlePreflight(request);
     context.log("Processing setup request - initializing tables...");
 
     try {
@@ -36,29 +38,29 @@ async function setup(request: HttpRequest, context: InvocationContext): Promise<
         
         context.log("Tables initialized successfully");
 
-        return {
+        return withCors(request, {
             status: 200,
             jsonBody: {
                 success: true,
                 message: "Tables initialized successfully",
                 tables: ["Installs", "Ratings", "MetricsCache"],
             },
-        };
+        });
     } catch (err) {
         context.error("Error initializing tables:", err);
-        return {
+        return withCors(request, {
             status: 500,
             jsonBody: {
                 success: false,
                 error: "Failed to initialize tables",
                 details: err instanceof Error ? err.message : String(err),
             },
-        };
+        });
     }
 }
 
 app.http("setup", {
-    methods: ["POST"],
+    methods: ["POST", "OPTIONS"],
     authLevel: "anonymous",
     route: "setup",
     handler: setup,

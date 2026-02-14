@@ -97,7 +97,7 @@ export async function renderSubmissionProgressScreen(
 		
 		// Show success screen
 		// TODO: Replace placeholder URL with actual PR URL from gh pr create command
-		onSuccess("https://github.com/danielshue/obsidian-vault-copilot/pull/123");
+		onSuccess("https://github.com/danielshue/vault-copilot-extensions/pull/123");
 		
 	} catch (error) {
 		console.error("Submission error:", error);

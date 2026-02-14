@@ -280,7 +280,8 @@ export class ExtensionCardComponent {
 			"voice-agent": "microphone",
 			"prompt": "file-text",
 			"skill": "zap",
-			"mcp-server": "plug"
+			"mcp-server": "plug",
+			"automation": "clock"
 		};
 		
 		return iconMapping[kind] || "file";

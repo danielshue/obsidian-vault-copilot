@@ -368,6 +368,8 @@ export default class CopilotPlugin extends Plugin {
 	promptCache!: PromptCache;
 	/** MCP server manager */
 	mcpManager!: McpManager;
+	/** Automation engine for scheduled/triggered workflows */
+	automationEngine: import('./automation/AutomationEngine').AutomationEngine | null = null;
 	/** Status bar element reference */
 	private statusBarEl: HTMLElement | null = null;
 	/** CLI manager for checking Copilot CLI status */
@@ -635,6 +637,11 @@ export default class CopilotPlugin extends Plugin {
 		this.mcpManager = new McpManager(this.app);
 		await this.mcpManager.initialize();
 
+		// Initialize Automation engine
+		const { getAutomationEngine } = await import('./automation/AutomationEngine');
+		this.automationEngine = getAutomationEngine(this.app, this);
+		await this.automationEngine.initialize();
+
 		// Initialize Copilot service (desktop only)
 		if (supportsLocalProcesses()) {
 			this.githubCopilotCliService = new GitHubCopilotCliService(this.app, this.getServiceConfig());
@@ -778,6 +785,7 @@ export default class CopilotPlugin extends Plugin {
 		
 		await this.disconnectCopilot();
 		await this.mcpManager?.shutdown();
+		await this.automationEngine?.shutdown();
 		this.agentCache?.destroy();
 		this.promptCache?.destroy();
 		

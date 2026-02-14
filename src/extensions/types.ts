@@ -21,7 +21,8 @@ export type VaultExtensionKind =
 	| "voice-agent" 
 	| "prompt" 
 	| "skill" 
-	| "mcp-server";
+	| "mcp-server"
+	| "automation";
 
 /**
  * Creator information for an extension.
@@ -94,7 +95,7 @@ export interface PackagedFile {
  *   totalSizeBytes: "2345",
  *   requiredPluginVersion: "0.1.0",
  *   sourceRepository: "https://github.com/janesmith/daily-journal-helper",
- *   webDetailPage: "https://danielshue.github.io/obsidian-vault-copilot/agents/daily-journal-helper",
+ *   webDetailPage: "https://danielshue.github.io/vault-copilot-extensions/agents/daily-journal-helper",
  *   packageContents: [{
  *     relativePath: "daily-journal.agent.md",
  *     downloadSource: "https://raw.githubusercontent.com/.../daily-journal.agent.md",
@@ -273,6 +274,9 @@ export interface CatalogManifest {
 export interface LocalExtensionRecord {
 	/** ID of the installed extension */
 	extensionId: string;
+	
+	/** Type of extension (agent, voice-agent, prompt, skill, mcp-server, automation) */
+	extensionKind: VaultExtensionKind;
 	
 	/** Version currently installed */
 	installedVersion: string;
@@ -482,7 +486,7 @@ export function transformRawExtension(raw: RawCatalogExtension): MarketplaceExte
 		totalSizeBytes: raw.size || "0",
 		requiredPluginVersion: raw.minVaultCopilotVersion || "0.0.0",
 		sourceRepository: raw.repository,
-		webDetailPage: raw.detailPageUrl || `https://danielshue.github.io/obsidian-vault-copilot/extensions/${raw.type}s/${raw.id}/`,
+		webDetailPage: raw.detailPageUrl || `https://danielshue.github.io/vault-copilot-extensions/extensions/${raw.type}s/${raw.id}/`,
 		packageContents: raw.files.map(file => {
 			// If installPath is a directory (ends with /), append the source filename
 			let targetLocation = file.installPath;

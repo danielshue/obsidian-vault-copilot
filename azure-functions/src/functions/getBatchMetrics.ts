@@ -15,6 +15,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { TableStorageService } from "../services/TableStorageService.js";
 import { validateExtensionId } from "../utils/validation.js";
+import { handlePreflight, withCors } from "../utils/cors.js";
 
 /** Maximum number of extensions that can be queried in one batch. */
 const MAX_BATCH_SIZE = 50;
@@ -27,28 +28,29 @@ const MAX_BATCH_SIZE = 50;
  * @returns An {@link HttpResponseInit} containing a map of metrics keyed by extension ID.
  */
 async function getBatchMetrics(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    if (request.method === "OPTIONS") return handlePreflight(request);
     context.log("Processing getBatchMetrics request");
 
     const idsParam = request.query.get("ids");
     if (!idsParam) {
-        return { status: 400, jsonBody: { error: 'Query parameter "ids" is required (comma-separated extension IDs)' } };
+        return withCors(request, { status: 400, jsonBody: { error: 'Query parameter "ids" is required (comma-separated extension IDs)' } });
     }
 
     const ids = idsParam.split(",").map((id) => id.trim()).filter(Boolean);
 
     if (ids.length === 0) {
-        return { status: 400, jsonBody: { error: "At least one extension ID is required" } };
+        return withCors(request, { status: 400, jsonBody: { error: "At least one extension ID is required" } });
     }
 
     if (ids.length > MAX_BATCH_SIZE) {
-        return { status: 400, jsonBody: { error: `Maximum of ${MAX_BATCH_SIZE} extension IDs per request` } };
+        return withCors(request, { status: 400, jsonBody: { error: `Maximum of ${MAX_BATCH_SIZE} extension IDs per request` } });
     }
 
     // Validate each ID
     for (const id of ids) {
         const result = validateExtensionId(id);
         if (!result.valid) {
-            return { status: 400, jsonBody: { error: `Invalid extension ID "${id}": ${result.error}` } };
+            return withCors(request, { status: 400, jsonBody: { error: `Invalid extension ID "${id}": ${result.error}` } });
         }
     }
 
@@ -56,18 +58,18 @@ async function getBatchMetrics(request: HttpRequest, context: InvocationContext)
         const svc = TableStorageService.getInstance();
         const metrics = await svc.getBatchMetrics(ids);
 
-        return {
+        return withCors(request, {
             status: 200,
             jsonBody: metrics,
-        };
+        });
     } catch (err) {
         context.error("Error getting batch metrics:", err);
-        return { status: 500, jsonBody: { error: "Internal server error" } };
+        return withCors(request, { status: 500, jsonBody: { error: "Internal server error" } });
     }
 }
 
 app.http("getBatchMetrics", {
-    methods: ["GET"],
+    methods: ["GET", "OPTIONS"],
     authLevel: "anonymous",
     route: "metrics",
     handler: getBatchMetrics,

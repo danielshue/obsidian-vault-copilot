@@ -17,6 +17,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { TableStorageService } from "../services/TableStorageService.js";
 import { validateUserHash } from "../utils/validation.js";
+import { handlePreflight, withCors } from "../utils/cors.js";
 
 /**
  * Handle GET /api/user/{userHash}/ratings.
@@ -26,13 +27,14 @@ import { validateUserHash } from "../utils/validation.js";
  * @returns Array of user's ratings.
  */
 async function getUserRatings(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    if (request.method === "OPTIONS") return handlePreflight(request);
     context.log("Processing getUserRatings request");
 
     const userHash = request.params.userHash;
 
     const userHashResult = validateUserHash(userHash);
     if (!userHashResult.valid) {
-        return { status: 400, jsonBody: { error: userHashResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: userHashResult.error } });
     }
 
     try {
@@ -53,21 +55,21 @@ async function getUserRatings(request: HttpRequest, context: InvocationContext):
 
         context.log(`Retrieved ${ratings.length} ratings for user ${userHash}`);
 
-        return {
+        return withCors(request, {
             status: 200,
             jsonBody: ratings,
-        };
+        });
     } catch (err) {
         context.error("Error retrieving user ratings:", err);
-        return {
+        return withCors(request, {
             status: 500,
             jsonBody: { error: "Failed to retrieve ratings" },
-        };
+        });
     }
 }
 
 app.http("getUserRatings", {
-    methods: ["GET"],
+    methods: ["GET", "OPTIONS"],
     authLevel: "anonymous",
     route: "user/{userHash}/ratings",
     handler: getUserRatings,

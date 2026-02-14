@@ -15,6 +15,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { TableStorageService } from "../services/TableStorageService.js";
 import { validateUserHash } from "../utils/validation.js";
+import { handlePreflight, withCors } from "../utils/cors.js";
 
 /**
  * Handle DELETE /api/user/{userHash}.
@@ -24,6 +25,7 @@ import { validateUserHash } from "../utils/validation.js";
  * @returns An {@link HttpResponseInit} with status 204 on success.
  */
 async function deleteUserData(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    if (request.method === "OPTIONS") return handlePreflight(request);
     context.log("Processing deleteUserData request");
 
     const userHash = request.params.userHash;
@@ -31,7 +33,7 @@ async function deleteUserData(request: HttpRequest, context: InvocationContext):
 
     const userHashResult = validateUserHash(userHash);
     if (!userHashResult.valid) {
-        return { status: 400, jsonBody: { error: userHashResult.error } };
+        return withCors(request, { status: 400, jsonBody: { error: userHashResult.error } });
     }
 
     // Authorization: Only the user themselves OR an admin can delete user data
@@ -41,25 +43,25 @@ async function deleteUserData(request: HttpRequest, context: InvocationContext):
 
     if (!authenticatedUserHash || (!isOwner && !isAdmin)) {
         context.warn(`Unauthorized deleteUserData attempt: authenticated=${authenticatedUserHash}, target=${userHash}, isAdmin=${isAdmin}`);
-        return {
+        return withCors(request, {
             status: 403,
             jsonBody: { error: "Forbidden: You can only delete your own data" },
-        };
+        });
     }
 
     try {
         const svc = TableStorageService.getInstance();
         await svc.deleteUserData(userHash as string);
 
-        return { status: 204 };
+        return withCors(request, { status: 204 });
     } catch (err) {
         context.error("Error deleting user data:", err);
-        return { status: 500, jsonBody: { error: "Internal server error" } };
+        return withCors(request, { status: 500, jsonBody: { error: "Internal server error" } });
     }
 }
 
 app.http("deleteUserData", {
-    methods: ["DELETE"],
+    methods: ["DELETE", "OPTIONS"],
     authLevel: "anonymous",
     route: "user/{userHash}",
     handler: deleteUserData,

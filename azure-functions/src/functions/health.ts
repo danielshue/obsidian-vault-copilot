@@ -13,6 +13,7 @@
  */
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
+import { handlePreflight, withCors } from "../utils/cors.js";
 
 /**
  * Handle GET /api/health.
@@ -23,10 +24,11 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
  * @param context  - Azure Functions invocation context.
  * @returns An {@link HttpResponseInit} with status 200.
  */
-async function health(_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+async function health(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    if (request.method === "OPTIONS") return handlePreflight(request);
     context.log("Processing health check request");
 
-    return {
+    return withCors(request, {
         status: 200,
         jsonBody: {
             status: "healthy",
@@ -34,11 +36,11 @@ async function health(_request: HttpRequest, context: InvocationContext): Promis
             timestamp: new Date().toISOString(),
             version: "1.0.0",
         },
-    };
+    });
 }
 
 app.http("health", {
-    methods: ["GET"],
+    methods: ["GET", "OPTIONS"],
     authLevel: "anonymous",
     route: "health",
     handler: health,

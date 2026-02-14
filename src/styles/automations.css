@@ -1,0 +1,261 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/**
+ * Automation management UI styles
+ */
+
+/* Automations section */
+.vc-automations-section {
+	margin-top: 2em;
+}
+
+.vc-automations-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 1em 0;
+}
+
+.vc-automations-table th,
+.vc-automations-table td {
+	padding: 0.75em;
+	text-align: left;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-automations-table th {
+	font-weight: 600;
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: 0.9em;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.vc-automations-table tbody tr:hover {
+	background: var(--background-secondary);
+}
+
+.vc-automation-name {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-automation-triggers {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.vc-automation-status {
+	text-align: center;
+}
+
+.vc-status-badge {
+	display: inline-block;
+	padding: 0.25em 0.75em;
+	border-radius: 12px;
+	font-size: 0.85em;
+	font-weight: 500;
+}
+
+.vc-status-enabled {
+	background: var(--interactive-success);
+	color: var(--text-on-accent);
+}
+
+.vc-status-disabled {
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.vc-automation-lastrun {
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.vc-result-success {
+	color: var(--interactive-success);
+	font-weight: bold;
+}
+
+.vc-result-failure {
+	color: var(--text-error);
+	font-weight: bold;
+}
+
+.vc-automation-actions {
+	text-align: right;
+}
+
+.vc-automation-actions button {
+	margin-left: 0.5em;
+}
+
+.vc-btn {
+	padding: 0.4em 0.8em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--interactive-normal);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: 0.9em;
+	transition: all 0.2s ease;
+}
+
+.vc-btn:hover {
+	background: var(--interactive-hover);
+	border-color: var(--interactive-accent);
+}
+
+.vc-btn-small {
+	padding: 0.3em 0.6em;
+	font-size: 0.85em;
+}
+
+.vc-table-summary {
+	margin-top: 0.5em;
+	padding: 0.75em;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.vc-text-muted {
+	color: var(--text-muted);
+}
+
+.vc-text-error {
+	color: var(--text-error);
+}
+
+/* Automation Details Modal */
+.vc-automation-details-modal {
+	min-width: 500px;
+	max-width: 700px;
+}
+
+.vc-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 1.5em;
+	padding-bottom: 1em;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-modal-header h2 {
+	margin: 0;
+	flex: 1;
+}
+
+.vc-automation-section {
+	margin-bottom: 1.5em;
+}
+
+.vc-automation-section h3 {
+	margin-bottom: 0.75em;
+	color: var(--text-normal);
+	font-size: 1.1em;
+}
+
+.vc-automation-section h4 {
+	margin: 1em 0 0.5em 0;
+	color: var(--text-muted);
+	font-size: 0.95em;
+}
+
+.vc-automation-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 1em;
+	margin: 1em 0;
+}
+
+.vc-grid-item {
+	padding: 0.75em;
+	background: var(--background-secondary);
+	border-radius: 4px;
+}
+
+.vc-grid-label {
+	font-size: 0.85em;
+	color: var(--text-muted);
+	margin-bottom: 0.25em;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.vc-grid-value {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-automation-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.vc-automation-list li {
+	padding: 0.75em;
+	margin-bottom: 0.5em;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	border-left: 3px solid var(--interactive-accent);
+}
+
+.vc-trigger-details,
+.vc-action-details {
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+}
+
+.vc-automation-error {
+	padding: 0.75em;
+	margin: 1em 0;
+	background: var(--background-modifier-error);
+	border-left: 3px solid var(--text-error);
+	border-radius: 4px;
+}
+
+.vc-automation-action-results {
+	margin-top: 1em;
+}
+
+.vc-modal-footer {
+	margin-top: 2em;
+	padding-top: 1em;
+	border-top: 1px solid var(--background-modifier-border);
+	text-align: right;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+	.vc-automations-table {
+		font-size: 0.9em;
+	}
+	
+	.vc-automations-table th,
+	.vc-automations-table td {
+		padding: 0.5em;
+	}
+	
+	.vc-automation-actions button {
+		margin: 0.25em;
+		display: block;
+		width: 100%;
+	}
+	
+	.vc-automation-grid {
+		grid-template-columns: 1fr;
+	}
+	
+	.vc-automation-details-modal {
+		min-width: unset;
+		max-width: 100%;
+	}
+}

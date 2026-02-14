@@ -154,6 +154,13 @@
 			"options": {
 				"cwd": "${workspaceFolder}/azure-functions"
 			}
+		},
+		{
+			"label": "Obsidian: Debug On",
+			"type": "shell",
+			"command": "obsidian dev:debug on",
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }
