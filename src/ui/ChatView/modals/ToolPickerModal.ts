@@ -359,9 +359,13 @@ export class ToolPickerModal extends Modal {
 		const icon = TOOL_ICONS[tool.id] || "🔧";
 		itemEl.createSpan({ text: icon, cls: "vc-tp-icon" });
 
-		// Name with tool ID in parentheses, then description
-		const nameEl = itemEl.createSpan({ text: `${tool.displayName} (${tool.id})`, cls: "vc-tp-item-name" });
-		itemEl.createSpan({ text: tool.description, cls: "vc-tp-item-desc" });
+		// Text block: name + ID on first line, description below
+		const textEl = itemEl.createDiv({ cls: "vc-tp-item-text" });
+		textEl.createSpan({ text: tool.displayName, cls: "vc-tp-item-name" });
+		textEl.createSpan({ text: tool.id, cls: "vc-tp-item-id" });
+		if (tool.description) {
+			textEl.createDiv({ text: tool.description, cls: "vc-tp-item-desc" });
+		}
 
 		// Click anywhere to toggle
 		itemEl.addEventListener("click", (e) => {
