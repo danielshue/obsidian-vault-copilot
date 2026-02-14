@@ -13,7 +13,7 @@
  * @since 1.0.0
  */
 
-import { HttpRequest, HttpResponseInit } from "@azure/functions";
+import { HttpRequest, HttpResponse, HttpResponseInit } from "@azure/functions";
 
 /**
  * Allowed origins for CORS.
@@ -64,8 +64,11 @@ export function getCorsHeaders(request: HttpRequest): Record<string, string> {
 /**
  * Create a preflight (OPTIONS) response with appropriate CORS headers.
  *
+ * Uses the concrete `HttpResponse` class to ensure headers are properly
+ * included in the wire response by the Azure Functions runtime.
+ *
  * @param request - The incoming HTTP request
- * @returns An {@link HttpResponseInit} with status 204 and CORS headers
+ * @returns An {@link HttpResponse} with status 204 and CORS headers
  *
  * @example
  * ```typescript
@@ -74,30 +77,30 @@ export function getCorsHeaders(request: HttpRequest): Record<string, string> {
  * }
  * ```
  */
-export function handlePreflight(request: HttpRequest): HttpResponseInit {
-    return {
+export function handlePreflight(request: HttpRequest): HttpResponse {
+    return new HttpResponse({
         status: 204,
         headers: getCorsHeaders(request),
-    };
+    });
 }
 
 /**
- * Wrap a response with CORS headers.
+ * Wrap a response init with CORS headers, returning a concrete HttpResponse.
  *
- * Merges CORS headers into an existing response, preserving any
- * headers already set by the handler.
+ * Uses the concrete `HttpResponse` class to ensure headers are properly
+ * included in the wire response by the Azure Functions runtime.
  *
  * @param request - The incoming HTTP request (used to read Origin)
- * @param response - The response to augment with CORS headers
- * @returns The response with CORS headers merged in
+ * @param response - The response init to augment with CORS headers
+ * @returns A concrete {@link HttpResponse} with CORS headers merged in
  *
  * @example
  * ```typescript
  * return withCors(request, { status: 200, jsonBody: { ok: true } });
  * ```
  */
-export function withCors(request: HttpRequest, response: HttpResponseInit): HttpResponseInit {
+export function withCors(request: HttpRequest, response: HttpResponseInit): HttpResponse {
     const corsHeaders = getCorsHeaders(request);
     response.headers = { ...corsHeaders, ...response.headers };
-    return response;
+    return new HttpResponse(response);
 }
