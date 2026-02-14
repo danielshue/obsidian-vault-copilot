@@ -12,7 +12,8 @@ describe("BasesYamlGenerator", () => {
 
 			const yaml = generateBaseYaml(spec);
 
-			expect(yaml).toContain("---");
+			// .base files are raw YAML without frontmatter delimiters
+			expect(yaml).not.toContain("---");
 			expect(yaml).toContain("properties:");
 			expect(yaml).toContain("status:");
 			expect(yaml).toContain("width: 120");
@@ -25,16 +26,15 @@ describe("BasesYamlGenerator", () => {
 			const spec = createDefaultBaseSpec("Tasks", [
 				{ name: "title", type: "text" },
 			]);
-			spec.filters = [
-				{ property: "status", operator: "is not", value: "completed" },
-			] as any;
+			spec.filters = {
+				and: ['status != "completed"'],
+			};
 
 			const yaml = generateBaseYaml(spec);
 
 			expect(yaml).toContain("filters:");
-			expect(yaml).toContain("property: status");
-			expect(yaml).toContain("operator: is not");
-			expect(yaml).toContain("value: completed");
+			expect(yaml).toContain("and:");
+			expect(yaml).toContain('status != "completed"');
 		});
 
 		it("should generate YAML with custom views", () => {

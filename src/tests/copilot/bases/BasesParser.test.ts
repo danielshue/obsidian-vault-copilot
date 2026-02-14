@@ -58,18 +58,20 @@ properties:
 			expect(result?.properties?.name?.width).toBe(200);
 		});
 
-		it("should return null for content without frontmatter", () => {
+		it("should return empty schema for non-YAML content", () => {
 			const content = "This is just regular markdown content";
 
 			const result = parseBaseFile(content);
 
-			expect(result).toBeNull();
+			// .base files are raw YAML; non-object YAML returns empty schema
+			expect(result).toEqual({});
 		});
 
-		it("should return null for empty content", () => {
+		it("should return empty schema for empty content", () => {
 			const result = parseBaseFile("");
 
-			expect(result).toBeNull();
+			// Empty .base files are valid — they mean "show all notes"
+			expect(result).toEqual({});
 		});
 
 		it("should parse filters with different operators", () => {

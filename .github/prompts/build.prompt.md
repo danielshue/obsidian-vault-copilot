@@ -5,13 +5,9 @@ description: Build and deploy the Obsidian plugin to the test vault
 ---
 Build and deploy the Obsidian Vault Copilot plugin to the test vault for local testing.
 
-## Options
-
-- **Run tests**: If requested, run unit tests before building (e.g., "build with tests" or "build and test")
-
 ## Steps
 
-1. **(Optional)** Run `npm test` to execute unit tests - only if user requests tests
+1. Run `npm test` to execute unit tests. **All tests must pass before proceeding.** If any test fails, stop and fix the failures before building.
 2. Run `npm run build` to compile TypeScript and bundle with esbuild
 3. Run `node deploy.mjs` to copy artifacts to the test vault
 
