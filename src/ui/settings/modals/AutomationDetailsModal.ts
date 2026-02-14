@@ -13,7 +13,7 @@
  */
 
 import { App, Modal } from 'obsidian';
-import type { AutomationInstance } from '../../automation/types';
+import type { AutomationInstance } from '../../../automation/types';
 
 export class AutomationDetailsModal extends Modal {
 	private automation: AutomationInstance;
@@ -141,6 +141,7 @@ export class AutomationDetailsModal extends Modal {
 				const actionResultsList = actionResults.createEl('ul', { cls: 'vc-automation-list' });
 				for (let i = 0; i < this.automation.lastResult.actionResults.length; i++) {
 					const actionResult = this.automation.lastResult.actionResults[i];
+					if (!actionResult) continue;
 					const li = actionResultsList.createEl('li');
 					
 					const icon = actionResult.success ? '✓' : '✗';

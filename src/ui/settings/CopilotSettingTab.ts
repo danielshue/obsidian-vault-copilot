@@ -2556,7 +2556,7 @@ console.log("Discovering models...");
 					.onClick(async () => {
 						// Open extension browser filtered to automations
 						const leaves = this.app.workspace.getLeavesOfType("extension-browser");
-						if (leaves.length > 0) {
+						if (leaves.length > 0 && leaves[0]) {
 							this.app.workspace.revealLeaf(leaves[0]);
 						} else {
 							await this.app.workspace.getLeaf(true).setViewState({
