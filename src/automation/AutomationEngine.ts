@@ -428,6 +428,32 @@ export class AutomationEngine {
 	}
 
 	/**
+	 * Send a message to the active AI provider, connecting if necessary
+	 */
+	private async sendToAIProvider(message: string): Promise<string> {
+		// connectCopilot() intelligently routes to the correct provider based on settings
+		if (this.plugin.settings.aiProvider === 'copilot') {
+			const service = this.plugin.githubCopilotCliService;
+			if (!service) {
+				throw new Error('GitHub Copilot CLI service not available');
+			}
+			if (!service.isConnected()) {
+				await this.plugin.connectCopilot();
+			}
+			return await service.sendMessage(message);
+		} else {
+			const service = this.plugin.openaiService || this.plugin.azureOpenaiService;
+			if (!service) {
+				throw new Error('No AI provider available');
+			}
+			if (!service.isReady()) {
+				await this.plugin.connectCopilot();
+			}
+			return await service.sendMessage(message);
+		}
+	}
+
+	/**
 	 * Execute run-agent action
 	 */
 	private async executeRunAgent(action: Extract<AutomationAction, { type: 'run-agent' }>, context: AutomationExecutionContext): Promise<unknown> {
@@ -455,30 +481,7 @@ export class AutomationEngine {
 			prompt += `\n\nInput: ${inputStr}`;
 		}
 		
-		// Get the active AI provider and check if it's ready
-		let response: string;
-		
-		if (this.plugin.settings.aiProvider === 'copilot') {
-			const service = this.plugin.githubCopilotCliService;
-			if (!service) {
-				throw new Error('GitHub Copilot CLI service not available');
-			}
-			if (!service.isConnected()) {
-				await this.plugin.connectCopilot();
-			}
-			response = await service.sendMessage(prompt);
-		} else {
-			const service = this.plugin.openaiService || this.plugin.azureOpenaiService;
-			if (!service) {
-				throw new Error('No AI provider available');
-			}
-			if (!service.isReady()) {
-				await this.plugin.connectCopilot();
-			}
-			response = await service.sendMessage(prompt);
-		}
-		
-		return response;
+		return await this.sendToAIProvider(prompt);
 	}
 
 	/**
@@ -513,30 +516,7 @@ export class AutomationEngine {
 			}
 		}
 		
-		// Get the active AI provider and check if it's ready
-		let response: string;
-		
-		if (this.plugin.settings.aiProvider === 'copilot') {
-			const service = this.plugin.githubCopilotCliService;
-			if (!service) {
-				throw new Error('GitHub Copilot CLI service not available');
-			}
-			if (!service.isConnected()) {
-				await this.plugin.connectCopilot();
-			}
-			response = await service.sendMessage(content);
-		} else {
-			const service = this.plugin.openaiService || this.plugin.azureOpenaiService;
-			if (!service) {
-				throw new Error('No AI provider available');
-			}
-			if (!service.isReady()) {
-				await this.plugin.connectCopilot();
-			}
-			response = await service.sendMessage(content);
-		}
-		
-		return response;
+		return await this.sendToAIProvider(content);
 	}
 
 	/**
