@@ -300,10 +300,10 @@ If not provided, the extension defaults to MIT License. Include a LICENSE file i
 
 ### Step 4: Validate Locally
 
-Run the validation script to check your extension before submitting:
+Run the validation script in the [vault-copilot-extensions](https://github.com/danielshue/vault-copilot-extensions) repo to check your extension before submitting:
 
 ```bash
-node scripts/validate-extension.js extensions/agents/my-extension-name
+node scripts/validate-extension.cjs extensions/agents/my-extension-name
 ```
 
 **The validator checks:**
@@ -488,7 +488,7 @@ Stuck or have questions? Here's how to get support:
 
 | Resource | Description |
 |----------|-------------|
-| 📖 [Extension Authoring Guide](docs/AUTHORING.md) | Step-by-step tutorial for creating extensions |
+| 📖 [Extension Authoring Guide](https://danielshue.github.io/vault-copilot-extensions/docs/authoring/) | Step-by-step tutorial for creating extensions |
 | 💬 [GitHub Discussions](https://github.com/danielshue/obsidian-vault-copilot/discussions) | Ask questions, share ideas, get community help |
 | 🐛 [GitHub Issues](https://github.com/danielshue/obsidian-vault-copilot/issues) | Report bugs or request features |
 | 📧 Contact | Contact the repository owner |

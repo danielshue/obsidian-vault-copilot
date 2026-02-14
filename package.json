@@ -7,8 +7,6 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "build:catalog": "node scripts/build-catalog.cjs",
-    "validate:extension": "node scripts/validate-extension.cjs",
     "deploy": "node deploy.mjs",
     "deploy:no-reload": "node deploy.mjs --no-reload",
     "build:deploy": "npm run build && npm run deploy",
