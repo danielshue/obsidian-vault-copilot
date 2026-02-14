@@ -51,6 +51,7 @@ import {
 } from "./profiles";
 import { getModelDisplayName, getAvailableModels } from "./utils";
 import { AIProviderProfileModal, AddHttpMcpServerModal } from "./modals";
+import { AutomationDetailsModal } from "./modals/AutomationDetailsModal";
 
 export class CopilotSettingTab extends PluginSettingTab {
 	plugin: CopilotPlugin;
@@ -82,6 +83,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 		// Registered Skills Section
 		this.renderRegisteredSkillsSection(containerEl);
+
+		// Automations Section
+		this.renderAutomationsSection(containerEl);
 
 		// Advanced Settings (always visible)
 		this.renderAdvancedSettings(containerEl);
@@ -2521,6 +2525,166 @@ console.log("Discovering models...");
 	private renderMcpServersTable(container: HTMLElement, servers: Map<string, McpServerConfig>): void {
 		// This method is now deprecated in favor of renderMcpServersSection
 		// Keeping for potential backward compatibility
+	}
+
+	private renderAutomationsSection(containerEl: HTMLElement): void {
+		const section = containerEl.createDiv({ cls: "vc-settings-section vc-automations-section" });
+		
+		const sectionHeader = section.createDiv({ cls: "vc-section-header" });
+		sectionHeader.createEl("h3", { text: "Automations" });
+		
+		const desc = section.createEl("p", { 
+			text: "Manage scheduled and event-triggered workflows. Automations can execute agents, prompts, skills, or vault operations automatically.",
+			cls: "vc-status-desc"
+		});
+		
+		// Get automations from engine
+		const automations = this.plugin.automationEngine?.getAllAutomations() || [];
+		
+		if (automations.length === 0) {
+			const emptyState = section.createDiv({ cls: "vc-empty-state" });
+			emptyState.createEl("p", { text: "No automations installed yet." });
+			emptyState.createEl("p", { 
+				text: "Install automation extensions from the Extension Browser to get started.",
+				cls: "vc-status-desc"
+			});
+			
+			// Add button to open extension browser
+			new Setting(section)
+				.addButton(button => button
+					.setButtonText("Browse Automations")
+					.onClick(async () => {
+						// Open extension browser filtered to automations
+						const leaves = this.app.workspace.getLeavesOfType("extension-browser");
+						if (leaves.length > 0) {
+							this.app.workspace.revealLeaf(leaves[0]);
+						} else {
+							await this.app.workspace.getLeaf(true).setViewState({
+								type: "extension-browser",
+								active: true,
+							});
+						}
+					}));
+			return;
+		}
+		
+		// Render automations table
+		this.renderAutomationsTable(section, automations);
+	}
+
+	private renderAutomationsTable(container: HTMLElement, automations: import('../../automation/types').AutomationInstance[]): void {
+		const table = container.createEl("table", { cls: "vc-automations-table" });
+		
+		// Header row
+		const thead = table.createEl("thead");
+		const headerRow = thead.createEl("tr");
+		headerRow.createEl("th", { text: "Name" });
+		headerRow.createEl("th", { text: "Triggers" });
+		headerRow.createEl("th", { text: "Status" });
+		headerRow.createEl("th", { text: "Last Run" });
+		headerRow.createEl("th", { text: "Actions" });
+		
+		// Body rows
+		const tbody = table.createEl("tbody");
+		for (const automation of automations) {
+			const row = tbody.createEl("tr");
+			
+			// Name
+			row.createEl("td", { text: automation.name, cls: "vc-automation-name" });
+			
+			// Triggers
+			const triggersCell = row.createEl("td", { cls: "vc-automation-triggers" });
+			const triggerTypes = automation.config.triggers.map(t => t.type).join(", ");
+			triggersCell.createEl("span", { text: triggerTypes });
+			
+			// Status
+			const statusCell = row.createEl("td", { cls: "vc-automation-status" });
+			const statusBadge = statusCell.createEl("span", { 
+				cls: `vc-status-badge ${automation.enabled ? 'vc-status-enabled' : 'vc-status-disabled'}`,
+				text: automation.enabled ? "Enabled" : "Disabled"
+			});
+			
+			// Last Run
+			const lastRunCell = row.createEl("td", { cls: "vc-automation-lastrun" });
+			if (automation.lastRun) {
+				const date = new Date(automation.lastRun);
+				const timeAgo = this.formatTimeAgo(date);
+				lastRunCell.createEl("span", { text: timeAgo });
+				if (automation.lastResult) {
+					const resultIcon = automation.lastResult.success ? "✓" : "✗";
+					const resultClass = automation.lastResult.success ? "vc-result-success" : "vc-result-failure";
+					lastRunCell.createEl("span", { 
+						text: ` ${resultIcon}`,
+						cls: resultClass
+					});
+				}
+			} else {
+				lastRunCell.createEl("span", { text: "Never", cls: "vc-text-muted" });
+			}
+			
+			// Actions
+			const actionsCell = row.createEl("td", { cls: "vc-automation-actions" });
+			
+			// Toggle button
+			const toggleBtn = actionsCell.createEl("button", { 
+				cls: "vc-btn vc-btn-small",
+				text: automation.enabled ? "Disable" : "Enable"
+			});
+			toggleBtn.onclick = async () => {
+				if (automation.enabled) {
+					await this.plugin.automationEngine?.disableAutomation(automation.id);
+				} else {
+					await this.plugin.automationEngine?.enableAutomation(automation.id);
+				}
+				this.display(); // Refresh display
+			};
+			
+			// Run now button
+			const runBtn = actionsCell.createEl("button", { 
+				cls: "vc-btn vc-btn-small",
+				text: "Run Now"
+			});
+			runBtn.onclick = async () => {
+				try {
+					await this.plugin.automationEngine?.runAutomation(automation.id);
+					this.display(); // Refresh display
+				} catch (error) {
+					console.error("Failed to run automation:", error);
+				}
+			};
+			
+			// View details button
+			const detailsBtn = actionsCell.createEl("button", { 
+				cls: "vc-btn vc-btn-small",
+				text: "Details"
+			});
+			detailsBtn.onclick = () => {
+				this.showAutomationDetails(automation);
+			};
+		}
+		
+		// Summary
+		const summary = container.createDiv({ cls: "vc-table-summary" });
+		const enabledCount = automations.filter(a => a.enabled).length;
+		summary.createEl("span", { 
+			text: `${automations.length} automation${automations.length !== 1 ? "s" : ""} (${enabledCount} enabled)` 
+		});
+	}
+
+	private formatTimeAgo(date: Date): string {
+		const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+		
+		if (seconds < 60) return "Just now";
+		if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+		if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+		if (seconds < 2592000) return `${Math.floor(seconds / 86400)}d ago`;
+		
+		return date.toLocaleDateString();
+	}
+
+	private showAutomationDetails(automation: import('../../automation/types').AutomationInstance): void {
+		const modal = new AutomationDetailsModal(this.app, automation);
+		modal.open();
 	}
 
 	private renderAdvancedSettings(containerEl: HTMLElement): void {
