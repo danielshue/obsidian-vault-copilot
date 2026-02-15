@@ -64,17 +64,6 @@ export class EditorSettingTab extends SettingTab {
 					});
 			});
 
-		new Setting(el)
-			.setName("Show editing mode in status bar")
-			.setDesc("Show the editing mode toggle in the status bar.")
-			.addToggle((toggle) => {
-				toggle.setValue(settings.showEditingModeInStatusBar)
-					.onChange((val) => {
-						settings.showEditingModeInStatusBar = val;
-						saveSettings(settings);
-					});
-			});
-
 		// ── Display ──
 
 		new Setting(el).setName("Display").setHeading();

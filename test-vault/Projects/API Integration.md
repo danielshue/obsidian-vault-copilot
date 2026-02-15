@@ -1,8 +1,18 @@
 ---
-status: active
-priority: medium
-assignee: Bob
-due_date: 2026-02-28
+status:
+  - active
+priority:
+  - medium
+assignee:
+  - Bob
+due_date: 2026-02-15T22:15
+generated: |-
+  This
+  is
+  muliline
+  text
+timeout: false
+new-property: value 1
 ---
 
 # API Integration

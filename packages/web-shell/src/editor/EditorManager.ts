@@ -13,17 +13,36 @@
  * @since 0.0.27
  */
 
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, rectangularSelection } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
-import { syntaxHighlighting, defaultHighlightStyle, indentOnInput, bracketMatching, foldGutter, foldKeymap } from "@codemirror/language";
+import { syntaxHighlighting, defaultHighlightStyle, indentOnInput, bracketMatching, foldGutter, foldKeymap, indentUnit } from "@codemirror/language";
+import { vim } from "@replit/codemirror-vim";
+import { indentationMarkers } from "@replit/codemirror-indentation-markers";
 import { marked } from "marked";
+import { frontmatterPlugin } from "./frontmatterPlugin.js";
+import { livePreviewPlugin } from "./LivePreviewPlugin.js";
+import { getEditorThemeExtension } from "./EditorThemeCatalog.js";
+import {
+	parseFrontmatter,
+	stripFrontmatter,
+	renderPropertiesHtml,
+	renderFrontmatterSource,
+} from "./FrontmatterService.js";
 import type { LayoutManager } from "../layout/LayoutManager.js";
+import { loadSettings, resolveThemeMode, settingsChanged } from "../settings/WebShellSettings.js";
 
-/** View mode for a tab */
-type ViewMode = "source" | "preview";
+/** View mode for a tab: source (raw markdown), live-preview (inline formatting), or reading (rendered HTML) */
+export type ViewMode = "source" | "live-preview" | "reading";
+
+/** Stats about the active document for the status bar. */
+export interface DocumentStats {
+	properties: number;
+	words: number;
+	characters: number;
+}
 
 /** Represents a single open editor tab */
 interface EditorTab {
@@ -39,8 +58,10 @@ interface EditorTab {
 	dirty: boolean;
 	/** Original content for dirty tracking */
 	originalContent: string;
-	/** Current view mode (source editor or preview) */
+	/** Current view mode */
 	mode: ViewMode;
+	/** Last editing mode used before switching to reading (for Ctrl+E toggle-back) */
+	lastEditingMode: "source" | "live-preview";
 	/** The wrapper that holds both the editor view and preview */
 	wrapperEl: HTMLElement;
 	/** The rendered markdown preview element */
@@ -82,6 +103,7 @@ export class EditorManager {
 	private tabs: Map<string, EditorTab> = new Map();
 	private activeTabPath: string | null = null;
 	private vault: any;
+	private workspace: any;
 	private onSave: ((path: string, content: string) => Promise<void>) | null = null;
 	/** Ordered history of visited tab paths for back/forward navigation */
 	private tabHistory: string[] = [];
@@ -91,6 +113,28 @@ export class EditorManager {
 	private activeMenuCleanup: (() => void) | null = null;
 	private onCloseLastTabRequested: (() => void) | null = null;
 	private paneMenuClickHandler: ((e: MouseEvent) => void) | null = null;
+	/** Callback fired when document stats change (selection, content, tab switch) */
+	private onStatsChange: ((stats: DocumentStats) => void) | null = null;
+
+	// ── CodeMirror Compartments for dynamic reconfiguration ──
+	private lineNumbersCompartment = new Compartment();
+	private tabSizeCompartment = new Compartment();
+	private indentUnitCompartment = new Compartment();
+	private bracketMatchingCompartment = new Compartment();
+	private foldGutterCompartment = new Compartment();
+	private spellcheckCompartment = new Compartment();
+	private rtlCompartment = new Compartment();
+	private fontThemeCompartment = new Compartment();
+	private readableLineLengthCompartment = new Compartment();
+	private vimCompartment = new Compartment();
+	private indentationMarkersCompartment = new Compartment();
+	private propertiesCompartment = new Compartment();
+	private editorThemeCompartment = new Compartment();
+	private livePreviewCompartment = new Compartment();
+	private sourceModeFontCompartment = new Compartment();
+
+	/** Unsubscribe from settings change events */
+	private unsubscribeSettings: (() => void) | null = null;
 
 	constructor(container: HTMLElement, vault: any) {
 		this.container = container;
@@ -177,7 +221,7 @@ export class EditorManager {
 		this.viewToggleBtn.className = "ws-view-toggle-btn";
 		this.viewToggleBtn.setAttribute("aria-label", "Toggle reading view");
 		this.viewToggleBtn.innerHTML = this.getViewIcon("source");
-		this.viewToggleBtn.addEventListener("click", () => this.toggleActiveTabMode());
+		this.viewToggleBtn.addEventListener("click", () => this.cycleActiveTabMode());
 		breadcrumbActions.appendChild(this.viewToggleBtn);
 		breadcrumbActions.appendChild(this.paneMenuBtn);
 
@@ -200,6 +244,229 @@ export class EditorManager {
 		this.addBlankTab();
 
 		this.updateTabHeaderControls();
+
+		// Subscribe to settings changes for dynamic editor reconfiguration
+		this.unsubscribeSettings = settingsChanged.on(() => this.reconfigureAllEditors());
+
+		// Sync external file changes (e.g. from Properties panel) into open editors
+		this.vault.on("modify", async (file: any) => {
+			const tab = this.tabs.get(file.path);
+			if (!tab) return;
+			const editorContent = tab.view.state.doc.toString();
+			const vaultContent = await this.vault.cachedRead(file);
+			if (vaultContent !== editorContent) {
+				tab.view.dispatch({
+					changes: { from: 0, to: tab.view.state.doc.length, insert: vaultContent },
+				});
+				tab.originalContent = vaultContent;
+				tab.dirty = false;
+				this.updateTabDirtyState(tab);
+			}
+		});
+	}
+
+	// ── Settings-driven extension builders ──
+
+	/** Build the extensions array for a new CodeMirror editor, reading current settings. */
+	private buildExtensions(filePath: string, initialMode: ViewMode = "live-preview"): import("@codemirror/state").Extension[] {
+		const settings = loadSettings();
+		const self = this;
+		const resolvedThemeMode = resolveThemeMode(settings.theme);
+		const editorThemeId = resolvedThemeMode === "dark" ? settings.editorThemeDark : settings.editorThemeLight;
+		const isSource = initialMode === "source";
+		const isLivePreview = initialMode === "live-preview";
+		const propsMode = settings.propertiesInDocument ?? "visible";
+
+		return [
+			// Configurable via compartments
+			this.lineNumbersCompartment.of(settings.showLineNumbers ? lineNumbers() : []),
+			this.tabSizeCompartment.of(EditorState.tabSize.of(settings.tabSize)),
+			this.indentUnitCompartment.of(indentUnit.of(settings.indentUsingTabs ? "\t" : " ".repeat(settings.tabSize))),
+			this.bracketMatchingCompartment.of(settings.autoPairBrackets ? bracketMatching() : []),
+			this.foldGutterCompartment.of((settings.foldHeadings || settings.foldIndent) ? foldGutter() : []),
+			this.spellcheckCompartment.of(
+				EditorView.contentAttributes.of({ spellcheck: settings.spellcheck ? "true" : "false" })
+			),
+			this.rtlCompartment.of(
+				settings.rightToLeft ? EditorView.contentAttributes.of({ dir: "rtl" }) : []
+			),
+			this.fontThemeCompartment.of(EditorView.theme({
+				"&": { fontSize: `${settings.fontSize}px` },
+			})),
+			this.readableLineLengthCompartment.of(EditorView.theme(
+				settings.readableLineLength
+					? { ".cm-content": { maxWidth: "700px", marginLeft: "auto", marginRight: "auto" } }
+					: {}
+			)),
+			this.vimCompartment.of(settings.vimKeyBindings ? vim() : []),
+			this.indentationMarkersCompartment.of(settings.indentationGuides ? indentationMarkers() : []),
+			this.propertiesCompartment.of(frontmatterPlugin(isSource ? "source" : propsMode)),
+			this.editorThemeCompartment.of(getEditorThemeExtension(editorThemeId)),
+			this.livePreviewCompartment.of(livePreviewPlugin(isLivePreview)),
+			this.sourceModeFontCompartment.of(isSource ? EditorView.theme({
+				".cm-content": { fontFamily: "var(--font-monospace, 'JetBrains Mono', 'Fira Code', monospace)" },
+			}) : []),
+
+			// Static extensions (not reconfigurable)
+			highlightActiveLine(),
+			highlightActiveLineGutter(),
+			history(),
+			drawSelection(),
+			rectangularSelection(),
+			indentOnInput(),
+			syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+			markdown({ base: markdownLanguage, codeLanguages: languages }),
+			keymap.of([
+				...defaultKeymap,
+				...historyKeymap,
+				...foldKeymap,
+				indentWithTab,
+				{
+					key: "Mod-s",
+					run: () => {
+						self.saveActiveTab();
+						return true;
+					}
+				},
+				{
+					key: "Mod-e",
+					run: () => {
+						self.toggleReadingEditing();
+						return true;
+					}
+				}
+			]),
+			EditorView.updateListener.of((update) => {
+				if (update.docChanged) {
+					const tab = self.tabs.get(filePath);
+					if (tab) {
+						const currentContent = update.state.doc.toString();
+						const isDirty = currentContent !== tab.originalContent;
+						if (isDirty !== tab.dirty) {
+							tab.dirty = isDirty;
+							self.updateTabDirtyState(tab);
+						}
+
+						if (self.workspace && self.activeTabPath === filePath) {
+							const activeFile = self.vault.getAbstractFileByPath(filePath);
+							if (activeFile) {
+								self.workspace.trigger("file-content-change", activeFile, currentContent);
+							}
+						}
+					}
+				}
+				// Fire stats on doc change or selection change for the active tab
+				if ((update.docChanged || update.selectionSet) && self.activeTabPath === filePath) {
+					self.fireStatsChange(update.state);
+				}
+			}),
+			EditorView.theme({
+				"&": { height: "100%" },
+				".cm-content": {
+					fontFamily: "var(--font-text, -apple-system, BlinkMacSystemFont, sans-serif)",
+					padding: "16px 0",
+				},
+				".cm-line": { padding: "0 24px" },
+				".cm-gutters": {
+					backgroundColor: "var(--background-secondary)",
+					color: "var(--text-faint)",
+					borderRight: "1px solid var(--background-modifier-border)",
+				},
+				".cm-activeLineGutter": { backgroundColor: "var(--background-modifier-hover)" },
+				".cm-activeLine": { backgroundColor: "var(--background-modifier-hover)" },
+				".cm-cursor": { borderLeftColor: "var(--text-normal)" },
+				".cm-selectionBackground": { backgroundColor: "var(--text-selection) !important" },
+				"&.cm-focused .cm-selectionBackground": { backgroundColor: "var(--text-selection) !important" },
+			}),
+		];
+	}
+
+	/**
+	 * Compute a safe initial cursor position for a document.
+	 *
+	 * When frontmatter is rendered via replace decorations (visible/hidden),
+	 * placing selection at position 0 can collide with CM measurement during
+	 * initial view construction. Move cursor to body start in those modes.
+	 */
+	private getInitialSelectionAnchor(content: string): number {
+		const settings = loadSettings();
+		const mode = settings.propertiesInDocument ?? "visible";
+		if (mode === "source") return 0;
+
+		const fm = parseFrontmatter(content);
+		if (!fm) return 0;
+
+		return Math.min(Math.max(fm.bodyStart, 0), content.length);
+	}
+
+	/** Reconfigure all open editors to reflect current settings. */
+	private reconfigureAllEditors(): void {
+		const settings = loadSettings();
+		const resolvedThemeMode = resolveThemeMode(settings.theme);
+		const editorThemeId = resolvedThemeMode === "dark" ? settings.editorThemeDark : settings.editorThemeLight;
+		const propsMode = settings.propertiesInDocument ?? "visible";
+
+		// Update CSS custom property for font size
+		document.body.style.setProperty("--font-text-size", `${settings.fontSize}px`);
+
+		for (const [, tab] of this.tabs) {
+			const isSource = tab.mode === "source";
+			const isLivePreview = tab.mode === "live-preview";
+
+			tab.view.dispatch({
+				effects: [
+					this.lineNumbersCompartment.reconfigure(
+						settings.showLineNumbers ? lineNumbers() : []
+					),
+					this.tabSizeCompartment.reconfigure(
+						EditorState.tabSize.of(settings.tabSize)
+					),
+					this.indentUnitCompartment.reconfigure(
+						indentUnit.of(settings.indentUsingTabs ? "\t" : " ".repeat(settings.tabSize))
+					),
+					this.bracketMatchingCompartment.reconfigure(
+						settings.autoPairBrackets ? bracketMatching() : []
+					),
+					this.foldGutterCompartment.reconfigure(
+						(settings.foldHeadings || settings.foldIndent) ? foldGutter() : []
+					),
+					this.spellcheckCompartment.reconfigure(
+						EditorView.contentAttributes.of({ spellcheck: settings.spellcheck ? "true" : "false" })
+					),
+					this.rtlCompartment.reconfigure(
+						settings.rightToLeft ? EditorView.contentAttributes.of({ dir: "rtl" }) : []
+					),
+					this.fontThemeCompartment.reconfigure(EditorView.theme({
+						"&": { fontSize: `${settings.fontSize}px` },
+					})),
+					this.readableLineLengthCompartment.reconfigure(EditorView.theme(
+						settings.readableLineLength
+							? { ".cm-content": { maxWidth: "700px", marginLeft: "auto", marginRight: "auto" } }
+							: {}
+					)),
+					this.vimCompartment.reconfigure(
+						settings.vimKeyBindings ? vim() : []
+					),
+					this.indentationMarkersCompartment.reconfigure(
+						settings.indentationGuides ? indentationMarkers() : []
+					),
+					this.propertiesCompartment.reconfigure(
+						frontmatterPlugin(isSource ? "source" : propsMode)
+					),
+					this.editorThemeCompartment.reconfigure(
+						getEditorThemeExtension(editorThemeId)
+					),
+					this.livePreviewCompartment.reconfigure(
+						livePreviewPlugin(isLivePreview)
+					),
+					this.sourceModeFontCompartment.reconfigure(
+						isSource ? EditorView.theme({
+							".cm-content": { fontFamily: "var(--font-monospace, 'JetBrains Mono', 'Fira Code', monospace)" },
+						}) : []
+					),
+				],
+			});
+		}
 	}
 
 	/** Append a tab element immediately before the new-tab button. */
@@ -250,6 +517,13 @@ export class EditorManager {
 	/** Returns true when running in detached file-tab view window mode. */
 	private isDetachedFileTabView(): boolean {
 		return new URLSearchParams(window.location.search).get("view") === "ws-file-tab-view";
+	}
+
+	/**
+	 * Set the Workspace reference for active-file tracking.
+	 */
+	setWorkspace(workspace: any): void {
+		this.workspace = workspace;
 	}
 
 	/**
@@ -392,81 +666,16 @@ export class EditorManager {
 		previewEl.style.display = "none";
 		wrapperEl.appendChild(previewEl);
 
-		const self = this;
+		// Determine initial mode from settings
+		const settings = loadSettings();
+		const defaultView = settings.defaultViewForNewTabs ?? "editing";
+		const defaultEditing = settings.defaultEditingMode ?? "live-preview";
+		const initialMode: ViewMode = defaultView === "reading" ? "reading" : defaultEditing;
+
 		const state = EditorState.create({
 			doc: content,
-			extensions: [
-				lineNumbers(),
-				highlightActiveLine(),
-				highlightActiveLineGutter(),
-				history(),
-				drawSelection(),
-				rectangularSelection(),
-				indentOnInput(),
-				bracketMatching(),
-				foldGutter(),
-				syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-				markdown({ base: markdownLanguage, codeLanguages: languages }),
-				keymap.of([
-					...defaultKeymap,
-					...historyKeymap,
-					...foldKeymap,
-					indentWithTab,
-					{
-						key: "Mod-s",
-						run: () => {
-							self.saveActiveTab();
-							return true;
-						}
-					}
-				]),
-				EditorView.updateListener.of((update) => {
-					if (update.docChanged) {
-						const tab = self.tabs.get(filePath);
-						if (tab) {
-							const currentContent = update.state.doc.toString();
-							const isDirty = currentContent !== tab.originalContent;
-							if (isDirty !== tab.dirty) {
-								tab.dirty = isDirty;
-								self.updateTabDirtyState(tab);
-							}
-						}
-					}
-				}),
-				EditorView.theme({
-					"&": {
-						height: "100%",
-						fontSize: "var(--font-text-size, 16px)",
-					},
-					".cm-content": {
-						fontFamily: "var(--font-text, -apple-system, BlinkMacSystemFont, sans-serif)",
-						padding: "16px 0",
-					},
-					".cm-line": {
-						padding: "0 24px",
-					},
-					".cm-gutters": {
-						backgroundColor: "var(--background-secondary)",
-						color: "var(--text-faint)",
-						borderRight: "1px solid var(--background-modifier-border)",
-					},
-					".cm-activeLineGutter": {
-						backgroundColor: "var(--background-modifier-hover)",
-					},
-					".cm-activeLine": {
-						backgroundColor: "var(--background-modifier-hover)",
-					},
-					".cm-cursor": {
-						borderLeftColor: "var(--text-normal)",
-					},
-					".cm-selectionBackground": {
-						backgroundColor: "var(--text-selection) !important",
-					},
-					"&.cm-focused .cm-selectionBackground": {
-						backgroundColor: "var(--text-selection) !important",
-					},
-				}),
-			],
+			selection: { anchor: this.getInitialSelectionAnchor(content) },
+			extensions: this.buildExtensions(filePath, initialMode === "reading" ? defaultEditing : initialMode),
 		});
 
 		const view = new EditorView({
@@ -481,10 +690,16 @@ export class EditorManager {
 			tabEl,
 			dirty: false,
 			originalContent: content,
-			mode: "source",
+			mode: initialMode,
+			lastEditingMode: defaultEditing as "source" | "live-preview",
 			wrapperEl,
 			previewEl,
 		};
+
+		// If starting in reading mode, render preview immediately
+		if (initialMode === "reading") {
+			this.renderReadingView(tab);
+		}
 
 		this.tabs.set(filePath, tab);
 		this.updateTabHeaderControls();
@@ -531,8 +746,21 @@ export class EditorManager {
 			tab.wrapperEl.style.display = isActive ? "" : "none";
 			if (isActive) {
 				this.updateToggleIcon(tab.mode);
-				if (tab.mode === "source") {
+				this.fireStatsChange(tab.view.state);
+				if (tab.mode === "source" || tab.mode === "live-preview") {
 					tab.view.focus();
+				}
+			}
+		}
+
+		// Notify workspace of the active file for sidebar panels (PropertiesView)
+		if (this.workspace) {
+			const file = this.vault.getAbstractFileByPath(filePath);
+			if (file) {
+				this.workspace.setActiveFile(file);
+				const activeTab = this.tabs.get(filePath);
+				if (activeTab) {
+					this.workspace.trigger("file-content-change", file, activeTab.view.state.doc.toString());
 				}
 			}
 		}
@@ -638,6 +866,9 @@ export class EditorManager {
 		// Show empty state
 		this.emptyState.style.display = "";
 		this.breadcrumbBar.classList.add("is-hidden");
+		if (this.onStatsChange) {
+			this.onStatsChange({ properties: 0, words: 0, characters: 0 });
+		}
 	}
 
 	/** Returns true when a blank "New tab" is currently active. */
@@ -726,46 +957,167 @@ export class EditorManager {
 		tab.tabEl.classList.toggle("is-dirty", tab.dirty);
 	}
 
+	/** Render the reading view HTML for a tab. */
+	private renderReadingView(tab: EditorTab): void {
+		const fullContent = tab.view.state.doc.toString();
+		const settings = loadSettings();
+		const mode = settings.propertiesInDocument ?? "visible";
+		const fm = parseFrontmatter(fullContent);
+		let fmHtml = "";
+		let bodyContent = fullContent;
+
+		if (fm) {
+			bodyContent = stripFrontmatter(fullContent);
+			if (mode === "visible") {
+				fmHtml = renderPropertiesHtml(fm.properties);
+			} else if (mode === "source") {
+				fmHtml = renderFrontmatterSource(fm.raw);
+			}
+		}
+
+		tab.previewEl.innerHTML = fmHtml + (marked.parse(bodyContent) as string);
+		const editorEl = tab.view.dom.parentElement as HTMLElement;
+		editorEl.style.display = "none";
+		tab.previewEl.style.display = "";
+	}
+
 	/**
-	 * Toggle the active tab between source and preview mode.
+	 * Switch the active tab to a specific view mode.
+	 *
+	 * This is the core mode-switching method. It handles transitions between
+	 * source, live-preview, and reading modes, including CM6 compartment
+	 * reconfiguration and DOM visibility toggling.
 	 */
-	private toggleActiveTabMode(): void {
+	setActiveTabMode(mode: ViewMode): void {
 		if (!this.activeTabPath) return;
 		const tab = this.tabs.get(this.activeTabPath);
-		if (!tab) return;
-
-		const newMode: ViewMode = tab.mode === "source" ? "preview" : "source";
-		tab.mode = newMode;
-		this.updateToggleIcon(newMode);
+		if (!tab || tab.mode === mode) return;
 
 		const editorEl = tab.view.dom.parentElement as HTMLElement;
+		const prevMode = tab.mode;
 
-		if (newMode === "preview") {
-			const mdContent = tab.view.state.doc.toString();
-			tab.previewEl.innerHTML = marked.parse(mdContent) as string;
-			editorEl.style.display = "none";
-			tab.previewEl.style.display = "";
+		// Track last editing mode for Ctrl+E toggle
+		if (prevMode === "source" || prevMode === "live-preview") {
+			tab.lastEditingMode = prevMode;
+		}
+
+		tab.mode = mode;
+		this.updateToggleIcon(mode);
+
+		// Update wrapper CSS classes for mode-specific styling
+		tab.wrapperEl.classList.remove("is-source-mode", "is-live-preview", "is-reading-view");
+		tab.wrapperEl.classList.add(
+			mode === "source" ? "is-source-mode" :
+			mode === "live-preview" ? "is-live-preview" : "is-reading-view"
+		);
+
+		if (mode === "reading") {
+			this.renderReadingView(tab);
 		} else {
+			// Switching to an editing mode (source or live-preview)
 			tab.previewEl.style.display = "none";
 			editorEl.style.display = "";
+
+			const settings = loadSettings();
+			const propsMode = settings.propertiesInDocument ?? "visible";
+			const isSource = mode === "source";
+			const isLivePreview = mode === "live-preview";
+
+			// Reconfigure CM6 compartments for the new mode
+			tab.view.dispatch({
+				effects: [
+					this.livePreviewCompartment.reconfigure(livePreviewPlugin(isLivePreview)),
+					this.sourceModeFontCompartment.reconfigure(
+						isSource ? EditorView.theme({
+							".cm-content": { fontFamily: "var(--font-monospace, 'JetBrains Mono', 'Fira Code', monospace)" },
+						}) : []
+					),
+					this.propertiesCompartment.reconfigure(
+						frontmatterPlugin(isSource ? "source" : propsMode)
+					),
+				],
+			});
+
 			tab.view.focus();
 		}
 	}
 
-	/** SVG icon for the current view mode (shows what you'll switch TO) */
+	/**
+	 * Cycle through modes via the breadcrumb toggle button.
+	 * Source → Live Preview → Reading → Source
+	 */
+	private cycleActiveTabMode(): void {
+		if (!this.activeTabPath) return;
+		const tab = this.tabs.get(this.activeTabPath);
+		if (!tab) return;
+
+		const nextMode: ViewMode =
+			tab.mode === "source" ? "live-preview" :
+			tab.mode === "live-preview" ? "reading" : "source";
+		this.setActiveTabMode(nextMode);
+	}
+
+	/**
+	 * Toggle between reading and editing (Ctrl+E / Cmd+E).
+	 * Reading → last editing mode; Editing → Reading.
+	 */
+	private toggleReadingEditing(): void {
+		if (!this.activeTabPath) return;
+		const tab = this.tabs.get(this.activeTabPath);
+		if (!tab) return;
+
+		if (tab.mode === "reading") {
+			this.setActiveTabMode(tab.lastEditingMode);
+		} else {
+			this.setActiveTabMode("reading");
+		}
+	}
+
+	/** SVG icon for the current view mode (indicates current state) */
 	private getViewIcon(currentMode: ViewMode): string {
 		if (currentMode === "source") {
-			// Currently in source → show "book" icon to switch to reading view
-			return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
+			// Source mode → code icon
+			return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`;
 		}
-		// Currently in preview → show "pencil" icon to switch to edit mode
-		return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
+		if (currentMode === "live-preview") {
+			// Live preview mode → pencil icon
+			return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
+		}
+		// Reading view → book icon
+		return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
 	}
 
 	/** Update the toggle button icon to reflect current mode. */
 	private updateToggleIcon(mode: ViewMode): void {
 		this.viewToggleBtn.innerHTML = this.getViewIcon(mode);
-		this.viewToggleBtn.setAttribute("aria-label", mode === "source" ? "Switch to reading view" : "Switch to source mode");
+		const labels: Record<ViewMode, string> = {
+			"source": "Source mode (click to cycle)",
+			"live-preview": "Live preview (click to cycle)",
+			"reading": "Reading view (click to cycle)",
+		};
+		this.viewToggleBtn.setAttribute("aria-label", labels[mode]);
+	}
+
+	/** Set a callback for document stats changes (properties, words, characters). */
+	setStatsChangeHandler(handler: (stats: DocumentStats) => void): void {
+		this.onStatsChange = handler;
+	}
+
+	/** Compute and fire stats from an EditorState. */
+	private fireStatsChange(state: EditorState): void {
+		if (!this.onStatsChange) return;
+		const content = state.doc.toString();
+		const fm = parseFrontmatter(content);
+		const properties = fm ? Object.keys(fm.properties).length : 0;
+		const sel = state.selection.main;
+		const hasSelection = sel.from !== sel.to;
+		const text = hasSelection
+			? state.sliceDoc(sel.from, sel.to)
+			: stripFrontmatter(content);
+		const trimmed = text.trim();
+		const words = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
+		const characters = trimmed.length;
+		this.onStatsChange({ properties, words, characters });
 	}
 
 	/**
@@ -922,53 +1274,14 @@ export class EditorManager {
 		previewEl.style.display = "none";
 		wrapperEl.appendChild(previewEl);
 
-		const self = this;
+		const importMode = state.mode === "reading"
+			? (state as any).lastEditingMode || "live-preview"
+			: state.mode;
+
 		const editorState = EditorState.create({
 			doc: state.content,
-			extensions: [
-				lineNumbers(),
-				highlightActiveLine(),
-				highlightActiveLineGutter(),
-				history(),
-				drawSelection(),
-				rectangularSelection(),
-				indentOnInput(),
-				bracketMatching(),
-				foldGutter(),
-				syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-				markdown({ base: markdownLanguage, codeLanguages: languages }),
-				keymap.of([
-					...defaultKeymap,
-					...historyKeymap,
-					...foldKeymap,
-					indentWithTab,
-					{
-						key: "Mod-s",
-						run: () => { self.saveActiveTab(); return true; },
-					},
-				]),
-				EditorView.updateListener.of((update) => {
-					if (update.docChanged) {
-						const tab = self.tabs.get(filePath);
-						if (tab) {
-							const currentContent = update.state.doc.toString();
-							const isDirty = currentContent !== tab.originalContent;
-							if (isDirty !== tab.dirty) {
-								tab.dirty = isDirty;
-								self.updateTabDirtyState(tab);
-							}
-						}
-					}
-				}),
-				EditorView.theme({
-					"&": { height: "100%", fontSize: "var(--font-text-size, 16px)" },
-					".cm-content": { fontFamily: "var(--font-text, -apple-system, BlinkMacSystemFont, sans-serif)", padding: "16px 0" },
-					".cm-line": { padding: "0 24px" },
-					".cm-gutters": { background: "transparent", border: "none", color: "var(--text-faint)" },
-					".cm-activeLineGutter": { background: "transparent" },
-					"&.cm-focused .cm-selectionBackground": { backgroundColor: "var(--text-selection) !important" },
-				}),
-			],
+			selection: { anchor: this.getInitialSelectionAnchor(state.content) },
+			extensions: this.buildExtensions(filePath, importMode),
 		});
 
 		const view = new EditorView({ state: editorState, parent: editorEl });
@@ -981,9 +1294,14 @@ export class EditorManager {
 			dirty: state.dirty,
 			originalContent: state.originalContent,
 			mode: state.mode,
+			lastEditingMode: (state as any).lastEditingMode || "live-preview",
 			wrapperEl,
 			previewEl,
 		};
+
+		if (state.mode === "reading") {
+			this.renderReadingView(tab);
+		}
 
 		if (state.dirty) this.updateTabDirtyState(tab);
 
@@ -1133,13 +1451,6 @@ export class EditorManager {
 		if (!this.activeTabPath) return null;
 		const tab = this.tabs.get(this.activeTabPath);
 		return tab?.mode ?? null;
-	}
-
-	/** Set active tab mode (source/preview) when a file tab is active. */
-	setActiveTabMode(mode: ViewMode): void {
-		const current = this.getActiveTabMode();
-		if (!current || current === mode) return;
-		this.toggleActiveTabMode();
 	}
 
 	/** Pop out the active file tab into a separate window. */

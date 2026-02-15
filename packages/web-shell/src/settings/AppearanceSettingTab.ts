@@ -11,15 +11,27 @@
 
 import { Setting } from "@vault-copilot/obsidian-shim/src/ui/Setting.js";
 import { SettingTab } from "./SettingTab.js";
-import { loadSettings, saveSettings } from "./WebShellSettings.js";
+import {
+	getEditorThemeById,
+	getEditorThemesForMode,
+	type EditorThemeId,
+} from "../editor/EditorThemeCatalog.js";
+import { loadSettings, resolveThemeMode, saveSettings } from "./WebShellSettings.js";
 import type { App } from "@vault-copilot/obsidian-shim/src/core/App.js";
 
 export class AppearanceSettingTab extends SettingTab {
+	private systemThemeListenerCleanup: (() => void) | null = null;
+
 	constructor(app: App) {
 		super(app, "appearance", "Appearance", "palette");
 	}
 
 	display(): void {
+		if (this.systemThemeListenerCleanup) {
+			this.systemThemeListenerCleanup();
+			this.systemThemeListenerCleanup = null;
+		}
+
 		const el = this.containerEl;
 		el.empty();
 
@@ -27,7 +39,7 @@ export class AppearanceSettingTab extends SettingTab {
 
 		// ── Top section (no heading) ──
 
-		new Setting(el)
+		const baseThemeSetting = new Setting(el)
 			.setName("Base color scheme")
 			.setDesc("Choose Obsidian's default color scheme.")
 			.addDropdown((dd) => {
@@ -39,8 +51,92 @@ export class AppearanceSettingTab extends SettingTab {
 						settings.theme = val as "light" | "dark" | "system";
 						saveSettings(settings);
 						this.applyTheme(settings.theme);
+						this.display();
 					});
 			});
+
+		const runtimeThemeBadge = document.createElement("span");
+		runtimeThemeBadge.className = "ws-runtime-theme-badge";
+		baseThemeSetting.descEl.appendChild(runtimeThemeBadge);
+
+		const updateRuntimeThemeBadge = (): void => {
+			if (settings.theme !== "system") {
+				runtimeThemeBadge.classList.add("is-hidden");
+				return;
+			}
+
+			const mode = resolveThemeMode("system");
+			runtimeThemeBadge.textContent = `Runtime mode: ${mode === "dark" ? "Dark" : "Light"}`;
+			runtimeThemeBadge.classList.remove("is-hidden");
+		};
+
+		updateRuntimeThemeBadge();
+
+		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+		const handleThemeChange = () => updateRuntimeThemeBadge();
+		if (typeof mediaQuery.addEventListener === "function") {
+			mediaQuery.addEventListener("change", handleThemeChange);
+			this.systemThemeListenerCleanup = () => mediaQuery.removeEventListener("change", handleThemeChange);
+		} else {
+			mediaQuery.addListener(handleThemeChange);
+			this.systemThemeListenerCleanup = () => mediaQuery.removeListener(handleThemeChange);
+		}
+
+		const resolvedThemeMode = resolveThemeMode(settings.theme);
+		const currentThemeId: EditorThemeId =
+			resolvedThemeMode === "dark" ? settings.editorThemeDark : settings.editorThemeLight;
+		const themesForMode = getEditorThemesForMode(resolvedThemeMode);
+
+		const editorThemeSetting = new Setting(el)
+			.setName("Editor theme")
+			.setDesc("Choose the editor theme used for this color scheme.")
+			.addDropdown((dd) => {
+				dd.addOption("default", "Default");
+
+				for (const theme of themesForMode) {
+					dd.addOption(theme.id, theme.label);
+				}
+
+				const validThemeId = themesForMode.some((theme) => theme.id === currentThemeId)
+					? currentThemeId
+					: "default";
+
+				dd.setValue(validThemeId)
+					.onChange((value) => {
+						const themeId = value as EditorThemeId;
+						if (resolvedThemeMode === "dark") {
+							settings.editorThemeDark = themeId;
+						} else {
+							settings.editorThemeLight = themeId;
+						}
+
+						saveSettings(settings);
+						updatePreview(themeId);
+					});
+			});
+
+		const previewEl = document.createElement("div");
+		previewEl.className = "ws-editor-theme-preview";
+		editorThemeSetting.controlEl.appendChild(previewEl);
+
+		const updatePreview = (themeId: EditorThemeId): void => {
+			const theme = getEditorThemeById(themeId);
+			previewEl.textContent = "";
+
+			if (!theme) {
+				previewEl.classList.add("is-hidden");
+				return;
+			}
+
+			const imageEl = document.createElement("img");
+			imageEl.src = theme.previewImageUrl;
+			imageEl.alt = `${theme.label} preview`;
+			imageEl.loading = "lazy";
+			previewEl.appendChild(imageEl);
+			previewEl.classList.remove("is-hidden");
+		};
+
+		updatePreview(currentThemeId);
 
 		new Setting(el)
 			.setName("Accent color")
@@ -206,6 +302,7 @@ export class AppearanceSettingTab extends SettingTab {
 					.onChange((val) => {
 						settings.fontSize = val;
 						saveSettings(settings);
+						document.body.style.setProperty("--font-text-size", `${val}px`);
 					});
 			});
 
@@ -247,17 +344,6 @@ export class AppearanceSettingTab extends SettingTab {
 			});
 
 		new Setting(el)
-			.setName("Native menus")
-			.setDesc("Menus throughout the app will match the operating system. They will not be affected by your theme.")
-			.addToggle((toggle) => {
-				toggle.setValue(settings.nativeMenus)
-					.onChange((val) => {
-						settings.nativeMenus = val;
-						saveSettings(settings);
-					});
-			});
-
-		new Setting(el)
 			.setName("Window frame style")
 			.setDesc("Determines the styling of the title bar of Obsidian windows. Requires a full restart to take effect.")
 			.addDropdown((dd) => {
@@ -272,41 +358,19 @@ export class AppearanceSettingTab extends SettingTab {
 						}
 					});
 			});
-
-		new Setting(el)
-			.setName("Custom app icon")
-			.setDesc("Set a custom icon for the app")
-			.addButton((btn) => {
-				btn.setButtonText("Choose");
-			});
-
-		new Setting(el)
-			.setName("Hardware acceleration")
-			.setDesc("Turns on Hardware Acceleration, which uses your GPU to make Obsidian smoother.")
-			.addToggle((toggle) => {
-				toggle.setValue(settings.hardwareAcceleration)
-					.onChange((val) => {
-						settings.hardwareAcceleration = val;
-						saveSettings(settings);
-					});
-			});
-
-		new Setting(el)
-			.setName("Translucent window")
-			.setDesc("Make the window background slightly transparent (Electron only).")
-			.addToggle((toggle) => {
-				toggle.setValue(settings.translucent)
-					.setDisabled(!window.electronAPI)
-					.onChange((val) => {
-						settings.translucent = val;
-						saveSettings(settings);
-					});
-			});
 	}
 
 	/** Apply the selected theme to the document. */
 	private applyTheme(theme: "light" | "dark" | "system"): void {
 		applyTheme(theme);
+	}
+
+	hide(): void {
+		if (this.systemThemeListenerCleanup) {
+			this.systemThemeListenerCleanup();
+			this.systemThemeListenerCleanup = null;
+		}
+		super.hide();
 	}
 }
 

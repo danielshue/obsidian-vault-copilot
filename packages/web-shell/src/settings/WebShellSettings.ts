@@ -8,6 +8,8 @@
  * @description Shared settings interface and storage for web shell built-in tabs.
  */
 
+import type { EditorThemeId } from "../editor/EditorThemeCatalog.js";
+
 /** Persisted layout state for the three-column shell. */
 export interface LayoutState {
 	leftWidth: string;
@@ -55,7 +57,6 @@ export interface WebShellSettings {
 	alwaysFocusNewTabs: boolean;
 	defaultViewForNewTabs: "editing" | "reading";
 	defaultEditingMode: "live-preview" | "source";
-	showEditingModeInStatusBar: boolean;
 	readableLineLength: boolean;
 	strictLineBreaks: boolean;
 	propertiesInDocument: "visible" | "hidden" | "source";
@@ -83,6 +84,8 @@ export interface WebShellSettings {
 
 	// Appearance
 	theme: "light" | "dark" | "system";
+	editorThemeLight: EditorThemeId;
+	editorThemeDark: EditorThemeId;
 	accentColor: string;
 	inlineTitle: boolean;
 	showTabTitleBar: boolean;
@@ -111,7 +114,6 @@ export const DEFAULT_SETTINGS: WebShellSettings = {
 	alwaysFocusNewTabs: true,
 	defaultViewForNewTabs: "editing",
 	defaultEditingMode: "live-preview",
-	showEditingModeInStatusBar: false,
 	readableLineLength: true,
 	strictLineBreaks: false,
 	propertiesInDocument: "visible",
@@ -135,6 +137,8 @@ export const DEFAULT_SETTINGS: WebShellSettings = {
 	autoUpdateLinks: true,
 	deleteOption: "trash",
 	theme: "system",
+	editorThemeLight: "default",
+	editorThemeDark: "default",
 	accentColor: "",
 	inlineTitle: false,
 	showTabTitleBar: true,
@@ -153,6 +157,30 @@ export const DEFAULT_SETTINGS: WebShellSettings = {
 
 const STORAGE_KEY = "web-shell-settings";
 
+/**
+ * Simple event bus for settings change notifications.
+ * @internal
+ */
+class SettingsEventBus {
+	private listeners: Set<() => void> = new Set();
+
+	/** Subscribe to settings changes. Returns an unsubscribe function. */
+	on(callback: () => void): () => void {
+		this.listeners.add(callback);
+		return () => this.listeners.delete(callback);
+	}
+
+	/** Notify all listeners that settings changed. */
+	emit(): void {
+		for (const cb of this.listeners) {
+			try { cb(); } catch (e) { console.error("[SettingsEventBus]", e); }
+		}
+	}
+}
+
+/** Singleton event bus emitted whenever settings are saved. */
+export const settingsChanged = new SettingsEventBus();
+
 /** Load settings from localStorage, merged with defaults. */
 export function loadSettings(): WebShellSettings {
 	try {
@@ -167,4 +195,19 @@ export function loadSettings(): WebShellSettings {
 /** Save settings to localStorage. */
 export function saveSettings(settings: WebShellSettings): void {
 	localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+	settingsChanged.emit();
+}
+
+/**
+ * Resolve a persisted theme setting to a concrete light/dark mode.
+ *
+ * @param theme - Persisted base theme setting.
+ * @returns Concrete theme mode used for editor/theme-specific settings.
+ */
+export function resolveThemeMode(theme: "light" | "dark" | "system"): "light" | "dark" {
+	if (theme === "system") {
+		return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+	}
+
+	return theme;
 }

@@ -1,9 +1,16 @@
 ---
 creation-date: 2026-02-15
 modified-date: 2026-02-15
-tags: [pestel, strategic-analysis, vault-copilot, competitive-analysis]
+tags:
+  - pestel
+  - strategic-analysis
+  - vault-copilot
+  - competitive-analysis
 status: complete
 type: reference
+mylist:
+  - my item
+  - item2 list
 ---
 
 # PESTEL Analysis: Vault Copilot
