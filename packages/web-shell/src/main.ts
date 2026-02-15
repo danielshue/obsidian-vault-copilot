@@ -1,34 +1,24 @@
 /**
- * Web shell bootstrap — initializes the shim environment and loads the plugin.
+ * @module WebShellEntry
+ * @description Web Shell renderer entry point.
  *
- * Flow:
- * 1. Install DOM prototype extensions
- * 2. Attach moment to window
- * 3. Prompt user to pick a vault folder (or restore from IndexedDB)
- * 4. Create shim App (Vault, Workspace, MetadataCache, FileManager)
- * 5. Instantiate and load the CopilotPlugin
- * 6. Activate the default chat view
+ * Thin bootstrap that:
+ * 1. Installs global shims (DOM extensions, moment, process)
+ * 2. Delegates full initialization to {@link WebShellApp}
+ * 3. Keeps file explorer, context menus, and ribbon rendering local
+ *
+ * @see {@link WebShellApp} for the application lifecycle controller
+ * @since 0.0.27
  */
 
 import { initDomExtensions } from "@vault-copilot/obsidian-shim/src/dom/dom-extensions.js";
-import { App } from "@vault-copilot/obsidian-shim/src/core/App.js";
-import { Vault } from "@vault-copilot/obsidian-shim/src/vault/Vault.js";
-import { Workspace } from "@vault-copilot/obsidian-shim/src/workspace/Workspace.js";
-import { MetadataCache } from "@vault-copilot/obsidian-shim/src/metadata/MetadataCache.js";
-import { FileManager } from "@vault-copilot/obsidian-shim/src/metadata/FileManager.js";
 import moment from "moment";
 import { get, set } from "idb-keyval";
 
 import { Buffer } from "buffer";
 import { PaneManager } from "./editor/PaneManager.js";
-import { EditorManager } from "./editor/EditorManager.js";
 import { LayoutManager } from "./layout/LayoutManager.js";
-import { GeneralSettingTab } from "./settings/GeneralSettingTab.js";
-import { EditorSettingTab } from "./settings/EditorSettingTab.js";
-import { FilesAndLinksSettingTab } from "./settings/FilesAndLinksSettingTab.js";
-import { AppearanceSettingTab, applyTheme } from "./settings/AppearanceSettingTab.js";
-import { KeychainSettingTab } from "./settings/KeychainSettingTab.js";
-import { loadSettings } from "./settings/WebShellSettings.js";
+import { WebShellApp } from "./app/WebShellApp.js";
 
 // Import plugin styles via JS so Vite processes @import chains correctly
 import "../../../src/styles/styles.css";
@@ -135,138 +125,17 @@ function getStoredDirPath(): string | null {
 }
 
 async function bootstrap(dirHandleOrPath: FileSystemDirectoryHandle | string, initialFilePath?: string): Promise<void> {
-	// Persist for next load
-	if (typeof dirHandleOrPath === "string") {
-		localStorage.setItem(DIR_PATH_KEY, dirHandleOrPath);
-	} else {
-		await set(DIR_HANDLE_KEY, dirHandleOrPath).catch(() => {});
-	}
-
-	// Hide the vault picker UI
-	const picker = document.getElementById("vault-picker");
-	if (picker) picker.style.display = "none";
-
-	// Show a loading indicator
 	const rootSplit = document.querySelector(".mod-root") as HTMLElement;
-	if (rootSplit) {
-		rootSplit.innerHTML = '<div style="padding: 2em; color: var(--text-muted);">Loading vault...</div>';
-	}
-
 	try {
-		// ---- Step 4: Create shim instances ----
-		console.log("[web-shell] Initializing vault...");
-		const vault = new Vault(dirHandleOrPath);
-		await vault.initialize();
-		console.log("[web-shell] Vault initialized:", vault.getFiles().length, "files");
-
-		const workspaceEl = document.querySelector(".workspace") as HTMLElement;
-		const workspace = new Workspace(workspaceEl);
-		const metadataCache = new MetadataCache(vault);
-		const fileManager = new FileManager(vault);
-
-		const app = new App(vault, workspace, metadataCache, fileManager);
-		// Workspace needs app reference so leaves can access it
-		workspace.app = app;
-
-		// Apply saved theme immediately so the UI renders with the correct colors
-		const savedSettings = loadSettings();
-		applyTheme(savedSettings.theme);
-
-		// Sync titlebar overlay with the newly applied theme
-		syncTitleBarOverlay();
-
-		// Register built-in settings tabs
-		app.registerBuiltInTab(new GeneralSettingTab(app));
-		app.registerBuiltInTab(new EditorSettingTab(app));
-		app.registerBuiltInTab(new FilesAndLinksSettingTab(app));
-		app.registerBuiltInTab(new AppearanceSettingTab(app));
-		app.registerBuiltInTab(new KeychainSettingTab(app));
-
-		// ---- Step 5: Load the plugin ----
-		console.log("[web-shell] Loading plugin...");
-
-		// Pre-configure for browser-only mode: default to OpenAI provider since
-		// GitHub Copilot CLI is not available outside Electron.
-		const SETTINGS_KEY = "plugin:obsidian-vault-copilot:data";
-		const existingData = localStorage.getItem(SETTINGS_KEY);
-		const isElectronShell = Boolean(window.electronAPI?.isElectron);
-		if (!isElectronShell && !existingData) {
-			localStorage.setItem(SETTINGS_KEY, JSON.stringify({ aiProvider: "openai" }));
-		} else if (!isElectronShell && existingData) {
-			try {
-				const parsed = JSON.parse(existingData);
-				if (parsed.aiProvider === "copilot") {
-					parsed.aiProvider = "openai";
-					localStorage.setItem(SETTINGS_KEY, JSON.stringify(parsed));
-				}
-			} catch { /* ignore parse errors */ }
-		}
-
-		const { default: CopilotPlugin } = await import(
-			"../../../src/main.js"
+		const webShellApp = await WebShellApp.create(
+			dirHandleOrPath,
+			initialFilePath,
+			renderFileExplorer,
+			initRibbon,
 		);
 
-		const manifest = {
-			id: "obsidian-vault-copilot",
-			name: "Vault Copilot",
-			version: "0.0.26",
-			description: "AI assistant for your vault",
-			isDesktopOnly: false,
-		};
-
-		const plugin = new CopilotPlugin(app, manifest);
-		await plugin.onload();
-		console.log("[web-shell] Plugin loaded successfully");
-
-		// ---- Step 6: Activate default view ----
-		// Clear loading indicator
-		if (rootSplit) rootSplit.innerHTML = "";
-
-		// Populate center pane with split pane manager (must be created before file explorer wiring)
-		let paneManager: PaneManager | null = null;
-		if (rootSplit) {
-			paneManager = new PaneManager(rootSplit, vault);
-			activePaneManager = paneManager;
-
-			// Restore saved pane tree (open tabs, splits) from localStorage
-			await paneManager.restoreState();
-
-			flushPendingDockedFiles();
-			if (initialFilePath) {
-				await paneManager.openFile(initialFilePath);
-			}
-		}
-
-		// Populate left pane with file explorer
-		const leftSplit = document.querySelector(".mod-left-split") as HTMLElement;
-		const leftContent = document.querySelector(".ws-left-content") as HTMLElement || leftSplit;
-		if (leftContent) {
-			renderFileExplorer(leftContent, vault, app, paneManager);
-		}
-
-		// Open chat in the right pane
-		const leaf = workspace.getRightLeaf(false);
-		await leaf.setViewState({ type: "copilot-chat-view", active: true });
-		workspace.revealLeaf(leaf);
-		workspace.layoutReady();
-
-		// Wire up resizable panes via LayoutManager
-		const rightSplit = document.querySelector<HTMLElement>(".mod-right-split")!;
-		const layoutManager = new LayoutManager(leftSplit, rootSplit, rightSplit);
-
-		// Propagate LayoutManager to all EditorManager instances via PaneManager
-		if (paneManager) {
-			paneManager.setLayoutManager(layoutManager);
-		}
-
-		// Wire up ribbon buttons
-		initRibbon(leftSplit, vault, app, plugin, workspace, paneManager, layoutManager);
-
-		// Persist pane tree and layout state before window unload
-		window.addEventListener("beforeunload", () => {
-			if (paneManager) paneManager.persistState();
-			layoutManager.persistState();
-		});
+		activePaneManager = webShellApp.paneManager;
+		flushPendingDockedFiles();
 
 		console.log("[web-shell] Chat view activated");
 	} catch (err: any) {
@@ -282,148 +151,18 @@ async function bootstrap(dirHandleOrPath: FileSystemDirectoryHandle | string, in
 
 /**
  * Sync the Electron titlebar overlay colors with the current CSS theme.
- * Reads computed CSS variables and updates the native window controls overlay.
+ * Delegates to WebShellApp static method.
  */
 function syncTitleBarOverlay() {
-	if (!window.electronAPI?.setTitleBarOverlay) return;
-	// When a modal overlay is visible, dim the titlebar to match the backdrop
-	const hasModal = document.querySelector(".modal-container, .ws-settings-overlay");
-	if (hasModal) {
-		window.electronAPI.setTitleBarOverlay({ color: "#000000", symbolColor: "#888888" }).catch(() => {});
-		return;
-	}
-	const style = getComputedStyle(document.body);
-	const bg = style.getPropertyValue("--background-secondary").trim() || "#f6f6f6";
-	const fg = style.getPropertyValue("--text-normal").trim() || "#2e3338";
-	window.electronAPI.setTitleBarOverlay({ color: bg, symbolColor: fg }).catch(() => {});
+	WebShellApp._syncTitleBarOverlay();
 }
 
 /**
  * Bootstrap a standalone view in a child Electron window.
- * Initialises the vault + plugin without the full UI (no file explorer, editor, or chat).
- * The requested view panel fills the entire window.
+ * Delegates to WebShellApp.bootstrapStandaloneView().
  */
 async function bootstrapStandaloneView(viewType: string): Promise<void> {
-	// Hide all chrome — vault picker and full workspace
-	const picker = document.getElementById("vault-picker");
-	if (picker) picker.style.display = "none";
-	const appContainer = document.querySelector(".app-container") as HTMLElement;
-	if (appContainer) appContainer.style.display = "none";
-
-	// Create a standalone container that fills the window
-	const container = document.createElement("div");
-	container.className = "ws-standalone-view";
-	document.body.appendChild(container);
-
-	// We need the vault path to initialise (Electron stores it in localStorage)
-	const dirPath = getStoredDirPath();
-	if (!dirPath) {
-		container.innerHTML = '<div style="padding:2em;color:var(--text-error);">No vault selected — close this window and open from the main window.</div>';
-		return;
-	}
-
-	try {
-		const openFilePath = new URLSearchParams(window.location.search).get("openFile") || "";
-
-		// Minimal shim setup — same as bootstrap() but without UI wiring
-		const vault = new Vault(dirPath);
-		await vault.initialize();
-
-		const dummyWsEl = document.createElement("div");
-		const workspace = new Workspace(dummyWsEl);
-		const metadataCache = new MetadataCache(vault);
-		const fileManager = new FileManager(vault);
-		const app = new App(vault, workspace, metadataCache, fileManager);
-		workspace.app = app;
-
-		// Apply theme so panel renders with correct colors
-		const savedSettings = loadSettings();
-		applyTheme(savedSettings.theme);
-
-		// Apply frameless window behavior in detached standalone windows too
-		try {
-			const frameStyle = await window.electronAPI?.getWindowFrame?.();
-			if (frameStyle && frameStyle !== "native") {
-				document.body.classList.add("is-frameless");
-				syncTitleBarOverlay();
-				new MutationObserver(() => syncTitleBarOverlay()).observe(
-					document.body,
-					{ attributes: true, attributeFilter: ["class"] },
-				);
-				new MutationObserver(() => syncTitleBarOverlay()).observe(
-					document.body,
-					{ childList: true, subtree: true },
-				);
-			}
-		} catch {
-			/* ignore */
-		}
-
-		// Load the plugin (initialises TracingService, loads settings, etc.)
-		const { default: CopilotPlugin } = await import("../../../src/main.js");
-		const manifest = {
-			id: "obsidian-vault-copilot",
-			name: "Vault Copilot",
-			version: "0.0.26",
-			description: "AI assistant for your vault",
-			isDesktopOnly: false,
-		};
-		const plugin = new CopilotPlugin(app, manifest);
-		await plugin.onload();
-
-		// Render the requested view panel
-		if (viewType === "ws-file-tab-view") {
-			if (!openFilePath) {
-				container.innerHTML = '<div style="padding:2em;color:var(--text-error);">No file specified for detached tab view.</div>';
-				return;
-			}
-			container.classList.add("ws-file-tab-standalone");
-			const editor = new EditorManager(container, vault);
-			editor.setSaveHandler(async (path, content) => {
-				const file = vault.getAbstractFileByPath(path);
-				if (!file) throw new Error(`File not found: ${path}`);
-				await vault.modify(file, content);
-			});
-			await editor.openFile(openFilePath);
-			syncTitleBarOverlay();
-		} else if (viewType === "vc-tracing-view") {
-			const { TracingPanel } = await import("../../../src/ui/ChatView/modals/TracingModal.js");
-			container.classList.add("vc-tracing-modal");
-			const panel = new TracingPanel(container, app);
-			panel.mount();
-		} else if (viewType === "vc-voice-history-view") {
-			const { ConversationHistoryPanel } = await import("../../../src/ui/ChatView/modals/ConversationHistoryModal.js");
-			const conversations = plugin.settings?.voice?.conversations || [];
-			const panel = new ConversationHistoryPanel(
-				app,
-				container,
-				conversations,
-				(id: string) => {
-					if (!plugin.settings?.voice?.conversations) return;
-					const idx = plugin.settings.voice.conversations.findIndex((c: any) => c.id === id);
-					if (idx > -1) {
-						plugin.settings.voice.conversations.splice(idx, 1);
-						plugin.saveSettings();
-					}
-				},
-				() => {
-					if (plugin.settings?.voice) {
-						plugin.settings.voice.conversations = [];
-						plugin.saveSettings();
-					}
-				}
-			);
-			panel.mount();
-		} else {
-			container.innerHTML = `<div style="padding:2em;color:var(--text-muted);">Unknown view type: ${viewType}</div>`;
-		}
-	} catch (err: any) {
-		console.error("[web-shell] Standalone view bootstrap failed:", err);
-		container.innerHTML = `<div style="padding:2em;color:var(--text-error);">
-			<h3>View Error</h3>
-			<pre style="white-space:pre-wrap;font-size:0.85em;">${err?.stack || err?.message || err}</pre>
-		</div>`;
-	}
+	return WebShellApp.bootstrapStandaloneView(viewType);
 }
 
 // ---- Wire up the folder picker button ----

@@ -11,8 +11,10 @@
     "isolatedModules": true,
     "lib": ["DOM", "ES2022"],
     "outDir": "dist",
+    "rootDir": "src",
     "declaration": true,
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "lucide": ["../../node_modules/lucide"],
       "marked": ["../../node_modules/marked"],

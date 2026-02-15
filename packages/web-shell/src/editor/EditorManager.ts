@@ -371,10 +371,6 @@ export class EditorManager {
 		// Close button
 		closeBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
-			if (this.getTabCount() <= 1) {
-				this.requestCloseLastTab();
-				return;
-			}
 			this.closeTab(filePath);
 		});
 
@@ -907,10 +903,6 @@ export class EditorManager {
 
 		closeBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
-			if (this.getTabCount() <= 1) {
-				this.requestCloseLastTab();
-				return;
-			}
 			this.closeTab(filePath);
 		});
 
@@ -1048,10 +1040,6 @@ export class EditorManager {
 			this.dismissMenu();
 			const paths = Array.from(this.tabs.keys());
 			for (const p of paths) {
-				if (this.getTabCount() <= 1) {
-					this.requestCloseLastTab();
-					break;
-				}
 				this.closeTab(p);
 			}
 		});

@@ -10,7 +10,7 @@
     "allowSyntheticDefaultImports": true,
     "isolatedModules": true,
     "lib": ["DOM", "ES2022"],
-    "outDir": "dist",
+    "noEmit": true,
     "paths": {
       "obsidian": ["../obsidian-shim/src/index.ts"],
       "@vault-copilot/obsidian-shim/*": ["../obsidian-shim/*"]
