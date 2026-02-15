@@ -19,12 +19,23 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { syntaxHighlighting, defaultHighlightStyle, indentOnInput, bracketMatching, foldGutter, foldKeymap, indentUnit } from "@codemirror/language";
+import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 import { vim } from "@replit/codemirror-vim";
 import { indentationMarkers } from "@replit/codemirror-indentation-markers";
 import { marked } from "marked";
+import "katex/dist/katex.min.css";
 import { frontmatterPlugin } from "./frontmatterPlugin.js";
 import { livePreviewPlugin } from "./LivePreviewPlugin.js";
 import { getEditorThemeExtension } from "./EditorThemeCatalog.js";
+import { getLezerExtensions } from "./LezerExtensions.js";
+import {
+	configureMarked,
+	postProcessMermaid,
+	postProcessCodeBlocks,
+	postProcessCallouts,
+	postProcessLinks,
+} from "./MarkedExtensions.js";
+import { buildHyperLinkExtension } from "./HyperLinkExtension.js";
 import {
 	parseFrontmatter,
 	stripFrontmatter,
@@ -132,6 +143,7 @@ export class EditorManager {
 	private editorThemeCompartment = new Compartment();
 	private livePreviewCompartment = new Compartment();
 	private sourceModeFontCompartment = new Compartment();
+	private hyperLinkCompartment = new Compartment();
 
 	/** Unsubscribe from settings change events */
 	private unsubscribeSettings: (() => void) | null = null;
@@ -240,6 +252,32 @@ export class EditorManager {
 		`;
 		this.editorContainer.appendChild(this.emptyState);
 
+		// Delegated click listener for internal links (WikiLinks) across all views
+		this.editorContainer.addEventListener("click", (e) => {
+			const target = (e.target as HTMLElement).closest<HTMLAnchorElement>("a.internal-link[data-href]");
+			if (!target) return;
+			e.preventDefault();
+			e.stopPropagation();
+			const linkTarget = target.dataset.href;
+			if (linkTarget) {
+				this.navigateToInternalLink(linkTarget);
+			}
+		});
+
+		// Delegated click listener for external links across all views
+		this.editorContainer.addEventListener("click", (e) => {
+			const anchor = (e.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
+			if (!anchor) return;
+			// Skip internal links (handled above)
+			if (anchor.classList.contains("internal-link")) return;
+			const href = anchor.getAttribute("href") || "";
+			if (href.startsWith("http://") || href.startsWith("https://")) {
+				e.preventDefault();
+				e.stopPropagation();
+				window.open(href, "_blank", "noopener");
+			}
+		});
+
 		// Create initial blank tab (must be after emptyState + breadcrumbBar are ready)
 		this.addBlankTab();
 
@@ -247,6 +285,9 @@ export class EditorManager {
 
 		// Subscribe to settings changes for dynamic editor reconfiguration
 		this.unsubscribeSettings = settingsChanged.on(() => this.reconfigureAllEditors());
+
+		// Configure marked with Obsidian-flavored extensions for reading view
+		configureMarked();
 
 		// Sync external file changes (e.g. from Properties panel) into open editors
 		this.vault.on("modify", async (file: any) => {
@@ -306,6 +347,7 @@ export class EditorManager {
 			this.sourceModeFontCompartment.of(isSource ? EditorView.theme({
 				".cm-content": { fontFamily: "var(--font-monospace, 'JetBrains Mono', 'Fira Code', monospace)" },
 			}) : []),
+			this.hyperLinkCompartment.of(buildHyperLinkExtension()),
 
 			// Static extensions (not reconfigurable)
 			highlightActiveLine(),
@@ -314,8 +356,9 @@ export class EditorManager {
 			drawSelection(),
 			rectangularSelection(),
 			indentOnInput(),
+			syntaxHighlighting(oneDarkHighlightStyle),
 			syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-			markdown({ base: markdownLanguage, codeLanguages: languages }),
+			markdown({ base: markdownLanguage, codeLanguages: languages, extensions: getLezerExtensions() }),
 			keymap.of([
 				...defaultKeymap,
 				...historyKeymap,
@@ -975,7 +1018,19 @@ export class EditorManager {
 			}
 		}
 
-		tab.previewEl.innerHTML = fmHtml + (marked.parse(bodyContent) as string);
+		try {
+			tab.previewEl.innerHTML = fmHtml + (marked.parse(bodyContent) as string);
+		} catch (err) {
+			console.error("[EditorManager] Reading view parse error:", err);
+			tab.previewEl.innerHTML = fmHtml + `<pre style="color:var(--text-error)">${String(err)}</pre>`;
+		}
+
+		// Post-process rendered HTML for interactive features
+		postProcessCodeBlocks(tab.previewEl);
+		postProcessCallouts(tab.previewEl);
+		postProcessLinks(tab.previewEl, (target) => this.navigateToInternalLink(target));
+		void postProcessMermaid(tab.previewEl);
+
 		const editorEl = tab.view.dom.parentElement as HTMLElement;
 		editorEl.style.display = "none";
 		tab.previewEl.style.display = "";
@@ -1444,6 +1499,77 @@ export class EditorManager {
 		if (!result?.ok) return;
 		if (this.tabs.has(filePath)) this.closeTab(filePath);
 		if (shouldCloseWindow) window.close();
+	}
+
+	/**
+	 * Navigate to an internal (WikiLink) target by resolving it to a file path.
+	 *
+	 * Resolution strategy:
+	 * 1. Exact path match
+	 * 2. Append .md extension
+	 * 3. Relative to active tab's directory
+	 * 4. Basename match across all vault files
+	 *
+	 * @param linkTarget - The WikiLink target (e.g. "My Note", "folder/note")
+	 * @internal
+	 */
+	private navigateToInternalLink(linkTarget: string): void {
+		const resolved = this.resolveInternalLink(linkTarget);
+		if (resolved) {
+			void this.openFile(resolved);
+		} else {
+			console.warn(`[EditorManager] Could not resolve internal link: ${linkTarget}`);
+		}
+	}
+
+	/**
+	 * Resolve a WikiLink target to a file path in the vault.
+	 * @param linkTarget - The link target string
+	 * @returns Resolved file path, or null if not found
+	 * @internal
+	 */
+	private resolveInternalLink(linkTarget: string): string | null {
+		// Strip any heading/block references (e.g. "Note#heading" → "Note")
+		const hashIdx = linkTarget.indexOf("#");
+		const cleanTarget = hashIdx >= 0 ? linkTarget.slice(0, hashIdx) : linkTarget;
+		if (!cleanTarget) return null;
+
+		// Strategy 1: exact path match
+		const exact = this.vault.getAbstractFileByPath(cleanTarget);
+		if (exact) return cleanTarget;
+
+		// Strategy 2: append .md
+		if (!cleanTarget.endsWith(".md")) {
+			const withMd = this.vault.getAbstractFileByPath(`${cleanTarget}.md`);
+			if (withMd) return `${cleanTarget}.md`;
+		}
+
+		// Strategy 3: relative to active tab's folder
+		const sourceDir = this.activeTabPath
+			? this.activeTabPath.includes("/")
+				? this.activeTabPath.slice(0, this.activeTabPath.lastIndexOf("/"))
+				: ""
+			: "";
+		if (sourceDir) {
+			const relative = this.vault.getAbstractFileByPath(`${sourceDir}/${cleanTarget}`);
+			if (relative) return `${sourceDir}/${cleanTarget}`;
+			if (!cleanTarget.endsWith(".md")) {
+				const relativeMd = this.vault.getAbstractFileByPath(`${sourceDir}/${cleanTarget}.md`);
+				if (relativeMd) return `${sourceDir}/${cleanTarget}.md`;
+			}
+		}
+
+		// Strategy 4: basename match across all files
+		const linkBasename = cleanTarget.split("/").pop() || cleanTarget;
+		const files = this.vault.getFiles?.() || [];
+		for (const file of files) {
+			const basename = file.basename ?? file.name?.replace(/\.md$/, "");
+			if (basename === linkBasename || file.name === linkBasename) {
+				return file.path;
+			}
+		}
+
+		return null;
 	}
 
 	/** Get the current active tab mode when a file tab is active. */
