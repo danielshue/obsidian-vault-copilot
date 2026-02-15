@@ -38,6 +38,7 @@ export {
 	TextAreaComponent,
 	ToggleComponent,
 	DropdownComponent,
+	SliderComponent,
 	ButtonComponent,
 	ExtraButtonComponent,
 } from "./ui/FormComponents.js";

@@ -6,6 +6,73 @@
  */
 
 /* ============================================================
+   Titlebar drag region (frameless window)
+
+   The overlay uses pointer-events:none so clicks pass through
+   to interactive elements below. -webkit-app-region:drag still
+   registers the area as a window drag handle at the compositor
+   level despite pointer-events:none.
+   ============================================================ */
+.titlebar-drag-region {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  -webkit-app-region: drag;
+  z-index: 9999;
+  pointer-events: none;
+  display: none;
+  background: transparent;
+}
+
+body.is-frameless .titlebar-drag-region {
+  display: block;
+}
+
+/* Interactive elements sit above the drag region and receive clicks normally */
+body.is-frameless .workspace-ribbon,
+body.is-frameless .ws-left-tab-header,
+body.is-frameless .ws-tab-header,
+body.is-frameless .workspace-tab-header-container,
+body.is-frameless .side-dock-ribbon-action,
+body.is-frameless .ws-tab,
+body.is-frameless .ws-new-tab-btn,
+body.is-frameless .ws-tab-header-actions,
+body.is-frameless .ws-tab-header-actions button,
+body.is-frameless .ws-titlebar-right-sidebar-btn {
+  position: relative;
+  z-index: 10000;
+}
+
+.ws-titlebar-right-sidebar-btn {
+  position: fixed;
+  top: 4px;
+  right: 138px;
+  width: 28px;
+  height: 28px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-s, 4px);
+  cursor: pointer;
+  z-index: 10000;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+.ws-titlebar-right-sidebar-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* In frameless mode, sidebar icons and center tab bar sit within
+   the titlebar area (transparent drag region + z-index handles clicks). */
+
+/* ============================================================
    Reset & Base
    ============================================================ */
 *, *::before, *::after {
@@ -258,6 +325,36 @@ html, body {
   flex-shrink: 0;
 }
 
+/* Right pane tab header (icons at top of right sidebar) */
+.ws-right-tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+  background: var(--background-secondary);
+}
+
+.ws-right-tab-header-icons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ws-right-tab-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ws-right-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .ws-left-tab-header-icons {
   display: flex;
   align-items: center;
@@ -301,17 +398,18 @@ html, body {
    Layout
    ============================================================ */
 .app-container {
-  display: flex;
-  flex-direction: column;
   height: 100vh;
   width: 100vw;
+  overflow: hidden;
 }
 
 .workspace {
   display: flex;
-  flex: 1;
+  height: 100%;
   overflow: hidden;
 }
+
+
 
 .workspace-split.mod-left-split {
   width: 250px;
@@ -319,7 +417,7 @@ html, body {
   max-width: 50vw;
   overflow: hidden;
   background: var(--background-secondary);
-  border-right: 1px solid var(--background-modifier-border);
+  border-right: none;
   display: flex;
   flex-direction: column;
 }
@@ -338,19 +436,29 @@ html, body {
   max-width: 70vw;
   overflow: hidden;
   background: var(--background-primary);
-  border-left: 1px solid var(--background-modifier-border);
+  border-left: none;
   display: flex;
   flex-direction: column;
 }
 
-/* Resize Handles */
+/* Resize Handles — span full height including status bar */
 .workspace-resizer {
-  width: 5px;
+  width: 1px;
   cursor: col-resize;
   background: transparent;
   flex-shrink: 0;
   position: relative;
   z-index: 10;
+  align-self: stretch;
+}
+
+.workspace-resizer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  right: -4px;
 }
 
 .workspace-resizer:hover,
@@ -481,24 +589,421 @@ html, body {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--text-faint);
-  font-size: var(--font-ui-medium);
-  gap: 12px;
+  gap: 4px;
   padding: 24px;
   text-align: center;
 }
 
-.ws-center-placeholder .svg-icon,
-.ws-center-placeholder svg {
-  width: 48px;
-  height: 48px;
-  opacity: 0.3;
+.ws-empty-action {
+  color: var(--text-accent);
+  font-size: var(--font-ui-medium);
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: none;
 }
 
-.ws-center-placeholder p {
-  margin: 0;
+.ws-empty-action:hover {
+  color: var(--text-accent-hover);
+  text-decoration: underline;
+}
+
+/* ── Tabbed Editor Pane ─────────────────────────────────────────── */
+
+.ws-editor-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ws-tab-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-end;
+  background: var(--titlebar-background, var(--background-secondary));
+  min-height: 36px;
+  padding: 6px 4px 0;
+  gap: 2px;
+}
+
+.ws-tab-bar {
+  display: flex;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-height: 36px;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+.ws-tab-bar::-webkit-scrollbar {
+  height: 2px;
+}
+
+.ws-tab-bar::-webkit-scrollbar-thumb {
+  background: var(--background-modifier-border);
+}
+
+.ws-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
   font-size: var(--font-ui-small);
-  color: var(--text-faint);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  flex-shrink: 1;
+  min-width: 0;
+  flex: 1 1 25%;
+  max-width: 250px;
+  border-radius: 8px 8px 0 0;
+  background: var(--background-secondary-alt);
+  border: 1px solid transparent;
+}
+
+body.theme-light .ws-tab {
+  border-color: var(--background-modifier-border);
+}
+
+.ws-tab:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.ws-tab.is-active {
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.ws-tab.is-dirty .ws-tab-name::after {
+  content: " ●";
+  color: var(--text-accent);
+  font-size: 10px;
+}
+
+.ws-tab-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ws-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-s);
+  opacity: 0;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0;
+}
+
+.ws-tab:hover .ws-tab-close,
+.ws-tab.is-active .ws-tab-close {
+  opacity: 0.6;
+}
+
+.ws-tab-close:hover {
+  opacity: 1 !important;
+  background: var(--background-modifier-hover);
+}
+
+.ws-tab-close svg {
+  pointer-events: none;
+}
+
+/* New tab button */
+.ws-new-tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-s, 4px);
+  flex-shrink: 0;
+  margin-bottom: 2px;
+  padding: 0;
+}
+.ws-new-tab-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* Tab header right actions (chevron, layout toggle) */
+.ws-tab-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  margin-bottom: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.ws-tab-header-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-s, 4px);
+  padding: 0;
+}
+.ws-tab-header-actions button:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* Breadcrumb navigation bar (below tabs) */
+.ws-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 8px;
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  gap: 4px;
+}
+.ws-breadcrumb-bar.is-hidden {
+  display: none;
+}
+
+.ws-breadcrumb-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.ws-breadcrumb-nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-s, 4px);
+  padding: 0;
+}
+.ws-breadcrumb-nav button:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.ws-breadcrumb-path {
+  flex: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.ws-breadcrumb-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.ws-breadcrumb-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-s, 4px);
+  padding: 0;
+}
+.ws-breadcrumb-actions button:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.ws-editor-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.ws-editor-view {
+  height: 100%;
+}
+
+.ws-editor-view .cm-editor {
+  height: 100%;
+}
+
+.ws-editor-view .cm-scroller {
+  overflow: auto;
+}
+
+/* View Toggle Button (used in breadcrumb bar) */
+.ws-view-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  border-radius: var(--radius-s, 4px);
+  cursor: pointer;
+  outline: none;
+}
+
+.ws-view-toggle-btn svg {
+  display: block;
+  pointer-events: none;
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+}
+
+.ws-view-toggle-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* Editor Wrapper (holds editor + preview per tab) */
+.ws-editor-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Markdown Preview */
+.ws-preview-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 48px;
+  font-family: var(--font-text, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: var(--font-text-size, 16px);
+  line-height: 1.75;
+  color: var(--text-normal);
+}
+
+.ws-preview-view h1,
+.ws-preview-view h2,
+.ws-preview-view h3,
+.ws-preview-view h4,
+.ws-preview-view h5,
+.ws-preview-view h6 {
+  margin-top: 1.2em;
+  margin-bottom: 0.4em;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.ws-preview-view h1 { font-size: 2em; }
+.ws-preview-view h2 { font-size: 1.6em; }
+.ws-preview-view h3 { font-size: 1.37em; }
+.ws-preview-view h4 { font-size: 1.15em; }
+
+.ws-preview-view p {
+  margin: 0.75em 0;
+}
+
+.ws-preview-view a {
+  color: var(--text-accent);
+  text-decoration: none;
+}
+
+.ws-preview-view a:hover {
+  text-decoration: underline;
+}
+
+.ws-preview-view code {
+  background: var(--background-secondary);
+  padding: 2px 5px;
+  border-radius: var(--radius-s);
+  font-size: 0.9em;
+  font-family: var(--font-monospace, monospace);
+}
+
+.ws-preview-view pre {
+  background: var(--background-secondary);
+  padding: 16px;
+  border-radius: var(--radius-m, 6px);
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.ws-preview-view pre code {
+  background: none;
+  padding: 0;
+}
+
+.ws-preview-view blockquote {
+  border-left: 3px solid var(--interactive-accent);
+  margin: 1em 0;
+  padding: 4px 16px;
+  color: var(--text-muted);
+}
+
+.ws-preview-view ul,
+.ws-preview-view ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.ws-preview-view li {
+  margin: 0.25em 0;
+}
+
+.ws-preview-view hr {
+  border: none;
+  border-top: 1px solid var(--background-modifier-border);
+  margin: 2em 0;
+}
+
+.ws-preview-view img {
+  max-width: 100%;
+  border-radius: var(--radius-m, 6px);
+}
+
+.ws-preview-view table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.ws-preview-view th,
+.ws-preview-view td {
+  border: 1px solid var(--background-modifier-border);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.ws-preview-view th {
+  background: var(--background-secondary);
+  font-weight: 600;
+}
+
+.ws-preview-view input[type="checkbox"] {
+  margin-right: 6px;
 }
 
 /* Settings Modal Overlay */
@@ -551,6 +1056,12 @@ html, body {
   border-radius: var(--radius-s);
   color: var(--text-muted);
   cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+
+.ws-settings-close svg {
+  pointer-events: none;
 }
 
 .ws-settings-close:hover {
@@ -558,10 +1069,166 @@ html, body {
   color: var(--text-normal);
 }
 
-.ws-settings-modal .vertical-tab-content {
+/* Settings modal body: sidebar + content */
+.ws-settings-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Settings sidebar navigation */
+.ws-settings-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.ws-settings-section-header {
+  padding: 16px 16px 4px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ws-settings-nav-item {
+  padding: 6px 16px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  border-radius: var(--radius-s);
+  margin: 1px 8px;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.ws-settings-nav-item:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.ws-settings-nav-item.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent, #fff);
+}
+
+/* Settings content area */
+.ws-settings-content {
   flex: 1;
   overflow-y: auto;
+  min-width: 0;
+}
+
+.ws-settings-modal .vertical-tab-content {
   padding: 20px;
+}
+
+/* Setting items (used by Setting class) */
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  gap: 16px;
+}
+
+.setting-item:last-child {
+  border-bottom: none;
+}
+
+.setting-item-heading {
+  border-bottom: none;
+  padding-top: 20px;
+  padding-bottom: 4px;
+}
+
+.setting-item-heading .setting-item-name {
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.setting-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-item-name {
+  font-weight: 500;
+  color: var(--text-normal);
+  margin-bottom: 2px;
+}
+
+.setting-item-description {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.setting-item-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Form controls inside settings */
+.setting-item-control .text-input,
+.setting-item-control input[type="text"],
+.setting-item-control input[type="number"] {
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: 4px 8px;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.setting-item-control .dropdown,
+.setting-item-control select {
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: 4px 8px;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+}
+
+/* Toggle checkbox */
+.checkbox-container {
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--background-modifier-border);
+  cursor: pointer;
+  position: relative;
+  transition: background 200ms ease;
+}
+
+.checkbox-container::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 200ms ease;
+}
+
+.checkbox-container.is-enabled {
+  background: var(--interactive-accent);
+}
+
+.checkbox-container.is-enabled::after {
+  transform: translateX(18px);
 }
 
 .workspace-leaf {
@@ -582,6 +1249,7 @@ html, body {
 
 .status-bar {
   height: 24px;
+  flex-shrink: 0;
   background: var(--background-secondary);
   border-top: 1px solid var(--background-modifier-border);
   display: flex;
@@ -840,6 +1508,42 @@ button:disabled {
   color: var(--text-normal);
 }
 
+/* Slider (range input) */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 120px;
+  height: 4px;
+  background: var(--background-modifier-border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  border: none;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  border: none;
+  cursor: pointer;
+}
+
+.slider:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(var(--interactive-accent-rgb, 124, 77, 255), 0.15);
+}
+
 /* ============================================================
    Menu
    ============================================================ */
@@ -886,6 +1590,43 @@ button:disabled {
   height: 1px;
   background: var(--background-modifier-border);
   margin: 4px 0;
+}
+
+/* Tab list dropdown menu */
+.ws-tab-list-menu {
+  position: absolute;
+  z-index: 10000;
+}
+.ws-tab-list-menu .menu-item-check {
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-accent);
+}
+.ws-tab-list-menu .menu-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Context menu enhancements */
+.ws-context-menu {
+  min-width: 200px;
+}
+.ws-context-menu .menu-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-context-menu .menu-item-submenu {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  color: var(--text-faint);
 }
 
 /* ============================================================

@@ -19,6 +19,12 @@ import { FileManager } from "@vault-copilot/obsidian-shim/src/metadata/FileManag
 import moment from "moment";
 import { get, set } from "idb-keyval";
 
+import { EditorManager } from "./editor/EditorManager.js";
+import { GeneralSettingTab } from "./settings/GeneralSettingTab.js";
+import { EditorSettingTab } from "./settings/EditorSettingTab.js";
+import { FilesAndLinksSettingTab } from "./settings/FilesAndLinksSettingTab.js";
+import { AppearanceSettingTab } from "./settings/AppearanceSettingTab.js";
+
 // Import plugin styles via JS so Vite processes @import chains correctly
 import "../../../src/styles/styles.css";
 
@@ -30,26 +36,51 @@ initDomExtensions();
 
 // ---- Main bootstrap ----
 const DIR_HANDLE_KEY = "vault-copilot-dir-handle";
+const DIR_PATH_KEY = "vault-copilot-dir-path";
 
+/**
+ * Try to restore a previously picked directory handle (browser mode).
+ * Throws "NEEDS_PICKER" if no valid handle is available.
+ */
 async function getDirectoryHandle(): Promise<FileSystemDirectoryHandle> {
 	// Try restoring a previously picked handle
-	const stored: FileSystemDirectoryHandle | undefined =
-		await get(DIR_HANDLE_KEY);
-	if (stored) {
-		const permission = await stored.queryPermission({ mode: "readwrite" });
-		if (permission === "granted") return stored;
-		// Try requesting permission
-		const requested = await stored.requestPermission({ mode: "readwrite" });
-		if (requested === "granted") return stored;
+	try {
+		const stored: FileSystemDirectoryHandle | undefined =
+			await get(DIR_HANDLE_KEY);
+		if (stored) {
+			try {
+				const permission = await stored.queryPermission({ mode: "readwrite" });
+				if (permission === "granted") return stored;
+				const requested = await stored.requestPermission({ mode: "readwrite" });
+				if (requested === "granted") return stored;
+			} catch {
+				// Handle may be stale or corrupted — clear it
+				await set(DIR_HANDLE_KEY, undefined).catch(() => {});
+			}
+		}
+	} catch {
+		// IndexedDB may be unavailable — silently fall through to picker
 	}
 
 	// Fall through to user picker
 	throw new Error("NEEDS_PICKER");
 }
 
-async function bootstrap(dirHandle: FileSystemDirectoryHandle): Promise<void> {
-	// Persist handle for next load
-	await set(DIR_HANDLE_KEY, dirHandle);
+/**
+ * Try to restore a previously picked directory path (Electron mode).
+ * Returns the path string or null if none stored.
+ */
+function getStoredDirPath(): string | null {
+	return localStorage.getItem(DIR_PATH_KEY);
+}
+
+async function bootstrap(dirHandleOrPath: FileSystemDirectoryHandle | string): Promise<void> {
+	// Persist for next load
+	if (typeof dirHandleOrPath === "string") {
+		localStorage.setItem(DIR_PATH_KEY, dirHandleOrPath);
+	} else {
+		await set(DIR_HANDLE_KEY, dirHandleOrPath).catch(() => {});
+	}
 
 	// Hide the vault picker UI
 	const picker = document.getElementById("vault-picker");
@@ -64,7 +95,7 @@ async function bootstrap(dirHandle: FileSystemDirectoryHandle): Promise<void> {
 	try {
 		// ---- Step 4: Create shim instances ----
 		console.log("[web-shell] Initializing vault...");
-		const vault = new Vault(dirHandle);
+		const vault = new Vault(dirHandleOrPath);
 		await vault.initialize();
 		console.log("[web-shell] Vault initialized:", vault.getFiles().length, "files");
 
@@ -76,6 +107,12 @@ async function bootstrap(dirHandle: FileSystemDirectoryHandle): Promise<void> {
 		const app = new App(vault, workspace, metadataCache, fileManager);
 		// Workspace needs app reference so leaves can access it
 		workspace.app = app;
+
+		// Register built-in settings tabs
+		app.registerBuiltInTab(new GeneralSettingTab(app));
+		app.registerBuiltInTab(new EditorSettingTab(app));
+		app.registerBuiltInTab(new FilesAndLinksSettingTab(app));
+		app.registerBuiltInTab(new AppearanceSettingTab(app));
 
 		// ---- Step 5: Load the plugin ----
 		console.log("[web-shell] Loading plugin...");
@@ -116,16 +153,17 @@ async function bootstrap(dirHandle: FileSystemDirectoryHandle): Promise<void> {
 		// Clear loading indicator
 		if (rootSplit) rootSplit.innerHTML = "";
 
+		// Populate center pane with tabbed editor (must be created before file explorer wiring)
+		let editorManager: EditorManager | null = null;
+		if (rootSplit) {
+			editorManager = new EditorManager(rootSplit, vault);
+		}
+
 		// Populate left pane with file explorer
 		const leftSplit = document.querySelector(".mod-left-split") as HTMLElement;
 		const leftContent = document.querySelector(".ws-left-content") as HTMLElement || leftSplit;
 		if (leftContent) {
-			renderFileExplorer(leftContent, vault, app);
-		}
-
-		// Populate center pane with placeholder
-		if (rootSplit) {
-			renderCenterPlaceholder(rootSplit);
+			renderFileExplorer(leftContent, vault, app, editorManager);
 		}
 
 		// Open chat in the right pane
@@ -138,7 +176,7 @@ async function bootstrap(dirHandle: FileSystemDirectoryHandle): Promise<void> {
 		initResizers();
 
 		// Wire up ribbon buttons
-		initRibbon(leftContent, vault, app, plugin, workspace);
+		initRibbon(leftContent, vault, app, plugin, workspace, editorManager);
 
 		console.log("[web-shell] Chat view activated");
 	} catch (err: any) {
@@ -152,8 +190,69 @@ async function bootstrap(dirHandle: FileSystemDirectoryHandle): Promise<void> {
 	}
 }
 
+/**
+ * Sync the Electron titlebar overlay colors with the current CSS theme.
+ * Reads computed CSS variables and updates the native window controls overlay.
+ */
+function syncTitleBarOverlay() {
+	if (!window.electronAPI?.setTitleBarOverlay) return;
+	const style = getComputedStyle(document.documentElement);
+	const bg = style.getPropertyValue("--background-secondary").trim() || "#f6f6f6";
+	const fg = style.getPropertyValue("--text-normal").trim() || "#2e3338";
+	window.electronAPI.setTitleBarOverlay({ color: bg, symbolColor: fg }).catch(() => {});
+}
+
 // ---- Wire up the folder picker button ----
 document.addEventListener("DOMContentLoaded", async () => {
+	// Electron mode: try restoring from localStorage, use native dialog for picking
+	if (window.electronAPI) {
+		// Apply frameless window class if using hidden frame style
+		try {
+			const frameStyle = await window.electronAPI.getWindowFrame();
+			if (frameStyle !== "native") {
+				document.body.classList.add("is-frameless");
+				// Sync titlebar overlay with current theme
+				syncTitleBarOverlay();
+				// Watch for theme changes (class changes on <body>) and re-sync
+				new MutationObserver(() => syncTitleBarOverlay()).observe(
+					document.body,
+					{ attributes: true, attributeFilter: ["class"] },
+				);
+			}
+		} catch { /* ignore */ }
+
+		const storedPath = getStoredDirPath();
+		if (storedPath) {
+			try {
+				const exists = await window.electronAPI.exists(storedPath);
+				if (exists) {
+					await bootstrap(storedPath);
+					return;
+				}
+			} catch {
+				// Path no longer valid — show picker
+			}
+		}
+		// Show the folder picker UI
+		const pickBtn = document.getElementById("pick-folder-btn");
+		const errorEl = document.getElementById("picker-error");
+
+		pickBtn?.addEventListener("click", async () => {
+			try {
+				const dirPath = await window.electronAPI!.openDirectory();
+				if (!dirPath) return; // user cancelled
+				await bootstrap(dirPath);
+			} catch (err: any) {
+				if (errorEl) {
+					errorEl.textContent = err?.message || "Failed to open folder.";
+					errorEl.style.display = "";
+				}
+			}
+		});
+		return;
+	}
+
+	// Browser mode: try restoring from IndexedDB, use showDirectoryPicker
 	try {
 		const handle = await getDirectoryHandle();
 		await bootstrap(handle);
@@ -241,7 +340,7 @@ function buildFileTree(files: { path: string }[]): TreeNode[] {
 	return root;
 }
 
-function renderFileExplorer(container: HTMLElement, vault: any, app: any): void {
+function renderFileExplorer(container: HTMLElement, vault: any, app: any, editorManager: EditorManager | null): void {
 	container.innerHTML = "";
 	const explorer = document.createElement("div");
 	explorer.className = "ws-file-explorer";
@@ -252,7 +351,7 @@ function renderFileExplorer(container: HTMLElement, vault: any, app: any): void 
 
 	const files = vault.getFiles();
 	const tree = buildFileTree(files);
-	renderTreeNodes(list, tree);
+	renderTreeNodes(list, tree, editorManager);
 
 	// Vault name footer with gear icon
 	const footer = document.createElement("div");
@@ -278,7 +377,7 @@ function renderFileExplorer(container: HTMLElement, vault: any, app: any): void 
 	container.appendChild(explorer);
 }
 
-function renderTreeNodes(container: HTMLElement, nodes: TreeNode[]): void {
+function renderTreeNodes(container: HTMLElement, nodes: TreeNode[], editorManager: EditorManager | null): void {
 	for (const node of nodes) {
 		const item = document.createElement("div");
 		item.className = "ws-file-item" + (node.isFolder ? " ws-folder-item" : "");
@@ -302,7 +401,14 @@ function renderTreeNodes(container: HTMLElement, nodes: TreeNode[]): void {
 				chevron.classList.toggle("is-open", !isOpen);
 			});
 
-			renderTreeNodes(childContainer, node.children);
+			// Folder right-click context menu
+			item.addEventListener("contextmenu", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				showFolderContextMenu(e, node, editorManager);
+			});
+
+			renderTreeNodes(childContainer, node.children, editorManager);
 		} else {
 			// Add indent spacer to align with folder text
 			const spacer = document.createElement("span");
@@ -311,9 +417,183 @@ function renderTreeNodes(container: HTMLElement, nodes: TreeNode[]): void {
 			// Hide .md extension
 			const displayName = node.name.replace(/\.md$/, "");
 			item.appendChild(document.createTextNode(displayName));
+			item.addEventListener("click", () => {
+				if (editorManager) {
+					editorManager.openFile(node.path);
+				}
+			});
+
+			// File right-click context menu
+			item.addEventListener("contextmenu", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				showFileContextMenu(e, node, editorManager);
+			});
+
 			container.appendChild(item);
 		}
 	}
+}
+
+// ---- Center Pane Placeholder ----
+
+/** Dismiss any active context menu */
+let activeContextMenu: HTMLElement | null = null;
+let activeContextMenuCleanup: (() => void) | null = null;
+
+function dismissContextMenu(): void {
+	if (activeContextMenu) {
+		activeContextMenu.remove();
+		activeContextMenu = null;
+	}
+	if (activeContextMenuCleanup) {
+		activeContextMenuCleanup();
+		activeContextMenuCleanup = null;
+	}
+}
+
+/** SVG icons used in context menus */
+const ctxIcons = {
+	newNote: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`,
+	newFolder: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/><line x1="12" y1="10" x2="12" y2="16"/><line x1="9" y1="13" x2="15" y2="13"/></svg>`,
+	canvas: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+	base: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>`,
+	openTab: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+	openRight: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>`,
+	openWindow: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>`,
+	copy: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+	move: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/><path d="M12 10v6"/><path d="m9 13 3-3 3 3"/></svg>`,
+	bookmark: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>`,
+	merge: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>`,
+	copyPath: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
+	openApp: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`,
+	showExplorer: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>`,
+	rename: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`,
+	deleteIcon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`,
+	template: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>`,
+	search: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+	chevronRight: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
+};
+
+interface ContextMenuItem {
+	label: string;
+	icon: string;
+	action?: () => void;
+	hasSubmenu?: boolean;
+	danger?: boolean;
+	disabled?: boolean;
+}
+
+function createContextMenu(x: number, y: number, sections: ContextMenuItem[][]): void {
+	dismissContextMenu();
+
+	const menu = document.createElement("div");
+	menu.className = "menu ws-context-menu";
+	menu.style.position = "fixed";
+	menu.style.zIndex = "10001";
+	document.body.appendChild(menu);
+
+	for (let si = 0; si < sections.length; si++) {
+		if (si > 0) {
+			const sep = document.createElement("div");
+			sep.className = "menu-separator";
+			menu.appendChild(sep);
+		}
+		for (const item of sections[si]) {
+			const el = document.createElement("div");
+			el.className = "menu-item" + (item.disabled ? " is-disabled" : "");
+			el.innerHTML = `<span class="menu-item-icon">${item.icon}</span><span class="menu-item-title">${item.label}</span>${item.hasSubmenu ? `<span class="menu-item-submenu">${ctxIcons.chevronRight}</span>` : ""}`;
+			if (item.danger) {
+				el.querySelector(".menu-item-icon")!.setAttribute("style", "color: var(--text-error)");
+				el.querySelector(".menu-item-title")!.setAttribute("style", "color: var(--text-error)");
+			}
+			if (item.action && !item.disabled) {
+				el.addEventListener("click", () => {
+					dismissContextMenu();
+					item.action!();
+				});
+			}
+			menu.appendChild(el);
+		}
+	}
+
+	// Position: keep menu within viewport
+	const menuRect = menu.getBoundingClientRect();
+	const maxX = window.innerWidth - menuRect.width - 4;
+	const maxY = window.innerHeight - menuRect.height - 4;
+	menu.style.left = `${Math.min(x, maxX)}px`;
+	menu.style.top = `${Math.min(y, maxY)}px`;
+
+	// Click outside to dismiss
+	const dismiss = (ev: MouseEvent) => {
+		if (!menu.contains(ev.target as Node)) {
+			dismissContextMenu();
+		}
+	};
+	setTimeout(() => document.addEventListener("click", dismiss), 0);
+	activeContextMenu = menu;
+	activeContextMenuCleanup = () => document.removeEventListener("click", dismiss);
+}
+
+function showFileContextMenu(e: MouseEvent, node: TreeNode, editorManager: EditorManager | null): void {
+	const sections: ContextMenuItem[][] = [
+		[
+			{ label: "Open in new tab", icon: ctxIcons.openTab, action: () => editorManager?.openFile(node.path) },
+			{ label: "Open to the right", icon: ctxIcons.openRight, action: () => editorManager?.openFile(node.path) },
+			{ label: "Open in new window", icon: ctxIcons.openWindow, disabled: true },
+		],
+		[
+			{ label: "Make a copy", icon: ctxIcons.copy, disabled: true },
+			{ label: "Move file to...", icon: ctxIcons.move, disabled: true },
+			{ label: "Bookmark...", icon: ctxIcons.bookmark, disabled: true },
+			{ label: "Merge entire file with...", icon: ctxIcons.merge, disabled: true },
+		],
+		[
+			{ label: "Copy path", icon: ctxIcons.copyPath, hasSubmenu: true, action: () => navigator.clipboard.writeText(node.path) },
+		],
+		[
+			{ label: "Open in default app", icon: ctxIcons.openApp, disabled: true },
+			{ label: "Show in system explorer", icon: ctxIcons.showExplorer, disabled: true },
+		],
+		[
+			{ label: "Rename...", icon: ctxIcons.rename, disabled: true },
+			{ label: "Delete", icon: ctxIcons.deleteIcon, danger: true, disabled: true },
+		],
+	];
+	createContextMenu(e.clientX, e.clientY, sections);
+}
+
+function showFolderContextMenu(e: MouseEvent, node: TreeNode, editorManager: EditorManager | null): void {
+	const sections: ContextMenuItem[][] = [
+		[
+			{ label: "New note", icon: ctxIcons.newNote, disabled: true },
+			{ label: "New folder", icon: ctxIcons.newFolder, disabled: true },
+			{ label: "New canvas", icon: ctxIcons.canvas, disabled: true },
+			{ label: "New base", icon: ctxIcons.base, disabled: true },
+		],
+		[
+			{ label: "Make a copy", icon: ctxIcons.copy, disabled: true },
+			{ label: "Move folder to...", icon: ctxIcons.move, disabled: true },
+			{ label: "Bookmark...", icon: ctxIcons.bookmark, disabled: true },
+		],
+		[
+			{ label: "Copy path", icon: ctxIcons.copyPath, hasSubmenu: true, action: () => navigator.clipboard.writeText(node.path) },
+		],
+		[
+			{ label: "Show in system explorer", icon: ctxIcons.showExplorer, disabled: true },
+		],
+		[
+			{ label: "Create new note from template", icon: ctxIcons.template, disabled: true },
+		],
+		[
+			{ label: "Rename...", icon: ctxIcons.rename, disabled: true },
+			{ label: "Delete", icon: ctxIcons.deleteIcon, danger: true, disabled: true },
+		],
+		[
+			{ label: "Search in folder", icon: ctxIcons.search, disabled: true },
+		],
+	];
+	createContextMenu(e.clientX, e.clientY, sections);
 }
 
 // ---- Center Pane Placeholder ----
@@ -323,14 +603,9 @@ function renderCenterPlaceholder(container: HTMLElement): void {
 	const placeholder = document.createElement("div");
 	placeholder.className = "ws-center-placeholder";
 	placeholder.innerHTML = `
-		<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-			<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-			<path d="M14 2v6h6"/>
-			<path d="M16 13H8"/>
-			<path d="M16 17H8"/>
-			<path d="M10 9H8"/>
-		</svg>
-		<p>Select a note from the file explorer</p>
+		<a class="ws-empty-action" data-action="new-note">Create new note (Ctrl + N)</a>
+		<a class="ws-empty-action" data-action="go-to-file">Go to file (Ctrl + O)</a>
+		<a class="ws-empty-action" data-action="close">Close</a>
 	`;
 	container.appendChild(placeholder);
 }
@@ -382,7 +657,7 @@ function initResizers(): void {
 /**
  * Wire up the left ribbon icon strip: collapse toggle, file explorer, extensions.
  */
-function initRibbon(leftSplit: HTMLElement, vault: any, app: any, plugin: any, workspace: any): void {
+function initRibbon(leftSplit: HTMLElement, vault: any, app: any, plugin: any, workspace: any, editorManager: EditorManager | null): void {
 	const toggleBtn = document.querySelector(".ws-ribbon-toggle") as HTMLElement;
 	const filesBtn = document.querySelector(".ws-ribbon-files") as HTMLElement;
 	const extBtn = document.querySelector(".ws-ribbon-extensions") as HTMLElement;
@@ -434,7 +709,7 @@ function initRibbon(leftSplit: HTMLElement, vault: any, app: any, plugin: any, w
 		}
 		// Clear any leaf content (extension browser) and show file explorer
 		leftSplit.innerHTML = "";
-		renderFileExplorer(leftSplit, vault, app);
+		renderFileExplorer(leftSplit, vault, app, editorManager);
 	});
 
 	// Extensions view

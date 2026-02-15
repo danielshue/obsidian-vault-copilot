@@ -5,6 +5,7 @@ const stub = (name: string) => path.resolve(__dirname, `src/stubs/${name}.ts`);
 
 export default defineConfig({
 	root: "src",
+	base: "./", // Relative paths for Electron file:// protocol
 	server: {
 		fs: {
 			allow: [path.resolve(__dirname, "../..")],

@@ -99,7 +99,10 @@ export class Workspace extends Events {
 		if (existing && !shouldSplit) return existing;
 		const leaf = this._createLeaf("right");
 		this._leaves.push(leaf);
-		this.rightSplit.appendChild(leaf.containerEl);
+		// Append after the tab header if present, otherwise directly to rightSplit
+		const rightContent =
+			this.rightSplit.querySelector(".ws-right-content") || this.rightSplit;
+		rightContent.appendChild(leaf.containerEl);
 		return leaf;
 	}
 

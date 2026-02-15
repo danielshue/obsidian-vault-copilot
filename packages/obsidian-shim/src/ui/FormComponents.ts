@@ -238,6 +238,57 @@ export class ButtonComponent {
 	}
 }
 
+// --- SliderComponent ---
+
+export class SliderComponent {
+	sliderEl: HTMLInputElement;
+	private _onChangeCallback: ((value: number) => any) | null = null;
+
+	constructor(containerEl: HTMLElement) {
+		this.sliderEl = document.createElement("input");
+		this.sliderEl.type = "range";
+		this.sliderEl.addClass("slider");
+		this.sliderEl.addEventListener("input", () => {
+			if (this._onChangeCallback) this._onChangeCallback(this.getValue());
+		});
+		containerEl.appendChild(this.sliderEl);
+	}
+
+	setValue(value: number): this {
+		this.sliderEl.value = String(value);
+		return this;
+	}
+
+	getValue(): number {
+		return parseFloat(this.sliderEl.value);
+	}
+
+	setLimits(min: number, max: number, step: number | "any"): this {
+		this.sliderEl.min = String(min);
+		this.sliderEl.max = String(max);
+		this.sliderEl.step = String(step);
+		return this;
+	}
+
+	setDynamicTooltip(): this {
+		this.sliderEl.setAttribute("title", this.sliderEl.value);
+		this.sliderEl.addEventListener("input", () => {
+			this.sliderEl.setAttribute("title", this.sliderEl.value);
+		});
+		return this;
+	}
+
+	onChange(callback: (value: number) => any): this {
+		this._onChangeCallback = callback;
+		return this;
+	}
+
+	setDisabled(disabled: boolean): this {
+		this.sliderEl.disabled = disabled;
+		return this;
+	}
+}
+
 // --- ExtraButtonComponent ---
 
 export class ExtraButtonComponent {

@@ -11,6 +11,17 @@ import type { MetadataCache } from "../metadata/MetadataCache.js";
 import type { FileManager } from "../metadata/FileManager.js";
 import type { PluginSettingTab } from "../ui/PluginSettingTab.js";
 
+/**
+ * Common shape for any settings tab — built-in or plugin.
+ */
+export interface SettingTabLike {
+	id: string;
+	name: string;
+	containerEl: HTMLElement;
+	display(): void;
+	hide(): void;
+}
+
 export class App {
 	vault: Vault;
 	workspace: Workspace;
@@ -19,6 +30,12 @@ export class App {
 
 	/** Registered setting tabs from plugins. */
 	_settingTabs: PluginSettingTab[] = [];
+
+	/** Built-in setting tabs (General, Editor, etc.). */
+	_builtInTabs: SettingTabLike[] = [];
+
+	/** Currently active tab in the settings modal. */
+	private _activeSettingTab: SettingTabLike | null = null;
 
 	/**
 	 * Settings dialog manager.
@@ -44,14 +61,30 @@ export class App {
 		// Settings dialog — renders registered tabs in a modal
 		this.setting = {
 			open: () => this._openSettingsModal(),
-			openTabById: (id: string) => this._openSettingsModal(),
+			openTabById: (id: string) => this._openSettingsModal(id),
 		};
 	}
 
-	/** Open a modal overlay showing the first registered settings tab. */
-	private _openSettingsModal(): void {
-		const tab = this._settingTabs[0];
-		if (!tab) {
+	/** Register a built-in (non-plugin) settings tab. */
+	registerBuiltInTab(tab: SettingTabLike): void {
+		this._builtInTabs.push(tab);
+	}
+
+	/** Open a modal overlay with sidebar navigation and all registered tabs. */
+	private _openSettingsModal(tabId?: string): void {
+		// Gather all tabs: built-in first, then plugin tabs
+		const allTabs: SettingTabLike[] = [
+			...this._builtInTabs,
+			...this._settingTabs.map((t) => ({
+				id: (t as any).id || (t as any).plugin?.manifest?.id || "plugin",
+				name: (t as any).name || (t as any).plugin?.manifest?.name || "Plugin",
+				containerEl: t.containerEl,
+				display: () => t.display(),
+				hide: () => t.hide(),
+			})),
+		];
+
+		if (allTabs.length === 0) {
 			console.warn("[obsidian-shim] No setting tabs registered");
 			return;
 		}
@@ -65,10 +98,6 @@ export class App {
 
 		const backdrop = document.createElement("div");
 		backdrop.className = "ws-settings-backdrop";
-		backdrop.addEventListener("click", () => {
-			tab.hide();
-			overlay.remove();
-		});
 		overlay.appendChild(backdrop);
 
 		const modal = document.createElement("div");
@@ -83,30 +112,102 @@ export class App {
 		const closeBtn = document.createElement("button");
 		closeBtn.className = "ws-settings-close clickable-icon";
 		closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-		closeBtn.addEventListener("click", () => {
-			tab.hide();
-			overlay.remove();
-		});
 		header.appendChild(closeBtn);
 		modal.appendChild(header);
 
-		// Content — render the tab's containerEl
-		tab.containerEl.empty();
-		tab.display();
-		modal.appendChild(tab.containerEl);
+		// Body: sidebar + content
+		const body = document.createElement("div");
+		body.className = "ws-settings-body";
+
+		// Sidebar
+		const sidebar = document.createElement("div");
+		sidebar.className = "ws-settings-sidebar";
+
+		// Content area
+		const content = document.createElement("div");
+		content.className = "ws-settings-content";
+
+		// Build sidebar nav items
+		const navItems: HTMLElement[] = [];
+		let hasPluginSection = false;
+
+		for (const tab of allTabs) {
+			// Add section header before plugin tabs
+			const isPluginTab = !this._builtInTabs.includes(tab as any);
+			if (isPluginTab && !hasPluginSection) {
+				hasPluginSection = true;
+				const sectionHeader = document.createElement("div");
+				sectionHeader.className = "ws-settings-section-header";
+				sectionHeader.textContent = "Community plugins";
+				sidebar.appendChild(sectionHeader);
+			}
+
+			const navItem = document.createElement("div");
+			navItem.className = "ws-settings-nav-item";
+			navItem.textContent = tab.name;
+			navItem.dataset.tabId = tab.id;
+			navItems.push(navItem);
+
+			navItem.addEventListener("click", () => {
+				this._switchSettingsTab(tab, content, navItems);
+			});
+
+			sidebar.appendChild(navItem);
+		}
+
+		body.appendChild(sidebar);
+		body.appendChild(content);
+		modal.appendChild(body);
 
 		overlay.appendChild(modal);
 		document.body.appendChild(overlay);
 
-		// ESC to close
+		// Select initial tab
+		const initialTab = tabId
+			? allTabs.find((t) => t.id === tabId) || allTabs[0]
+			: allTabs[0];
+		this._switchSettingsTab(initialTab, content, navItems);
+
+		// Shared close logic
 		const escHandler = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				tab.hide();
-				overlay.remove();
-				document.removeEventListener("keydown", escHandler);
-			}
+			if (e.key === "Escape") closeModal();
 		};
+		const closeModal = () => {
+			if (this._activeSettingTab) {
+				this._activeSettingTab.hide();
+				this._activeSettingTab = null;
+			}
+			overlay.remove();
+			document.removeEventListener("keydown", escHandler);
+		};
+		closeBtn.addEventListener("click", closeModal);
+		backdrop.addEventListener("click", closeModal);
 		document.addEventListener("keydown", escHandler);
+	}
+
+	/** Switch to a different tab within the open settings modal. */
+	private _switchSettingsTab(
+		tab: SettingTabLike,
+		contentArea: HTMLElement,
+		navItems: HTMLElement[],
+	): void {
+		// Hide previous tab
+		if (this._activeSettingTab) {
+			this._activeSettingTab.hide();
+		}
+
+		// Update nav item active state
+		for (const item of navItems) {
+			item.classList.toggle("is-active", item.dataset.tabId === tab.id);
+		}
+
+		// Clear content area and render new tab
+		contentArea.innerHTML = "";
+		tab.containerEl.empty();
+		tab.display();
+		contentArea.appendChild(tab.containerEl);
+
+		this._activeSettingTab = tab;
 	}
 
 	/**

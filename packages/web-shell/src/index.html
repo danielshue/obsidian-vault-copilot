@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* https://*.openai.com https://*.azure.com https://api.github.com; img-src 'self' data: https:;" />
   <title>Vault Copilot</title>
   <link rel="stylesheet" href="./theme.css" />
 </head>
 <body class="theme-light">
+  <!-- Draggable titlebar for frameless window -->
+  <div class="titlebar-drag-region" id="titlebar-drag-region"></div>
   <div class="app-container">
     <div class="workspace">
       <div class="workspace-ribbon side-dock-ribbon mod-left"></div>
@@ -23,9 +26,35 @@
       <div class="workspace-resizer" data-resize="left"></div>
       <div class="workspace-split mod-root"></div>
       <div class="workspace-resizer" data-resize="right"></div>
-      <div class="workspace-split mod-right-split"></div>
+      <div class="workspace-split mod-right-split">
+        <div class="ws-right-tab-header">
+          <div class="ws-right-tab-header-icons">
+            <div class="side-dock-ribbon-action ws-ribbon-chat clickable-icon is-active" aria-label="Chat">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+          </div>
+          <div class="ws-right-tab-header-actions">
+            <div class="side-dock-ribbon-action clickable-icon" aria-label="Edit">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+            </div>
+            <div class="side-dock-ribbon-action clickable-icon" aria-label="New tab">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            </div>
+            <div class="side-dock-ribbon-action clickable-icon" aria-label="Open in new window">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+            </div>
+            <div class="side-dock-ribbon-action clickable-icon" aria-label="Pop out">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="15" height="14" rx="2"/><path d="M17 3h4v4"/><path d="M9 3h12v12"/></svg>
+            </div>
+            <div class="side-dock-ribbon-action ws-right-close clickable-icon" aria-label="Close sidebar">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="ws-right-content"></div>
+        <div class="status-bar"></div>
+      </div>
     </div>
-    <div class="status-bar"></div>
   </div>
 
   <!-- Folder picker shown before vault is loaded -->

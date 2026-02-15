@@ -25,9 +25,9 @@ export class Vault extends Events {
 	/** Cache for cachedRead. */
 	private _readCache: Map<string, string> = new Map();
 
-	constructor(rootHandle: FileSystemDirectoryHandle) {
+	constructor(rootHandleOrPath: FileSystemDirectoryHandle | string) {
 		super();
-		this.adapter = new VaultAdapter(rootHandle);
+		this.adapter = new VaultAdapter(rootHandleOrPath);
 		this._root = new TFolder("");
 		this._root.vault = this as any;
 		this._index.set("", this._root);
@@ -38,7 +38,43 @@ export class Vault extends Events {
 	 * Must be called once after construction, before the plugin loads.
 	 */
 	async initialize(): Promise<void> {
-		await this._scanDir(this.adapter.getRootHandle(), "", this._root);
+		if (this.adapter.isElectronMode) {
+			await this._scanElectron();
+		} else {
+			await this._scanDir(this.adapter.getRootHandle()!, "", this._root);
+		}
+	}
+
+	/**
+	 * Scan using Electron IPC — gets a flat list of all files and builds
+	 * the folder/file index from the relative paths.
+	 */
+	private async _scanElectron(): Promise<void> {
+		const rootPath = this.adapter.rootPath!;
+		const files: string[] = await (window as any).electronAPI.listFilesRecursive(rootPath);
+		for (const relativePath of files) {
+			const parts = relativePath.split("/");
+			// Ensure parent folders exist in index
+			let parentFolder = this._root;
+			for (let i = 0; i < parts.length - 1; i++) {
+				const folderPath = parts.slice(0, i + 1).join("/");
+				let folder = this._index.get(folderPath) as TFolder;
+				if (!folder) {
+					folder = new TFolder(folderPath);
+					folder.parent = parentFolder;
+					folder.vault = this as any;
+					parentFolder.children.push(folder);
+					this._index.set(folderPath, folder);
+				}
+				parentFolder = folder;
+			}
+			// Create file entry
+			const file = new TFile(relativePath);
+			file.parent = parentFolder;
+			file.vault = this as any;
+			parentFolder.children.push(file);
+			this._index.set(relativePath, file);
+		}
 	}
 
 	private async _scanDir(

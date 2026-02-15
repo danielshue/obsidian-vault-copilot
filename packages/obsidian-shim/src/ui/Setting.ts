@@ -10,6 +10,7 @@ import {
 	TextAreaComponent,
 	ToggleComponent,
 	DropdownComponent,
+	SliderComponent,
 	ButtonComponent,
 	ExtraButtonComponent,
 } from "./FormComponents.js";
@@ -105,6 +106,13 @@ export class Setting {
 	/** Add a dropdown (select) control. */
 	addDropdown(cb: (dropdown: DropdownComponent) => any): this {
 		const component = new DropdownComponent(this.controlEl);
+		cb(component);
+		return this;
+	}
+
+	/** Add a slider (range) control. */
+	addSlider(cb: (slider: SliderComponent) => any): this {
+		const component = new SliderComponent(this.controlEl);
 		cb(component);
 		return this;
 	}

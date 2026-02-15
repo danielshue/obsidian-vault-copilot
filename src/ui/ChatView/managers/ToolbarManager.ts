@@ -204,7 +204,7 @@ export class ToolbarManager {
 			this.plugin.saveSettings();
 		}
 		this.updateModelSelectorText();
-		this.service.updateConfig({ model: this.plugin.settings.model });
+		this.service?.updateConfig({ model: this.plugin.settings.model });
 		this.refreshVoiceToolbar();
 	}
 
