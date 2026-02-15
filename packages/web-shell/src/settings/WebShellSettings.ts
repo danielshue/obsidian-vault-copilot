@@ -8,6 +8,42 @@
  * @description Shared settings interface and storage for web shell built-in tabs.
  */
 
+/** Persisted layout state for the three-column shell. */
+export interface LayoutState {
+	leftWidth: string;
+	rightWidth: string;
+	leftCollapsed: boolean;
+	rightCollapsed: boolean;
+}
+
+/** Serialized pane tree for persistence. */
+export interface PaneTreeState {
+	/** Recursive tree of "leaf" and "split" nodes. */
+	root: PaneNodeState;
+	/** ID of the pane that was last active. */
+	activePaneId: string;
+}
+
+export type PaneNodeState = PaneLeafState | PaneSplitState;
+
+export interface PaneLeafState {
+	type: "leaf";
+	id: string;
+	/** File paths of open tabs, in order. */
+	openTabs: string[];
+	/** Path of the active tab (null if blank tab was active). */
+	activeTab: string | null;
+}
+
+export interface PaneSplitState {
+	type: "split";
+	id: string;
+	direction: "horizontal" | "vertical";
+	/** Flex sizes as CSS strings (e.g. "0 0 50%"). */
+	sizes: string[];
+	children: PaneNodeState[];
+}
+
 export interface WebShellSettings {
 	// General
 	language: string;
@@ -61,6 +97,10 @@ export interface WebShellSettings {
 	windowFrameStyle: "hidden" | "native";
 	hardwareAcceleration: boolean;
 	translucent: boolean;
+
+	// Layout persistence
+	layout?: LayoutState;
+	paneTree?: PaneTreeState;
 }
 
 export const DEFAULT_SETTINGS: WebShellSettings = {

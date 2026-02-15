@@ -20,6 +20,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { syntaxHighlighting, defaultHighlightStyle, indentOnInput, bracketMatching, foldGutter, foldKeymap } from "@codemirror/language";
 import { marked } from "marked";
+import type { LayoutManager } from "../layout/LayoutManager.js";
 
 /** View mode for a tab */
 type ViewMode = "source" | "preview";
@@ -49,19 +50,35 @@ interface EditorTab {
 /**
  * Manages a tabbed editor interface in the center pane.
  */
+/** Serialized tab state for cross-pane transfer */
+export interface TabState {
+	path: string;
+	name: string;
+	content: string;
+	dirty: boolean;
+	originalContent: string;
+	mode: ViewMode;
+}
+
 export class EditorManager {
 	private container: HTMLElement;
 	private tabBar: HTMLElement;
 	private newTabBtn: HTMLElement;
 	private splitBtn!: HTMLButtonElement;
-	private titlebarRightSidebarBtn: HTMLButtonElement | null = null;
-	private floatingRightSidebarBtn: HTMLButtonElement | null = null;
-	private rightSidebarObserver: MutationObserver | null = null;
+	/** Kebab button in tab header for split/pane actions (wired by PaneManager) */
+	paneMenuBtn!: HTMLButtonElement;
+	/** Pane ID for drag-and-drop identification */
+	paneId = "";
+	/** LayoutManager reference for sidebar toggle delegation */
+	private layoutManager: LayoutManager | null = null;
 	private breadcrumbBar: HTMLElement;
 	private breadcrumbPath: HTMLElement;
 	private viewToggleBtn!: HTMLButtonElement;
 	private editorContainer: HTMLElement;
 	private emptyState: HTMLElement;
+	private blankTabs: Map<string, HTMLElement> = new Map();
+	private blankTabCounter = 0;
+	private activeBlankTabId: string | null = null;
 	private tabs: Map<string, EditorTab> = new Map();
 	private activeTabPath: string | null = null;
 	private vault: any;
@@ -72,6 +89,8 @@ export class EditorManager {
 	/** Active dropdown menu element (for cleanup) */
 	private activeMenu: HTMLElement | null = null;
 	private activeMenuCleanup: (() => void) | null = null;
+	private onCloseLastTabRequested: (() => void) | null = null;
+	private paneMenuClickHandler: ((e: MouseEvent) => void) | null = null;
 
 	constructor(container: HTMLElement, vault: any) {
 		this.container = container;
@@ -94,7 +113,8 @@ export class EditorManager {
 		this.newTabBtn.className = "ws-new-tab-btn";
 		this.newTabBtn.setAttribute("aria-label", "New tab");
 		this.newTabBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
-		tabHeader.appendChild(this.newTabBtn);
+		this.newTabBtn.addEventListener("click", () => this.addBlankTab());
+		this.tabBar.appendChild(this.newTabBtn);
 
 		// Tab header right actions (chevron + layout)
 		const tabHeaderActions = document.createElement("div");
@@ -110,9 +130,16 @@ export class EditorManager {
 		this.splitBtn = document.createElement("button");
 		this.splitBtn.setAttribute("aria-label", "Toggle right sidebar");
 		this.splitBtn.innerHTML = this.getRightSidebarIcon(false);
-		this.splitBtn.addEventListener("click", () => this.toggleRightSidebar());
-		this.splitBtn.addEventListener("contextmenu", (e) => this.showRightSidebarContextMenu(this.splitBtn, e));
-		tabHeaderActions.appendChild(this.splitBtn);
+		this.splitBtn.addEventListener("click", () => {
+			if (this.layoutManager) this.layoutManager.toggleRight();
+		});
+
+		// Kebab menu button for split/pane actions (wired by PaneManager)
+		this.paneMenuBtn = document.createElement("button");
+		this.paneMenuBtn.className = "ws-pane-menu-btn";
+		this.paneMenuBtn.setAttribute("aria-label", "More options");
+		this.paneMenuBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>`;
+		this.paneMenuBtn.addEventListener("click", (e) => this.handlePaneMenuClick(e));
 
 		// Breadcrumb bar (below tabs): back/forward, path, view toggle, kebab menu
 		this.breadcrumbBar = document.createElement("div");
@@ -152,11 +179,7 @@ export class EditorManager {
 		this.viewToggleBtn.innerHTML = this.getViewIcon("source");
 		this.viewToggleBtn.addEventListener("click", () => this.toggleActiveTabMode());
 		breadcrumbActions.appendChild(this.viewToggleBtn);
-
-		const kebabBtn = document.createElement("button");
-		kebabBtn.setAttribute("aria-label", "More options");
-		kebabBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>`;
-		breadcrumbActions.appendChild(kebabBtn);
+		breadcrumbActions.appendChild(this.paneMenuBtn);
 
 		// Editor container (holds CodeMirror instances)
 		this.editorContainer = document.createElement("div");
@@ -172,12 +195,61 @@ export class EditorManager {
 			<a class="ws-empty-action" data-action="close">Close</a>
 		`;
 		this.editorContainer.appendChild(this.emptyState);
-		this.ensureTitlebarRightSidebarButton();
-		this.ensureFloatingRightSidebarButton();
-		this.bindExternalRightSidebarControls();
-		this.updateRightSidebarToggleUI(false);
-		this.watchRightSidebarState();
+
+		// Create initial blank tab (must be after emptyState + breadcrumbBar are ready)
+		this.addBlankTab();
+
 		this.updateTabHeaderControls();
+	}
+
+	/** Append a tab element immediately before the new-tab button. */
+	private insertTabBeforeNewButton(tabEl: HTMLElement): void {
+		this.tabBar.insertBefore(tabEl, this.newTabBtn);
+	}
+
+	/** Set callback invoked when user attempts to close the final tab in this pane. */
+	setCloseLastTabHandler(handler: () => void): void {
+		this.onCloseLastTabRequested = handler;
+	}
+
+	/** Allow host containers (PaneManager) to override pane-menu button behavior. */
+	setPaneMenuHandler(handler: ((e: MouseEvent) => void) | null): void {
+		this.paneMenuClickHandler = handler;
+	}
+
+	/** Total number of visible tabs (file + blank) in this pane. */
+	private getTabCount(): number {
+		return this.tabs.size + this.blankTabs.size;
+	}
+
+	/** Handle pane-menu button clicks with standalone fallback behavior. */
+	private handlePaneMenuClick(e: MouseEvent): void {
+		e.stopPropagation();
+		if (this.paneMenuClickHandler) {
+			this.paneMenuClickHandler(e);
+			return;
+		}
+		if (this.activeTabPath) {
+			this.showTabContextMenu(this.paneMenuBtn, this.activeTabPath, e);
+			return;
+		}
+		this.showTabListMenu(this.paneMenuBtn, e);
+	}
+
+	/** Request closure of the last tab, with detached-window fallback. */
+	private requestCloseLastTab(): void {
+		if (this.onCloseLastTabRequested) {
+			this.onCloseLastTabRequested();
+			return;
+		}
+		if (this.isDetachedFileTabView()) {
+			window.close();
+		}
+	}
+
+	/** Returns true when running in detached file-tab view window mode. */
+	private isDetachedFileTabView(): boolean {
+		return new URLSearchParams(window.location.search).get("view") === "ws-file-tab-view";
 	}
 
 	/**
@@ -195,6 +267,11 @@ export class EditorManager {
 		if (this.tabs.has(filePath)) {
 			this.activateTab(filePath);
 			return;
+		}
+
+		// If the active tab is a blank tab, remove it (file will replace it)
+		if (this.activeBlankTabId) {
+			this.removeBlankTab(this.activeBlankTabId, false);
 		}
 
 		// Read file content from vault
@@ -215,6 +292,7 @@ export class EditorManager {
 		// Create tab header
 		const tabEl = document.createElement("div");
 		tabEl.className = "ws-tab";
+		tabEl.draggable = true;
 		const tabName = filePath.split("/").pop()?.replace(/\.md$/, "") || filePath;
 
 		const nameSpan = document.createElement("span");
@@ -224,8 +302,64 @@ export class EditorManager {
 
 		const closeBtn = document.createElement("span");
 		closeBtn.className = "ws-tab-close";
-		closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+		closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 		tabEl.appendChild(closeBtn);
+		let dragStartClientX = 0;
+		let dragStartClientY = 0;
+		let poppedOutAtEdge = false;
+		const handleDragAtEdge = (ev: DragEvent) => {
+			if (poppedOutAtEdge) return;
+			if (this.isDetachedFileTabView()) return;
+			const atEdge = ev.clientX <= 0
+				|| ev.clientY <= 0
+				|| ev.clientX >= window.innerWidth - 1
+				|| ev.clientY >= window.innerHeight - 1;
+			if (!atEdge) return;
+			poppedOutAtEdge = true;
+			tabEl.classList.remove("is-dragging");
+			tabEl.removeEventListener("drag", handleDragAtEdge);
+			void this.popOutFileTab(filePath);
+		};
+
+		// Tab drag-and-drop
+		tabEl.addEventListener("dragstart", (e) => {
+			if (e.dataTransfer) {
+				poppedOutAtEdge = false;
+				dragStartClientX = e.clientX;
+				dragStartClientY = e.clientY;
+				e.dataTransfer.setData("text/x-pane-tab", JSON.stringify({ fromPaneId: this.paneId, filePath }));
+				e.dataTransfer.effectAllowed = "copyMove";
+				tabEl.classList.add("is-dragging");
+				tabEl.addEventListener("drag", handleDragAtEdge);
+			}
+		});
+		tabEl.addEventListener("dragend", (e: DragEvent) => {
+			tabEl.classList.remove("is-dragging");
+			tabEl.removeEventListener("drag", handleDragAtEdge);
+			if (poppedOutAtEdge) return;
+			const wasHandledDrop = e.dataTransfer?.dropEffect === "move";
+			if (wasHandledDrop && this.isDetachedFileTabView()) {
+				const shouldCloseWindow = this.tabs.size <= 1;
+				if (this.tabs.has(filePath)) this.closeTab(filePath);
+				if (shouldCloseWindow) window.close();
+				return;
+			}
+			const dx = Math.abs(e.clientX - dragStartClientX);
+			const dy = Math.abs(e.clientY - dragStartClientY);
+			const wasDragged = Math.max(dx, dy) > 12;
+			if (!wasHandledDrop && wasDragged) {
+				if (this.isDetachedFileTabView()) {
+					void this.dockFileToMain(filePath);
+				} else {
+					void this.popOutFileTab(filePath);
+				}
+			}
+		});
+
+		tabEl.addEventListener("contextmenu", (e) => {
+			e.preventDefault();
+			this.showTabContextMenu(tabEl, filePath, e);
+		});
 
 		// Tab click → activate
 		tabEl.addEventListener("click", (e) => {
@@ -237,10 +371,14 @@ export class EditorManager {
 		// Close button
 		closeBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
+			if (this.getTabCount() <= 1) {
+				this.requestCloseLastTab();
+				return;
+			}
 			this.closeTab(filePath);
 		});
 
-		this.tabBar.appendChild(tabEl);
+		this.insertTabBeforeNewButton(tabEl);
 
 		// Create wrapper that holds both editor and preview
 		const wrapperEl = document.createElement("div");
@@ -363,6 +501,12 @@ export class EditorManager {
 	 */
 	private activateTab(filePath: string, fromHistory = false): void {
 		this.activeTabPath = filePath;
+		this.activeBlankTabId = null;
+
+		// Deactivate all blank tabs
+		for (const [, bEl] of this.blankTabs) {
+			bEl.classList.remove("is-active");
+		}
 
 		// Push to navigation history (unless navigating via back/forward)
 		if (!fromHistory) {
@@ -418,15 +562,139 @@ export class EditorManager {
 				this.activateTab(remaining[remaining.length - 1]);
 			} else {
 				this.activeTabPath = null;
-				this.emptyState.style.display = "";
-				this.breadcrumbBar.classList.add("is-hidden");
+				// Activate a blank tab, or create one
+				const blankIds = Array.from(this.blankTabs.keys());
+				if (blankIds.length > 0) {
+					this.activateBlankTab(blankIds[blankIds.length - 1]);
+				} else {
+					this.addBlankTab();
+				}
+			}
+		}
+	}
+
+	/** Add a blank "New tab" tab to the tab bar. */
+	private addBlankTab(): void {
+		const id = `blank-${++this.blankTabCounter}`;
+		const tabEl = document.createElement("div");
+		tabEl.className = "ws-tab";
+		tabEl.draggable = true;
+
+		const nameSpan = document.createElement("span");
+		nameSpan.className = "ws-tab-name";
+		nameSpan.textContent = "New tab";
+		tabEl.appendChild(nameSpan);
+
+		const closeBtn = document.createElement("span");
+		closeBtn.className = "ws-tab-close";
+		closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+		tabEl.appendChild(closeBtn);
+		let dragStartClientX = 0;
+		let dragStartClientY = 0;
+
+		tabEl.addEventListener("click", (e) => {
+			if (!(e.target as HTMLElement).closest(".ws-tab-close")) {
+				this.activateBlankTab(id);
+			}
+		});
+
+		closeBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			if (this.getTabCount() <= 1) {
+				this.requestCloseLastTab();
+				return;
+			}
+			this.removeBlankTab(id);
+		});
+
+		tabEl.addEventListener("dragstart", (e) => {
+			if (e.dataTransfer) {
+				e.dataTransfer.setData("text/x-pane-tab", JSON.stringify({ fromPaneId: this.paneId, blankTabId: id }));
+				e.dataTransfer.effectAllowed = "move";
+				tabEl.classList.add("is-dragging");
+			}
+		});
+		tabEl.addEventListener("dragend", (e: DragEvent) => {
+			tabEl.classList.remove("is-dragging");
+		});
+
+		this.insertTabBeforeNewButton(tabEl);
+		this.blankTabs.set(id, tabEl);
+		this.activateBlankTab(id);
+	}
+
+	/** Activate a blank tab, deactivating any file tab. */
+	private activateBlankTab(id: string): void {
+		this.activeTabPath = null;
+		this.activeBlankTabId = id;
+
+		// Deactivate all file tabs
+		for (const [, tab] of this.tabs) {
+			tab.tabEl.classList.remove("is-active");
+			tab.wrapperEl.style.display = "none";
+		}
+
+		// Deactivate all blank tabs, activate this one
+		for (const [bId, bEl] of this.blankTabs) {
+			bEl.classList.toggle("is-active", bId === id);
+		}
+
+		// Show empty state
+		this.emptyState.style.display = "";
+		this.breadcrumbBar.classList.add("is-hidden");
+	}
+
+	/** Returns true when a blank "New tab" is currently active. */
+	isBlankTabActive(): boolean {
+		return this.activeBlankTabId !== null;
+	}
+
+	/** Add and activate a blank tab (for cross-pane tab moves). */
+	createBlankTab(): void {
+		const existingBlankIds = Array.from(this.blankTabs.keys());
+		if (existingBlankIds.length > 0) {
+			this.activateBlankTab(existingBlankIds[existingBlankIds.length - 1]);
+			return;
+		}
+		this.addBlankTab();
+	}
+
+	/** Remove a blank tab without forcing replacement (for cross-pane moves). */
+	removeBlankTabForTransfer(blankTabId: string): boolean {
+		if (!this.blankTabs.has(blankTabId)) return false;
+		this.removeBlankTab(blankTabId, false);
+		return true;
+	}
+
+	/** Remove a blank tab. If it was active, activate another tab. */
+	private removeBlankTab(id: string, ensureReplacement = true): void {
+		const el = this.blankTabs.get(id);
+		if (!el) return;
+		el.remove();
+		this.blankTabs.delete(id);
+
+		if (this.activeBlankTabId === id) {
+			this.activeBlankTabId = null;
+			// Activate another blank tab, or last file tab, or show empty state
+			const remainingBlank = Array.from(this.blankTabs.keys());
+			if (remainingBlank.length > 0) {
+				this.activateBlankTab(remainingBlank[remainingBlank.length - 1]);
+			} else {
+				const remaining = Array.from(this.tabs.keys());
+				if (remaining.length > 0) {
+					this.activateTab(remaining[remaining.length - 1]);
+				} else if (ensureReplacement) {
+					// No tabs at all — create a new blank tab
+					this.addBlankTab();
+				}
 			}
 		}
 	}
 
 	/** Keep header controls in sync with current tab state. */
 	private updateTabHeaderControls(): void {
-		this.newTabBtn.style.display = this.tabs.size === 0 ? "none" : "";
+		// Hide all blank tabs when file tabs exist and a file is active
+		// (blank tabs remain accessible in the tab bar)
 	}
 
 	/**
@@ -518,6 +786,220 @@ export class EditorManager {
 		return this.activeTabPath;
 	}
 
+	/** Get file paths of all open tabs in order. */
+	getOpenTabPaths(): string[] {
+		return Array.from(this.tabs.keys());
+	}
+
+	/**
+	 * Export a tab's state and close it locally. Used for cross-pane tab moves.
+	 */
+	exportTab(filePath: string): TabState | null {
+		const tab = this.tabs.get(filePath);
+		if (!tab) return null;
+
+		const state: TabState = {
+			path: tab.path,
+			name: tab.name,
+			content: tab.view.state.doc.toString(),
+			dirty: tab.dirty,
+			originalContent: tab.originalContent,
+			mode: tab.mode,
+		};
+
+		this.closeTab(filePath);
+		return state;
+	}
+
+	/**
+	 * Import a tab from a serialized state (without reading from vault).
+	 */
+	async importTab(state: TabState): Promise<void> {
+		// If already open, just activate
+		if (this.tabs.has(state.path)) {
+			this.activateTab(state.path);
+			return;
+		}
+
+		// Remove active blank tab
+		if (this.activeBlankTabId) {
+			this.removeBlankTab(this.activeBlankTabId, false);
+		}
+
+		// Create tab header
+		const tabEl = document.createElement("div");
+		tabEl.className = "ws-tab";
+		tabEl.draggable = true;
+
+		const nameSpan = document.createElement("span");
+		nameSpan.className = "ws-tab-name";
+		nameSpan.textContent = state.name;
+		tabEl.appendChild(nameSpan);
+
+		const closeBtn = document.createElement("span");
+		closeBtn.className = "ws-tab-close";
+		closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+		tabEl.appendChild(closeBtn);
+
+		const filePath = state.path;
+		let dragStartClientX = 0;
+		let dragStartClientY = 0;
+		let poppedOutAtEdge = false;
+		const handleDragAtEdge = (ev: DragEvent) => {
+			if (poppedOutAtEdge) return;
+			if (this.isDetachedFileTabView()) return;
+			const atEdge = ev.clientX <= 0
+				|| ev.clientY <= 0
+				|| ev.clientX >= window.innerWidth - 1
+				|| ev.clientY >= window.innerHeight - 1;
+			if (!atEdge) return;
+			poppedOutAtEdge = true;
+			tabEl.classList.remove("is-dragging");
+			tabEl.removeEventListener("drag", handleDragAtEdge);
+			void this.popOutFileTab(filePath);
+		};
+
+		// Tab drag-and-drop
+		tabEl.addEventListener("dragstart", (e) => {
+			if (e.dataTransfer) {
+				poppedOutAtEdge = false;
+				dragStartClientX = e.clientX;
+				dragStartClientY = e.clientY;
+				e.dataTransfer.setData("text/x-pane-tab", JSON.stringify({ fromPaneId: this.paneId, filePath }));
+				e.dataTransfer.effectAllowed = "copyMove";
+				tabEl.classList.add("is-dragging");
+				tabEl.addEventListener("drag", handleDragAtEdge);
+			}
+		});
+		tabEl.addEventListener("dragend", (e: DragEvent) => {
+			tabEl.classList.remove("is-dragging");
+			tabEl.removeEventListener("drag", handleDragAtEdge);
+			if (poppedOutAtEdge) return;
+			const wasHandledDrop = e.dataTransfer?.dropEffect === "move";
+			if (wasHandledDrop && this.isDetachedFileTabView()) {
+				const shouldCloseWindow = this.tabs.size <= 1;
+				if (this.tabs.has(filePath)) this.closeTab(filePath);
+				if (shouldCloseWindow) window.close();
+				return;
+			}
+			const dx = Math.abs(e.clientX - dragStartClientX);
+			const dy = Math.abs(e.clientY - dragStartClientY);
+			const wasDragged = Math.max(dx, dy) > 12;
+			if (!wasHandledDrop && wasDragged) {
+				if (this.isDetachedFileTabView()) {
+					void this.dockFileToMain(filePath);
+				} else {
+					void this.popOutFileTab(filePath);
+				}
+			}
+		});
+
+		tabEl.addEventListener("contextmenu", (e) => {
+			e.preventDefault();
+			this.showTabContextMenu(tabEl, filePath, e);
+		});
+
+		tabEl.addEventListener("click", (e) => {
+			if (!(e.target as HTMLElement).closest(".ws-tab-close")) {
+				this.activateTab(filePath);
+			}
+		});
+
+		closeBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			if (this.getTabCount() <= 1) {
+				this.requestCloseLastTab();
+				return;
+			}
+			this.closeTab(filePath);
+		});
+
+		this.insertTabBeforeNewButton(tabEl);
+
+		// Create wrapper
+		const wrapperEl = document.createElement("div");
+		wrapperEl.className = "ws-editor-wrapper";
+		this.editorContainer.appendChild(wrapperEl);
+
+		const editorEl = document.createElement("div");
+		editorEl.className = "ws-editor-view";
+		wrapperEl.appendChild(editorEl);
+
+		const previewEl = document.createElement("div");
+		previewEl.className = "ws-preview-view markdown-rendered";
+		previewEl.style.display = "none";
+		wrapperEl.appendChild(previewEl);
+
+		const self = this;
+		const editorState = EditorState.create({
+			doc: state.content,
+			extensions: [
+				lineNumbers(),
+				highlightActiveLine(),
+				highlightActiveLineGutter(),
+				history(),
+				drawSelection(),
+				rectangularSelection(),
+				indentOnInput(),
+				bracketMatching(),
+				foldGutter(),
+				syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+				markdown({ base: markdownLanguage, codeLanguages: languages }),
+				keymap.of([
+					...defaultKeymap,
+					...historyKeymap,
+					...foldKeymap,
+					indentWithTab,
+					{
+						key: "Mod-s",
+						run: () => { self.saveActiveTab(); return true; },
+					},
+				]),
+				EditorView.updateListener.of((update) => {
+					if (update.docChanged) {
+						const tab = self.tabs.get(filePath);
+						if (tab) {
+							const currentContent = update.state.doc.toString();
+							const isDirty = currentContent !== tab.originalContent;
+							if (isDirty !== tab.dirty) {
+								tab.dirty = isDirty;
+								self.updateTabDirtyState(tab);
+							}
+						}
+					}
+				}),
+				EditorView.theme({
+					"&": { height: "100%", fontSize: "var(--font-text-size, 16px)" },
+					".cm-content": { fontFamily: "var(--font-text, -apple-system, BlinkMacSystemFont, sans-serif)", padding: "16px 0" },
+					".cm-line": { padding: "0 24px" },
+					".cm-gutters": { background: "transparent", border: "none", color: "var(--text-faint)" },
+					".cm-activeLineGutter": { background: "transparent" },
+					"&.cm-focused .cm-selectionBackground": { backgroundColor: "var(--text-selection) !important" },
+				}),
+			],
+		});
+
+		const view = new EditorView({ state: editorState, parent: editorEl });
+
+		const tab: EditorTab = {
+			path: state.path,
+			name: state.name,
+			view,
+			tabEl,
+			dirty: state.dirty,
+			originalContent: state.originalContent,
+			mode: state.mode,
+			wrapperEl,
+			previewEl,
+		};
+
+		if (state.dirty) this.updateTabDirtyState(tab);
+
+		this.tabs.set(state.path, tab);
+		this.updateTabHeaderControls();
+		this.activateTab(state.path);
+	}
+
 	/** Navigate to the previous tab in history. */
 	private navigateBack(): void {
 		if (this.tabHistoryIndex <= 0) return;
@@ -565,7 +1047,13 @@ export class EditorManager {
 		closeAllItem.addEventListener("click", () => {
 			this.dismissMenu();
 			const paths = Array.from(this.tabs.keys());
-			for (const p of paths) this.closeTab(p);
+			for (const p of paths) {
+				if (this.getTabCount() <= 1) {
+					this.requestCloseLastTab();
+					break;
+				}
+				this.closeTab(p);
+			}
 		});
 		menu.appendChild(closeAllItem);
 
@@ -624,47 +1112,56 @@ export class EditorManager {
 		}
 	}
 
-	/** Icon for right sidebar toggle button. */
-	private getRightSidebarIcon(collapsed: boolean): string {
-		if (collapsed) {
-			return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11 8 16 12 11 16"/></svg>`;
+	/** Pop out a file tab to a separate window (Electron only). */
+	private async popOutFileTab(filePath: string): Promise<void> {
+		if (!window.electronAPI?.openWindow) return;
+		const tab = this.tabs.get(filePath);
+		if (!tab) return;
+		try {
+			await window.electronAPI.openWindow("ws-file-tab-view", {
+				title: tab.name || "Vault Copilot",
+				width: 1000,
+				height: 760,
+				query: { openFile: filePath },
+			});
+			this.closeTab(filePath);
+		} catch (err) {
+			console.error("[EditorManager] Failed to pop out tab:", err);
 		}
-		return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="13 8 8 12 13 16"/></svg>`;
 	}
 
-	/** Ensure a dedicated titlebar button exists for reopening the right sidebar when collapsed. */
-	private ensureTitlebarRightSidebarButton(): void {
-		if (this.titlebarRightSidebarBtn) return;
-		const btn = document.createElement("button");
-		btn.className = "ws-titlebar-right-sidebar-btn";
-		btn.setAttribute("aria-label", "Right sidebar");
-		btn.title = "Right sidebar";
-		btn.style.display = "none";
-		btn.innerHTML = this.getRightSidebarIcon(true);
-		btn.addEventListener("click", () => this.toggleRightSidebar());
-		btn.addEventListener("contextmenu", (e) => this.showRightSidebarContextMenu(btn, e));
-		document.body.appendChild(btn);
-		this.titlebarRightSidebarBtn = btn;
+	/** Dock a file tab from detached window back into the main window. */
+	private async dockFileToMain(filePath: string): Promise<void> {
+		if (!window.electronAPI?.dockTab) return;
+		const shouldCloseWindow = this.isDetachedFileTabView() && this.tabs.size <= 1;
+		const result = await window.electronAPI.dockTab(filePath);
+		if (!result?.ok) return;
+		if (this.tabs.has(filePath)) this.closeTab(filePath);
+		if (shouldCloseWindow) window.close();
 	}
 
-	/** Ensure a floating fallback button exists for restoring the right sidebar. */
-	private ensureFloatingRightSidebarButton(): void {
-		if (this.floatingRightSidebarBtn) return;
-		const btn = document.createElement("button");
-		btn.className = "ws-right-sidebar-restore-btn";
-		btn.setAttribute("aria-label", "Show right sidebar");
-		btn.title = "Show right sidebar";
-		btn.style.display = "none";
-		btn.innerHTML = this.getRightSidebarIcon(true);
-		btn.addEventListener("click", () => this.toggleRightSidebar());
-		btn.addEventListener("contextmenu", (e) => this.showRightSidebarContextMenu(btn, e));
-		document.body.appendChild(btn);
-		this.floatingRightSidebarBtn = btn;
+	/** Get the current active tab mode when a file tab is active. */
+	getActiveTabMode(): ViewMode | null {
+		if (!this.activeTabPath) return null;
+		const tab = this.tabs.get(this.activeTabPath);
+		return tab?.mode ?? null;
 	}
 
-	/** Show a simple context menu for the titlebar sidebar toggle. */
-	private showRightSidebarContextMenu(anchor: HTMLElement, e: MouseEvent): void {
-		e.preventDefault();
+	/** Set active tab mode (source/preview) when a file tab is active. */
+	setActiveTabMode(mode: ViewMode): void {
+		const current = this.getActiveTabMode();
+		if (!current || current === mode) return;
+		this.toggleActiveTabMode();
+	}
+
+	/** Pop out the active file tab into a separate window. */
+	async popOutActiveTab(): Promise<void> {
+		if (!this.activeTabPath) return;
+		await this.popOutFileTab(this.activeTabPath);
+	}
+
+	/** Show context menu for a file tab. */
+	private showTabContextMenu(anchor: HTMLElement, filePath: string, e: MouseEvent): void {
 		e.stopPropagation();
 		this.dismissMenu();
 
@@ -672,19 +1169,31 @@ export class EditorManager {
 		menu.className = "menu ws-tab-list-menu";
 		document.body.appendChild(menu);
 
-		const item = document.createElement("div");
-		item.className = "menu-item";
-		const collapsed = this.isRightSidebarCollapsed();
-		item.innerHTML = `<span class="menu-item-icon">${this.getRightSidebarIcon(collapsed)}</span><span class="menu-item-title">${collapsed ? "Show right sidebar" : "Collapse right sidebar"}</span>`;
-		item.addEventListener("click", () => {
-			this.dismissMenu();
-			this.toggleRightSidebar();
-		});
-		menu.appendChild(item);
+		if (window.electronAPI?.openWindow) {
+			const item = document.createElement("div");
+			item.className = "menu-item";
+			item.innerHTML = `<span class="menu-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></span><span>Open in new window</span>`;
+			item.addEventListener("click", async () => {
+				this.dismissMenu();
+				await this.popOutFileTab(filePath);
+			});
+			menu.appendChild(item);
+
+			if (window.electronAPI?.dockTab && this.isDetachedFileTabView()) {
+				const dockItem = document.createElement("div");
+				dockItem.className = "menu-item";
+				dockItem.innerHTML = `<span class="menu-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 4 4 8 8 12"/><path d="M4 8h10a4 4 0 1 1 0 8h-1"/></svg></span><span>Dock to main window</span>`;
+				dockItem.addEventListener("click", async () => {
+					this.dismissMenu();
+					await this.dockFileToMain(filePath);
+				});
+				menu.appendChild(dockItem);
+			}
+		}
 
 		const rect = anchor.getBoundingClientRect();
-		menu.style.top = `${rect.bottom + 6}px`;
-		menu.style.right = `${document.documentElement.clientWidth - rect.right}px`;
+		menu.style.top = `${rect.bottom + 4}px`;
+		menu.style.left = `${rect.left}px`;
 
 		const dismiss = (ev: MouseEvent) => {
 			if (!menu.contains(ev.target as Node)) {
@@ -696,84 +1205,22 @@ export class EditorManager {
 		this.activeMenuCleanup = () => document.removeEventListener("click", dismiss);
 	}
 
-	/** Sync icon/placement of sidebar toggle controls based on collapsed state. */
-	private updateRightSidebarToggleUI(collapsed: boolean): void {
-		this.splitBtn.innerHTML = this.getRightSidebarIcon(collapsed);
-		this.splitBtn.setAttribute("aria-label", collapsed ? "Show right sidebar" : "Collapse right sidebar");
-		if (this.titlebarRightSidebarBtn) {
-			this.titlebarRightSidebarBtn.innerHTML = this.getRightSidebarIcon(collapsed);
-			this.titlebarRightSidebarBtn.style.display = collapsed ? "flex" : "none";
-		}
-		if (this.floatingRightSidebarBtn) {
-			this.floatingRightSidebarBtn.innerHTML = this.getRightSidebarIcon(collapsed);
-			this.floatingRightSidebarBtn.style.display = collapsed ? "flex" : "none";
-		}
-		this.splitBtn.style.display = "";
-	}
-
-	/** Bind right-pane close icon (if present) to the same toggle flow. */
-	private bindExternalRightSidebarControls(): void {
-		const closeBtn = document.querySelector<HTMLElement>(".ws-right-close");
-		if (!closeBtn || closeBtn.dataset.wsRightSidebarBound === "true") return;
-		closeBtn.dataset.wsRightSidebarBound = "true";
-		closeBtn.addEventListener("click", (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			this.toggleRightSidebar();
+	/** Connect to the LayoutManager for sidebar toggle delegation. */
+	setLayoutManager(lm: LayoutManager): void {
+		this.layoutManager = lm;
+		// Keep split button icon in sync with layout state changes
+		lm.addStateChangeListener(() => {
+			const collapsed = lm.isRightCollapsed;
+			this.splitBtn.innerHTML = this.getRightSidebarIcon(collapsed);
+			this.splitBtn.setAttribute("aria-label", collapsed ? "Show right sidebar" : "Collapse right sidebar");
 		});
-		closeBtn.addEventListener("contextmenu", (e) => this.showRightSidebarContextMenu(closeBtn, e));
 	}
 
-	/** Determine whether right sidebar is currently collapsed. */
-	private isRightSidebarCollapsed(): boolean {
-		const rightSplit = document.querySelector<HTMLElement>(".workspace-split.mod-right-split");
-		if (!rightSplit) return false;
-		const computed = getComputedStyle(rightSplit);
-		const hiddenByDisplay = rightSplit.style.display === "none" || computed.display === "none";
-		const hiddenByVisibility = computed.visibility === "hidden";
-		const hiddenByClass = rightSplit.classList.contains("is-collapsed")
-			|| rightSplit.classList.contains("mod-collapsed")
-			|| rightSplit.classList.contains("is-hidden");
-		const hiddenBySize = rightSplit.getBoundingClientRect().width < 8;
-		return hiddenByDisplay || hiddenByVisibility || hiddenByClass || hiddenBySize;
-	}
-
-	/** Observe right sidebar display changes from any source and keep toggle UI in sync. */
-	private watchRightSidebarState(): void {
-		const rightSplit = document.querySelector<HTMLElement>(".workspace-split.mod-right-split");
-		if (!rightSplit) return;
-		this.rightSidebarObserver?.disconnect();
-		this.rightSidebarObserver = new MutationObserver(() => {
-			this.updateRightSidebarToggleUI(this.isRightSidebarCollapsed());
-		});
-		this.rightSidebarObserver.observe(rightSplit, { attributes: true, attributeFilter: ["style", "class"] });
-		this.updateRightSidebarToggleUI(this.isRightSidebarCollapsed());
-	}
-
-	/** Toggle the right sidebar visibility. */
-	private toggleRightSidebar(): void {
-		const rightSplit = document.querySelector<HTMLElement>(".workspace-split.mod-right-split");
-		const rightResizer = document.querySelector<HTMLElement>('.workspace-resizer[data-resize="right"]');
-		if (!rightSplit) return;
-
-		const isHidden = this.isRightSidebarCollapsed();
-		if (isHidden) {
-			rightSplit.classList.remove("is-collapsed", "mod-collapsed", "is-hidden");
-			rightSplit.style.display = "";
-			rightSplit.style.visibility = "";
-			if (rightSplit.getBoundingClientRect().width < 8) {
-				rightSplit.style.width = rightSplit.dataset.wsSavedWidth || "420px";
-			}
-			if (rightResizer) rightResizer.style.display = "";
-			this.updateRightSidebarToggleUI(false);
-		} else {
-			const currentWidth = rightSplit.getBoundingClientRect().width;
-			if (currentWidth > 20) {
-				rightSplit.dataset.wsSavedWidth = `${Math.round(currentWidth)}px`;
-			}
-			rightSplit.style.display = "none";
-			if (rightResizer) rightResizer.style.display = "none";
-			this.updateRightSidebarToggleUI(true);
+	/** Icon for right sidebar toggle button. */
+	private getRightSidebarIcon(collapsed: boolean): string {
+		if (collapsed) {
+			return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11 8 16 12 11 16"/></svg>`;
 		}
+		return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="13 8 8 12 13 16"/></svg>`;
 	}
 }

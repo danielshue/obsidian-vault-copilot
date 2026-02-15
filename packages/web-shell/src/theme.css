@@ -30,19 +30,26 @@ body.is-frameless .titlebar-drag-region {
   display: block;
 }
 
+body.is-frameless .ws-tab-header,
+body.is-frameless .ws-tab-bar {
+  -webkit-app-region: drag;
+}
+
 /* Interactive elements sit above the drag region and receive clicks normally */
 body.is-frameless .workspace-ribbon,
 body.is-frameless .ws-left-tab-header,
-body.is-frameless .ws-tab-header,
 body.is-frameless .workspace-tab-header-container,
 body.is-frameless .side-dock-ribbon-action,
 body.is-frameless .ws-tab,
 body.is-frameless .ws-new-tab-btn,
 body.is-frameless .ws-tab-header-actions,
 body.is-frameless .ws-tab-header-actions button,
+body.is-frameless .ws-tab-close,
+body.is-frameless .ws-pane-menu-btn,
 body.is-frameless .ws-titlebar-right-sidebar-btn {
   position: relative;
   z-index: 10000;
+  -webkit-app-region: no-drag;
 }
 
 .ws-titlebar-right-sidebar-btn {
@@ -90,6 +97,31 @@ body.is-frameless .ws-titlebar-right-sidebar-btn {
 }
 
 .ws-right-sidebar-restore-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.ws-left-sidebar-restore-btn {
+  position: fixed;
+  top: 40px;
+  left: 10px;
+  width: 28px;
+  height: 28px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  border-radius: var(--radius-s, 4px);
+  box-shadow: 0 0 0 1px var(--background-modifier-border);
+  cursor: pointer;
+  z-index: 10000;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+.ws-left-sidebar-restore-btn:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
@@ -327,6 +359,14 @@ html, body {
    ============================================================ */
 .workspace-ribbon.mod-left {
   display: none;
+  width: 44px;
+  flex-shrink: 0;
+  background: var(--background-secondary);
+  border-right: 1px solid var(--background-modifier-border);
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+  gap: 2px;
 }
 
 /* ============================================================
@@ -375,6 +415,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 2px;
+  -webkit-app-region: no-drag;
 }
 
 .ws-left-content {
@@ -382,6 +423,13 @@ html, body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.ws-left-tab-header-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
 }
 
 .side-dock-ribbon-action {
@@ -393,6 +441,7 @@ html, body {
   border-radius: var(--radius-s);
   color: var(--text-muted);
   cursor: pointer;
+  -webkit-app-region: no-drag;
 }
 
 .side-dock-ribbon-action:hover {
@@ -491,24 +540,54 @@ html, body {
   overflow: hidden;
 }
 
+/* Toolbar above file list */
+.ws-file-explorer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+
+.ws-file-explorer-toolbar .nav-action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+
+.ws-file-explorer-toolbar .nav-action-button:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
 .ws-file-list {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 2px 8px;
 }
 
 .ws-file-item {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px 8px 2px 4px;
+  gap: 4px;
+  padding: 4px 8px 4px 6px;
   font-size: var(--font-ui-small);
   color: var(--text-muted);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.6;
+  line-height: 1.4;
+  border-radius: var(--radius-s);
 }
 
 .ws-file-item:hover {
@@ -521,8 +600,8 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   color: var(--text-faint);
   transition: transform var(--anim-duration-fast);
@@ -540,16 +619,17 @@ html, body {
 /* Spacer for file items to align with folder text */
 .ws-tree-spacer {
   display: inline-block;
-  width: 18px;
+  width: 16px;
   flex-shrink: 0;
 }
 
 .ws-folder-item {
   color: var(--text-normal);
+  font-weight: 500;
 }
 
 .ws-file-children {
-  padding-left: 12px;
+  padding-left: 16px;
 }
 
 /* Vault name footer */
@@ -623,6 +703,125 @@ html, body {
   text-decoration: underline;
 }
 
+/* ── Split Pane Layout ──────────────────────────────────────────── */
+
+.ws-pane-root {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ws-pane-leaf {
+  flex: 1;
+  min-width: 30px;
+  min-height: 30px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.ws-pane-leaf.ws-pane-active {
+  outline: 1px solid var(--interactive-accent);
+  outline-offset: -1px;
+  z-index: 1;
+}
+
+.ws-pane-split {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ws-pane-split-h {
+  flex-direction: row;
+}
+
+.ws-pane-split-v {
+  flex-direction: column;
+}
+
+/* Resizer between panes */
+.ws-pane-resizer {
+  flex-shrink: 0;
+  background: transparent;
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+  transition: background 0.15s;
+}
+
+.ws-pane-resizer[data-direction="horizontal"] {
+  width: 4px;
+  cursor: col-resize;
+}
+
+.ws-pane-resizer[data-direction="vertical"] {
+  height: 4px;
+  cursor: row-resize;
+}
+
+.ws-pane-resizer:hover,
+.ws-pane-resizer.is-dragging {
+  background: var(--interactive-accent);
+}
+
+/* Drop zone indicators */
+.ws-pane-drop-target {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.ws-pane-drop-target::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+  transition: all 0.1s ease;
+}
+
+.ws-drop-center::after {
+  inset: 0;
+}
+
+.ws-drop-left::after {
+  top: 0; bottom: 0; left: 0; width: 50%;
+}
+
+.ws-drop-right::after {
+  top: 0; bottom: 0; right: 0; width: 50%;
+}
+
+.ws-drop-top::after {
+  top: 0; left: 0; right: 0; height: 50%;
+}
+
+.ws-drop-bottom::after {
+  bottom: 0; left: 0; right: 0; height: 50%;
+}
+
+/* Tab dragging state */
+.ws-tab.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+/* Pane context menu */
+.ws-pane-menu {
+  min-width: 160px;
+}
+
+.ws-pane-menu .menu-item.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 /* ── Tabbed Editor Pane ─────────────────────────────────────────── */
 
 .ws-editor-pane {
@@ -637,9 +836,9 @@ html, body {
   flex-shrink: 0;
   align-items: flex-end;
   background: var(--titlebar-background, var(--background-secondary));
-  min-height: 44px;
-  padding: 8px 4px 0;
+  padding: 4px 4px 0 8px;
   gap: 2px;
+  -webkit-app-region: no-drag;
 }
 
 .ws-tab-bar {
@@ -647,9 +846,9 @@ html, body {
   flex: 1;
   overflow-x: auto;
   overflow-y: hidden;
-  min-height: 44px;
   gap: 2px;
   align-items: flex-end;
+  -webkit-app-region: no-drag;
 }
 
 .ws-tab-bar::-webkit-scrollbar {
@@ -664,17 +863,18 @@ html, body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 8px 8px 12px;
+  padding: 4px 6px 4px 12px;
   font-size: var(--font-ui-small);
   color: var(--text-muted);
-  cursor: pointer;
+  cursor: grab;
   white-space: nowrap;
   user-select: none;
+  -webkit-app-region: no-drag;
   flex-shrink: 1;
   min-width: 0;
   flex: 1 1 25%;
   max-width: 250px;
-  border-radius: 8px 8px 0 0;
+  border-radius: 6px 6px 0 0;
   background: var(--background-secondary-alt);
   border: 1px solid transparent;
 }
@@ -710,13 +910,16 @@ body.theme-light .ws-tab {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-s);
   opacity: 0;
   flex-shrink: 0;
-  margin-left: auto;
+  margin: 0 0 0 auto;
   padding: 0;
+  cursor: pointer;
+  position: relative;
+  -webkit-app-region: no-drag;
 }
 
 .ws-tab:hover .ws-tab-close,
@@ -738,16 +941,15 @@ body.theme-light .ws-tab {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: none;
   color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-s, 4px);
   flex-shrink: 0;
-  align-self: stretch;
-  margin: -8px 0 0;
+  align-self: center;
   padding: 0;
   position: relative;
   z-index: 1;
@@ -768,22 +970,21 @@ body.theme-light .ws-tab {
   margin: 0;
   margin-left: auto;
   flex-shrink: 0;
-  align-self: stretch;
+  align-self: center;
   -webkit-app-region: no-drag;
 }
 .ws-tab-header-actions button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: none;
   color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-s, 4px);
   padding: 0;
-  margin-top: -6px;
   position: relative;
   z-index: 1;
   pointer-events: auto;
@@ -2042,7 +2243,26 @@ button:disabled {
   color: var(--text-normal);
 }
 
+.ws-standalone-view.ws-file-tab-standalone {
+  padding: 0;
+  overflow: hidden;
+  top: 0;
+}
+
+.ws-standalone-view.ws-file-tab-standalone .ws-pane-menu-btn {
+  color: var(--text-normal);
+  opacity: 0.9;
+}
+
+.ws-standalone-view.ws-file-tab-standalone .ws-pane-menu-btn:hover {
+  opacity: 1;
+}
+
 /* Account for frameless titlebar drag region */
 body.is-frameless .ws-standalone-view {
   top: 36px;
+}
+
+body.is-frameless .ws-standalone-view.ws-file-tab-standalone {
+  top: 0;
 }

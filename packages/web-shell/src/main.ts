@@ -20,7 +20,9 @@ import moment from "moment";
 import { get, set } from "idb-keyval";
 
 import { Buffer } from "buffer";
+import { PaneManager } from "./editor/PaneManager.js";
 import { EditorManager } from "./editor/EditorManager.js";
+import { LayoutManager } from "./layout/LayoutManager.js";
 import { GeneralSettingTab } from "./settings/GeneralSettingTab.js";
 import { EditorSettingTab } from "./settings/EditorSettingTab.js";
 import { FilesAndLinksSettingTab } from "./settings/FilesAndLinksSettingTab.js";
@@ -85,6 +87,16 @@ ensureProcessShim();
 // ---- Main bootstrap ----
 const DIR_HANDLE_KEY = "vault-copilot-dir-handle";
 const DIR_PATH_KEY = "vault-copilot-dir-path";
+let activePaneManager: PaneManager | null = null;
+const pendingDockedFiles: string[] = [];
+
+function flushPendingDockedFiles(): void {
+	if (!activePaneManager || pendingDockedFiles.length === 0) return;
+	const pending = pendingDockedFiles.splice(0, pendingDockedFiles.length);
+	for (const filePath of pending) {
+		void activePaneManager.openFile(filePath);
+	}
+}
 
 /**
  * Try to restore a previously picked directory handle (browser mode).
@@ -122,7 +134,7 @@ function getStoredDirPath(): string | null {
 	return localStorage.getItem(DIR_PATH_KEY);
 }
 
-async function bootstrap(dirHandleOrPath: FileSystemDirectoryHandle | string): Promise<void> {
+async function bootstrap(dirHandleOrPath: FileSystemDirectoryHandle | string, initialFilePath?: string): Promise<void> {
 	// Persist for next load
 	if (typeof dirHandleOrPath === "string") {
 		localStorage.setItem(DIR_PATH_KEY, dirHandleOrPath);
@@ -159,6 +171,9 @@ async function bootstrap(dirHandleOrPath: FileSystemDirectoryHandle | string): P
 		// Apply saved theme immediately so the UI renders with the correct colors
 		const savedSettings = loadSettings();
 		applyTheme(savedSettings.theme);
+
+		// Sync titlebar overlay with the newly applied theme
+		syncTitleBarOverlay();
 
 		// Register built-in settings tabs
 		app.registerBuiltInTab(new GeneralSettingTab(app));
@@ -207,17 +222,26 @@ async function bootstrap(dirHandleOrPath: FileSystemDirectoryHandle | string): P
 		// Clear loading indicator
 		if (rootSplit) rootSplit.innerHTML = "";
 
-		// Populate center pane with tabbed editor (must be created before file explorer wiring)
-		let editorManager: EditorManager | null = null;
+		// Populate center pane with split pane manager (must be created before file explorer wiring)
+		let paneManager: PaneManager | null = null;
 		if (rootSplit) {
-			editorManager = new EditorManager(rootSplit, vault);
+			paneManager = new PaneManager(rootSplit, vault);
+			activePaneManager = paneManager;
+
+			// Restore saved pane tree (open tabs, splits) from localStorage
+			await paneManager.restoreState();
+
+			flushPendingDockedFiles();
+			if (initialFilePath) {
+				await paneManager.openFile(initialFilePath);
+			}
 		}
 
 		// Populate left pane with file explorer
 		const leftSplit = document.querySelector(".mod-left-split") as HTMLElement;
 		const leftContent = document.querySelector(".ws-left-content") as HTMLElement || leftSplit;
 		if (leftContent) {
-			renderFileExplorer(leftContent, vault, app, editorManager);
+			renderFileExplorer(leftContent, vault, app, paneManager);
 		}
 
 		// Open chat in the right pane
@@ -226,11 +250,23 @@ async function bootstrap(dirHandleOrPath: FileSystemDirectoryHandle | string): P
 		workspace.revealLeaf(leaf);
 		workspace.layoutReady();
 
-		// Wire up resizable panes
-		initResizers();
+		// Wire up resizable panes via LayoutManager
+		const rightSplit = document.querySelector<HTMLElement>(".mod-right-split")!;
+		const layoutManager = new LayoutManager(leftSplit, rootSplit, rightSplit);
+
+		// Propagate LayoutManager to all EditorManager instances via PaneManager
+		if (paneManager) {
+			paneManager.setLayoutManager(layoutManager);
+		}
 
 		// Wire up ribbon buttons
-		initRibbon(leftContent, vault, app, plugin, workspace, editorManager);
+		initRibbon(leftSplit, vault, app, plugin, workspace, paneManager, layoutManager);
+
+		// Persist pane tree and layout state before window unload
+		window.addEventListener("beforeunload", () => {
+			if (paneManager) paneManager.persistState();
+			layoutManager.persistState();
+		});
 
 		console.log("[web-shell] Chat view activated");
 	} catch (err: any) {
@@ -256,7 +292,7 @@ function syncTitleBarOverlay() {
 		window.electronAPI.setTitleBarOverlay({ color: "#000000", symbolColor: "#888888" }).catch(() => {});
 		return;
 	}
-	const style = getComputedStyle(document.documentElement);
+	const style = getComputedStyle(document.body);
 	const bg = style.getPropertyValue("--background-secondary").trim() || "#f6f6f6";
 	const fg = style.getPropertyValue("--text-normal").trim() || "#2e3338";
 	window.electronAPI.setTitleBarOverlay({ color: bg, symbolColor: fg }).catch(() => {});
@@ -287,6 +323,8 @@ async function bootstrapStandaloneView(viewType: string): Promise<void> {
 	}
 
 	try {
+		const openFilePath = new URLSearchParams(window.location.search).get("openFile") || "";
+
 		// Minimal shim setup — same as bootstrap() but without UI wiring
 		const vault = new Vault(dirPath);
 		await vault.initialize();
@@ -302,6 +340,25 @@ async function bootstrapStandaloneView(viewType: string): Promise<void> {
 		const savedSettings = loadSettings();
 		applyTheme(savedSettings.theme);
 
+		// Apply frameless window behavior in detached standalone windows too
+		try {
+			const frameStyle = await window.electronAPI?.getWindowFrame?.();
+			if (frameStyle && frameStyle !== "native") {
+				document.body.classList.add("is-frameless");
+				syncTitleBarOverlay();
+				new MutationObserver(() => syncTitleBarOverlay()).observe(
+					document.body,
+					{ attributes: true, attributeFilter: ["class"] },
+				);
+				new MutationObserver(() => syncTitleBarOverlay()).observe(
+					document.body,
+					{ childList: true, subtree: true },
+				);
+			}
+		} catch {
+			/* ignore */
+		}
+
 		// Load the plugin (initialises TracingService, loads settings, etc.)
 		const { default: CopilotPlugin } = await import("../../../src/main.js");
 		const manifest = {
@@ -315,7 +372,21 @@ async function bootstrapStandaloneView(viewType: string): Promise<void> {
 		await plugin.onload();
 
 		// Render the requested view panel
-		if (viewType === "vc-tracing-view") {
+		if (viewType === "ws-file-tab-view") {
+			if (!openFilePath) {
+				container.innerHTML = '<div style="padding:2em;color:var(--text-error);">No file specified for detached tab view.</div>';
+				return;
+			}
+			container.classList.add("ws-file-tab-standalone");
+			const editor = new EditorManager(container, vault);
+			editor.setSaveHandler(async (path, content) => {
+				const file = vault.getAbstractFileByPath(path);
+				if (!file) throw new Error(`File not found: ${path}`);
+				await vault.modify(file, content);
+			});
+			await editor.openFile(openFilePath);
+			syncTitleBarOverlay();
+		} else if (viewType === "vc-tracing-view") {
 			const { TracingPanel } = await import("../../../src/ui/ChatView/modals/TracingModal.js");
 			container.classList.add("vc-tracing-modal");
 			const panel = new TracingPanel(container, app);
@@ -357,6 +428,16 @@ async function bootstrapStandaloneView(viewType: string): Promise<void> {
 
 // ---- Wire up the folder picker button ----
 document.addEventListener("DOMContentLoaded", async () => {
+	const initialOpenFilePath = new URLSearchParams(window.location.search).get("openFile") || undefined;
+	if (window.electronAPI?.onDockTab) {
+		window.electronAPI.onDockTab((filePath: string) => {
+			if (activePaneManager) {
+				void activePaneManager.openFile(filePath);
+				return;
+			}
+			pendingDockedFiles.push(filePath);
+		});
+	}
 	// Check for standalone view mode (child Electron window with ?view= param)
 	const viewParam = new URLSearchParams(window.location.search).get("view");
 	if (viewParam) {
@@ -391,7 +472,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 			try {
 				const exists = await window.electronAPI.exists(storedPath);
 				if (exists) {
-					await bootstrap(storedPath);
+						await bootstrap(storedPath, initialOpenFilePath);
 					return;
 				}
 			} catch {
@@ -406,7 +487,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 			try {
 				const dirPath = await window.electronAPI!.openDirectory();
 				if (!dirPath) return; // user cancelled
-				await bootstrap(dirPath);
+				await bootstrap(dirPath, initialOpenFilePath);
 			} catch (err: any) {
 				if (errorEl) {
 					errorEl.textContent = err?.message || "Failed to open folder.";
@@ -434,7 +515,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 				const handle = await (window as any).showDirectoryPicker({
 					mode: "readwrite",
 				});
-				await bootstrap(handle);
+				await bootstrap(handle, initialOpenFilePath);
 			} catch (err: any) {
 				// Ignore user cancellation of the picker dialog
 				if (err?.name === "AbortError") return;
@@ -505,10 +586,38 @@ function buildFileTree(files: { path: string }[]): TreeNode[] {
 	return root;
 }
 
-function renderFileExplorer(container: HTMLElement, vault: any, app: any, editorManager: EditorManager | null): void {
+function renderFileExplorer(container: HTMLElement, vault: any, app: any, paneManager: PaneManager | null): void {
 	container.innerHTML = "";
 	const explorer = document.createElement("div");
 	explorer.className = "ws-file-explorer";
+
+	// Toolbar above file list
+	const toolbar = document.createElement("div");
+	toolbar.className = "ws-file-explorer-toolbar";
+
+	const makeToolbarBtn = (icon: string, label: string, action?: () => void): HTMLButtonElement => {
+		const btn = document.createElement("button");
+		btn.className = "clickable-icon nav-action-button";
+		btn.setAttribute("aria-label", label);
+		btn.innerHTML = icon;
+		if (action) btn.addEventListener("click", action);
+		return btn;
+	};
+
+	toolbar.appendChild(makeToolbarBtn(ctxIcons.newNote, "New note"));
+	toolbar.appendChild(makeToolbarBtn(ctxIcons.newFolder, "New folder"));
+	toolbar.appendChild(makeToolbarBtn(ctxIcons.sort, "Change sort order"));
+	toolbar.appendChild(makeToolbarBtn(ctxIcons.collapseAll, "Collapse all", () => {
+		list.querySelectorAll(".ws-file-children").forEach(el => {
+			(el as HTMLElement).style.display = "none";
+		});
+		list.querySelectorAll(".ws-tree-chevron.is-open").forEach(el => {
+			el.classList.remove("is-open");
+		});
+	}));
+	toolbar.appendChild(makeToolbarBtn(ctxIcons.moreOptions, "More options"));
+
+	explorer.appendChild(toolbar);
 
 	const list = document.createElement("div");
 	list.className = "ws-file-list";
@@ -516,7 +625,7 @@ function renderFileExplorer(container: HTMLElement, vault: any, app: any, editor
 
 	const files = vault.getFiles();
 	const tree = buildFileTree(files);
-	renderTreeNodes(list, tree, editorManager);
+	renderTreeNodes(list, tree, paneManager);
 
 	// Vault name footer with gear icon
 	const footer = document.createElement("div");
@@ -542,7 +651,7 @@ function renderFileExplorer(container: HTMLElement, vault: any, app: any, editor
 	container.appendChild(explorer);
 }
 
-function renderTreeNodes(container: HTMLElement, nodes: TreeNode[], editorManager: EditorManager | null): void {
+function renderTreeNodes(container: HTMLElement, nodes: TreeNode[], paneManager: PaneManager | null): void {
 	for (const node of nodes) {
 		const item = document.createElement("div");
 		item.className = "ws-file-item" + (node.isFolder ? " ws-folder-item" : "");
@@ -570,10 +679,10 @@ function renderTreeNodes(container: HTMLElement, nodes: TreeNode[], editorManage
 			item.addEventListener("contextmenu", (e) => {
 				e.preventDefault();
 				e.stopPropagation();
-				showFolderContextMenu(e, node, editorManager);
+				showFolderContextMenu(e, node, paneManager);
 			});
 
-			renderTreeNodes(childContainer, node.children, editorManager);
+			renderTreeNodes(childContainer, node.children, paneManager);
 		} else {
 			// Add indent spacer to align with folder text
 			const spacer = document.createElement("span");
@@ -583,8 +692,8 @@ function renderTreeNodes(container: HTMLElement, nodes: TreeNode[], editorManage
 			const displayName = node.name.replace(/\.md$/, "");
 			item.appendChild(document.createTextNode(displayName));
 			item.addEventListener("click", () => {
-				if (editorManager) {
-					editorManager.openFile(node.path);
+				if (paneManager) {
+					paneManager.openFile(node.path);
 				}
 			});
 
@@ -592,7 +701,7 @@ function renderTreeNodes(container: HTMLElement, nodes: TreeNode[], editorManage
 			item.addEventListener("contextmenu", (e) => {
 				e.preventDefault();
 				e.stopPropagation();
-				showFileContextMenu(e, node, editorManager);
+				showFileContextMenu(e, node, paneManager);
 			});
 
 			container.appendChild(item);
@@ -638,6 +747,12 @@ const ctxIcons = {
 	template: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>`,
 	search: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
 	chevronRight: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
+	checkmark: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+	sidebarLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>`,
+	ribbon: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>`,
+	sort: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg>`,
+	collapseAll: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/></svg>`,
+	moreOptions: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>`,
 };
 
 interface ContextMenuItem {
@@ -647,6 +762,7 @@ interface ContextMenuItem {
 	hasSubmenu?: boolean;
 	danger?: boolean;
 	disabled?: boolean;
+	checked?: boolean;
 }
 
 function createContextMenu(x: number, y: number, sections: ContextMenuItem[][]): void {
@@ -667,7 +783,8 @@ function createContextMenu(x: number, y: number, sections: ContextMenuItem[][]):
 		for (const item of sections[si]) {
 			const el = document.createElement("div");
 			el.className = "menu-item" + (item.disabled ? " is-disabled" : "");
-			el.innerHTML = `<span class="menu-item-icon">${item.icon}</span><span class="menu-item-title">${item.label}</span>${item.hasSubmenu ? `<span class="menu-item-submenu">${ctxIcons.chevronRight}</span>` : ""}`;
+			const checkHtml = item.checked !== undefined ? `<span class="menu-item-check" style="margin-left:auto;opacity:${item.checked ? 1 : 0}">${ctxIcons.checkmark}</span>` : "";
+			el.innerHTML = `<span class="menu-item-icon">${item.icon}</span><span class="menu-item-title">${item.label}</span>${checkHtml}${item.hasSubmenu ? `<span class="menu-item-submenu">${ctxIcons.chevronRight}</span>` : ""}`;
 			if (item.danger) {
 				el.querySelector(".menu-item-icon")!.setAttribute("style", "color: var(--text-error)");
 				el.querySelector(".menu-item-title")!.setAttribute("style", "color: var(--text-error)");
@@ -700,11 +817,11 @@ function createContextMenu(x: number, y: number, sections: ContextMenuItem[][]):
 	activeContextMenuCleanup = () => document.removeEventListener("click", dismiss);
 }
 
-function showFileContextMenu(e: MouseEvent, node: TreeNode, editorManager: EditorManager | null): void {
+function showFileContextMenu(e: MouseEvent, node: TreeNode, paneManager: PaneManager | null): void {
 	const sections: ContextMenuItem[][] = [
 		[
-			{ label: "Open in new tab", icon: ctxIcons.openTab, action: () => editorManager?.openFile(node.path) },
-			{ label: "Open to the right", icon: ctxIcons.openRight, action: () => editorManager?.openFile(node.path) },
+			{ label: "Open in new tab", icon: ctxIcons.openTab, action: () => paneManager?.openFile(node.path) },
+			{ label: "Open to the right", icon: ctxIcons.openRight, action: () => { paneManager?.splitPane("horizontal"); paneManager?.openFile(node.path); } },
 			{ label: "Open in new window", icon: ctxIcons.openWindow, disabled: true },
 		],
 		[
@@ -728,7 +845,7 @@ function showFileContextMenu(e: MouseEvent, node: TreeNode, editorManager: Edito
 	createContextMenu(e.clientX, e.clientY, sections);
 }
 
-function showFolderContextMenu(e: MouseEvent, node: TreeNode, editorManager: EditorManager | null): void {
+function showFolderContextMenu(e: MouseEvent, node: TreeNode, paneManager: PaneManager | null): void {
 	const sections: ContextMenuItem[][] = [
 		[
 			{ label: "New note", icon: ctxIcons.newNote, disabled: true },
@@ -775,58 +892,13 @@ function renderCenterPlaceholder(container: HTMLElement): void {
 	container.appendChild(placeholder);
 }
 
-// ---- Resizable Panes ----
-
-function initResizers(): void {
-	const resizers = document.querySelectorAll<HTMLElement>(".workspace-resizer");
-	for (const resizer of resizers) {
-		const target = resizer.dataset.resize;
-		const pane = target === "left"
-			? document.querySelector<HTMLElement>(".mod-left-split")
-			: document.querySelector<HTMLElement>(".mod-right-split");
-		if (!pane) continue;
-
-		let startX = 0;
-		let startWidth = 0;
-
-		const onMouseMove = (e: MouseEvent) => {
-			const delta = e.clientX - startX;
-			const newWidth = target === "left"
-				? startWidth + delta
-				: startWidth - delta;
-			const clamped = Math.max(180, Math.min(newWidth, window.innerWidth * 0.5));
-			pane.style.width = clamped + "px";
-		};
-
-		const onMouseUp = () => {
-			resizer.classList.remove("is-dragging");
-			document.removeEventListener("mousemove", onMouseMove);
-			document.removeEventListener("mouseup", onMouseUp);
-			document.body.style.cursor = "";
-			document.body.style.userSelect = "";
-		};
-
-		resizer.addEventListener("mousedown", (e: MouseEvent) => {
-			e.preventDefault();
-			startX = e.clientX;
-			startWidth = pane.getBoundingClientRect().width;
-			resizer.classList.add("is-dragging");
-			document.body.style.cursor = "col-resize";
-			document.body.style.userSelect = "none";
-			document.addEventListener("mousemove", onMouseMove);
-			document.addEventListener("mouseup", onMouseUp);
-		});
-	}
-}
-
 /**
  * Wire up the left ribbon icon strip: collapse toggle, file explorer, extensions.
  */
-function initRibbon(leftSplit: HTMLElement, vault: any, app: any, plugin: any, workspace: any, editorManager: EditorManager | null): void {
+function initRibbon(leftSplit: HTMLElement, vault: any, app: any, plugin: any, workspace: any, paneManager: PaneManager | null, layoutManager: LayoutManager): void {
 	const toggleBtn = document.querySelector(".ws-ribbon-toggle") as HTMLElement;
 	const filesBtn = document.querySelector(".ws-ribbon-files") as HTMLElement;
 	const extBtn = document.querySelector(".ws-ribbon-extensions") as HTMLElement;
-	const resizer = document.querySelector('.workspace-resizer[data-resize="left"]') as HTMLElement;
 	const leftContent = leftSplit.querySelector(".ws-left-content") as HTMLElement || leftSplit;
 
 	if (!toggleBtn || !filesBtn || !extBtn) return;
@@ -836,34 +908,43 @@ function initRibbon(leftSplit: HTMLElement, vault: any, app: any, plugin: any, w
 	toggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>`;
 	// Folder icon
 	filesBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>`;
-	// Extensions / puzzle piece icon
-	extBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.39 4.39a1 1 0 0 0-1.68-.474l-.07.084-2.12 2.12a4.007 4.007 0 0 0-5.4.24l-.18.18a4 4 0 0 0 .24 5.4l2.12 2.12.084.07a1 1 0 0 0 .474-1.68l-.084-.07-2.12-2.12"/><path d="M13.5 2.5a2.5 2.5 0 0 1 0 5"/><path d="M6 12a6 6 0 0 0 12 0"/><path d="M12 2a10 10 0 1 0 10 10"/></svg>`;
+	// Extensions / puzzle piece icon (Lucide "puzzle" — matches ExtensionBrowserView)
+	extBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.877l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.315 8.685a.98.98 0 0 1 .837-.276c.47.07.802.48.968.925a2.501 2.501 0 1 0 3.214-3.214c-.446-.166-.855-.497-.925-.968a.979.979 0 0 1 .276-.837l1.61-1.61a2.404 2.404 0 0 1 1.705-.707 2.402 2.402 0 0 1 1.704.706l1.568 1.568c.23.23.556.338.877.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.237 3.237c-.464.18-.894.527-.967 1.02Z"/></svg>`;
 
-	let leftCollapsed = false;
 	let activeView: "files" | "extensions" = "files";
-	let savedWidth = leftSplit.style.width || "250px";
 
-	const showLeftPane = () => {
-		leftCollapsed = false;
-		leftSplit.style.display = "";
-		leftSplit.style.width = savedWidth;
-		if (resizer) resizer.style.display = "";
-	};
-
-	const hideLeftPane = () => {
-		leftCollapsed = true;
-		savedWidth = leftSplit.style.width || leftSplit.getBoundingClientRect().width + "px";
-		leftSplit.style.display = "none";
-		if (resizer) resizer.style.display = "none";
-	};
-
-	// Toggle collapse
+	// Toggle collapse via LayoutManager
 	toggleBtn.addEventListener("click", () => {
-		if (leftCollapsed) {
-			showLeftPane();
-		} else {
-			hideLeftPane();
-		}
+		layoutManager.toggleLeft();
+	});
+
+	// Right-click context menu on toggle button
+	const ribbon = document.querySelector(".workspace-ribbon.side-dock-ribbon.mod-left") as HTMLElement;
+	let ribbonVisible = false;
+
+	toggleBtn.addEventListener("contextmenu", (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		const sidebarVisible = !layoutManager.isLeftCollapsed;
+		createContextMenu(e.clientX, e.clientY, [[
+			{
+				label: "Left sidebar",
+				icon: ctxIcons.sidebarLeft,
+				checked: sidebarVisible,
+				action: () => {
+					layoutManager.toggleLeft();
+				},
+			},
+			{
+				label: "Ribbon",
+				icon: ctxIcons.ribbon,
+				checked: ribbonVisible,
+				action: () => {
+					ribbonVisible = !ribbonVisible;
+					if (ribbon) ribbon.style.display = ribbonVisible ? "flex" : "none";
+				},
+			},
+		]]);
 	});
 
 	const setActiveRibbonButton = (active: "files" | "extensions") => {
@@ -873,29 +954,27 @@ function initRibbon(leftSplit: HTMLElement, vault: any, app: any, plugin: any, w
 
 	// Files view
 	filesBtn.addEventListener("click", () => {
-		if (activeView === "files" && !leftCollapsed) {
-			hideLeftPane();
+		if (activeView === "files" && !layoutManager.isLeftCollapsed) {
 			return;
 		}
 		activeView = "files";
 		setActiveRibbonButton("files");
-		if (leftCollapsed) {
-			showLeftPane();
+		if (layoutManager.isLeftCollapsed) {
+			layoutManager.expandLeft();
 		}
 		leftContent.innerHTML = "";
-		renderFileExplorer(leftContent, vault, app, editorManager);
+		renderFileExplorer(leftContent, vault, app, paneManager);
 	});
 
 	// Extensions view
 	extBtn.addEventListener("click", async () => {
-		if (activeView === "extensions" && !leftCollapsed) {
-			hideLeftPane();
+		if (activeView === "extensions" && !layoutManager.isLeftCollapsed) {
 			return;
 		}
 		activeView = "extensions";
 		setActiveRibbonButton("extensions");
-		if (leftCollapsed) {
-			showLeftPane();
+		if (layoutManager.isLeftCollapsed) {
+			layoutManager.expandLeft();
 		}
 		leftContent.innerHTML = "";
 		await plugin.activateExtensionBrowser();

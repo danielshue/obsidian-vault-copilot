@@ -61,7 +61,9 @@ interface ElectronAPI {
 	loadSecret(id: string): Promise<string | null>;
 	deleteSecret(id: string): Promise<void>;
 	listSecrets(): Promise<Array<{ id: string; lastAccessed: number | null; createdAt: number; updatedAt: number }>>;
-	openWindow(viewType: string, options?: { width?: number; height?: number; title?: string }): Promise<{ windowId: number }>;
+	openWindow(viewType: string, options?: { width?: number; height?: number; title?: string; query?: Record<string, string> }): Promise<{ windowId: number }>;
+	dockTab(filePath: string): Promise<{ ok: boolean }>;
+	onDockTab(callback: (filePath: string) => void): () => void;
 }
 
 declare global {

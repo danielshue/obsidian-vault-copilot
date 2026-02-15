@@ -24,6 +24,10 @@ let mainWindow = null;
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 
+if (isDev) {
+	app.commandLine.appendSwitch("disable-http-cache");
+}
+
 /** Path to the window config file (persists frame style across restarts). */
 const configPath = path.join(app.getPath("userData"), "window-config.json");
 
@@ -44,7 +48,7 @@ function writeWindowConfig(config) {
 	} catch { /* ignore */ }
 }
 
-function createWindow() {
+async function createWindow() {
 	// Remove default menu bar
 	Menu.setApplicationMenu(null);
 
@@ -82,6 +86,14 @@ function createWindow() {
 	if (isDev) {
 		// In dev mode, load from Vite dev server
 		const devUrl = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
+		try {
+			await mainWindow.webContents.session.clearCache();
+			await mainWindow.webContents.session.clearStorageData({
+				storages: ["serviceworkers", "cachestorage"],
+			});
+		} catch {
+			// Best-effort cache reset in dev mode
+		}
 		mainWindow.loadURL(devUrl);
 		mainWindow.webContents.openDevTools();
 
@@ -321,16 +333,47 @@ ipcMain.handle("settings:getWindowFrame", async () => {
  * Update the titlebar overlay colors dynamically to match the app theme.
  * Only works on Windows with a frameless window.
  */
-ipcMain.handle("settings:setTitleBarOverlay", async (_event, colors) => {
-	if (mainWindow && !mainWindow.isDestroyed() && process.platform === "win32") {
+ipcMain.handle("settings:setTitleBarOverlay", async (event, colors) => {
+	const targetWindow = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+	if (targetWindow && !targetWindow.isDestroyed() && process.platform === "win32") {
 		try {
-			mainWindow.setTitleBarOverlay({
+			targetWindow.setTitleBarOverlay({
 				color: colors.color,
 				symbolColor: colors.symbolColor,
 				height: 36,
 			});
 		} catch { /* ignore if not supported */ }
 	}
+});
+
+/**
+ * Request docking a detached file tab back into the main window.
+ * Sends the file path to main renderer and closes the child window.
+ */
+ipcMain.handle("window:dockTab", async (event, filePath) => {
+	if (mainWindow && !mainWindow.isDestroyed()) {
+		const dispatchDock = () => {
+			if (!mainWindow || mainWindow.isDestroyed()) return;
+			mainWindow.webContents.send("window:dockTab", filePath);
+		};
+
+		if (mainWindow.webContents.isLoadingMainFrame()) {
+			mainWindow.webContents.once("did-finish-load", dispatchDock);
+		} else {
+			dispatchDock();
+		}
+
+		if (mainWindow.isMinimized()) {
+			mainWindow.restore();
+		}
+		mainWindow.show();
+		mainWindow.focus();
+	}
+	const senderWindow = BrowserWindow.fromWebContents(event.sender);
+	if (senderWindow && senderWindow !== mainWindow && !senderWindow.isDestroyed()) {
+		senderWindow.close();
+	}
+	return { ok: true };
 });
 
 ipcMain.handle("platform:info", async () => {
@@ -490,15 +533,19 @@ ipcMain.handle("window:open", async (_event, viewType, options = {}) => {
 	// Remove menu bar from child window
 	childWindow.setMenu(null);
 
-	const viewParam = encodeURIComponent(viewType);
+	const query = { ...(options.query || {}) };
+	if (viewType && viewType !== "main") {
+		query.view = viewType;
+	}
 
 	if (isDev) {
 		const devUrl = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
-		childWindow.loadURL(`${devUrl}?view=${viewParam}`);
+		const search = new URLSearchParams(query).toString();
+		childWindow.loadURL(search ? `${devUrl}?${search}` : devUrl);
 	} else {
 		// For production, load index.html with query param
 		const indexPath = path.join(__dirname, "../dist/index.html");
-		childWindow.loadFile(indexPath, { query: { view: viewType } });
+		childWindow.loadFile(indexPath, { query });
 	}
 
 	childWindow.on("closed", () => {

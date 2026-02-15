@@ -226,4 +226,23 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	 * @returns {Promise<{windowId: number}>}
 	 */
 	openWindow: (viewType, options) => ipcRenderer.invoke("window:open", viewType, options),
+
+	/**
+	 * Dock a detached file tab back into the main window.
+	 * @param {string} filePath - Vault-relative file path
+	 * @returns {Promise<{ok: boolean}>}
+	 */
+	dockTab: (filePath) => ipcRenderer.invoke("window:dockTab", filePath),
+
+	/**
+	 * Listen for dock-tab requests delivered to the main renderer.
+	 * @param {(filePath: string) => void} callback
+	 * @returns {() => void} unsubscribe function
+	 */
+	onDockTab: (callback) => {
+		const channel = "window:dockTab";
+		const handler = (_event, filePath) => callback(filePath);
+		ipcRenderer.on(channel, handler);
+		return () => ipcRenderer.removeListener(channel, handler);
+	},
 });
