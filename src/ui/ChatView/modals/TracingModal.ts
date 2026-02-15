@@ -82,7 +82,7 @@ function getEffectiveSource(log: { source: string; message: string }): 'voice' |
 	return 'cli';
 }
 
-class TracingPanel {
+export class TracingPanel {
 	private tracingService: TracingService;
 	private tracingContentEl: HTMLElement | null = null;
 	private unsubscribe: (() => void) | null = null;
@@ -836,6 +836,20 @@ export class TracingView extends ItemView {
  * Open tracing in a popout window (desktop) or modal (mobile)
  */
 export function openTracingPopout(app: App): void {
+	// Electron web-shell: open in a dedicated child BrowserWindow
+	if ((window as any).electronAPI?.openWindow) {
+		(window as any).electronAPI.openWindow(TRACING_VIEW_TYPE, {
+			title: "Tracing & Diagnostics",
+			width: 1000,
+			height: 700,
+		}).catch((err: any) => {
+			console.error('[TracingModal] Failed to open child window:', err);
+			const modal = new TracingModal(app);
+			modal.open();
+		});
+		return;
+	}
+
 	// On desktop, create a pop-out window using workspace API
 	// On mobile, fall back to modal
 	if (Platform.isDesktopApp) {
@@ -844,12 +858,10 @@ export function openTracingPopout(app: App): void {
 			leaf.setViewState({ type: TRACING_VIEW_TYPE, active: true });
 		} catch (error) {
 			console.error('[TracingModal] Failed to open pop-out window:', error);
-			// Fallback to modal
 			const modal = new TracingModal(app);
 			modal.open();
 		}
 	} else {
-		// Mobile: use modal
 		const modal = new TracingModal(app);
 		modal.open();
 	}

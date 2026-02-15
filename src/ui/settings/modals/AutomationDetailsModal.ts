@@ -13,14 +13,22 @@
  */
 
 import { App, Modal } from 'obsidian';
-import type { AutomationInstance } from '../../../automation/types';
+import type { AutomationEngine } from '../../../automation/AutomationEngine';
+import type { AutomationInstance, AutomationHistoryEntry } from '../../../automation/types';
 
 export class AutomationDetailsModal extends Modal {
 	private automation: AutomationInstance;
+	private engine: AutomationEngine | null;
 
-	constructor(app: App, automation: AutomationInstance) {
+	/**
+	 * @param app - Obsidian app instance
+	 * @param automation - The automation to display details for
+	 * @param engine - Optional AutomationEngine for accessing full execution history
+	 */
+	constructor(app: App, automation: AutomationInstance, engine?: AutomationEngine | null) {
 		super(app);
 		this.automation = automation;
+		this.engine = engine ?? null;
 	}
 
 	onOpen(): void {
@@ -100,8 +108,8 @@ export class AutomationDetailsModal extends Modal {
 				details = `Skill: ${action.skillId}`;
 			} else if ((action.type === 'create-note' || action.type === 'update-note') && 'path' in action) {
 				details = `Path: ${action.path}`;
-			} else if (action.type === 'run-command' && 'commandId' in action) {
-				details = `Command: ${action.commandId}`;
+			} else if (action.type === 'run-shell' && 'command' in action) {
+				details = `Command: ${action.command}`;
 			}
 			
 			if (details) {
@@ -158,6 +166,14 @@ export class AutomationDetailsModal extends Modal {
 			}
 		}
 
+		// Execution history section (if engine is available)
+		if (this.engine) {
+			const historyEntries = this.engine.getHistoryForAutomation(this.automation.id, 20);
+			if (historyEntries.length > 0) {
+				this.renderHistorySection(contentEl, historyEntries);
+			}
+		}
+
 		// Close button
 		const footer = contentEl.createDiv({ cls: 'vc-modal-footer' });
 		const closeBtn = footer.createEl('button', { text: 'Close', cls: 'mod-cta' });
@@ -173,5 +189,68 @@ export class AutomationDetailsModal extends Modal {
 		const item = container.createEl('div', { cls: 'vc-grid-item' });
 		item.createEl('div', { text: label, cls: 'vc-grid-label' });
 		item.createEl('div', { text: value, cls: 'vc-grid-value' });
+	}
+
+	/**
+	 * Render the execution history section with expandable action outputs.
+	 *
+	 * @param container - Parent element to render into
+	 * @param entries - History entries for this automation, most recent first
+	 *
+	 * @internal
+	 */
+	private renderHistorySection(container: HTMLElement, entries: AutomationHistoryEntry[]): void {
+		const section = container.createDiv({ cls: 'vc-automation-section' });
+		section.createEl('h3', { text: `Execution History (${entries.length})` });
+
+		for (const entry of entries) {
+			const date = new Date(entry.timestamp);
+			const totalDuration = entry.result.actionResults.reduce((sum, r) => sum + r.duration, 0);
+			const statusIcon = entry.result.success ? '✓' : '✗';
+			const statusClass = entry.result.success ? 'vc-result-success' : 'vc-result-failure';
+
+			const card = section.createDiv({ cls: 'vc-history-entry' });
+
+			const header = card.createDiv({ cls: 'vc-history-entry-header' });
+			header.createEl('span', { text: `${statusIcon} `, cls: statusClass });
+			header.createEl('span', { text: date.toLocaleString() });
+			header.createEl('span', { text: ` · ${entry.result.trigger.type} · ${totalDuration}ms`, cls: 'vc-text-muted' });
+
+			if (entry.result.error) {
+				card.createDiv({ cls: 'vc-automation-error', text: entry.result.error });
+			}
+
+			for (let i = 0; i < entry.result.actionResults.length; i++) {
+				const ar = entry.result.actionResults[i];
+				if (!ar) continue;
+
+				const actionDiv = card.createDiv({ cls: 'vc-history-action' });
+				const actionIcon = ar.success ? '✓' : '✗';
+				const actionCls = ar.success ? 'vc-result-success' : 'vc-result-failure';
+
+				const actionHeader = actionDiv.createDiv({ cls: 'vc-history-action-header' });
+				actionHeader.createEl('span', { text: `${actionIcon} `, cls: actionCls });
+				actionHeader.createEl('span', { text: `Action ${i + 1} (${ar.action.type})` });
+				actionHeader.createEl('span', { text: ` — ${ar.duration}ms`, cls: 'vc-text-muted' });
+
+				if (ar.error) {
+					actionDiv.createDiv({ cls: 'vc-text-error', text: ar.error });
+				}
+
+				if (ar.result !== undefined && ar.result !== null) {
+					const outputStr = typeof ar.result === 'string' ? ar.result : JSON.stringify(ar.result, null, 2);
+					const toggle = actionDiv.createEl('button', { text: 'Show output', cls: 'vc-btn vc-btn-small vc-history-expand' });
+					const outputEl = actionDiv.createDiv({ cls: 'vc-history-output' });
+					outputEl.style.display = 'none';
+					outputEl.createEl('pre', { text: outputStr });
+
+					toggle.onclick = () => {
+						const hidden = outputEl.style.display === 'none';
+						outputEl.style.display = hidden ? 'block' : 'none';
+						toggle.textContent = hidden ? 'Hide output' : 'Show output';
+					};
+				}
+			}
+		}
 	}
 }

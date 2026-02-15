@@ -91,6 +91,64 @@ export class PromptExecutor {
 	}
 
 	/**
+	 * Normalize an agent reference from frontmatter.
+	 * Strips wikilink syntax (`[[...]]`) and `.agent` suffix.
+	 * e.g., `"[[daily-journal.agent]]"` → `"daily-journal"`
+	 *
+	 * @param agentRef - Raw agent value from frontmatter
+	 * @returns Normalized agent name
+	 * @internal
+	 */
+	private normalizeAgentRef(agentRef: string): string {
+		let name = agentRef.trim();
+		// Strip wikilink brackets
+		if (name.startsWith('[[') && name.endsWith(']]')) {
+			name = name.slice(2, -2);
+		}
+		// Strip path prefix (e.g., "../Agents/Tutor.agent" → "Tutor.agent")
+		const lastSlash = name.lastIndexOf('/');
+		if (lastSlash !== -1) {
+			name = name.slice(lastSlash + 1);
+		}
+		// Strip .agent suffix
+		if (name.endsWith('.agent')) {
+			name = name.slice(0, -6);
+		}
+		return name;
+	}
+
+	/**
+	 * Resolve agent from prompt frontmatter and load its instructions.
+	 * Returns the agent instructions to prepend, or empty string if no agent.
+	 *
+	 * @param agentRef - Raw agent value from frontmatter
+	 * @returns Agent instructions prefix and used reference, if found
+	 * @internal
+	 */
+	private async resolveAgentInstructions(agentRef?: string): Promise<{ prefix: string; reference?: { name: string; path: string } }> {
+		if (!agentRef) return { prefix: '' };
+
+		const agentName = this.normalizeAgentRef(agentRef);
+		const agent = this.plugin.agentCache.getAgentByName(agentName);
+
+		if (!agent) {
+			console.warn(`[VC] Agent "${agentRef}" (normalized: "${agentName}") specified in prompt not found`);
+			return { prefix: '' };
+		}
+
+		console.log(`[VC] Prompt specifies agent: ${agent.name}`);
+
+		// Load full agent instructions
+		const fullAgent = await this.plugin.agentCache.getFullAgent(agent.name);
+		if (fullAgent?.instructions) {
+			const prefix = `[Agent: ${agent.name}]\n${fullAgent.instructions}\n\n---\n\n`;
+			return { prefix, reference: { name: agent.name, path: agent.path } };
+		}
+
+		return { prefix: '', reference: { name: agent.name, path: agent.path } };
+	}
+
+	/**
 	 * Execute a custom prompt with additional user arguments.
 	 * Called when user types /prompt-name additional text here.
 	 *
@@ -148,15 +206,6 @@ export class PromptExecutor {
 			this.callbacks.scrollMessageToTop(promptUserMsgEl);
 		}
 
-		if (fullPrompt.agent) {
-			const agent = this.plugin.agentCache.getAgentByName(fullPrompt.agent);
-			if (agent) {
-				console.log(`[VC] Prompt specifies agent: ${agent.name}`);
-			} else {
-				console.warn(`[VC] Agent "${fullPrompt.agent}" specified in prompt not found`);
-			}
-		}
-
 		this.callbacks.setProcessing(true);
 		this.callbacks.updateUIState();
 		this.callbacks.showThinkingIndicator();
@@ -170,6 +219,14 @@ export class PromptExecutor {
 			);
 			content = await this.promptProcessor.resolveMarkdownFileLinks(content, fullPrompt.path);
 			content = this.promptProcessor.processToolReferences(content, fullPrompt.tools);
+
+			// Prepend agent instructions if specified
+			if (fullPrompt.agent) {
+				const { prefix: agentPrefix } = await this.resolveAgentInstructions(fullPrompt.agent);
+				if (agentPrefix) {
+					content = agentPrefix + content;
+				}
+			}
 
 			const originalModel = this.plugin.settings.model;
 			if (fullPrompt.model) {
@@ -227,12 +284,9 @@ export class PromptExecutor {
 		const usedReferences: UsedReference[] = [];
 
 		if (fullPrompt.agent) {
-			const agent = this.plugin.agentCache.getAgentByName(fullPrompt.agent);
-			if (agent) {
-				console.log(`[VC] Prompt specifies agent: ${agent.name}`);
-				usedReferences.push({ type: "agent", name: agent.name, path: agent.path });
-			} else {
-				console.warn(`[VC] Agent "${fullPrompt.agent}" specified in prompt not found`);
+			const { reference: agentRef } = await this.resolveAgentInstructions(fullPrompt.agent);
+			if (agentRef) {
+				usedReferences.push({ type: "agent", name: agentRef.name, path: agentRef.path });
 			}
 		}
 
@@ -273,6 +327,14 @@ export class PromptExecutor {
 			}
 
 			content = this.promptProcessor.processToolReferences(content, fullPrompt.tools);
+
+			// Prepend agent instructions if specified
+			if (fullPrompt.agent) {
+				const { prefix: agentPrefix } = await this.resolveAgentInstructions(fullPrompt.agent);
+				if (agentPrefix) {
+					content = agentPrefix + content;
+				}
+			}
 
 			// Process user arguments (fetch URLs, inline note refs)
 			if (userArgs) {

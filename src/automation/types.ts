@@ -46,7 +46,7 @@ export type AutomationActionType =
 	| 'run-skill'       // Execute a skill
 	| 'create-note'     // Create a new note
 	| 'update-note'     // Update an existing note
-	| 'run-command';    // Execute an Obsidian command
+	| 'run-shell';      // Execute a shell command (desktop only)
 
 /**
  * Base interface for all automation triggers
@@ -195,12 +195,12 @@ export interface UpdateNoteAction extends AutomationActionBase {
 }
 
 /**
- * Run an Obsidian command action
+ * Run a shell command action (desktop only)
  */
-export interface RunCommandAction extends AutomationActionBase {
-	type: 'run-command';
-	/** Obsidian command ID */
-	commandId: string;
+export interface RunShellAction extends AutomationActionBase {
+	type: 'run-shell';
+	/** Shell command to execute */
+	command: string;
 }
 
 /**
@@ -212,7 +212,7 @@ export type AutomationAction =
 	| RunSkillAction
 	| CreateNoteAction
 	| UpdateNoteAction
-	| RunCommandAction;
+	| RunShellAction;
 
 /**
  * Automation configuration within an extension manifest
@@ -297,6 +297,8 @@ export interface AutomationExecutionContext {
 	};
 	/** Timestamp when execution started */
 	startTime: number;
+	/** Results from previously executed actions in this pipeline */
+	previousResults: ActionExecutionResult[];
 }
 
 /**

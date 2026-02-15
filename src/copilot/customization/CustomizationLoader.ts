@@ -14,6 +14,8 @@
 
 import { App, TFile, TFolder, FileSystemAdapter } from "obsidian";
 import { normalizeVaultPath, isVaultRoot, toVaultRelativePath, expandHomePath } from "../../utils/pathUtils";
+import { isDesktop } from "../../utils/platform";
+import { parseYamlKeyValues, parseFrontmatter } from "./YamlParser";
 
 /**
  * Parsed agent from .agent.md file
@@ -25,6 +27,14 @@ export interface CustomAgent {
 	description: string;
 	/** Tools the agent can use */
 	tools?: string[];
+	/** Allowlist of agent names this agent can invoke as subagents */
+	agents?: string[];
+	/** Model override(s) for this agent */
+	model?: string | string[];
+	/** Whether this agent appears in the user-facing agent selector (default: true) */
+	userInvokable?: boolean;
+	/** Whether the model can autonomously invoke this agent as a subagent (default: false) */
+	disableModelInvocation?: boolean;
 	/** Full path to the agent file */
 	path: string;
 	/** Raw content of the agent file (without frontmatter) */
@@ -108,53 +118,7 @@ export interface VoiceAgentDefinition {
 	instructions: string;
 }
 
-/**
- * Simple YAML key-value parser
- */
-function parseYamlKeyValues(yamlStr: string): Record<string, unknown> {
-	const frontmatter: Record<string, unknown> = {};
-	const lines = yamlStr.split(/\r?\n/);
-	
-	for (const line of lines) {
-		const colonIndex = line.indexOf(':');
-		if (colonIndex === -1) continue;
-
-		const key = line.slice(0, colonIndex).trim();
-		let value: unknown = line.slice(colonIndex + 1).trim();
-
-		// Handle arrays like ["read", "search", "edit"]
-		if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
-			try {
-				value = JSON.parse(value.replace(/'/g, '"'));
-			} catch {
-				// Keep as string if parsing fails
-			}
-		}
-		// Handle quoted strings
-		else if (typeof value === 'string' && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
-			value = value.slice(1, -1);
-		}
-
-		frontmatter[key] = value;
-	}
-	
-	return frontmatter;
-}
-
-/**
- * Parse YAML frontmatter from markdown content
- */
-function parseFrontmatter(content: string): { frontmatter: Record<string, unknown>; body: string } {
-	const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-	if (!match) {
-		return { frontmatter: {}, body: content };
-	}
-
-	const yamlStr = match[1] || '';
-	const body = match[2] || '';
-
-	return { frontmatter: parseYamlKeyValues(yamlStr), body: body.trim() };
-}
+// parseYamlKeyValues and parseFrontmatter are imported from YamlParser.ts
 
 /**
  * Parse content from a code block (e.g., ```skill ... ```)
@@ -271,6 +235,12 @@ private getFolderFromPath(dir: string): TFolder | null {
 								name: String(frontmatter.name),
 								description: String(frontmatter.description),
 								tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
+								agents: Array.isArray(frontmatter.agents) ? frontmatter.agents.map(String) : undefined,
+								model: Array.isArray(frontmatter.model)
+									? frontmatter.model.map(String)
+									: frontmatter.model ? String(frontmatter.model) : undefined,
+								userInvokable: frontmatter['user-invokable'] === 'false' || frontmatter['user-invokable'] === false ? false : undefined,
+								disableModelInvocation: frontmatter['disable-model-invocation'] === 'true' || frontmatter['disable-model-invocation'] === true ? true : undefined,
 								path: child.path,
 								instructions: body,
 							});
@@ -286,7 +256,8 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
-	 * Load all skills from the configured skill directories
+	 * Load all skills from the configured skill directories.
+	 * Tries vault API first, falls back to filesystem for out-of-vault directories.
 	 */
 	async loadSkills(directories: string[]): Promise<CustomSkill[]> {
 		const skills: CustomSkill[] = [];
@@ -294,6 +265,9 @@ private getFolderFromPath(dir: string): TFolder | null {
 		for (const dir of directories) {
 			const folder = this.getFolderFromPath(dir);
 			if (!folder) {
+				// Vault API failed — try filesystem fallback for out-of-vault dirs (desktop only)
+				const fsSkills = await this.loadSkillsFromFs(dir);
+				skills.push(...fsSkills);
 				continue;
 			}
 
@@ -305,26 +279,8 @@ private getFolderFromPath(dir: string): TFolder | null {
 					if (skillFile && skillFile instanceof TFile) {
 						try {
 							const content = await this.app.vault.read(skillFile);
-							
-							// Try parsing as code block first (```skill ... ```)
-							let parsed = parseCodeBlockContent(content, 'skill');
-							
-							// Fall back to regular frontmatter if not a code block
-							if (!parsed) {
-								parsed = parseFrontmatter(content);
-							}
-							
-							const { frontmatter, body } = parsed;
-
-							if (frontmatter.name && frontmatter.description) {
-								skills.push({
-									name: String(frontmatter.name),
-									description: String(frontmatter.description),
-									license: frontmatter.license ? String(frontmatter.license) : undefined,
-									path: child.path,
-									instructions: body,
-								});
-							}
+							const skill = this.parseSkillContent(content, child.path);
+							if (skill) skills.push(skill);
 						} catch (error) {
 							console.error(`Failed to load skill from ${skillFile.path}:`, error);
 						}
@@ -334,6 +290,86 @@ private getFolderFromPath(dir: string): TFolder | null {
 		}
 
 		return skills;
+	}
+
+	/**
+	 * Parse skill content from a SKILL.md file.
+	 * @internal
+	 */
+	private parseSkillContent(content: string, dirPath: string): CustomSkill | null {
+		// Try parsing as code block first (```skill ... ```)
+		let parsed = parseCodeBlockContent(content, 'skill');
+
+		// Fall back to regular frontmatter if not a code block
+		if (!parsed) {
+			parsed = parseFrontmatter(content);
+		}
+
+		const { frontmatter, body } = parsed;
+
+		if (frontmatter.name && frontmatter.description) {
+			return {
+				name: String(frontmatter.name),
+				description: String(frontmatter.description),
+				license: frontmatter.license ? String(frontmatter.license) : undefined,
+				path: dirPath,
+				instructions: body,
+			};
+		}
+		return null;
+	}
+
+	/**
+	 * Load skills from an absolute filesystem path (out-of-vault directories).
+	 * Desktop only — uses Node.js fs module.
+	 * @internal
+	 */
+	private async loadSkillsFromFs(dir: string): Promise<CustomSkill[]> {
+		if (!isDesktop) return [];
+
+		const expandedDir = expandHomePath(dir).replace(/\\/g, '/');
+
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const fs = require("fs") as typeof import("fs");
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const path = require("path") as typeof import("path");
+
+			if (!fs.existsSync(expandedDir)) {
+				console.log(`[VC] Skill directory not found on filesystem: "${expandedDir}"`);
+				return [];
+			}
+
+			const stat = fs.statSync(expandedDir);
+			if (!stat.isDirectory()) return [];
+
+			const skills: CustomSkill[] = [];
+			const entries = fs.readdirSync(expandedDir, { withFileTypes: true });
+
+			for (const entry of entries) {
+				if (!entry.isDirectory()) continue;
+
+				const skillFilePath = path.join(expandedDir, entry.name, 'SKILL.md');
+				if (!fs.existsSync(skillFilePath)) continue;
+
+				try {
+					const content = fs.readFileSync(skillFilePath, 'utf-8');
+					const skillDirPath = path.join(expandedDir, entry.name).replace(/\\/g, '/');
+					const skill = this.parseSkillContent(content, skillDirPath);
+					if (skill) {
+						skills.push(skill);
+					}
+				} catch (error) {
+					console.error(`Failed to load skill from ${skillFilePath}:`, error);
+				}
+			}
+
+			console.log(`[VC] Loaded ${skills.length} skills from filesystem: "${expandedDir}"`);
+			return skills;
+		} catch (error) {
+			console.error(`[VC] Failed to load skills from filesystem "${expandedDir}":`, error);
+			return [];
+		}
 	}
 
 	/**

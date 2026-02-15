@@ -1,7 +1,7 @@
 import { copyFileSync, mkdirSync, existsSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -46,20 +46,33 @@ if (copied < FILES_TO_COPY.length) {
 console.log(`\nTest vault ready at: ${TEST_VAULT_PATH}`);
 
 // Attempt to reload the plugin via Obsidian CLI (requires Obsidian 1.12+ with CLI enabled)
+// On Windows, cmd.exe doesn't resolve .com executables the same way — use "obsidian.com" explicitly.
+// Uses eval to disable/enable since plugin:reload exits code 1 in CLI v1.12.1.
 if (!skipReload) {
+	const cliCommand = process.platform === "win32" ? "obsidian.com" : "obsidian";
+	const evalCode = `app.plugins.disablePlugin('${PLUGIN_ID}').then(() => app.plugins.enablePlugin('${PLUGIN_ID}')).then(() => 'reloaded')`;
 	try {
-		execSync(`obsidian vault="${TEST_VAULT_PATH}" plugin:reload id=${PLUGIN_ID}`, {
-			timeout: 10000,
+		execFileSync(cliCommand, ["eval", `code=${evalCode}`], {
+			timeout: 15000,
 			stdio: "pipe",
 		});
 		console.log(`  ✓ Plugin reloaded via Obsidian CLI`);
-	} catch {
-		console.log(
-			"\n  ℹ Obsidian CLI not available — reload the plugin manually in Obsidian."
-		);
-		console.log(
-			"    To enable: Obsidian 1.12+ → Settings → General → Command line interface"
-		);
+	} catch (err) {
+		if (err.code === "ENOENT") {
+			console.log(
+				"\n  ℹ Obsidian CLI not found — reload the plugin manually in Obsidian."
+			);
+			console.log(
+				"    To enable: Obsidian 1.12+ → Settings → General → Command line interface"
+			);
+		} else {
+			const stderr = err.stderr?.toString().trim();
+			console.log(`\n  ⚠ Plugin reload failed (exit code ${err.status}).`);
+			if (stderr) {
+				console.log(`    ${stderr}`);
+			}
+			console.log("    Reload the plugin manually in Obsidian.");
+		}
 	}
 } else {
 	console.log("  ℹ Skipping Obsidian CLI reload (--no-reload)");

@@ -24,11 +24,21 @@ import { normalizeVaultPath, toVaultRelativePath } from "../../../utils/pathUtil
  */
 export async function loadAuthorInfo(): Promise<{ authorName?: string; authorUrl?: string; githubUsername?: string }> {
 	try {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		const { exec } = require('child_process');
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		const { promisify } = require('util');
-		const execAsync = promisify(exec);
+		const { exec } = await import("child_process");
+		const execAsync = (command: string): Promise<{ stdout: string; stderr: string }> => {
+			return new Promise((resolve, reject) => {
+				exec(command, (error, stdout, stderr) => {
+					if (error) {
+						reject(error);
+						return;
+					}
+					resolve({
+						stdout: typeof stdout === "string" ? stdout : String(stdout ?? ""),
+						stderr: typeof stderr === "string" ? stderr : String(stderr ?? ""),
+					});
+				});
+			});
+		};
 		
 		const result: { authorName?: string; authorUrl?: string; githubUsername?: string } = {};
 		
@@ -69,11 +79,11 @@ export async function loadAuthorInfo(): Promise<{ authorName?: string; authorUrl
 				let username: string | undefined;
 				
 				if (emailStr.includes('@users.noreply.github.com')) {
-					const beforeAt = emailStr.split('@')[0];
-					username = beforeAt.includes('+') ? beforeAt.split('+')[1] : beforeAt;
+					const beforeAt = emailStr.split('@')[0] ?? '';
+					username = beforeAt.includes('+') ? (beforeAt.split('+')[1] ?? beforeAt) : beforeAt;
 					result.githubUsername = username;
 				} else if (emailStr.includes('@')) {
-					username = emailStr.split('@')[0];
+					username = emailStr.split('@')[0] ?? undefined;
 					result.githubUsername = username;
 				}
 				

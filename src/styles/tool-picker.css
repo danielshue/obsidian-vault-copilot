@@ -83,7 +83,7 @@
 .vc-tp-tree {
 	flex: 1;
 	overflow-y: auto;
-	max-height: 450px;
+	max-height: min(450px, calc(85vh - 140px));
 	padding: 4px 0;
 }
 
@@ -176,9 +176,9 @@
 /* Tool item */
 .vc-tp-item {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 6px;
-	padding: 4px 8px;
+	padding: 6px 8px;
 	cursor: pointer;
 	user-select: none;
 }
@@ -195,19 +195,36 @@
 	padding-left: 48px;
 }
 
+/* Checkbox and icon align to the first line */
+.vc-tp-item > .vc-tp-checkbox,
+.vc-tp-item > .vc-tp-icon {
+	margin-top: 2px;
+	flex-shrink: 0;
+}
+
+/* Text block stacks name and description vertically */
+.vc-tp-item-text {
+	flex: 1;
+	min-width: 0;
+}
+
 .vc-tp-item-name {
 	font-size: 13px;
 	font-weight: 500;
 	color: var(--text-normal);
 }
 
+.vc-tp-item-id {
+	font-size: 11px;
+	color: var(--text-faint);
+	margin-left: 6px;
+}
+
 .vc-tp-item-desc {
 	font-size: 12px;
 	color: var(--text-muted);
-	margin-left: 8px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	line-height: 1.4;
+	margin-top: 2px;
 }
 
 /* Tool Summary (Settings Tab) */

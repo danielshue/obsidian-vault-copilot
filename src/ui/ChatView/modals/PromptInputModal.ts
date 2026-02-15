@@ -19,11 +19,13 @@ export class PromptInputModal extends Modal {
 		this.variables = variables;
 		this.onSubmit = onSubmit;
 		
-		// Initialize with first option as default
+		// Initialize with first option as default (for option-based variables)
 		for (const v of variables) {
 			const firstOption = v.options[0];
 			if (firstOption) {
 				this.values.set(v.name, firstOption);
+			} else {
+				this.values.set(v.name, '');
 			}
 		}
 	}
@@ -51,26 +53,39 @@ export class PromptInputModal extends Modal {
 				cls: "vc-pi-label"
 			});
 			
-			// Options as buttons
-			const optionsContainer = group.createDiv({ cls: "vc-pi-options" });
-			
-			for (const option of variable.options) {
-				const btn = optionsContainer.createEl("button", {
-					text: option,
-					cls: "vc-pi-option"
-				});
+			if (variable.options.length > 0) {
+				// Options as buttons
+				const optionsContainer = group.createDiv({ cls: "vc-pi-options" });
 				
-				if (this.values.get(variable.name) === option) {
-					btn.addClass("vc-pi-option-selected");
-				}
-				
-				btn.addEventListener("click", () => {
-					this.values.set(variable.name, option);
-					// Update selection UI
-					optionsContainer.querySelectorAll(".vc-pi-option").forEach(el => {
-						el.removeClass("vc-pi-option-selected");
+				for (const option of variable.options) {
+					const btn = optionsContainer.createEl("button", {
+						text: option,
+						cls: "vc-pi-option"
 					});
-					btn.addClass("vc-pi-option-selected");
+					
+					if (this.values.get(variable.name) === option) {
+						btn.addClass("vc-pi-option-selected");
+					}
+					
+					btn.addEventListener("click", () => {
+						this.values.set(variable.name, option);
+						// Update selection UI
+						optionsContainer.querySelectorAll(".vc-pi-option").forEach(el => {
+							el.removeClass("vc-pi-option-selected");
+						});
+						btn.addClass("vc-pi-option-selected");
+					});
+				}
+			} else {
+				// Free-text input field
+				const input = group.createEl("input", {
+					type: "text",
+					placeholder: variable.description,
+					cls: "vc-pi-text-input"
+				});
+				input.value = this.values.get(variable.name) || '';
+				input.addEventListener("input", () => {
+					this.values.set(variable.name, input.value);
 				});
 			}
 		}
@@ -94,10 +109,13 @@ export class PromptInputModal extends Modal {
 }
 
 /**
- * Parse ${input:name:desc|opt1|opt2} variables from prompt content
+ * Parse ${input:name:desc|opt1|opt2} and ${input:name} variables from prompt content.
+ * Variables without options produce a free-text input field.
+ * Variables without a description use the variable name as description.
  */
 export function parseInputVariables(content: string): PromptInputVariable[] {
-	const regex = /\$\{input:([^:}]+):([^}]+)\}/g;
+	// Match both ${input:name:descAndOptions} and ${input:name}
+	const regex = /\$\{input:([^:}]+)(?::([^}]+))?\}/g;
 	const variables: PromptInputVariable[] = [];
 	const seen = new Set<string>();
 	
@@ -106,20 +124,21 @@ export function parseInputVariables(content: string): PromptInputVariable[] {
 		const name = match[1];
 		const descAndOptions = match[2];
 		
-		// Skip if capture groups are undefined
-		if (!name || !descAndOptions) continue;
+		// Skip if name is undefined
+		if (!name) continue;
 		
 		// Skip duplicates
 		if (seen.has(name)) continue;
 		seen.add(name);
 		
-		const parts = descAndOptions.split("|");
-		const description = parts[0]?.trim() || name;
-		const options = parts.slice(1).map(opt => opt.trim()).filter(opt => opt);
-		
-		// Only include variables that have options (selection required)
-		if (options.length > 0) {
+		if (descAndOptions) {
+			const parts = descAndOptions.split("|");
+			const description = parts[0]?.trim() || name;
+			const options = parts.slice(1).map(opt => opt.trim()).filter(opt => opt);
 			variables.push({ name, description, options });
+		} else {
+			// Simple ${input:name} — free text with name as description
+			variables.push({ name, description: name, options: [] });
 		}
 	}
 	

@@ -1,29 +1,50 @@
 import { CachedPromptInfo } from "../../../copilot/customization/PromptCache";
-import { SLASH_COMMANDS, SlashCommand } from "../processing/SlashCommands";
+import { CachedSkillInfo } from "../../../copilot/customization/SkillCache";
+import { SLASH_COMMANDS } from "../processing/SlashCommands";
+
+/**
+ * Type of picker item — used for visual badges and routing
+ */
+type PickerItemType = 'builtin' | 'prompt' | 'skill';
+
+/**
+ * Extended picker item with type information for badges and routing
+ */
+interface PickerItem extends CachedPromptInfo {
+	/** Item type for badge display and selection routing */
+	itemType: PickerItemType;
+}
 
 /**
  * Manages the prompt picker dropdown UI that appears when user types '/'
+ * Shows built-in commands, custom prompts, and agent skills
  */
 export class PromptPicker {
 	private containerEl: HTMLElement;
 	private inputEl: HTMLDivElement;  // contenteditable div
 	private visible = false;
 	private selectedIndex = 0;
-	private filteredPrompts: CachedPromptInfo[] = [];
+	private filteredItems: PickerItem[] = [];
 	private onSelect: (prompt: CachedPromptInfo) => Promise<void>;
+	private onSelectSkill?: (skill: CachedSkillInfo) => Promise<void>;
 	private getPrompts: () => CachedPromptInfo[];
+	private getSkills: () => CachedSkillInfo[];
 	private justSelected = false;  // Flag to prevent Enter auto-submit after selection
 
 	constructor(options: {
 		containerEl: HTMLElement;
 		inputEl: HTMLDivElement;
 		getPrompts: () => CachedPromptInfo[];
+		getSkills?: () => CachedSkillInfo[];
 		onSelect: (prompt: CachedPromptInfo) => Promise<void>;
+		onSelectSkill?: (skill: CachedSkillInfo) => Promise<void>;
 	}) {
 		this.containerEl = options.containerEl;
 		this.inputEl = options.inputEl;
 		this.getPrompts = options.getPrompts;
+		this.getSkills = options.getSkills || (() => []);
 		this.onSelect = options.onSelect;
+		this.onSelectSkill = options.onSelectSkill;
 	}
 
 	/**
@@ -72,7 +93,7 @@ export class PromptPicker {
 			e.preventDefault();
 			this.selectedIndex = Math.min(
 				this.selectedIndex + 1,
-				this.filteredPrompts.length - 1
+				this.filteredItems.length - 1
 			);
 			this.highlightItem();
 			return true;
@@ -114,7 +135,7 @@ export class PromptPicker {
 	}
 
 	/**
-	 * Update the prompt picker with filtered prompts matching the query
+	 * Update the prompt picker with filtered items matching the query
 	 */
 	update(query: string): void {
 		// Get the search term (remove the leading /)
@@ -123,16 +144,34 @@ export class PromptPicker {
 		// Get prompts from cache
 		const allPrompts = this.getPrompts();
 		
-		// Also include built-in slash commands as "prompts"
-		const builtInItems: CachedPromptInfo[] = SLASH_COMMANDS.map(cmd => ({
+		// Get skills from cache
+		const allSkills = this.getSkills();
+		
+		// Built-in slash commands
+		const builtInItems: PickerItem[] = SLASH_COMMANDS.map(cmd => ({
 			name: cmd.name,
 			description: cmd.description,
 			path: `builtin:${cmd.name}`,
+			itemType: 'builtin' as PickerItemType,
+		}));
+		
+		// Custom prompts
+		const promptItems: PickerItem[] = allPrompts.map(p => ({
+			...p,
+			itemType: 'prompt' as PickerItemType,
+		}));
+		
+		// Skills as picker items
+		const skillItems: PickerItem[] = allSkills.map(s => ({
+			name: s.name,
+			description: s.description,
+			path: `skill:${s.path}`,
+			itemType: 'skill' as PickerItemType,
 		}));
 		
 		// Combine and filter
-		const allItems = [...builtInItems, ...allPrompts];
-		this.filteredPrompts = allItems.filter(p => 
+		const allItems = [...builtInItems, ...promptItems, ...skillItems];
+		this.filteredItems = allItems.filter(p => 
 			p.name.toLowerCase().includes(searchTerm) ||
 			p.description.toLowerCase().includes(searchTerm)
 		);
@@ -140,7 +179,7 @@ export class PromptPicker {
 		// Ensure selected index is within bounds
 		this.selectedIndex = Math.min(
 			this.selectedIndex,
-			Math.max(0, this.filteredPrompts.length - 1)
+			Math.max(0, this.filteredItems.length - 1)
 		);
 		
 		// Render the picker
@@ -153,25 +192,34 @@ export class PromptPicker {
 	private render(): void {
 		this.containerEl.empty();
 		
-		if (this.filteredPrompts.length === 0) {
+		if (this.filteredItems.length === 0) {
 			const emptyEl = this.containerEl.createDiv({ cls: "vc-prompt-picker-empty" });
 			emptyEl.setText("No prompts found");
 			return;
 		}
 		
-		// Add items (VS Code style: command on left, description on right)
-		this.filteredPrompts.forEach((prompt, index) => {
+		// Add items (VS Code style: badge + command on left, description on right)
+		this.filteredItems.forEach((item, index) => {
 			const itemEl = this.containerEl.createDiv({ 
 				cls: `vc-prompt-picker-item ${index === this.selectedIndex ? 'vc-selected' : ''}`
 			});
 			
-			// Command name on the left
-			const nameEl = itemEl.createDiv({ cls: "vc-prompt-picker-name" });
-			nameEl.setText(`/${prompt.name}`);
+			// Left side: badge + name
+			const leftEl = itemEl.createDiv({ cls: "vc-prompt-picker-left" });
+			
+			// Type badge
+			if (item.itemType !== 'builtin') {
+				const badgeEl = leftEl.createSpan({ cls: `vc-prompt-picker-badge vc-badge-${item.itemType}` });
+				badgeEl.setText(item.itemType);
+			}
+			
+			// Command name
+			const nameEl = leftEl.createSpan({ cls: "vc-prompt-picker-name" });
+			nameEl.setText(`/${item.name}`);
 			
 			// Description on the right
 			const descEl = itemEl.createDiv({ cls: "vc-prompt-picker-desc" });
-			descEl.setText(prompt.description);
+			descEl.setText(item.description);
 			
 			// Click handler
 			itemEl.addEventListener("click", () => {
@@ -204,11 +252,11 @@ export class PromptPicker {
 	}
 
 	/**
-	 * Select the currently highlighted prompt from the picker
+	 * Select the currently highlighted item from the picker
 	 */
 	private async selectCurrent(): Promise<void> {
-		const selectedPrompt = this.filteredPrompts[this.selectedIndex];
-		if (!selectedPrompt) {
+		const selectedItem = this.filteredItems[this.selectedIndex];
+		if (!selectedItem) {
 			this.hide();
 			return;
 		}
@@ -219,17 +267,37 @@ export class PromptPicker {
 		// Set flag to prevent Enter from auto-submitting
 		this.justSelected = true;
 		
-		// Insert the prompt/command name into the input field
+		// Insert the item name into the input field
 		// Replace spaces with hyphens for slash command compatibility
-		// User can then add additional content before submitting
-		const normalizedName = selectedPrompt.name.replace(/\s+/g, '-');
-		this.inputEl.innerText = `/${normalizedName} `;
+		const normalizedName = selectedItem.name.replace(/\s+/g, '-');
+		
+		// Show argument-hint as ghost text if available
+		const hint = selectedItem.argumentHint;
+		if (hint) {
+			this.inputEl.innerHTML = '';
+			const textNode = document.createTextNode(`/${normalizedName} `);
+			this.inputEl.appendChild(textNode);
+			const hintSpan = document.createElement('span');
+			hintSpan.className = 'vc-prompt-picker-hint';
+			hintSpan.textContent = hint;
+			hintSpan.contentEditable = 'false';
+			this.inputEl.appendChild(hintSpan);
+		} else {
+			this.inputEl.innerText = `/${normalizedName} `;
+		}
+		
 		this.inputEl.focus();
 		
-		// Move cursor to end so user can type additional content
+		// Move cursor to after the command name (before hint if present)
 		const range = document.createRange();
-		range.selectNodeContents(this.inputEl);
-		range.collapse(false);
+		const textNode = this.inputEl.firstChild;
+		if (textNode) {
+			range.setStartAfter(textNode);
+			range.collapse(true);
+		} else {
+			range.selectNodeContents(this.inputEl);
+			range.collapse(false);
+		}
 		const sel = window.getSelection();
 		if (sel) {
 			sel.removeAllRanges();

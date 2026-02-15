@@ -53,7 +53,8 @@
 import { CopilotClient, CopilotSession, SessionEvent, defineTool } from "@github/copilot-sdk";
 import { App, TFile } from "obsidian";
 import { SkillRegistry, VaultCopilotSkill } from "../customization/SkillRegistry";
-import { CustomizationLoader, CustomInstruction } from "../customization/CustomizationLoader";
+import { CustomizationLoader, CustomInstruction, CustomAgent } from "../customization/CustomizationLoader";
+import { AgentCache } from "../customization/AgentCache";
 import { McpManager, McpManagerEvent } from "../mcp/McpManager";
 import { McpTool } from "../mcp/McpTypes";
 import { normalizeVaultPath, ensureMarkdownExtension } from "../../utils/pathUtils";
@@ -87,6 +88,8 @@ export interface GitHubCopilotCliConfig {
 	instructionDirectories?: string[];
 	/** Directories containing prompt files */
 	promptDirectories?: string[];
+	/** Agent cache for looking up agents by name */
+	agentCache?: AgentCache;
 	/** Optional allowlist of tool names to enable (SDK availableTools) */
 	availableTools?: string[];
 	/** Request timeout in milliseconds (default: 120000 - 2 minutes) */
@@ -166,6 +169,10 @@ export class GitHubCopilotCliService {
 	private loadedInstructions: CustomInstruction[] = [];
 	private mcpEventUnsubscribe: (() => void) | null = null;
 	private questionCallback: ((question: QuestionRequest) => Promise<QuestionResponse | null>) | null = null;
+	/** Current subagent recursion depth (max 3) */
+	private subagentDepth = 0;
+	/** The currently active parent agent (for allowlist checks during subagent invocation) */
+	private currentParentAgent?: CustomAgent;
 
 	constructor(app: App, config: GitHubCopilotCliConfig) {
 		this.app = app;
@@ -267,6 +274,7 @@ export class GitHubCopilotCliService {
 	 */
 	private interceptConsoleLogs(): void {
 		const tracingService = getTracingService();
+		const processLike = (globalThis as any).process as { stderr?: { write?: (...args: any[]) => any } } | undefined;
 		
 		// Log that we're setting up interception
 		console.log('[Vault Copilot] Setting up CLI log interception...');
@@ -274,9 +282,9 @@ export class GitHubCopilotCliService {
 		
 		// Intercept process.stderr.write to capture CLI subprocess logs
 		// The SDK writes logs with prefix "[CLI subprocess]" to stderr
-		if (process?.stderr?.write) {
-			const originalStderrWrite = process.stderr.write.bind(process.stderr);
-			(process.stderr as any).write = (chunk: any, encoding?: any, callback?: any) => {
+		if (processLike?.stderr?.write) {
+			const originalStderrWrite = processLike.stderr.write.bind(processLike.stderr);
+			(processLike.stderr as any).write = (chunk: any, encoding?: any, callback?: any) => {
 				const message = typeof chunk === 'string' ? chunk : chunk?.toString?.() || '';
 				
 				// Debug: Log all stderr writes to see what we're getting
@@ -1333,7 +1341,32 @@ The following directories are configured for extending your capabilities:
 ${this.getCustomizationDirectoriesInfo()}
 
 ${this.getLoadedInstructionsContent()}
+
+## Subagent Delegation
+You can delegate complex, multi-step tasks to subagents using the run_subagent tool.
+- Use agentName to invoke a named agent (from .agent.md files) with specialized instructions and tools.
+- Omit agentName for ad-hoc delegation with just a detailed prompt.
+- Each subagent runs in an isolated context and returns a single summary.
+- Subagents can nest up to 3 levels deep.
+${this.getAvailableSubagentsPrompt()}
 `;
+	}
+
+	/**
+	 * Generate prompt text listing available subagents.
+	 * @internal
+	 */
+	private getAvailableSubagentsPrompt(): string {
+		const agentCache = this.config.agentCache;
+		if (!agentCache || !agentCache.hasAgents()) return "";
+
+		const agents = agentCache.getAgents()
+			.filter(a => !a.disableModelInvocation);
+
+		if (agents.length === 0) return "";
+
+		const lines = agents.map(a => `- **${a.name}**: ${a.description}`);
+		return `\nAvailable agents for delegation:\n${lines.join('\n')}`;
 	}
 
 	/**
@@ -1641,12 +1674,16 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 			defineTool(TOOL_NAMES.LIST_AVAILABLE_AGENTS, {
 				description: TOOL_DESCRIPTIONS[TOOL_NAMES.LIST_AVAILABLE_AGENTS],
 				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.LIST_AVAILABLE_AGENTS],
-				handler: async (args: { name?: string }) => {
+				handler: async (args: { name?: string; context?: string }) => {
 					const dirs = this.config.agentDirectories ?? [];
 					const agents = await this.customizationLoader.loadAgents(dirs);
-					const filtered = args.name
+					let filtered = args.name
 						? agents.filter(a => a.name.toLowerCase().includes(args.name!.toLowerCase()))
 						: agents;
+					// Filter for subagent context: exclude agents with disableModelInvocation
+					if (args.context === "subagent") {
+						filtered = filtered.filter(a => !a.disableModelInvocation);
+					}
 					return {
 						count: filtered.length,
 						agents: filtered.map(a => ({
@@ -1654,6 +1691,7 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 							description: a.description,
 							tools: a.tools ?? [],
 							path: a.path,
+							...(a.disableModelInvocation ? { disableModelInvocation: true } : {}),
 						})),
 					};
 				},
@@ -1699,6 +1737,15 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 							path: i.path,
 						})),
 					};
+				},
+			}),
+
+			// Subagent tool
+			defineTool(TOOL_NAMES.RUN_SUBAGENT, {
+				description: TOOL_DESCRIPTIONS[TOOL_NAMES.RUN_SUBAGENT],
+				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.RUN_SUBAGENT],
+				handler: async (args: { agentName?: string; prompt: string; timeout?: number }) => {
+					return await this.executeSubagent(args.agentName, args.prompt, args.timeout);
 				},
 			}),
 		];
@@ -1871,5 +1918,137 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 			console.error(`[GitHubCopilotCliService] Failed to generate AI summary for ${title}:`, error);
 			return `Error generating summary: ${error instanceof Error ? error.message : String(error)}`;
 		}
+	}
+
+	/**
+	 * Execute a subagent with an isolated child session.
+	 * Supports named agents (from .agent.md files) and ad-hoc subagents.
+	 * 
+	 * @param agentName - Optional agent name to look up from AgentCache
+	 * @param prompt - The detailed task prompt
+	 * @param timeout - Optional timeout in milliseconds (default: requestTimeout)
+	 * @returns The subagent's summary response
+	 * @internal
+	 */
+	private async executeSubagent(agentName: string | undefined, prompt: string, timeout?: number): Promise<{ success: boolean; agentName?: string; result: string }> {
+		const MAX_DEPTH = 3;
+
+		if (this.subagentDepth >= MAX_DEPTH) {
+			return {
+				success: false,
+				agentName,
+				result: `Maximum subagent recursion depth (${MAX_DEPTH}) reached. Cannot spawn another subagent.`,
+			};
+		}
+
+		if (!this.client) {
+			return { success: false, agentName, result: "Copilot client not initialized" };
+		}
+
+		// Resolve agent if named
+		let agent: CustomAgent | undefined;
+		if (agentName) {
+			agent = await this.resolveAgent(agentName);
+			if (!agent) {
+				return {
+					success: false,
+					agentName,
+					result: `Agent "${agentName}" not found. Use list_available_agents to see available agents.`,
+				};
+			}
+
+			// Check if agent allows model invocation
+			if (agent.disableModelInvocation) {
+				// Check if the current parent agent has this agent in its allowlist
+				const parentAllowsIt = this.currentParentAgent?.agents?.includes(agent.name);
+				if (!parentAllowsIt) {
+					return {
+						success: false,
+						agentName: agent.name,
+						result: `Agent "${agent.name}" has disabled model invocation and is not in the parent agent's allowlist.`,
+					};
+				}
+			}
+		}
+
+		const tracingService = getTracingService();
+		const displayName = agent?.name || "ad-hoc";
+		tracingService.addSdkLog('info', `[Subagent Started] ${displayName}`, 'subagent-event');
+
+		try {
+			this.subagentDepth++;
+
+			// Build system message for the child session
+			const systemContent = agent
+				? `You are the "${agent.name}" agent. ${agent.description}\n\n${agent.instructions}`
+				: "You are a helpful assistant performing a delegated task. Complete the task and return a concise summary of the result.";
+
+			// Build tools for child session — reuse parent tools
+			const childTools = this.createObsidianTools();
+
+			// Create child session with optional model override
+			const modelOverride = agent?.model
+				? (Array.isArray(agent.model) ? agent.model[0] : agent.model)
+				: this.config.model;
+
+			const previousParent = this.currentParentAgent;
+			if (agent) {
+				this.currentParentAgent = agent;
+			}
+
+			const childSession = await this.client.createSession({
+				model: modelOverride,
+				streaming: false,
+				tools: childTools,
+				systemMessage: { content: systemContent },
+			});
+
+			const effectiveTimeout = timeout || this.config.requestTimeout || DEFAULT_REQUEST_TIMEOUT;
+			const response = await childSession.sendAndWait({ prompt }, effectiveTimeout);
+			const result = response?.data?.content || "Subagent completed but returned no content.";
+
+			await childSession.destroy();
+
+			this.currentParentAgent = previousParent;
+			this.subagentDepth--;
+
+			tracingService.addSdkLog('info', `[Subagent Completed] ${displayName}`, 'subagent-event');
+
+			return { success: true, agentName: agent?.name, result };
+		} catch (error) {
+			this.subagentDepth--;
+			const errorMsg = error instanceof Error ? error.message : String(error);
+			tracingService.addSdkLog('error', `[Subagent Failed] ${displayName}: ${errorMsg}`, 'subagent-event');
+			return { success: false, agentName: agent?.name, result: `Subagent error: ${errorMsg}` };
+		}
+	}
+
+	/**
+	 * Resolve an agent by name using fuzzy matching.
+	 * Tries: exact match → case-insensitive → partial match.
+	 * @internal
+	 */
+	private async resolveAgent(name: string): Promise<CustomAgent | undefined> {
+		const agentCache = this.config.agentCache;
+		if (!agentCache) {
+			// Fall back to CustomizationLoader
+			return await this.customizationLoader.getAgent(this.config.agentDirectories ?? [], name);
+		}
+
+		// Exact match
+		const exact = agentCache.getAgentByName(name);
+		if (exact) return await agentCache.getFullAgent(name);
+
+		// Case-insensitive match
+		const agents = agentCache.getAgents();
+		const lowerName = name.toLowerCase();
+		const caseMatch = agents.find(a => a.name.toLowerCase() === lowerName);
+		if (caseMatch) return await agentCache.getFullAgent(caseMatch.name);
+
+		// Partial match
+		const partialMatch = agents.find(a => a.name.toLowerCase().includes(lowerName));
+		if (partialMatch) return await agentCache.getFullAgent(partialMatch.name);
+
+		return undefined;
 	}
 }

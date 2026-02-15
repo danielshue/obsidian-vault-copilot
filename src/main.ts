@@ -47,7 +47,7 @@
  */
 
 import { Plugin } from "obsidian";
-import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "./ui/settings";
+import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, COPILOT_SETTINGS_TABS, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "./ui/settings";
 import { GitHubCopilotCliService, GitHubCopilotCliConfig, ChatMessage, ModelInfoResult, ModelCapabilitiesInfo, ModelPolicyInfo } from "./copilot/providers/GitHubCopilotCliService";
 import { CopilotChatView, COPILOT_VIEW_TYPE, ConversationHistoryView, TracingView, TRACING_VIEW_TYPE, VOICE_HISTORY_VIEW_TYPE } from "./ui/ChatView";
 import { ExtensionBrowserView, EXTENSION_BROWSER_VIEW_TYPE } from "./ui/extensions/ExtensionBrowserView";
@@ -65,7 +65,9 @@ import {
 } from "./copilot/customization/SkillRegistry";
 import { McpManager } from "./copilot/mcp/McpManager";
 import { AgentCache, CachedAgentInfo } from "./copilot/customization/AgentCache";
+import { CustomizationLoader } from "./copilot/customization/CustomizationLoader";
 import { PromptCache, CachedPromptInfo } from "./copilot/customization/PromptCache";
+import { SkillCache, CachedSkillInfo } from "./copilot/customization/SkillCache";
 import { CustomPrompt } from "./copilot/customization/CustomizationLoader";
 import { OpenAIService } from "./copilot/providers/OpenAIService";
 import { AzureOpenAIService } from "./copilot/providers/AzureOpenAIService";
@@ -124,7 +126,7 @@ export interface SessionInfo {
 }
 
 // Re-export skill types for external plugins
-export type { VaultCopilotSkill, SkillInfo, SkillResult, McpServerConfig, SkillRegistryEvent, CachedAgentInfo, CachedPromptInfo, CustomPrompt };
+export type { VaultCopilotSkill, SkillInfo, SkillResult, McpServerConfig, SkillRegistryEvent, CachedAgentInfo, CachedPromptInfo, CachedSkillInfo, CustomPrompt };
 
 // Re-export model types for external plugins
 export type { ModelInfoResult, ModelCapabilitiesInfo, ModelPolicyInfo };
@@ -366,6 +368,8 @@ export default class CopilotPlugin extends Plugin {
 	agentCache!: AgentCache;
 	/** Cache for custom prompt definitions */
 	promptCache!: PromptCache;
+	/** Cache for custom file-based skill definitions */
+	skillCache!: SkillCache;
 	/** MCP server manager */
 	mcpManager!: McpManager;
 	/** Automation engine for scheduled/triggered workflows */
@@ -475,6 +479,10 @@ export default class CopilotPlugin extends Plugin {
 				baseURL: profile.baseURL,
 				mcpManager: this.mcpManager,
 			});
+			if (this.agentCache) {
+				this.openaiService.setAgentCache(this.agentCache);
+				this.openaiService.setCustomizationLoader(new CustomizationLoader(this.app));
+			}
 		} catch (error) {
 			console.error("[VaultCopilot] Failed to initialize OpenAI service:", error);
 		}
@@ -496,6 +504,10 @@ export default class CopilotPlugin extends Plugin {
 				apiVersion: profile.apiVersion,
 				mcpManager: this.mcpManager,
 			});
+			if (this.agentCache) {
+				this.azureOpenaiService.setAgentCache(this.agentCache);
+				this.azureOpenaiService.setCustomizationLoader(new CustomizationLoader(this.app));
+			}
 		} catch (error) {
 			console.error("[VaultCopilot] Failed to initialize Azure service:", error);
 		}
@@ -633,6 +645,10 @@ export default class CopilotPlugin extends Plugin {
 		this.promptCache = new PromptCache(this.app);
 		await this.promptCache.initialize(this.settings.promptDirectories);
 
+		// Initialize skill cache
+		this.skillCache = new SkillCache(this.app);
+		await this.skillCache.initialize(this.settings.skillDirectories);
+
 		// Initialize MCP manager (platform-aware internally)
 		this.mcpManager = new McpManager(this.app);
 		await this.mcpManager.initialize();
@@ -758,8 +774,19 @@ export default class CopilotPlugin extends Plugin {
 			},
 		});
 
-		// Add settings tab
-		this.addSettingTab(new CopilotSettingTab(this.app, this));
+		// Add settings tabs (one per Vault Copilot section)
+		for (const tab of COPILOT_SETTINGS_TABS) {
+			if (tab.requiresDesktop && !supportsLocalProcesses()) {
+				continue;
+			}
+
+			this.addSettingTab(new CopilotSettingTab(this.app, this, {
+				tabId: tab.id,
+				tabName: tab.name,
+				tabIcon: tab.icon,
+				section: tab.section,
+			}));
+		}
 
 		// Auto-connect on startup (optional)
 		// await this.connectCopilot();
@@ -788,6 +815,7 @@ export default class CopilotPlugin extends Plugin {
 		await this.automationEngine?.shutdown();
 		this.agentCache?.destroy();
 		this.promptCache?.destroy();
+		this.skillCache?.destroy();
 		
 		// Unregister built-in voice agents
 		MainVaultAssistant.unregisterBuiltInAgents();
@@ -1015,6 +1043,11 @@ export default class CopilotPlugin extends Plugin {
 		if (this.promptCache) {
 			await this.promptCache.updateDirectories(this.settings.promptDirectories);
 		}
+
+		// Update skill cache when skill directories change
+		if (this.skillCache) {
+			await this.skillCache.updateDirectories(this.settings.skillDirectories);
+		}
 	}
 
 	private getServiceConfig(): GitHubCopilotCliConfig {
@@ -1050,6 +1083,7 @@ export default class CopilotPlugin extends Plugin {
 			agentDirectories: resolvePaths(this.settings.agentDirectories),
 			instructionDirectories: resolvePaths(this.settings.instructionDirectories),
 			promptDirectories: resolvePaths(this.settings.promptDirectories),
+			agentCache: this.agentCache,
 		};
 	}
 

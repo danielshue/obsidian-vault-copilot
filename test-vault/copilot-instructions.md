@@ -1,3 +1,7 @@
+---
+creation-date: ''
+modified-date: ''
+---
 # Vault Document Creation Instructions
 
 When creating or modifying documents in this Obsidian vault, always follow these guidelines:

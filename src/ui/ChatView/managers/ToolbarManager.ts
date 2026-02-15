@@ -204,7 +204,7 @@ export class ToolbarManager {
 			this.plugin.saveSettings();
 		}
 		this.updateModelSelectorText();
-		this.service.updateConfig({ model: this.plugin.settings.model });
+		this.service?.updateConfig({ model: this.plugin.settings.model });
 		this.refreshVoiceToolbar();
 	}
 
@@ -452,7 +452,7 @@ export class ToolbarManager {
 				if (this.selectedAgent === null) item.setChecked(true);
 			});
 
-			const agents = this.plugin.agentCache.getAgents();
+			const agents = this.plugin.agentCache.getAgents().filter(a => a.userInvokable !== false);
 
 			if (agents.length > 0) {
 				menu.addSeparator();

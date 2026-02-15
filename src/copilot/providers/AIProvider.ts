@@ -50,6 +50,8 @@
 import { App } from "obsidian";
 import { ChatMessage } from "./GitHubCopilotCliService";
 import { McpManager } from "../mcp/McpManager";
+import { AgentCache } from "../customization/AgentCache";
+import { CustomizationLoader, CustomAgent } from "../customization/CustomizationLoader";
 import * as VaultOps from "../tools/VaultOperations";
 import type { QuestionRequest, QuestionResponse } from "../../types/questions";
 import { TOOL_NAMES, TOOL_DESCRIPTIONS, TOOL_JSON_SCHEMAS } from "../tools/ToolDefinitions";
@@ -229,6 +231,12 @@ export abstract class AIProvider {
 	protected systemPrompt: string = "";
 	/** Callback for handling question requests from the AI */
 	protected questionCallback: ((question: QuestionRequest) => Promise<QuestionResponse | null>) | null = null;
+	/** Agent cache for subagent resolution */
+	protected agentCache?: AgentCache;
+	/** Customization loader for full agent data */
+	protected customizationLoader?: CustomizationLoader;
+	/** Current subagent recursion depth */
+	protected subagentDepth = 0;
 
 	constructor(app: App, config: AIProviderConfig) {
 		this.app = app;
@@ -302,6 +310,111 @@ export abstract class AIProvider {
 	 */
 	setQuestionCallback(callback: ((question: QuestionRequest) => Promise<QuestionResponse | null>) | null): void {
 		this.questionCallback = callback;
+	}
+
+	/**
+	 * Set the agent cache for subagent support.
+	 * 
+	 * @param cache - AgentCache instance for looking up agents by name
+	 * @since 0.0.22
+	 */
+	setAgentCache(cache: AgentCache): void {
+		this.agentCache = cache;
+	}
+
+	/**
+	 * Set the customization loader for loading full agent data.
+	 * 
+	 * @param loader - CustomizationLoader instance
+	 * @since 0.0.22
+	 */
+	setCustomizationLoader(loader: CustomizationLoader): void {
+		this.customizationLoader = loader;
+	}
+
+	/**
+	 * Create a ToolDefinition for the run_subagent tool.
+	 * Used by OpenAI and Azure OpenAI providers to include run_subagent in their tool set.
+	 * 
+	 * @returns ToolDefinition for run_subagent, or null if no agent infrastructure is available
+	 * @internal
+	 * @since 0.0.22
+	 */
+	protected createRunSubagentToolDefinition(): ToolDefinition | null {
+		if (!this.agentCache && !this.customizationLoader) return null;
+
+		return {
+			name: TOOL_NAMES.RUN_SUBAGENT,
+			description: TOOL_DESCRIPTIONS[TOOL_NAMES.RUN_SUBAGENT],
+			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.RUN_SUBAGENT] as Record<string, unknown>,
+			handler: async (args: Record<string, unknown>) => {
+				return await this.executeSubagentOpenAI(
+					args.agentName as string | undefined,
+					args.prompt as string,
+					args.timeout as number | undefined,
+				);
+			},
+		};
+	}
+
+	/**
+	 * Execute a subagent for OpenAI/Azure providers.
+	 * Creates an isolated message history and runs the prompt.
+	 * @internal
+	 */
+	private async executeSubagentOpenAI(
+		agentName: string | undefined,
+		prompt: string,
+		timeout?: number,
+	): Promise<{ success: boolean; agentName?: string; result: string }> {
+		const MAX_DEPTH = 3;
+
+		if (this.subagentDepth >= MAX_DEPTH) {
+			return {
+				success: false,
+				agentName,
+				result: `Maximum subagent recursion depth (${MAX_DEPTH}) reached.`,
+			};
+		}
+
+		// Resolve agent
+		let agent: CustomAgent | undefined;
+		if (agentName && this.agentCache) {
+			const cached = this.agentCache.getAgentByName(agentName)
+				|| this.agentCache.getAgents().find(a => a.name.toLowerCase() === agentName.toLowerCase())
+				|| this.agentCache.getAgents().find(a => a.name.toLowerCase().includes(agentName.toLowerCase()));
+			if (cached) {
+				agent = await this.agentCache.getFullAgent(cached.name);
+			}
+		}
+		if (agentName && !agent) {
+			return { success: false, agentName, result: `Agent "${agentName}" not found.` };
+		}
+
+		try {
+			this.subagentDepth++;
+
+			// Save current history and create isolated context
+			const savedHistory = [...this.messageHistory];
+			this.messageHistory = [];
+
+			// Use sendMessage which handles the tool-call loop
+			const taskPrompt = agent
+				? `You are the "${agent.name}" agent. ${agent.description}\n\n${agent.instructions}\n\nComplete the following task and return a concise summary:\n\n${prompt}`
+				: prompt;
+
+			const result = await this.sendMessage(taskPrompt);
+
+			// Restore parent history
+			this.messageHistory = savedHistory;
+			this.subagentDepth--;
+
+			return { success: true, agentName: agent?.name, result };
+		} catch (error) {
+			this.subagentDepth--;
+			const errorMsg = error instanceof Error ? error.message : String(error);
+			return { success: false, agentName: agent?.name, result: `Subagent error: ${errorMsg}` };
+		}
 	}
 
 	/**

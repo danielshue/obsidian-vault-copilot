@@ -161,6 +161,13 @@
 			"command": "obsidian dev:debug on",
 			"isBackground": false,
 			"group": "test"
+		},
+		{
+			"label": "Web Shell: Relaunch Electron",
+			"type": "shell",
+			"command": "pwsh -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}/scripts/relaunch-web-shell.ps1\"",
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

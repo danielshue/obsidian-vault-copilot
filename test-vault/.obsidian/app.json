@@ -3,5 +3,10 @@
   "newFileFolderPath": "",
   "newLinkFormat": "relative",
   "showInlineTitle": false,
-  "alwaysUpdateLinks": true
+  "alwaysUpdateLinks": true,
+  "livePreview": true,
+  "readableLineLength": true,
+  "showLineNumber": true,
+  "vimMode": false,
+  "propertiesInDocument": "hidden"
 }

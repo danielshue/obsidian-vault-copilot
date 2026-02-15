@@ -1,0 +1,11 @@
+{
+  "due_date": "datetime",
+  "generated": "multiline",
+  "timeout": "checkbox",
+  "status": "list",
+  "priority": "list",
+  "assignee": "list",
+  "date-created": "date",
+  "modified-date": "date",
+  "creation-date": "date"
+}

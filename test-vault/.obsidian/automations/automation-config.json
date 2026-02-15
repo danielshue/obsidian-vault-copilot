@@ -1,0 +1,20 @@
+{
+  "triggers": [
+    {
+      "type": "schedule",
+      "schedule": "0 6 * * *"
+    }
+  ],
+  "actions": [
+    {
+      "type": "run-agent",
+      "agentId": "daily-journal",
+      "input": {
+        "mode": "create",
+        "includeYesterdaySummary": true
+      }
+    }
+  ],
+  "enabled": false,
+  "runOnInstall": false
+}

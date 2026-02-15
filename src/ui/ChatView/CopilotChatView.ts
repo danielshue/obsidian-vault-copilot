@@ -59,7 +59,7 @@ import {
 } from "../mcp-apps";
 import { SLASH_COMMANDS } from "./processing/SlashCommands";
 import { InlineQuestionRenderer } from "./renderers/InlineQuestionRenderer";
-import { renderWelcomeMessage } from "./renderers/WelcomeMessage";
+import { renderWelcomeMessage, WelcomeMessageHandle } from "./renderers/WelcomeMessage";
 import { PromptPicker } from "./pickers/PromptPicker";
 import { ContextPicker } from "./pickers/ContextPicker";
 import { PromptProcessor } from "./processing/PromptProcessor";
@@ -71,9 +71,7 @@ import { VoiceChatService } from "../../copilot/voice-chat";
 import type { QuestionRequest, QuestionResponse } from "../../types/questions";
 import { AIProvider } from "../../copilot/providers/AIProvider";
 import { getSecretValue } from "../../utils/secrets";
-import { NoProviderPlaceholder } from "./components/NoProviderPlaceholder";
 import { checkAnyProviderAvailable } from "../../utils/providerAvailability";
-import { isDesktop } from "../../utils/platform";
 import { EditorSelectionManager } from "./components/EditorSelectionManager";
 import { VoiceConversationStore } from "./components/VoiceConversationStore";
 import { MessageContextBuilder } from "./processing/MessageContextBuilder";
@@ -135,8 +133,8 @@ export class CopilotChatView extends ItemView {
 	// Thinking indicator
 	private thinkingIndicatorEl: HTMLElement | null = null;
 	
-	// No provider placeholder
-	private noProviderPlaceholder: NoProviderPlaceholder | null = null;
+	// Welcome message handle for provider warning
+	private welcomeMessageHandle: WelcomeMessageHandle | null = null;
 	private settingsChangeUnsubscribe: (() => void) | null = null;
 
 	// Editor selection preservation
@@ -146,7 +144,7 @@ export class CopilotChatView extends ItemView {
 		super(leaf);
 		this.plugin = plugin;
 		this.githubCopilotCliService = githubCopilotCliService as GitHubCopilotCliService;
-		this.toolCatalog = new ToolCatalog(plugin.skillRegistry, plugin.mcpManager);
+		this.toolCatalog = new ToolCatalog(plugin.skillRegistry, plugin.mcpManager, plugin.skillCache);
 		this.promptProcessor = new PromptProcessor(plugin.app);
 		this.contextAugmentation = new ContextAugmentation(plugin.app);
 		this.messageRenderer = new MessageRenderer(plugin.app, this);
@@ -154,11 +152,13 @@ export class CopilotChatView extends ItemView {
 		this.voiceConversationStore = new VoiceConversationStore(plugin.settings, () => plugin.saveSettings());
 		
 		const activeService = this.getActiveAIService();
-		this.wireQuestionCallback(activeService);
+		if (activeService) {
+			this.wireQuestionCallback(activeService);
+		}
 
 		this.sessionManager = new SessionManager(
 			plugin.settings,
-			activeService as GitHubCopilotCliService,
+			(activeService ?? null) as GitHubCopilotCliService,
 			() => plugin.saveSettings(),
 			{
 				onSessionCreated: () => {
@@ -197,7 +197,7 @@ export class CopilotChatView extends ItemView {
 			plugin,
 			this.promptProcessor,
 			this.contextAugmentation,
-			activeService as GitHubCopilotCliService
+			(activeService ?? null) as GitHubCopilotCliService
 		);
 
 		// Initialize ToolbarManager
@@ -300,11 +300,11 @@ export class CopilotChatView extends ItemView {
 	/**
 	 * Get the active AI service (Copilot, OpenAI, or Azure)
 	 */
-	private getActiveAIService(): GitHubCopilotCliService | AIProvider {
+	private getActiveAIService(): GitHubCopilotCliService | AIProvider | null {
 		const activeService = this.plugin.getActiveService();
 		if (activeService) return activeService as GitHubCopilotCliService;
 		if (this.githubCopilotCliService) return this.githubCopilotCliService;
-		throw new Error("No AI service is configured. Please configure an API key in settings.");
+		return null;
 	}
 
 	getViewType(): string {
@@ -509,6 +509,7 @@ export class CopilotChatView extends ItemView {
 				containerEl: this.promptPickerEl,
 				inputEl: this.inputEl,
 				getPrompts: () => this.plugin.promptCache.getPrompts(),
+				getSkills: () => this.plugin.skillCache.getSkills(),
 				onSelect: (prompt) => this.promptExecutor.executePrompt(prompt),
 			});
 		}
@@ -526,7 +527,7 @@ export class CopilotChatView extends ItemView {
 
 		await this.loadMessages();
 
-		if (this.githubCopilotCliService.getMessageHistory().length === 0) {
+		if (!this.githubCopilotCliService || this.githubCopilotCliService.getMessageHistory().length === 0) {
 			this.addWelcomeMessage();
 		}
 
@@ -552,27 +553,10 @@ export class CopilotChatView extends ItemView {
 
 		if (status.available) {
 			if (this.inputArea) this.inputArea.style.display = "";
-			if (this.noProviderPlaceholder) this.noProviderPlaceholder.hide();
+			if (this.welcomeMessageHandle) this.welcomeMessageHandle.setProviderWarningVisible(false);
 		} else {
 			if (this.inputArea) this.inputArea.style.display = "none";
-			
-			if (!this.noProviderPlaceholder && this.mainViewEl) {
-				this.noProviderPlaceholder = new NoProviderPlaceholder(
-					this.mainViewEl,
-					this.app,
-					{
-						onOpenSettings: () => {
-							(this.app as any).setting.open();
-							(this.app as any).setting.openTabById("obsidian-vault-copilot");
-						},
-						onInstallCli: isDesktop ? () => {
-							window.open("https://docs.github.com/en/copilot/how-tos/copilot-cli/install-copilot-cli", "_blank");
-						} : undefined,
-					}
-				);
-			} else if (this.noProviderPlaceholder) {
-				this.noProviderPlaceholder.show();
-			}
+			if (this.welcomeMessageHandle) this.welcomeMessageHandle.setProviderWarningVisible(true);
 		}
 	}
 
@@ -668,6 +652,7 @@ export class CopilotChatView extends ItemView {
 
 	private async startService(): Promise<void> {
 		try {
+			if (!this.githubCopilotCliService) return;
 			if (!this.githubCopilotCliService.isConnected()) {
 				await this.githubCopilotCliService.start();
 				
@@ -878,16 +863,14 @@ export class CopilotChatView extends ItemView {
 			this.settingsChangeUnsubscribe();
 			this.settingsChangeUnsubscribe = null;
 		}
-		// Cleanup no provider placeholder
-		if (this.noProviderPlaceholder) {
-			this.noProviderPlaceholder.destroy();
-			this.noProviderPlaceholder = null;
-		}
+		// Reset welcome message handle
+		this.welcomeMessageHandle = null;
 		// Cleanup editor selection
 		this.editorSelectionManager.destroy();
 	}
 
 	private async loadMessages(): Promise<void> {
+		if (!this.githubCopilotCliService) return;
 		const history = this.githubCopilotCliService.getMessageHistory();
 		for (const message of history) {
 			await this.messageRenderer.renderMessage(this.messagesContainer, message);
@@ -896,10 +879,19 @@ export class CopilotChatView extends ItemView {
 	}
 
 	private addWelcomeMessage(): void {
-		renderWelcomeMessage(this.messagesContainer, (text) => {
-			this.inputEl.innerText = text;
-			this.sendMessage();
-		});
+		this.welcomeMessageHandle = renderWelcomeMessage(
+			this.messagesContainer,
+			(text) => {
+				this.inputEl.innerText = text;
+				this.sendMessage();
+			},
+			{
+				onOpenSettings: () => {
+					(this.app as any).setting.open();
+					(this.app as any).setting.openTabById("obsidian-vault-copilot");
+				},
+			}
+		);
 	}
 
 	/**
@@ -992,6 +984,15 @@ export class CopilotChatView extends ItemView {
 		const command = SLASH_COMMANDS.find(c => c.name === normalizedCommand);
 		
 		if (!command) {
+			// Check skills before showing "unknown command"
+			const skillInfo = this.plugin.skillCache.getSkills().find(
+				s => s.name.toLowerCase().replace(/\s+/g, '-') === normalizedCommand ||
+				     s.name.toLowerCase() === normalizedCommand
+			);
+			if (skillInfo) {
+				return await this.executeSkillSlashCommand(skillInfo, args?.trim() || "", message);
+			}
+
 			await this.messageRenderer.renderMessage(this.messagesContainer, { role: "user", content: message, timestamp: new Date() });
 			const helpMsg = `Unknown command: /${commandName}\n\nType **/help** to see available commands.`;
 			await this.messageRenderer.renderMessage(this.messagesContainer, { role: "assistant", content: helpMsg, timestamp: new Date() });
@@ -1012,6 +1013,65 @@ export class CopilotChatView extends ItemView {
 			}
 		} catch (error) {
 			this.addErrorMessage(`Command failed: ${error}`);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Execute a skill as a slash command by prepending skill instructions to the user message
+	 */
+	private async executeSkillSlashCommand(skillInfo: { name: string; path: string }, userArgs: string, originalMessage: string): Promise<boolean> {
+		const fullSkill = await this.plugin.skillCache.getFullSkill(skillInfo.name);
+		if (!fullSkill) {
+			this.addErrorMessage(`Could not load skill: ${skillInfo.name}`);
+			return true;
+		}
+
+		// Prepend skill instructions as context prefix
+		const skillPrefix = `[Skill: ${fullSkill.name}]\n${fullSkill.instructions}\n\n---\n\n`;
+		const enhancedMessage = skillPrefix + (userArgs || `Use the ${fullSkill.name} skill.`);
+
+		await this.messageRenderer.renderMessage(this.messagesContainer, { role: "user", content: originalMessage, timestamp: new Date() });
+		const userMsgEl = this.messagesContainer.lastElementChild as HTMLElement;
+		if (userMsgEl) this.scrollMessageToTop(userMsgEl);
+
+		this.isProcessing = true;
+		this.updateUIState();
+		this.showThinkingIndicator();
+
+		try {
+			const msgEl = this.messageRenderer.createMessageElement(this.messagesContainer, "assistant", "");
+
+			if (this.plugin.settings.streaming) {
+				let isFirstDelta = true;
+				await this.githubCopilotCliService.sendMessageStreaming(
+					enhancedMessage,
+					(delta: string) => {
+						if (isFirstDelta) {
+							this.hideThinkingIndicator();
+							isFirstDelta = false;
+						}
+						const contentEl = msgEl.querySelector(".vc-message-content");
+						if (contentEl) contentEl.textContent += delta;
+					},
+					async (fullContent: string) => {
+						await this.messageRenderer.renderMarkdownContent(msgEl, fullContent);
+						this.messageRenderer.addCopyButton(msgEl);
+					}
+				);
+			} else {
+				this.hideThinkingIndicator();
+				const response = await this.githubCopilotCliService.sendMessage(enhancedMessage);
+				await this.messageRenderer.renderMarkdownContent(msgEl, response);
+				this.messageRenderer.addCopyButton(msgEl);
+			}
+		} catch (error) {
+			this.addErrorMessage(`Skill execution failed: ${error}`);
+		} finally {
+			this.isProcessing = false;
+			this.updateUIState();
+			this.hideThinkingIndicator();
 		}
 
 		return true;

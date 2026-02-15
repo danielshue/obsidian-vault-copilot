@@ -37,7 +37,7 @@
  */
 
 import { App, TFile, Notice } from 'obsidian';
-import CronExpressionParser from 'cron-parser';
+import { CronExpressionParser } from 'cron-parser';
 import type VaultCopilotPlugin from '../main';
 import {
 	AutomationInstance,
@@ -63,6 +63,7 @@ export class AutomationEngine {
 	private eventRegistrations: Map<string, () => void> = new Map();
 	private maxHistoryEntries = 100;
 	private stateFilePath = '.obsidian/vault-copilot-automations.json';
+	private auditLogPath = '.obsidian/plugins/obsidian-vault-copilot/automation-audit.md';
 
 	constructor(app: App, plugin: VaultCopilotPlugin) {
 		this.app = app;
@@ -206,6 +207,43 @@ export class AutomationEngine {
 	}
 
 	/**
+	 * Update an existing automation's configuration
+	 * 
+	 * Re-schedules timers if the automation is enabled and triggers changed.
+	 * 
+	 * @param automationId - ID of automation to update
+	 * @param updates - Partial automation instance fields to merge
+	 * @throws {Error} If automation not found
+	 */
+	async updateAutomation(automationId: string, updates: Partial<Pick<AutomationInstance, 'name' | 'config' | 'enabled'>>): Promise<void> {
+		const automation = this.state.automations[automationId];
+		if (!automation) {
+			throw new Error(`Automation ${automationId} not found`);
+		}
+
+		// Deactivate before updating so timers/listeners are refreshed
+		await this.deactivateAutomation(automationId);
+
+		if (updates.name !== undefined) {
+			automation.name = updates.name;
+		}
+		if (updates.config !== undefined) {
+			automation.config = updates.config;
+		}
+		if (updates.enabled !== undefined) {
+			automation.enabled = updates.enabled;
+		}
+
+		// Re-activate if enabled
+		if (automation.enabled) {
+			await this.activateAutomation(automationId);
+		}
+
+		await this.saveState();
+		new Notice(`Automation '${automation.name}' updated`);
+	}
+
+	/**
 	 * Get automation by ID
 	 */
 	getAutomation(automationId: string): AutomationInstance | undefined {
@@ -218,6 +256,20 @@ export class AutomationEngine {
 	getHistory(limit?: number): AutomationHistoryEntry[] {
 		const history = [...this.state.history].reverse(); // Most recent first
 		return limit ? history.slice(0, limit) : history;
+	}
+
+	/**
+	 * Get execution history for a specific automation
+	 *
+	 * @param automationId - ID of the automation to filter by
+	 * @param limit - Maximum number of entries to return
+	 * @returns History entries for the specified automation, most recent first
+	 */
+	getHistoryForAutomation(automationId: string, limit?: number): AutomationHistoryEntry[] {
+		const filtered = [...this.state.history]
+			.filter(entry => entry.automationId === automationId)
+			.reverse();
+		return limit ? filtered.slice(0, limit) : filtered;
 	}
 
 	/**
@@ -310,6 +362,7 @@ export class AutomationEngine {
 			automation,
 			trigger,
 			startTime: Date.now(),
+			previousResults: [],
 		};
 
 		const actionResults: ActionExecutionResult[] = [];
@@ -321,11 +374,13 @@ export class AutomationEngine {
 			await this.sleep(trigger.delay);
 		}
 
-		// Execute each action in sequence
+		// Execute each action in sequence, piping output forward
 		for (const action of automation.config.actions) {
 			try {
-				const result = await this.executeAction(action, context);
+				const enrichedAction = this.enrichActionInput(action, context.previousResults);
+				const result = await this.executeAction(enrichedAction, context);
 				actionResults.push(result);
+				context.previousResults.push(result);
 				if (!result.success) {
 					overallSuccess = false;
 				}
@@ -366,10 +421,17 @@ export class AutomationEngine {
 
 		await this.saveState();
 
+		// Append to persistent audit log
+		await this.appendAuditLog(automation, result);
+
+		const totalDuration = actionResults.reduce((sum, r) => sum + r.duration, 0);
 		if (overallSuccess) {
-			new Notice(`Automation '${automation.name}' completed successfully`);
+			new Notice(
+				`Automation '${automation.name}' completed successfully (${actionResults.length} action${actionResults.length !== 1 ? 's' : ''}, ${totalDuration}ms)`,
+				8000
+			);
 		} else {
-			new Notice(`Automation '${automation.name}' failed: ${overallError}`);
+			new Notice(`Automation '${automation.name}' failed: ${overallError}`, 8000);
 		}
 
 		return result;
@@ -403,8 +465,8 @@ export class AutomationEngine {
 				case 'update-note':
 					result = await this.executeUpdateNote(action, context);
 					break;
-				case 'run-command':
-					result = await this.executeRunCommand(action, context);
+				case 'run-shell':
+					result = await this.executeRunShell(action, context);
 					break;
 				default:
 					throw new Error(`Unknown action type: ${(action as AutomationAction).type}`);
@@ -428,31 +490,176 @@ export class AutomationEngine {
 	}
 
 	/**
+	 * Enrich an action's input with the output from the previous step in the pipeline.
+	 *
+	 * If there are previous results, the last result's output is added as `previousOutput`
+	 * in the action's input. If the action already has input, the previous output is merged
+	 * alongside it. If the action has no input, a new input object is created.
+	 *
+	 * @param action - The action to enrich
+	 * @param previousResults - Results from earlier steps
+	 * @returns The action with enriched input (or original if first step)
+	 *
+	 * @internal
+	 */
+	private enrichActionInput(action: AutomationAction, previousResults: ActionExecutionResult[]): AutomationAction {
+		if (previousResults.length === 0) return action;
+
+		const lastResult = previousResults[previousResults.length - 1];
+		if (!lastResult || !lastResult.success || lastResult.result === undefined) return action;
+
+		const previousOutput = typeof lastResult.result === 'string'
+			? lastResult.result
+			: JSON.stringify(lastResult.result);
+
+		return {
+			...action,
+			input: {
+				...(action.input || {}),
+				previousOutput,
+			},
+		} as AutomationAction;
+	}
+
+	/**
+	 * Check if a value is a plain object (not null, not array)
+	 */
+	private isPlainObject(value: unknown): value is Record<string, unknown> {
+		return typeof value === 'object' && value !== null && !Array.isArray(value);
+	}
+
+	/**
+	 * Send a message to the active AI provider, connecting if necessary
+	 */
+	private async sendToAIProvider(message: string): Promise<string> {
+		// connectCopilot() intelligently routes to the correct provider based on settings
+		if (this.plugin.settings.aiProvider === 'copilot') {
+			const service = this.plugin.githubCopilotCliService;
+			if (!service) {
+				throw new Error('GitHub Copilot CLI service not available');
+			}
+			if (!service.isConnected()) {
+				await this.plugin.connectCopilot();
+			}
+			return await service.sendMessage(message);
+		} else {
+			const service = this.plugin.openaiService || this.plugin.azureOpenaiService;
+			if (!service) {
+				throw new Error('No AI provider available');
+			}
+			if (!service.isReady()) {
+				await this.plugin.connectCopilot();
+			}
+			return await service.sendMessage(message);
+		}
+	}
+
+	/**
 	 * Execute run-agent action
 	 */
 	private async executeRunAgent(action: Extract<AutomationAction, { type: 'run-agent' }>, context: AutomationExecutionContext): Promise<unknown> {
-		// TODO: Implement agent execution
-		// This would integrate with the agent system to run the specified agent
-		console.log(`AutomationEngine: Running agent '${action.agentId}' with input:`, action.input);
-		throw new Error('Agent execution not yet implemented');
+		const { agentId, input } = action;
+		console.log(`AutomationEngine: Running agent '${agentId}' with input:`, input);
+		
+		// Get the agent from cache
+		const agent = this.plugin.agentCache.getAgentByName(agentId);
+		if (!agent) {
+			throw new Error(`Agent '${agentId}' not found`);
+		}
+		
+		// Load full agent details
+		const fullAgent = await this.plugin.agentCache.getFullAgent(agentId);
+		if (!fullAgent) {
+			throw new Error(`Failed to load agent '${agentId}'`);
+		}
+		
+		// Prepare the prompt with agent instructions
+		let prompt = fullAgent.instructions || '';
+		
+		// Add previous step output if present
+		if (input && typeof input === 'object' && 'previousOutput' in input && input.previousOutput) {
+			prompt += `\n\nContext from previous step:\n${String(input.previousOutput)}`;
+		}
+		
+		// Add user input if provided
+		if (input) {
+			const { previousOutput, ...rest } = input as Record<string, unknown>;
+			const hasRest = Object.keys(rest).length > 0;
+			if (hasRest) {
+				const inputStr = rest.userInput ? String(rest.userInput) : JSON.stringify(rest);
+				prompt += `\n\nInput: ${inputStr}`;
+			}
+		}
+		
+		return await this.sendToAIProvider(prompt);
 	}
 
 	/**
 	 * Execute run-prompt action
 	 */
 	private async executeRunPrompt(action: Extract<AutomationAction, { type: 'run-prompt' }>, context: AutomationExecutionContext): Promise<unknown> {
-		// TODO: Implement prompt execution
-		console.log(`AutomationEngine: Running prompt '${action.promptId}' with input:`, action.input);
-		throw new Error('Prompt execution not yet implemented');
+		const { promptId, input } = action;
+		console.log(`AutomationEngine: Running prompt '${promptId}' with input:`, input);
+		
+		// Get the prompt from cache
+		const prompt = await this.plugin.promptCache.getFullPrompt(promptId);
+		if (!prompt) {
+			throw new Error(`Prompt '${promptId}' not found`);
+		}
+		
+		// Replace variables in the prompt content
+		let content = prompt.content;
+		
+		// Inject previous step output as a variable
+		if (input && typeof input === 'object' && 'previousOutput' in input && input.previousOutput) {
+			const prevStr = String(input.previousOutput);
+			content = content.replace(/\$\{previousOutput\}/g, prevStr);
+			content = content.replace(/\{previousOutput\}/g, prevStr);
+			// If no placeholder was found, append it
+			if (!content.includes(prevStr)) {
+				content += `\n\nContext from previous step:\n${prevStr}`;
+			}
+		}
+		
+		// Replace input variables if provided
+		if (input) {
+			if (typeof input === 'string') {
+				// String input is treated as userInput
+				content = content.replace(/\{userInput\}/g, input);
+				content = content.replace(/\$\{userInput\}/g, input);
+			} else {
+				const { previousOutput, ...rest } = input as Record<string, unknown>;
+				if (this.isPlainObject(rest) && Object.keys(rest).length > 0) {
+					for (const [key, value] of Object.entries(rest)) {
+						const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
+						content = content.replace(new RegExp(`\\{${key}\\}`, 'g'), valueStr);
+						content = content.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), valueStr);
+					}
+				}
+			}
+		}
+		
+		return await this.sendToAIProvider(content);
 	}
 
 	/**
 	 * Execute run-skill action
 	 */
 	private async executeRunSkill(action: Extract<AutomationAction, { type: 'run-skill' }>, context: AutomationExecutionContext): Promise<unknown> {
-		// TODO: Implement skill execution
-		console.log(`AutomationEngine: Running skill '${action.skillId}' with input:`, action.input);
-		throw new Error('Skill execution not yet implemented');
+		const { skillId, input } = action;
+		console.log(`AutomationEngine: Running skill '${skillId}' with input:`, input);
+		
+		// Prepare arguments for the skill
+		const args = this.isPlainObject(input) ? input : {};
+		
+		// Execute the skill
+		const result = await this.plugin.skillRegistry.executeSkill(skillId, args);
+		
+		if (!result.success) {
+			throw new Error(result.error || `Skill '${skillId}' execution failed`);
+		}
+		
+		return result.data;
 	}
 
 	/**
@@ -497,20 +704,47 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Execute run-command action
+	 * Execute run-shell action (desktop only)
+	 *
+	 * Spawns the shell command via Node.js child_process.
+	 * Returns stdout on success.
 	 */
-	private async executeRunCommand(action: Extract<AutomationAction, { type: 'run-command' }>, context: AutomationExecutionContext): Promise<boolean> {
-		const { commandId } = action;
-		console.log(`AutomationEngine: Running command '${commandId}'`);
-		
-		// Execute the command
-		const success = (this.app as any).commands.executeCommandById(commandId);
-		
-		if (!success) {
-			throw new Error(`Command '${commandId}' failed or not found`);
+	private async executeRunShell(action: Extract<AutomationAction, { type: 'run-shell' }>, context: AutomationExecutionContext): Promise<string> {
+		const { command, input } = action;
+		console.log(`AutomationEngine: Running shell command '${command}'`);
+
+		// Desktop-only guard
+		if (!(this.app as any).vault.adapter.basePath) {
+			throw new Error('Shell commands are only available on desktop');
 		}
-		
-		return true;
+
+		const { exec } = require('child_process') as typeof import('child_process');
+
+		// Build the final command — append previousOutput from input if present
+		let finalCommand = command;
+		if (input && typeof input === 'object' && 'previousOutput' in input && input.previousOutput) {
+			// Make previous output available as env var
+			finalCommand = command;
+		}
+
+		return new Promise<string>((resolve, reject) => {
+			const cwd = (this.app.vault.adapter as any).basePath as string;
+			const env = { ...process.env };
+			if (input && typeof input === 'object' && 'previousOutput' in input) {
+				env.PREVIOUS_OUTPUT = String(input.previousOutput);
+			}
+			if (input && typeof input === 'object' && 'userInput' in input) {
+				env.USER_INPUT = String(input.userInput);
+			}
+
+			exec(finalCommand, { cwd, env, timeout: 30000 }, (error, stdout, stderr) => {
+				if (error) {
+					reject(new Error(`Shell command failed: ${stderr || error.message}`));
+				} else {
+					resolve(stdout.trim());
+				}
+			});
+		});
 	}
 
 	/**
@@ -680,6 +914,78 @@ export class AutomationEngine {
 	 */
 	private sleep(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	/**
+	 * Append an execution result to the persistent markdown audit log.
+	 *
+	 * Creates the log file if it doesn't exist. Each entry is formatted as a
+	 * human-readable markdown section with action outputs.
+	 *
+	 * @param automation - The automation that was executed
+	 * @param result - The execution result to log
+	 *
+	 * @internal
+	 */
+	private async appendAuditLog(automation: AutomationInstance, result: AutomationExecutionResult): Promise<void> {
+		try {
+			const date = new Date(result.timestamp);
+			const dateStr = date.toLocaleString();
+			const statusIcon = result.success ? '✓' : '✗';
+			const statusText = result.success ? 'Success' : 'Failed';
+			const totalDuration = result.actionResults.reduce((sum, r) => sum + r.duration, 0);
+
+			let entry = `\n## ${automation.name} — ${dateStr}\n\n`;
+			entry += `- **Status**: ${statusIcon} ${statusText}\n`;
+			entry += `- **Trigger**: ${result.trigger.type}`;
+			if (result.trigger.type === 'schedule' && 'schedule' in result.trigger) {
+				entry += ` (${result.trigger.schedule})`;
+			}
+			entry += `\n`;
+			entry += `- **Duration**: ${totalDuration}ms\n`;
+
+			if (result.error) {
+				entry += `- **Error**: ${result.error}\n`;
+			}
+
+			for (let i = 0; i < result.actionResults.length; i++) {
+				const ar = result.actionResults[i];
+				if (!ar) continue;
+				const actionIcon = ar.success ? '✓' : '✗';
+				const actionLabel = ar.action.type;
+				let actionTarget = '';
+				if ('agentId' in ar.action) actionTarget = ` (${ar.action.agentId})`;
+				else if ('promptId' in ar.action) actionTarget = ` (${ar.action.promptId})`;
+				else if ('skillId' in ar.action) actionTarget = ` (${ar.action.skillId})`;
+				else if ('path' in ar.action) actionTarget = ` (${ar.action.path})`;
+				else if ('command' in ar.action) actionTarget = ` (${ar.action.command})`;
+
+				entry += `\n### Action ${i + 1}: ${actionLabel}${actionTarget}\n`;
+				entry += `- **Status**: ${actionIcon} ${ar.success ? 'Success' : 'Failed'} (${ar.duration}ms)\n`;
+
+				if (ar.error) {
+					entry += `- **Error**: ${ar.error}\n`;
+				}
+
+				if (ar.result !== undefined && ar.result !== null) {
+					const outputStr = typeof ar.result === 'string' ? ar.result : JSON.stringify(ar.result, null, 2);
+					const blockquoted = outputStr.split('\n').map(line => `> ${line}`).join('\n');
+					entry += `- **Output**:\n${blockquoted}\n`;
+				}
+			}
+
+			entry += `\n---\n`;
+
+			const exists = await this.app.vault.adapter.exists(this.auditLogPath);
+			if (!exists) {
+				await this.app.vault.adapter.write(this.auditLogPath, `# Automation Audit Log\n${entry}`);
+			} else {
+				const existing = await this.app.vault.adapter.read(this.auditLogPath);
+				await this.app.vault.adapter.write(this.auditLogPath, existing + entry);
+			}
+		} catch (error) {
+			console.error('AutomationEngine: Failed to write audit log:', error);
+		}
 	}
 
 	/**

@@ -5,6 +5,7 @@
 
 import { App, TFile, TFolder, TAbstractFile, EventRef } from "obsidian";
 import { CustomizationLoader, CustomAgent } from "./CustomizationLoader";
+import { parseYamlKeyValues } from "./YamlParser";
 
 /**
  * Lightweight agent info for caching (excludes the full instructions)
@@ -16,6 +17,14 @@ export interface CachedAgentInfo {
 	description: string;
 	/** Tools the agent can use */
 	tools?: string[];
+	/** Allowlist of agent names this agent can invoke as subagents */
+	agents?: string[];
+	/** Model override(s) for this agent */
+	model?: string | string[];
+	/** Whether this agent appears in the user-facing agent selector (default: true) */
+	userInvokable?: boolean;
+	/** Whether the model can autonomously invoke this agent as a subagent (default: false) */
+	disableModelInvocation?: boolean;
 	/** Full path to the agent file */
 	path: string;
 }
@@ -102,6 +111,10 @@ export class AgentCache {
 					name: agent.name,
 					description: agent.description,
 					tools: agent.tools,
+					agents: agent.agents,
+					model: agent.model,
+					userInvokable: agent.userInvokable,
+					disableModelInvocation: agent.disableModelInvocation,
 					path: agent.path,
 				});
 			}
@@ -284,38 +297,19 @@ export class AgentCache {
 		if (!match) return null;
 
 		const yamlStr = match[1] || '';
-		const frontmatter: Record<string, unknown> = {};
-
-		// Simple YAML parser
-		const lines = yamlStr.split(/\r?\n/);
-		for (const line of lines) {
-			const colonIndex = line.indexOf(':');
-			if (colonIndex === -1) continue;
-
-			const key = line.slice(0, colonIndex).trim();
-			let value: unknown = line.slice(colonIndex + 1).trim();
-
-			// Handle arrays like ["read", "search", "edit"]
-			if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
-				try {
-					value = JSON.parse(value.replace(/'/g, '"'));
-				} catch {
-					// Keep as string
-				}
-			}
-			// Handle quoted strings
-			else if (typeof value === 'string' && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
-				value = value.slice(1, -1);
-			}
-
-			frontmatter[key] = value;
-		}
+		const frontmatter = parseYamlKeyValues(yamlStr);
 
 		if (frontmatter.name && frontmatter.description) {
 			return {
 				name: String(frontmatter.name),
 				description: String(frontmatter.description),
 				tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
+				agents: Array.isArray(frontmatter.agents) ? (frontmatter.agents as string[]).map(String) : undefined,
+				model: Array.isArray(frontmatter.model)
+					? (frontmatter.model as string[]).map(String)
+					: frontmatter.model ? String(frontmatter.model) : undefined,
+				userInvokable: frontmatter['user-invokable'] === 'false' || frontmatter['user-invokable'] === false ? false : undefined,
+				disableModelInvocation: frontmatter['disable-model-invocation'] === 'true' || frontmatter['disable-model-invocation'] === true ? true : undefined,
 				path,
 			};
 		}

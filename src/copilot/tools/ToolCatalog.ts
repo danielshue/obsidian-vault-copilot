@@ -36,6 +36,7 @@
 
 import type { CopilotPluginSettings, CopilotSession } from "../../ui/settings";
 import type { SkillRegistry } from "../customization/SkillRegistry";
+import type { SkillCache } from "../customization/SkillCache";
 import type { McpManager } from "../mcp/McpManager";
 import { TOOL_DESCRIPTIONS, TOOL_NAMES, type ToolName } from "./ToolDefinitions";
 import { BASES_TOOL_NAMES, BASES_TOOL_DESCRIPTIONS } from "../bases/BasesToolDefinitions";
@@ -187,6 +188,7 @@ const BUILTIN_TOOLS: ToolInfo[] = [
  */
 export class ToolCatalog {
 	private skillRegistry: SkillRegistry | null = null;
+	private skillCache: SkillCache | null = null;
 	private mcpManager: McpManager | null = null;
 
 	/**
@@ -194,10 +196,12 @@ export class ToolCatalog {
 	 *
 	 * @param skillRegistry - Optional registry for plugin-registered skills
 	 * @param mcpManager - Optional MCP manager for server tools
+	 * @param skillCache - Optional cache for file-based skills
 	 */
-	constructor(skillRegistry?: SkillRegistry, mcpManager?: McpManager) {
+	constructor(skillRegistry?: SkillRegistry, mcpManager?: McpManager, skillCache?: SkillCache) {
 		this.skillRegistry = skillRegistry ?? null;
 		this.mcpManager = mcpManager ?? null;
+		this.skillCache = skillCache ?? null;
 	}
 
 	/**
@@ -212,8 +216,25 @@ export class ToolCatalog {
 		tools.push(...BUILTIN_TOOLS);
 
 		// Add plugin-registered skills
+		const seenSkillNames = new Set<string>();
 		if (this.skillRegistry) {
 			for (const skill of this.skillRegistry.listSkills()) {
+				seenSkillNames.add(skill.name);
+				tools.push({
+					id: skill.name,
+					displayName: skill.name.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
+					description: skill.description,
+					source: "plugin",
+					enabledByDefault: true,
+				});
+			}
+		}
+
+		// Add file-based skills from cache (deduplicate against plugin skills)
+		if (this.skillCache) {
+			for (const skill of this.skillCache.getSkills()) {
+				if (seenSkillNames.has(skill.name)) continue;
+				seenSkillNames.add(skill.name);
 				tools.push({
 					id: skill.name,
 					displayName: skill.name.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()),

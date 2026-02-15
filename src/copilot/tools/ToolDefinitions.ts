@@ -132,6 +132,9 @@ export const TOOL_NAMES = {
 	LIST_AVAILABLE_AGENTS: "list_available_agents",
 	LIST_AVAILABLE_PROMPTS: "list_available_prompts",
 	LIST_AVAILABLE_INSTRUCTIONS: "list_available_instructions",
+
+	// Agent operations
+	RUN_SUBAGENT: "run_subagent",
 } as const;
 
 export type ToolName = typeof TOOL_NAMES[keyof typeof TOOL_NAMES];
@@ -181,6 +184,7 @@ export const TOOL_DESCRIPTIONS = {
 	[TOOL_NAMES.LIST_AVAILABLE_AGENTS]: "List all available custom agents loaded from .agent.md files. Returns agent names, descriptions, configured tools, and file paths.",
 	[TOOL_NAMES.LIST_AVAILABLE_PROMPTS]: "List all available prompt templates loaded from .prompt.md files. Returns prompt names, descriptions, configured tools, models, and file paths.",
 	[TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS]: "List all available instruction files loaded from .instructions.md files. Returns instruction names, applyTo patterns, and file paths.",
+	[TOOL_NAMES.RUN_SUBAGENT]: "Launch a subagent to handle a complex, multi-step task autonomously. The subagent runs in an isolated context with its own conversation history. When it completes, it returns a single summary message. Use this to delegate specialized work to a named agent or to run an ad-hoc task with a detailed prompt.",
 } as const;
 
 // ============================================================================
@@ -361,6 +365,18 @@ export interface ListAvailableSkillsParams {
 export interface ListAvailableAgentsParams {
 	/** Optional name filter (substring match) */
 	name?: string;
+	/** Context: 'subagent' to show only model-invokable agents, 'all' (default) to show all */
+	context?: string;
+}
+
+/** Parameters for run_subagent */
+export interface RunSubagentParams {
+	/** Optional name of a specific agent (.agent.md) to invoke. If omitted, runs as ad-hoc subagent with no agent instructions. */
+	agentName?: string;
+	/** A detailed prompt describing the task for the subagent to perform autonomously. */
+	prompt: string;
+	/** Optional timeout in milliseconds (default: 120000 - 2 minutes). */
+	timeout?: number;
 }
 
 /** Parameters for list_available_prompts */
@@ -678,6 +694,11 @@ export const TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
 			name: {
 				type: "string",
 				description: "Optional name filter (case-insensitive substring match)"
+			},
+			context: {
+				type: "string",
+				enum: ["all", "subagent"],
+				description: "Context for listing: 'subagent' to show only agents invokable by run_subagent, 'all' for everything (default: 'all')"
 			}
 		},
 		required: []
@@ -703,7 +724,26 @@ export const TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
 			}
 		},
 		required: []
-	}
+	},
+
+	[TOOL_NAMES.RUN_SUBAGENT]: {
+		type: "object",
+		properties: {
+			agentName: {
+				type: "string",
+				description: "Optional name of a specific agent (.agent.md) to invoke. If omitted, runs as ad-hoc subagent."
+			},
+			prompt: {
+				type: "string",
+				description: "A detailed prompt describing the task for the subagent to perform autonomously."
+			},
+			timeout: {
+				type: "number",
+				description: "Optional timeout in milliseconds (default: 120000 - 2 minutes)."
+			}
+		},
+		required: ["prompt"]
+	},
 } as const;
 
 // ============================================================================
@@ -893,6 +933,9 @@ export const TOOL_CATEGORIES = {
 		TOOL_NAMES.LIST_AVAILABLE_AGENTS,
 		TOOL_NAMES.LIST_AVAILABLE_PROMPTS,
 		TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS,
+	],
+	AGENTS: [
+		TOOL_NAMES.RUN_SUBAGENT,
 	],
 } as const;
 
