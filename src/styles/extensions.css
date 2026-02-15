@@ -1375,6 +1375,7 @@ cursor: pointer;
 
 .modal:has(.extension-submission-modal) .modal-content {
 	display: block !important;
+	overflow-y: auto;
 }
 
 /* Make all settings in the modal display as vertical stacks */

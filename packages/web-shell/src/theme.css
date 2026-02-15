@@ -1042,7 +1042,7 @@ body.theme-light .ws-tab {
 .ws-settings-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1323,12 +1323,214 @@ body.theme-light .ws-tab {
 }
 
 /* ============================================================
+   Keychain settings
+   ============================================================ */
+
+.ws-keychain-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ws-keychain-heading {
+  margin: 0;
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.ws-keychain-add-btn {
+  color: var(--text-muted);
+}
+
+.ws-keychain-add-btn:hover {
+  color: var(--text-normal);
+}
+
+.ws-keychain-search {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.ws-keychain-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  display: flex;
+  pointer-events: none;
+}
+
+.ws-keychain-search-icon .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.ws-keychain-search-input {
+  width: 100%;
+  padding: 6px 8px 6px 30px;
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  box-sizing: border-box;
+}
+
+.ws-keychain-search-input:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+.ws-keychain-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ws-keychain-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.ws-keychain-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.ws-keychain-item:last-child {
+  border-bottom: none;
+}
+
+.ws-keychain-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ws-keychain-item-name {
+  font-weight: 500;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.ws-keychain-item-time {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ws-keychain-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ws-keychain-item-actions .clickable-icon {
+  color: var(--text-muted);
+}
+
+.ws-keychain-item-actions .clickable-icon:hover {
+  color: var(--text-normal);
+}
+
+/* Keychain inline form */
+.ws-keychain-form {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.ws-keychain-form-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 12px;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.ws-keychain-form-close {
+  color: var(--text-muted);
+}
+
+.ws-keychain-form-close:hover {
+  color: var(--text-normal);
+}
+
+.ws-keychain-form .setting-item {
+  border-bottom: none;
+  padding: 6px 0;
+}
+
+.ws-keychain-secret-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ws-keychain-secret-input {
+  flex: 1;
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: 4px 8px;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-family: var(--font-monospace);
+  min-width: 180px;
+}
+
+.ws-keychain-secret-input:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+.ws-keychain-toggle-vis {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.ws-keychain-toggle-vis:hover {
+  color: var(--text-normal);
+}
+
+.ws-keychain-form-error {
+  display: none;
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+  margin: 4px 0 8px;
+}
+
+.ws-keychain-form-buttons {
+  display: flex;
+  gap: 5px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+.ws-keychain-form-buttons button {
+  padding: 4px 16px;
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+}
+
+/* ============================================================
    Modal
    ============================================================ */
 .modal-container {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1346,9 +1548,9 @@ body.theme-light .ws-tab {
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-m);
   box-shadow: var(--shadow-l);
-  min-width: 400px;
+  min-width: min(400px, calc(100vw - 32px));
   max-width: 90vw;
-  max-height: 85vh;
+  max-height: min(85vh, calc(100vh - 48px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1384,6 +1586,12 @@ body.theme-light .ws-tab {
 .modal-close-button:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
+}
+
+.modal-button-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
 }
 
 /* ============================================================
@@ -1820,4 +2028,21 @@ button:disabled {
    ============================================================ */
 .vertical-tab-content {
   padding: 16px 24px;
+}
+
+/* ============================================================
+   Standalone View (child pop-out windows)
+   ============================================================ */
+.ws-standalone-view {
+  position: absolute;
+  inset: 0;
+  padding: 16px;
+  overflow: auto;
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+/* Account for frameless titlebar drag region */
+body.is-frameless .ws-standalone-view {
+  top: 36px;
 }

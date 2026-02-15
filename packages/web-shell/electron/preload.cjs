@@ -180,4 +180,50 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	 * @param {{ color: string, symbolColor: string }} colors
 	 */
 	setTitleBarOverlay: (colors) => ipcRenderer.invoke("settings:setTitleBarOverlay", colors),
+
+	// ---- Secrets (Keychain) ----
+
+	/**
+	 * Check if encrypted secret storage is available.
+	 * @returns {Promise<boolean>}
+	 */
+	isSecretStorageAvailable: () => ipcRenderer.invoke("secrets:isAvailable"),
+
+	/**
+	 * Save an encrypted secret.
+	 * @param {string} id - Secret identifier
+	 * @param {string} plainText - Secret value
+	 * @returns {Promise<void>}
+	 */
+	saveSecret: (id, plainText) => ipcRenderer.invoke("secrets:save", id, plainText),
+
+	/**
+	 * Load and decrypt a secret.
+	 * @param {string} id - Secret identifier
+	 * @returns {Promise<string|null>}
+	 */
+	loadSecret: (id) => ipcRenderer.invoke("secrets:load", id),
+
+	/**
+	 * Delete a secret.
+	 * @param {string} id - Secret identifier
+	 * @returns {Promise<void>}
+	 */
+	deleteSecret: (id) => ipcRenderer.invoke("secrets:delete", id),
+
+	/**
+	 * List all secret IDs with metadata (no values).
+	 * @returns {Promise<Array<{id: string, lastAccessed: number|null, createdAt: number, updatedAt: number}>>}
+	 */
+	listSecrets: () => ipcRenderer.invoke("secrets:list"),
+
+	// ---- Pop-out Windows ----
+
+	/**
+	 * Open a view in a separate pop-out window.
+	 * @param {string} viewType - The view type identifier (e.g., 'vc-tracing-view')
+	 * @param {object} [options] - Optional window size/title overrides
+	 * @returns {Promise<{windowId: number}>}
+	 */
+	openWindow: (viewType, options) => ipcRenderer.invoke("window:open", viewType, options),
 });

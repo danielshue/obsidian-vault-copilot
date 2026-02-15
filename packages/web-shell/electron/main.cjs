@@ -14,7 +14,7 @@
  * @since 0.0.27
  */
 
-const { app, BrowserWindow, ipcMain, Menu, globalShortcut, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, Menu, globalShortcut, dialog, safeStorage } = require("electron");
 const path = require("path");
 const { exec, spawn } = require("child_process");
 const fs = require("fs");
@@ -345,10 +345,178 @@ ipcMain.handle("platform:info", async () => {
 	};
 });
 
-// Clean up spawned processes on exit
+// ============================================================================
+// Secrets (Keychain) — encrypted storage via Electron safeStorage
+// ============================================================================
+
+/** Path to the encrypted secrets file. */
+const secretsPath = path.join(app.getPath("userData"), "vault-copilot-secrets.json");
+
+/** Read the secrets file from disk. */
+function readSecretsFile() {
+	try {
+		if (fs.existsSync(secretsPath)) {
+			return JSON.parse(fs.readFileSync(secretsPath, "utf-8"));
+		}
+	} catch { /* ignore */ }
+	return { secrets: {} };
+}
+
+/** Write the secrets file to disk. */
+function writeSecretsFile(data) {
+	try {
+		fs.writeFileSync(secretsPath, JSON.stringify(data, null, 2), "utf-8");
+	} catch { /* ignore */ }
+}
+
+/**
+ * Check if encryption is available.
+ */
+ipcMain.handle("secrets:isAvailable", async () => {
+	return safeStorage.isEncryptionAvailable();
+});
+
+/**
+ * Save an encrypted secret.
+ */
+ipcMain.handle("secrets:save", async (_event, id, plainText) => {
+	if (!safeStorage.isEncryptionAvailable()) {
+		throw new Error("Encryption not available");
+	}
+	const data = readSecretsFile();
+	const encrypted = safeStorage.encryptString(plainText);
+	data.secrets[id] = {
+		encrypted: encrypted.toString("base64"),
+		lastAccessed: null,
+		createdAt: data.secrets[id]?.createdAt || Date.now(),
+		updatedAt: Date.now(),
+	};
+	writeSecretsFile(data);
+});
+
+/**
+ * Load and decrypt a secret.
+ */
+ipcMain.handle("secrets:load", async (_event, id) => {
+	if (!safeStorage.isEncryptionAvailable()) {
+		throw new Error("Encryption not available");
+	}
+	const data = readSecretsFile();
+	const entry = data.secrets[id];
+	if (!entry) return null;
+
+	// Update lastAccessed timestamp
+	entry.lastAccessed = Date.now();
+	writeSecretsFile(data);
+
+	const buffer = Buffer.from(entry.encrypted, "base64");
+	return safeStorage.decryptString(buffer);
+});
+
+/**
+ * Delete a secret.
+ */
+ipcMain.handle("secrets:delete", async (_event, id) => {
+	const data = readSecretsFile();
+	delete data.secrets[id];
+	writeSecretsFile(data);
+});
+
+/**
+ * List all secret IDs with metadata (no values).
+ */
+ipcMain.handle("secrets:list", async () => {
+	const data = readSecretsFile();
+	return Object.entries(data.secrets).map(([id, entry]) => ({
+		id,
+		lastAccessed: entry.lastAccessed,
+		createdAt: entry.createdAt,
+		updatedAt: entry.updatedAt,
+	}));
+});
+
+// ============================================================================
+// Pop-out Windows — open views in separate BrowserWindows
+// ============================================================================
+
+/** @type {Map<number, BrowserWindow>} */
+const childWindows = new Map();
+let nextChildId = 1;
+
+/**
+ * Open a view in a new child BrowserWindow.
+ * The child loads the same app URL with a `?view=<viewType>` query parameter
+ * so the renderer can detect it and render only that view's panel.
+ *
+ * @param {string} viewType - The view type identifier (e.g., 'vc-tracing-view')
+ * @param {object} [options] - Optional window size overrides
+ * @returns {{ windowId: number }}
+ */
+ipcMain.handle("window:open", async (_event, viewType, options = {}) => {
+	const config = readWindowConfig();
+	const isFrameHidden = config.windowFrameStyle !== "native";
+
+	const childOptions = {
+		width: options.width || 900,
+		height: options.height || 650,
+		minWidth: 500,
+		minHeight: 400,
+		title: options.title || "Vault Copilot",
+		parent: mainWindow,
+		webPreferences: {
+			preload: path.join(__dirname, "preload.cjs"),
+			contextIsolation: true,
+			nodeIntegration: false,
+			sandbox: false,
+		},
+	};
+
+	if (isFrameHidden) {
+		childOptions.frame = false;
+		childOptions.titleBarStyle = "hidden";
+		if (process.platform === "win32") {
+			childOptions.titleBarOverlay = {
+				color: "#f6f6f6",
+				symbolColor: "#2e3338",
+				height: 36,
+			};
+		}
+	}
+
+	const childWindow = new BrowserWindow(childOptions);
+	const childId = nextChildId++;
+	childWindows.set(childId, childWindow);
+
+	// Remove menu bar from child window
+	childWindow.setMenu(null);
+
+	const viewParam = encodeURIComponent(viewType);
+
+	if (isDev) {
+		const devUrl = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
+		childWindow.loadURL(`${devUrl}?view=${viewParam}`);
+	} else {
+		// For production, load index.html with query param
+		const indexPath = path.join(__dirname, "../dist/index.html");
+		childWindow.loadFile(indexPath, { query: { view: viewType } });
+	}
+
+	childWindow.on("closed", () => {
+		childWindows.delete(childId);
+	});
+
+	return { windowId: childId };
+});
+
+// Clean up spawned processes and child windows on exit
 app.on("before-quit", () => {
 	for (const [, child] of activeProcesses) {
 		child.kill();
 	}
 	activeProcesses.clear();
+
+	for (const [, win] of childWindows) {
+		if (!win.isDestroyed()) win.close();
+	}
+	childWindows.clear();
 });

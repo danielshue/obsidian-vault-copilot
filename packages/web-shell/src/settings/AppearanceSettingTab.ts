@@ -306,13 +306,24 @@ export class AppearanceSettingTab extends SettingTab {
 
 	/** Apply the selected theme to the document. */
 	private applyTheme(theme: "light" | "dark" | "system"): void {
-		let darkMode: boolean;
-		if (theme === "system") {
-			darkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
-		} else {
-			darkMode = theme === "dark";
-		}
-		document.body.classList.toggle("theme-dark", darkMode);
-		document.body.classList.toggle("theme-light", !darkMode);
+		applyTheme(theme);
 	}
+}
+
+/**
+ * Apply the given theme to the document body.
+ *
+ * Exported so it can be called at startup before any settings tab is created.
+ *
+ * @param theme - The theme mode to apply
+ */
+export function applyTheme(theme: "light" | "dark" | "system"): void {
+	let darkMode: boolean;
+	if (theme === "system") {
+		darkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
+	} else {
+		darkMode = theme === "dark";
+	}
+	document.body.classList.toggle("theme-dark", darkMode);
+	document.body.classList.toggle("theme-light", !darkMode);
 }

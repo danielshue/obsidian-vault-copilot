@@ -24,7 +24,9 @@ import { EditorManager } from "./editor/EditorManager.js";
 import { GeneralSettingTab } from "./settings/GeneralSettingTab.js";
 import { EditorSettingTab } from "./settings/EditorSettingTab.js";
 import { FilesAndLinksSettingTab } from "./settings/FilesAndLinksSettingTab.js";
-import { AppearanceSettingTab } from "./settings/AppearanceSettingTab.js";
+import { AppearanceSettingTab, applyTheme } from "./settings/AppearanceSettingTab.js";
+import { KeychainSettingTab } from "./settings/KeychainSettingTab.js";
+import { loadSettings } from "./settings/WebShellSettings.js";
 
 // Import plugin styles via JS so Vite processes @import chains correctly
 import "../../../src/styles/styles.css";
@@ -154,11 +156,16 @@ async function bootstrap(dirHandleOrPath: FileSystemDirectoryHandle | string): P
 		// Workspace needs app reference so leaves can access it
 		workspace.app = app;
 
+		// Apply saved theme immediately so the UI renders with the correct colors
+		const savedSettings = loadSettings();
+		applyTheme(savedSettings.theme);
+
 		// Register built-in settings tabs
 		app.registerBuiltInTab(new GeneralSettingTab(app));
 		app.registerBuiltInTab(new EditorSettingTab(app));
 		app.registerBuiltInTab(new FilesAndLinksSettingTab(app));
 		app.registerBuiltInTab(new AppearanceSettingTab(app));
+		app.registerBuiltInTab(new KeychainSettingTab(app));
 
 		// ---- Step 5: Load the plugin ----
 		console.log("[web-shell] Loading plugin...");
@@ -243,14 +250,120 @@ async function bootstrap(dirHandleOrPath: FileSystemDirectoryHandle | string): P
  */
 function syncTitleBarOverlay() {
 	if (!window.electronAPI?.setTitleBarOverlay) return;
+	// When a modal overlay is visible, dim the titlebar to match the backdrop
+	const hasModal = document.querySelector(".modal-container, .ws-settings-overlay");
+	if (hasModal) {
+		window.electronAPI.setTitleBarOverlay({ color: "#000000", symbolColor: "#888888" }).catch(() => {});
+		return;
+	}
 	const style = getComputedStyle(document.documentElement);
 	const bg = style.getPropertyValue("--background-secondary").trim() || "#f6f6f6";
 	const fg = style.getPropertyValue("--text-normal").trim() || "#2e3338";
 	window.electronAPI.setTitleBarOverlay({ color: bg, symbolColor: fg }).catch(() => {});
 }
 
+/**
+ * Bootstrap a standalone view in a child Electron window.
+ * Initialises the vault + plugin without the full UI (no file explorer, editor, or chat).
+ * The requested view panel fills the entire window.
+ */
+async function bootstrapStandaloneView(viewType: string): Promise<void> {
+	// Hide all chrome — vault picker and full workspace
+	const picker = document.getElementById("vault-picker");
+	if (picker) picker.style.display = "none";
+	const appContainer = document.querySelector(".app-container") as HTMLElement;
+	if (appContainer) appContainer.style.display = "none";
+
+	// Create a standalone container that fills the window
+	const container = document.createElement("div");
+	container.className = "ws-standalone-view";
+	document.body.appendChild(container);
+
+	// We need the vault path to initialise (Electron stores it in localStorage)
+	const dirPath = getStoredDirPath();
+	if (!dirPath) {
+		container.innerHTML = '<div style="padding:2em;color:var(--text-error);">No vault selected — close this window and open from the main window.</div>';
+		return;
+	}
+
+	try {
+		// Minimal shim setup — same as bootstrap() but without UI wiring
+		const vault = new Vault(dirPath);
+		await vault.initialize();
+
+		const dummyWsEl = document.createElement("div");
+		const workspace = new Workspace(dummyWsEl);
+		const metadataCache = new MetadataCache(vault);
+		const fileManager = new FileManager(vault);
+		const app = new App(vault, workspace, metadataCache, fileManager);
+		workspace.app = app;
+
+		// Apply theme so panel renders with correct colors
+		const savedSettings = loadSettings();
+		applyTheme(savedSettings.theme);
+
+		// Load the plugin (initialises TracingService, loads settings, etc.)
+		const { default: CopilotPlugin } = await import("../../../src/main.js");
+		const manifest = {
+			id: "obsidian-vault-copilot",
+			name: "Vault Copilot",
+			version: "0.0.26",
+			description: "AI assistant for your vault",
+			isDesktopOnly: false,
+		};
+		const plugin = new CopilotPlugin(app, manifest);
+		await plugin.onload();
+
+		// Render the requested view panel
+		if (viewType === "vc-tracing-view") {
+			const { TracingPanel } = await import("../../../src/ui/ChatView/modals/TracingModal.js");
+			container.classList.add("vc-tracing-modal");
+			const panel = new TracingPanel(container, app);
+			panel.mount();
+		} else if (viewType === "vc-voice-history-view") {
+			const { ConversationHistoryPanel } = await import("../../../src/ui/ChatView/modals/ConversationHistoryModal.js");
+			const conversations = plugin.settings?.voice?.conversations || [];
+			const panel = new ConversationHistoryPanel(
+				app,
+				container,
+				conversations,
+				(id: string) => {
+					if (!plugin.settings?.voice?.conversations) return;
+					const idx = plugin.settings.voice.conversations.findIndex((c: any) => c.id === id);
+					if (idx > -1) {
+						plugin.settings.voice.conversations.splice(idx, 1);
+						plugin.saveSettings();
+					}
+				},
+				() => {
+					if (plugin.settings?.voice) {
+						plugin.settings.voice.conversations = [];
+						plugin.saveSettings();
+					}
+				}
+			);
+			panel.mount();
+		} else {
+			container.innerHTML = `<div style="padding:2em;color:var(--text-muted);">Unknown view type: ${viewType}</div>`;
+		}
+	} catch (err: any) {
+		console.error("[web-shell] Standalone view bootstrap failed:", err);
+		container.innerHTML = `<div style="padding:2em;color:var(--text-error);">
+			<h3>View Error</h3>
+			<pre style="white-space:pre-wrap;font-size:0.85em;">${err?.stack || err?.message || err}</pre>
+		</div>`;
+	}
+}
+
 // ---- Wire up the folder picker button ----
 document.addEventListener("DOMContentLoaded", async () => {
+	// Check for standalone view mode (child Electron window with ?view= param)
+	const viewParam = new URLSearchParams(window.location.search).get("view");
+	if (viewParam) {
+		await bootstrapStandaloneView(viewParam);
+		return;
+	}
+
 	// Electron mode: try restoring from localStorage, use native dialog for picking
 	if (window.electronAPI) {
 		// Apply frameless window class if using hidden frame style
@@ -264,6 +377,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 				new MutationObserver(() => syncTitleBarOverlay()).observe(
 					document.body,
 					{ attributes: true, attributeFilter: ["class"] },
+				);
+				// Watch for modal overlays appearing/disappearing to dim titlebar
+				new MutationObserver(() => syncTitleBarOverlay()).observe(
+					document.body,
+					{ childList: true, subtree: true },
 				);
 			}
 		} catch { /* ignore */ }

@@ -36,6 +36,20 @@ export class App {
 	/** Built-in setting tabs (General, Editor, etc.). */
 	_builtInTabs: SettingTabLike[] = [];
 
+	/** Cached secret IDs for synchronous access via secretStorage. */
+	private _secretCache: string[] = [];
+
+	/**
+	 * Synchronous SecretStorage API compatible with Obsidian's native interface.
+	 * Uses a cached list of secret IDs populated on init and kept in sync.
+	 * getSecret/setSecret are async under the hood but fire-and-forget for sync callers.
+	 */
+	secretStorage: {
+		listSecrets(): string[];
+		getSecret(id: string): string | null;
+		setSecret(id: string, secret: string): void;
+	};
+
 	/** Currently active tab in the settings modal. */
 	private _activeSettingTab: SettingTabLike | null = null;
 
@@ -65,6 +79,41 @@ export class App {
 			open: () => this._openSettingsModal(),
 			openTabById: (id: string) => this._openSettingsModal(id),
 		};
+
+		// SecretStorage — sync-compatible wrapper around async secret methods.
+		// Pre-cache secret IDs so listSecrets() can be called synchronously
+		// (matching Obsidian's native SecretStorage API).
+		this.secretStorage = {
+			listSecrets: () => this._secretCache,
+			getSecret: (id: string) => {
+				// Return null synchronously; callers needing actual values
+				// should use getSecretValue() from utils/secrets.ts which is async.
+				// This is consistent with how Obsidian's API works for the dropdown.
+				return this._secretCache.includes(id) ? id : null;
+			},
+			setSecret: (id: string, secret: string) => {
+				// Optimistically add to cache so subsequent sync listSecrets()
+				// sees the new ID immediately (before async IPC completes).
+				if (!this._secretCache.includes(id)) {
+					this._secretCache.push(id);
+				}
+				this.saveSecret(id, secret).then(() => this._refreshSecretCache());
+			},
+		};
+		this._refreshSecretCache();
+	}
+
+	/**
+	 * Refresh the cached list of secret IDs from async storage.
+	 * @internal
+	 */
+	private async _refreshSecretCache(): Promise<void> {
+		try {
+			const entries = await this.listSecrets();
+			this._secretCache = entries.map((e) => e.id);
+		} catch {
+			this._secretCache = [];
+		}
 	}
 
 	/** Register a built-in (non-plugin) settings tab. */
@@ -213,19 +262,60 @@ export class App {
 	}
 
 	/**
-	 * Load a secret value. In Obsidian this uses internal encrypted storage.
-	 * In the web shim we fall back to localStorage with a prefix.
+	 * Load a secret value. Uses Electron safeStorage when available,
+	 * falls back to localStorage with a prefix.
 	 */
 	async loadSecret(key: string): Promise<string | undefined> {
+		if ((window as any).electronAPI?.loadSecret) {
+			const val = await (window as any).electronAPI.loadSecret(key);
+			return val ?? undefined;
+		}
 		const val = localStorage.getItem(`vc-secret:${key}`);
 		return val ?? undefined;
 	}
 
 	/**
-	 * Save a secret value. In Obsidian this uses internal encrypted storage.
-	 * In the web shim we fall back to localStorage with a prefix.
+	 * Save a secret value. Uses Electron safeStorage when available,
+	 * falls back to localStorage with a prefix.
 	 */
 	async saveSecret(key: string, value: string): Promise<void> {
-		localStorage.setItem(`vc-secret:${key}`, value);
+		if ((window as any).electronAPI?.saveSecret) {
+			await (window as any).electronAPI.saveSecret(key, value);
+		} else {
+			localStorage.setItem(`vc-secret:${key}`, value);
+		}
+		await this._refreshSecretCache();
+	}
+
+	/**
+	 * Delete a secret. Uses Electron safeStorage when available,
+	 * falls back to localStorage.
+	 */
+	async deleteSecret(key: string): Promise<void> {
+		if ((window as any).electronAPI?.deleteSecret) {
+			await (window as any).electronAPI.deleteSecret(key);
+		} else {
+			localStorage.removeItem(`vc-secret:${key}`);
+		}
+		await this._refreshSecretCache();
+	}
+
+	/**
+	 * List all stored secrets with metadata (no values).
+	 * Uses Electron safeStorage when available, falls back to localStorage.
+	 */
+	async listSecrets(): Promise<Array<{ id: string; lastAccessed: number | null }>> {
+		if ((window as any).electronAPI?.listSecrets) {
+			return (window as any).electronAPI.listSecrets();
+		}
+		// localStorage fallback: enumerate vc-secret: prefixed keys
+		const results: Array<{ id: string; lastAccessed: number | null }> = [];
+		for (let i = 0; i < localStorage.length; i++) {
+			const key = localStorage.key(i);
+			if (key?.startsWith("vc-secret:")) {
+				results.push({ id: key.slice("vc-secret:".length), lastAccessed: null });
+			}
+		}
+		return results;
 	}
 }

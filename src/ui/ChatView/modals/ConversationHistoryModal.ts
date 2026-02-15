@@ -18,7 +18,7 @@ import type CopilotPlugin from "../../../main";
 type SortField = 'date' | 'name' | 'messages';
 type SortOrder = 'asc' | 'desc';
 
-class ConversationHistoryPanel {
+export class ConversationHistoryPanel {
 	private conversations: VoiceConversation[];
 	private onDelete: (id: string) => void;
 	private onDeleteAll: () => void;
@@ -536,6 +536,20 @@ export function openVoiceHistoryPopout(
 	onDelete: (id: string) => void,
 	onDeleteAll: () => void
 ): void {
+	// Electron web-shell: open in a dedicated child BrowserWindow
+	if ((window as any).electronAPI?.openWindow) {
+		(window as any).electronAPI.openWindow(VOICE_HISTORY_VIEW_TYPE, {
+			title: "Voice Conversation History",
+			width: 900,
+			height: 650,
+		}).catch((err: any) => {
+			console.error('[ConversationHistoryModal] Failed to open child window:', err);
+			const modal = new ConversationHistoryModal(app, conversations, onDelete, onDeleteAll);
+			modal.open();
+		});
+		return;
+	}
+
 	// On desktop, create a pop-out window using workspace API
 	// On mobile, fall back to modal
 	if (Platform.isDesktopApp) {
@@ -544,12 +558,10 @@ export function openVoiceHistoryPopout(
 			leaf.setViewState({ type: VOICE_HISTORY_VIEW_TYPE, active: true });
 		} catch (error) {
 			console.error('[ConversationHistoryModal] Failed to open pop-out window:', error);
-			// Fallback to modal
 			const modal = new ConversationHistoryModal(app, conversations, onDelete, onDeleteAll);
 			modal.open();
 		}
 	} else {
-		// Mobile: use modal
 		const modal = new ConversationHistoryModal(app, conversations, onDelete, onDeleteAll);
 		modal.open();
 	}

@@ -56,6 +56,12 @@ interface ElectronAPI {
 	setWindowFrame(style: "hidden" | "native"): Promise<void>;
 	getWindowFrame(): Promise<"hidden" | "native">;
 	setTitleBarOverlay(colors: { color: string; symbolColor: string }): Promise<void>;
+	isSecretStorageAvailable(): Promise<boolean>;
+	saveSecret(id: string, plainText: string): Promise<void>;
+	loadSecret(id: string): Promise<string | null>;
+	deleteSecret(id: string): Promise<void>;
+	listSecrets(): Promise<Array<{ id: string; lastAccessed: number | null; createdAt: number; updatedAt: number }>>;
+	openWindow(viewType: string, options?: { width?: number; height?: number; title?: string }): Promise<{ windowId: number }>;
 }
 
 declare global {
