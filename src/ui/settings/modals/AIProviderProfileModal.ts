@@ -93,6 +93,7 @@ export class AIProviderProfileModal extends Modal {
 	onOpen(): void {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.modalEl.addClass('vc-ai-provider-profile-modal');
 		contentEl.addClass('vc-profile-modal');
 
 		contentEl.createEl('h2', { text: this.isEdit ? 'Edit AI Provider Profile' : 'Create AI Provider Profile' });
@@ -450,5 +451,6 @@ export class AIProviderProfileModal extends Modal {
 	onClose(): void {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.modalEl.removeClass('vc-ai-provider-profile-modal');
 	}
 }

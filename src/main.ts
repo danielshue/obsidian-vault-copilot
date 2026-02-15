@@ -47,7 +47,7 @@
  */
 
 import { Plugin } from "obsidian";
-import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "./ui/settings";
+import { DEFAULT_SETTINGS, CopilotPluginSettings, CopilotSettingTab, COPILOT_SETTINGS_TABS, CopilotSession, AIProviderProfile, generateProfileId, OpenAIProviderProfile, AzureOpenAIProviderProfile, getProfileById, getOpenAIProfileApiKey, getAzureProfileApiKey, getLegacyOpenAIKey } from "./ui/settings";
 import { GitHubCopilotCliService, GitHubCopilotCliConfig, ChatMessage, ModelInfoResult, ModelCapabilitiesInfo, ModelPolicyInfo } from "./copilot/providers/GitHubCopilotCliService";
 import { CopilotChatView, COPILOT_VIEW_TYPE, ConversationHistoryView, TracingView, TRACING_VIEW_TYPE, VOICE_HISTORY_VIEW_TYPE } from "./ui/ChatView";
 import { ExtensionBrowserView, EXTENSION_BROWSER_VIEW_TYPE } from "./ui/extensions/ExtensionBrowserView";
@@ -774,8 +774,19 @@ export default class CopilotPlugin extends Plugin {
 			},
 		});
 
-		// Add settings tab
-		this.addSettingTab(new CopilotSettingTab(this.app, this));
+		// Add settings tabs (one per Vault Copilot section)
+		for (const tab of COPILOT_SETTINGS_TABS) {
+			if (tab.requiresDesktop && !supportsLocalProcesses()) {
+				continue;
+			}
+
+			this.addSettingTab(new CopilotSettingTab(this.app, this, {
+				tabId: tab.id,
+				tabName: tab.name,
+				tabIcon: tab.icon,
+				section: tab.section,
+			}));
+		}
 
 		// Auto-connect on startup (optional)
 		// await this.connectCopilot();

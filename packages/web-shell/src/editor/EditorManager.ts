@@ -55,6 +55,7 @@ export class EditorManager {
 	private newTabBtn: HTMLElement;
 	private splitBtn!: HTMLButtonElement;
 	private titlebarRightSidebarBtn: HTMLButtonElement | null = null;
+	private floatingRightSidebarBtn: HTMLButtonElement | null = null;
 	private rightSidebarObserver: MutationObserver | null = null;
 	private breadcrumbBar: HTMLElement;
 	private breadcrumbPath: HTMLElement;
@@ -172,6 +173,7 @@ export class EditorManager {
 		`;
 		this.editorContainer.appendChild(this.emptyState);
 		this.ensureTitlebarRightSidebarButton();
+		this.ensureFloatingRightSidebarButton();
 		this.bindExternalRightSidebarControls();
 		this.updateRightSidebarToggleUI(false);
 		this.watchRightSidebarState();
@@ -625,9 +627,9 @@ export class EditorManager {
 	/** Icon for right sidebar toggle button. */
 	private getRightSidebarIcon(collapsed: boolean): string {
 		if (collapsed) {
-			return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="15" y="3" width="6" height="18" rx="0"/></svg>`;
+			return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11 8 16 12 11 16"/></svg>`;
 		}
-		return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>`;
+		return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="13 8 8 12 13 16"/></svg>`;
 	}
 
 	/** Ensure a dedicated titlebar button exists for reopening the right sidebar when collapsed. */
@@ -643,6 +645,21 @@ export class EditorManager {
 		btn.addEventListener("contextmenu", (e) => this.showRightSidebarContextMenu(btn, e));
 		document.body.appendChild(btn);
 		this.titlebarRightSidebarBtn = btn;
+	}
+
+	/** Ensure a floating fallback button exists for restoring the right sidebar. */
+	private ensureFloatingRightSidebarButton(): void {
+		if (this.floatingRightSidebarBtn) return;
+		const btn = document.createElement("button");
+		btn.className = "ws-right-sidebar-restore-btn";
+		btn.setAttribute("aria-label", "Show right sidebar");
+		btn.title = "Show right sidebar";
+		btn.style.display = "none";
+		btn.innerHTML = this.getRightSidebarIcon(true);
+		btn.addEventListener("click", () => this.toggleRightSidebar());
+		btn.addEventListener("contextmenu", (e) => this.showRightSidebarContextMenu(btn, e));
+		document.body.appendChild(btn);
+		this.floatingRightSidebarBtn = btn;
 	}
 
 	/** Show a simple context menu for the titlebar sidebar toggle. */
@@ -686,6 +703,10 @@ export class EditorManager {
 		if (this.titlebarRightSidebarBtn) {
 			this.titlebarRightSidebarBtn.innerHTML = this.getRightSidebarIcon(collapsed);
 			this.titlebarRightSidebarBtn.style.display = collapsed ? "flex" : "none";
+		}
+		if (this.floatingRightSidebarBtn) {
+			this.floatingRightSidebarBtn.innerHTML = this.getRightSidebarIcon(collapsed);
+			this.floatingRightSidebarBtn.style.display = collapsed ? "flex" : "none";
 		}
 		this.splitBtn.style.display = "";
 	}

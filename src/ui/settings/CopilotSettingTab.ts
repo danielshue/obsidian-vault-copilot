@@ -33,6 +33,7 @@ import {
 	renderWhisperCppSection,
 	renderVoiceInputSection,
 	renderRealtimeAgentSection,
+	renderToolSelectionSection,
 	renderSkillsMcpSection,
 	renderAutomationsSection,
 	renderAdvancedSettings,
@@ -43,18 +44,80 @@ import {
 	type SkillsMcpState,
 } from "./sections";
 
+/**
+ * Supported Vault Copilot settings sections that can be displayed as individual tabs.
+ */
+export type CopilotSettingsSection =
+	| "chat-preferences"
+	| "ai-provider-profiles"
+	| "date-time"
+	| "periodic-notes"
+	| "whisper-cpp"
+	| "voice-input"
+	| "realtime-agent"
+	| "tool-selection"
+	| "skills-mcp"
+	| "automations"
+	| "advanced-settings"
+	| "connection-status"
+	| "vault-setup"
+	| "help";
+
+/**
+ * Descriptor for top-level settings items shown in the settings sidebar.
+ */
+export interface CopilotSettingsTabDescriptor {
+	id: string;
+	name: string;
+	icon: string;
+	section: CopilotSettingsSection;
+	requiresDesktop?: boolean;
+}
+
+/**
+ * Default list of section tabs to register for Vault Copilot.
+ */
+export const COPILOT_SETTINGS_TABS: ReadonlyArray<CopilotSettingsTabDescriptor> = [
+	{ id: "vault-copilot-datetime", name: "Date & time", icon: "calendar-clock", section: "date-time" },
+	{ id: "vault-copilot-periodic-notes", name: "Periodic notes", icon: "notebook-pen", section: "periodic-notes" },
+	{ id: "vault-copilot-profiles", name: "AI Providers", icon: "bot", section: "ai-provider-profiles" },
+	{ id: "vault-copilot-chat", name: "Chat Preferences", icon: "message-square", section: "chat-preferences" },
+	{ id: "vault-copilot-whisper", name: "Whisper.cpp", icon: "mic", section: "whisper-cpp", requiresDesktop: true },
+	{ id: "vault-copilot-voice", name: "Voice input", icon: "audio-lines", section: "voice-input" },
+	{ id: "vault-copilot-realtime", name: "Realtime agent", icon: "radio", section: "realtime-agent" },
+	{ id: "vault-copilot-tools", name: "Tool selection", icon: "sliders-horizontal", section: "tool-selection" },
+	{ id: "vault-copilot-skills", name: "Skills & MCP", icon: "wrench", section: "skills-mcp" },
+	{ id: "vault-copilot-automations", name: "Automations", icon: "zap", section: "automations" },
+	{ id: "vault-copilot-advanced", name: "Folder Paths", icon: "sliders-horizontal", section: "advanced-settings" },
+	{ id: "vault-copilot-connection", name: "Connection status", icon: "plug", section: "connection-status", requiresDesktop: true },
+	{ id: "vault-copilot-setup", name: "Vault setup", icon: "folder-cog", section: "vault-setup", requiresDesktop: true },
+	{ id: "vault-copilot-help", name: "Help", icon: "circle-help", section: "help" },
+];
+
+interface CopilotSettingTabOptions {
+	tabId?: string;
+	tabName?: string;
+	tabIcon?: string;
+	section?: CopilotSettingsSection;
+}
+
 export class CopilotSettingTab extends PluginSettingTab {
 	plugin: CopilotPlugin;
 	private githubCopilotCliManager: GitHubCopilotCliManager;
 	private cachedStatus: CliStatus | null = null;
 	private skillRegistryUnsubscribe: (() => void) | null = null;
 	private toolCatalog: ToolCatalog;
+	private readonly section: CopilotSettingsSection | "all";
 
-	constructor(app: App, plugin: CopilotPlugin) {
+	constructor(app: App, plugin: CopilotPlugin, options?: CopilotSettingTabOptions) {
 		super(app, plugin);
 		this.plugin = plugin;
 		this.githubCopilotCliManager = new GitHubCopilotCliManager(plugin.settings.cliPath);
 		this.toolCatalog = new ToolCatalog(plugin.skillRegistry, plugin.mcpManager, plugin.skillCache);
+		this.section = options?.section ?? "all";
+		(this as unknown as { id: string }).id = options?.tabId ?? "vault-copilot";
+		(this as unknown as { name: string }).name = options?.tabName ?? "Vault Copilot";
+		(this as unknown as { icon: string }).icon = options?.tabIcon ?? "bot";
 	}
 
 	display(): void {
@@ -79,67 +142,91 @@ export class CopilotSettingTab extends PluginSettingTab {
 			refreshDisplay: () => this.display(),
 		};
 
-		// ── Chat Preferences (main settings area) ─────────────────────
-		const chatState: ChatPreferencesState = renderChatPreferencesSection(containerEl, ctx);
-		chatState.renderMainSettingsIfReady(this.cachedStatus || { installed: false } as CliStatus);
+		const shouldRender = (section: CopilotSettingsSection): boolean => {
+			return this.section === "all" || this.section === section;
+		};
 
-		// ── AI Provider Profiles ──────────────────────────────────────
-		renderAIProviderProfilesSection(containerEl, ctx);
-
-		// ── Date & Time ───────────────────────────────────────────────
-		renderDateTimeSection(containerEl, ctx);
-
-		// ── Periodic Notes ────────────────────────────────────────────
-		renderPeriodicNotesSection(containerEl, ctx);
-
-		// ── Whisper.cpp (desktop only — requires Node.js) ────────────
-		if (isDesktop) {
-			renderWhisperCppSection(containerEl, ctx);
+		let chatState: ChatPreferencesState | null = null;
+		if (shouldRender("chat-preferences")) {
+			chatState = renderChatPreferencesSection(containerEl, ctx);
+			chatState.renderMainSettingsIfReady(this.cachedStatus || { installed: false } as CliStatus);
 		}
 
-		// ── Voice Input ───────────────────────────────────────────────
-		renderVoiceInputSection(containerEl, ctx);
+		if (shouldRender("ai-provider-profiles")) {
+			renderAIProviderProfilesSection(containerEl, ctx);
+		}
 
-		// ── Realtime Agent ────────────────────────────────────────────
-		renderRealtimeAgentSection(containerEl, ctx);
+		if (shouldRender("date-time")) {
+			renderDateTimeSection(containerEl, ctx);
+		}
 
-		// ── Registered Skills & MCP Servers ───────────────────────────
-		const skillsState: SkillsMcpState = renderSkillsMcpSection(containerEl, ctx);
-		// Keep a reference so hide() can clean up
-		this.skillRegistryUnsubscribe = this.plugin.skillRegistry.onSkillChange(() => {
-			skillsState.updateSkillsDisplay();
-		});
+		if (shouldRender("periodic-notes")) {
+			renderPeriodicNotesSection(containerEl, ctx);
+		}
 
-		// ── Automations ───────────────────────────────────────────────
-		renderAutomationsSection(containerEl, ctx);
+		if (shouldRender("whisper-cpp")) {
+			if (isDesktop) {
+				renderWhisperCppSection(containerEl, ctx);
+			} else {
+				this.renderDesktopOnlyMessage(containerEl, "Whisper.cpp");
+			}
+		}
 
-		// ── Assistant Customization (directories) ─────────────────────
-		renderAdvancedSettings(containerEl, ctx);
+		if (shouldRender("voice-input")) {
+			renderVoiceInputSection(containerEl, ctx);
+		}
 
-		// ── CLI Connection Status (desktop only — requires child_process) ──
+		if (shouldRender("realtime-agent")) {
+			renderRealtimeAgentSection(containerEl, ctx);
+		}
+
+		if (shouldRender("tool-selection")) {
+			renderToolSelectionSection(containerEl, ctx);
+		}
+
+		if (shouldRender("skills-mcp")) {
+			const skillsState: SkillsMcpState = renderSkillsMcpSection(containerEl, ctx);
+			this.skillRegistryUnsubscribe = this.plugin.skillRegistry.onSkillChange(() => {
+				skillsState.updateSkillsDisplay();
+			});
+		}
+
+		if (shouldRender("automations")) {
+			renderAutomationsSection(containerEl, ctx);
+		}
+
+		if (shouldRender("advanced-settings")) {
+			renderAdvancedSettings(containerEl, ctx);
+		}
+
 		let cliState: CliStatusState | null = null;
-		if (isDesktop) {
-			cliState = renderCliStatusSection(
-				containerEl,
-				ctx,
-				{ value: this.cachedStatus },
-				(status: CliStatus) => {
-					this.cachedStatus = status;
-					chatState.renderMainSettingsIfReady(status);
-				}
-			);
-		} else {
-			// Web/mobile: show a simplified connection info section
-			this.renderWebConnectionStatus(containerEl);
+		if (shouldRender("connection-status")) {
+			if (isDesktop) {
+				cliState = renderCliStatusSection(
+					containerEl,
+					ctx,
+					{ value: this.cachedStatus },
+					(status: CliStatus) => {
+						this.cachedStatus = status;
+						chatState?.renderMainSettingsIfReady(status);
+					}
+				);
+			} else {
+				this.renderWebConnectionStatus(containerEl);
+			}
 		}
 
-		// ── Vault Setup (desktop only — requires CLI manager) ─────────
-		if (isDesktop) {
-			renderVaultSetupSection(containerEl, ctx, this.cachedStatus, this.githubCopilotCliManager);
+		if (shouldRender("vault-setup")) {
+			if (isDesktop) {
+				renderVaultSetupSection(containerEl, ctx, this.cachedStatus, this.githubCopilotCliManager);
+			} else {
+				this.renderDesktopOnlyMessage(containerEl, "Vault setup");
+			}
 		}
 
-		// ── Help / About ──────────────────────────────────────────────
-		renderHelpSection(containerEl, ctx);
+		if (shouldRender("help")) {
+			renderHelpSection(containerEl, ctx);
+		}
 
 		// ── Restore previously-open sections ──────────────────────────
 		if (openSections.size > 0) {
@@ -157,20 +244,54 @@ export class CopilotSettingTab extends PluginSettingTab {
 			void this.plugin.saveSettings();
 		}
 
+		const needsCliStatus = isDesktop && (shouldRender("chat-preferences") || shouldRender("connection-status") || shouldRender("vault-setup"));
+		if (!needsCliStatus) {
+			return;
+		}
+
 		if (!this.plugin.settings.cliStatusChecked && !hasUserConfig) {
-			cliState?.checkStatusAsync()
-				.finally(async () => {
-					this.plugin.settings.cliStatusChecked = true;
-					await this.plugin.saveSettings();
-				});
+			if (cliState) {
+				cliState.checkStatusAsync()
+					.finally(async () => {
+						this.plugin.settings.cliStatusChecked = true;
+						await this.plugin.saveSettings();
+					});
+			} else {
+				void this.githubCopilotCliManager.getStatus(true)
+					.then((status) => {
+						this.cachedStatus = status;
+						this.plugin.settings.cliLastKnownStatus = status;
+						chatState?.renderMainSettingsIfReady(status);
+					})
+					.finally(async () => {
+						this.plugin.settings.cliStatusChecked = true;
+						await this.plugin.saveSettings();
+					});
+			}
 		} else if (this.cachedStatus || this.plugin.settings.cliLastKnownStatus) {
 			this.cachedStatus = this.cachedStatus || this.plugin.settings.cliLastKnownStatus || null;
 			if (this.cachedStatus) {
 				cliState?.renderStatusDisplay(this.cachedStatus);
+				chatState?.renderMainSettingsIfReady(this.cachedStatus);
 			}
 		} else {
 			cliState?.renderStatusDeferred();
 		}
+	}
+
+	/**
+	 * Render a simple desktop-only notice for sections not available on mobile/web.
+	 *
+	 * @param containerEl - Parent element to render into
+	 * @param sectionName - Friendly section name
+	 */
+	private renderDesktopOnlyMessage(containerEl: HTMLElement, sectionName: string): void {
+		const section = containerEl.createDiv({ cls: "vc-settings-section" });
+		section.createEl("h3", { text: sectionName });
+		section.createEl("p", {
+			cls: "setting-item-description",
+			text: `${sectionName} is available on desktop only.`,
+		});
 	}
 
 	private hasUserConfiguration(): boolean {

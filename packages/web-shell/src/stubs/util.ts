@@ -17,4 +17,7 @@ export function inspect(obj: any): string {
 	return JSON.stringify(obj, null, 2);
 }
 
-export default { promisify, inspect };
+// Re-export browser globals that Node's util also provides
+export { TextDecoder, TextEncoder };
+
+export default { promisify, inspect, TextDecoder, TextEncoder };

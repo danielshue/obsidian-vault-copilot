@@ -16,7 +16,7 @@ import type { App } from "@vault-copilot/obsidian-shim/src/core/App.js";
 
 export class EditorSettingTab extends SettingTab {
 	constructor(app: App) {
-		super(app, "editor", "Editor");
+		super(app, "editor", "Editor", "pencil");
 	}
 
 	display(): void {

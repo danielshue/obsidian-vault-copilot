@@ -97,4 +97,9 @@ export {
 	AIProviderProfileModal,
 	AddHttpMcpServerModal,
 } from "./modals";
-export { CopilotSettingTab } from "./CopilotSettingTab";
+export {
+	CopilotSettingTab,
+	COPILOT_SETTINGS_TABS,
+	type CopilotSettingsSection,
+	type CopilotSettingsTabDescriptor,
+} from "./CopilotSettingTab";

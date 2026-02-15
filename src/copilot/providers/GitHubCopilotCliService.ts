@@ -274,6 +274,7 @@ export class GitHubCopilotCliService {
 	 */
 	private interceptConsoleLogs(): void {
 		const tracingService = getTracingService();
+		const processLike = (globalThis as any).process as { stderr?: { write?: (...args: any[]) => any } } | undefined;
 		
 		// Log that we're setting up interception
 		console.log('[Vault Copilot] Setting up CLI log interception...');
@@ -281,9 +282,9 @@ export class GitHubCopilotCliService {
 		
 		// Intercept process.stderr.write to capture CLI subprocess logs
 		// The SDK writes logs with prefix "[CLI subprocess]" to stderr
-		if (process?.stderr?.write) {
-			const originalStderrWrite = process.stderr.write.bind(process.stderr);
-			(process.stderr as any).write = (chunk: any, encoding?: any, callback?: any) => {
+		if (processLike?.stderr?.write) {
+			const originalStderrWrite = processLike.stderr.write.bind(processLike.stderr);
+			(processLike.stderr as any).write = (chunk: any, encoding?: any, callback?: any) => {
 				const message = typeof chunk === 'string' ? chunk : chunk?.toString?.() || '';
 				
 				// Debug: Log all stderr writes to see what we're getting

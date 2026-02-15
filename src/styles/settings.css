@@ -639,6 +639,35 @@ details.vc-collapsible > .vc-section-content {
 	text-decoration: underline;
 }
 
+/* AI Provider Profile Modal */
+.modal.vc-ai-provider-profile-modal {
+	width: min(720px, calc(100vw - 32px));
+	max-width: calc(100vw - 32px);
+	max-height: calc(100vh - 32px);
+}
+
+.modal.vc-ai-provider-profile-modal .modal-content {
+	max-height: calc(100vh - 64px);
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.vc-profile-modal {
+	overflow-y: auto;
+	max-height: calc(100vh - 112px);
+	padding-right: 4px;
+}
+
+.vc-profile-buttons {
+	position: sticky;
+	bottom: 0;
+	background: var(--background-primary);
+	padding-top: 12px;
+	margin-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
 /* ================================
    SESSION PANEL & TOOLBAR
    ================================ */

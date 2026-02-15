@@ -16,7 +16,7 @@ import type { App } from "@vault-copilot/obsidian-shim/src/core/App.js";
 
 export class AppearanceSettingTab extends SettingTab {
 	constructor(app: App) {
-		super(app, "appearance", "Appearance");
+		super(app, "appearance", "Appearance", "palette");
 	}
 
 	display(): void {
@@ -81,22 +81,6 @@ export class AppearanceSettingTab extends SettingTab {
 					toggle.setValue(true);
 				});
 			});
-
-		new Setting(el)
-			.setName("Themes")
-			.setDesc("Manage installed themes and browse community themes.")
-			.addDropdown((dd) => {
-				dd.addOption("default", "Default")
-					.setValue("default")
-					.setDisabled(true);
-			})
-			.addButton((btn) => {
-				btn.setButtonText("Manage").setCta();
-			});
-
-		new Setting(el)
-			.setName("Current community themes")
-			.setDesc("You currently have 0 themes installed.");
 
 		// ── Interface ──
 

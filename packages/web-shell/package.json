@@ -41,6 +41,7 @@
     "@codemirror/view": "^6.39.14",
     "@lezer/highlight": "^1.2.3",
     "@vault-copilot/obsidian-shim": "file:../obsidian-shim",
+    "buffer": "^5.7.1",
     "idb-keyval": "^6.2.1",
     "marked": "^12.0.2",
     "moment": "^2.30.1"

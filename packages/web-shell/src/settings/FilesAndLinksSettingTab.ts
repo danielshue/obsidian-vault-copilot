@@ -15,7 +15,7 @@ import type { App } from "@vault-copilot/obsidian-shim/src/core/App.js";
 
 export class FilesAndLinksSettingTab extends SettingTab {
 	constructor(app: App) {
-		super(app, "files-and-links", "Files and links");
+		super(app, "files-and-links", "Files and links", "folder-open");
 	}
 
 	display(): void {

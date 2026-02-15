@@ -31,16 +31,39 @@ export interface DiscoveryResult {
 }
 
 /**
+ * Safely read environment variables in renderer contexts where `process`
+ * may be unavailable.
+ */
+function getEnvValue(name: string): string {
+	const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+	return env?.[name] || "";
+}
+
+/**
+ * Best-effort config home path fallback when env variables are missing.
+ */
+function getConfigHome(): string {
+	return getEnvValue("XDG_CONFIG_HOME") || path.join(os.homedir(), ".config");
+}
+
+/**
+ * Best-effort APPDATA path for Windows.
+ */
+function getAppDataPath(): string {
+	return getEnvValue("APPDATA") || path.join(os.homedir(), "AppData", "Roaming");
+}
+
+/**
  * Get the config file path for Claude Desktop
  */
 function getClaudeDesktopConfigPath(): string {
 	if (Platform.isWin) {
-		return path.join(process.env.APPDATA || "", "Claude", "claude_desktop_config.json");
+		return path.join(getAppDataPath(), "Claude", "claude_desktop_config.json");
 	} else if (Platform.isMacOS) {
 		return path.join(os.homedir(), "Library", "Application Support", "Claude", "claude_desktop_config.json");
 	} else {
 		// Linux - try XDG config or fallback
-		const xdgConfig = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+		const xdgConfig = getConfigHome();
 		return path.join(xdgConfig, "Claude", "claude_desktop_config.json");
 	}
 }
@@ -52,11 +75,11 @@ function getVSCodeSettingsPath(insiders: boolean = false): string {
 	const folder = insiders ? "Code - Insiders" : "Code";
 	
 	if (Platform.isWin) {
-		return path.join(process.env.APPDATA || "", folder, "User", "settings.json");
+		return path.join(getAppDataPath(), folder, "User", "settings.json");
 	} else if (Platform.isMacOS) {
 		return path.join(os.homedir(), "Library", "Application Support", folder, "User", "settings.json");
 	} else {
-		const xdgConfig = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+		const xdgConfig = getConfigHome();
 		return path.join(xdgConfig, folder, "User", "settings.json");
 	}
 }
@@ -69,14 +92,14 @@ function getCursorConfigPaths(): string[] {
 	
 	if (Platform.isWin) {
 		// Main settings
-		paths.push(path.join(process.env.APPDATA || "", "Cursor", "User", "settings.json"));
+		paths.push(path.join(getAppDataPath(), "Cursor", "User", "settings.json"));
 		// MCP-specific config
-		paths.push(path.join(process.env.APPDATA || "", "Cursor", "User", "globalStorage", "cursor.mcp", "mcp.json"));
+		paths.push(path.join(getAppDataPath(), "Cursor", "User", "globalStorage", "cursor.mcp", "mcp.json"));
 	} else if (Platform.isMacOS) {
 		paths.push(path.join(os.homedir(), "Library", "Application Support", "Cursor", "User", "settings.json"));
 		paths.push(path.join(os.homedir(), "Library", "Application Support", "Cursor", "User", "globalStorage", "cursor.mcp", "mcp.json"));
 	} else {
-		const xdgConfig = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+		const xdgConfig = getConfigHome();
 		paths.push(path.join(xdgConfig, "Cursor", "User", "settings.json"));
 	}
 	

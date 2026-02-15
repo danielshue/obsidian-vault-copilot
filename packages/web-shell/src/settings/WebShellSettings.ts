@@ -11,6 +11,9 @@
 export interface WebShellSettings {
 	// General
 	language: string;
+	automaticUpdates: boolean;
+	receiveEarlyAccessVersions: boolean;
+	notifySlowStartup: boolean;
 
 	// Editor
 	alwaysFocusNewTabs: boolean;
@@ -62,6 +65,9 @@ export interface WebShellSettings {
 
 export const DEFAULT_SETTINGS: WebShellSettings = {
 	language: "en",
+	automaticUpdates: true,
+	receiveEarlyAccessVersions: true,
+	notifySlowStartup: true,
 	alwaysFocusNewTabs: true,
 	defaultViewForNewTabs: "editing",
 	defaultEditingMode: "live-preview",

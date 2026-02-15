@@ -10,6 +10,7 @@ import type { Workspace } from "../workspace/Workspace.js";
 import type { MetadataCache } from "../metadata/MetadataCache.js";
 import type { FileManager } from "../metadata/FileManager.js";
 import type { PluginSettingTab } from "../ui/PluginSettingTab.js";
+import { setIcon } from "../utils/icons.js";
 
 /**
  * Common shape for any settings tab — built-in or plugin.
@@ -17,6 +18,7 @@ import type { PluginSettingTab } from "../ui/PluginSettingTab.js";
 export interface SettingTabLike {
 	id: string;
 	name: string;
+	icon?: string;
 	containerEl: HTMLElement;
 	display(): void;
 	hide(): void;
@@ -78,6 +80,7 @@ export class App {
 			...this._settingTabs.map((t) => ({
 				id: (t as any).id || (t as any).plugin?.manifest?.id || "plugin",
 				name: (t as any).name || (t as any).plugin?.manifest?.name || "Plugin",
+				icon: (t as any).icon,
 				containerEl: t.containerEl,
 				display: () => t.display(),
 				hide: () => t.hide(),
@@ -129,22 +132,21 @@ export class App {
 
 		// Build sidebar nav items
 		const navItems: HTMLElement[] = [];
-		let hasPluginSection = false;
 
 		for (const tab of allTabs) {
-			// Add section header before plugin tabs
-			const isPluginTab = !this._builtInTabs.includes(tab as any);
-			if (isPluginTab && !hasPluginSection) {
-				hasPluginSection = true;
-				const sectionHeader = document.createElement("div");
-				sectionHeader.className = "ws-settings-section-header";
-				sectionHeader.textContent = "Community plugins";
-				sidebar.appendChild(sectionHeader);
-			}
-
 			const navItem = document.createElement("div");
 			navItem.className = "ws-settings-nav-item";
-			navItem.textContent = tab.name;
+
+			const iconEl = document.createElement("span");
+			iconEl.className = "ws-settings-nav-icon";
+			setIcon(iconEl, tab.icon || "circle");
+			navItem.appendChild(iconEl);
+
+			const labelEl = document.createElement("span");
+			labelEl.className = "ws-settings-nav-label";
+			labelEl.textContent = tab.name;
+			navItem.appendChild(labelEl);
+
 			navItem.dataset.tabId = tab.id;
 			navItems.push(navItem);
 

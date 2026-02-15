@@ -19,6 +19,7 @@ export { renderPeriodicNotesSection } from "./PeriodicNotesSection";
 export { renderWhisperCppSection, type WhisperCppState } from "./WhisperCppSection";
 export { renderVoiceInputSection } from "./VoiceInputSection";
 export { renderRealtimeAgentSection } from "./RealtimeAgentSection";
+export { renderToolSelectionSection } from "./ToolSelectionSection";
 export { renderSkillsMcpSection, type SkillsMcpState } from "./SkillsMcpSection";
 export { renderAutomationsSection } from "./AutomationsSection";
 export { renderAdvancedSettings, renderVaultSetupSection, renderHelpSection } from "./AdvancedSettingsSection";

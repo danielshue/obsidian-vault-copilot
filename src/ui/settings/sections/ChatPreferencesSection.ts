@@ -12,7 +12,7 @@
 
 import { Setting } from "obsidian";
 import { CliStatus } from "../../../copilot/providers/GitHubCopilotCliManager";
-import { ToolPickerModal, CopilotChatView, COPILOT_VIEW_TYPE } from "../../ChatView";
+import { CopilotChatView, COPILOT_VIEW_TYPE } from "../../ChatView";
 import { isMobile, isProviderAvailable } from "../../../utils/platform";
 import type {
 	OpenAIProviderProfile,
@@ -194,8 +194,6 @@ export function renderChatPreferencesSection(
 					})
 			);
 
-		// Tool Selection
-		renderToolSelection(mainSettingsContainer, ctx);
 	}
 
 	return { mainSettingsContainer, renderMainSettingsIfReady };
@@ -368,48 +366,3 @@ function populateModelDropdown(dropdown: any, ctx: SettingSectionContext): void 
 	}
 }
 
-/** @internal */
-function renderToolSelection(container: HTMLElement, ctx: SettingSectionContext): void {
-	const { content: toolSection } = createCollapsibleSection(container, "Tool Selection");
-
-	toolSection.createEl("p", {
-		text: "Configure which tools are available to the AI by default. Built-in tools are enabled by default, MCP tools are disabled.",
-		cls: "vc-status-desc"
-	});
-
-	const toolSummaryEl = toolSection.createDiv({ cls: "vc-tool-summary" });
-	updateToolSummary(toolSummaryEl, ctx);
-
-	new Setting(toolSection)
-		.setName("Default Enabled Tools")
-		.setDesc("Choose which tools are enabled by default for new chat sessions")
-		.addButton((button) => {
-			button
-				.setButtonText("Configure Tools...")
-				.onClick(() => {
-					const modal = new ToolPickerModal(ctx.app, {
-						toolCatalog: ctx.toolCatalog,
-						settings: ctx.plugin.settings,
-						session: undefined,
-						mode: "defaults",
-						onSave: async (enabledTools: string[]) => {
-							ctx.plugin.settings.defaultEnabledTools = enabledTools;
-							ctx.plugin.settings.defaultDisabledTools = [];
-							await ctx.plugin.saveSettings();
-							updateToolSummary(toolSummaryEl, ctx);
-						}
-					});
-					modal.open();
-				});
-		});
-}
-
-/** @internal */
-function updateToolSummary(container: HTMLElement, ctx: SettingSectionContext): void {
-	container.empty();
-	const summary = ctx.toolCatalog.getToolsSummary(ctx.plugin.settings);
-	container.createEl("span", {
-		text: `${summary.enabled}/${summary.total} tools enabled (${summary.builtin} built-in, ${summary.plugin} plugin, ${summary.mcp} MCP)`,
-		cls: "vc-status-detail"
-	});
-}

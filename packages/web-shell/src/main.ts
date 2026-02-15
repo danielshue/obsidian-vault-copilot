@@ -19,6 +19,7 @@ import { FileManager } from "@vault-copilot/obsidian-shim/src/metadata/FileManag
 import moment from "moment";
 import { get, set } from "idb-keyval";
 
+import { Buffer } from "buffer";
 import { EditorManager } from "./editor/EditorManager.js";
 import { GeneralSettingTab } from "./settings/GeneralSettingTab.js";
 import { EditorSettingTab } from "./settings/EditorSettingTab.js";
@@ -33,6 +34,51 @@ initDomExtensions();
 
 // ---- Step 2: Global moment (Obsidian provides this) ----
 (window as any).moment = moment;
+
+/**
+ * Install a minimal Node-like `process` object for browser/Electron renderer code.
+ *
+ * Some third-party libraries (including the Copilot SDK bundle) reference
+ * `process` directly even in renderer contexts. In web-shell mode, define a
+ * lightweight shim so those checks don't crash with `ReferenceError: process is not defined`.
+ */
+function ensureProcessShim(): void {
+	if ((globalThis as any).process) {
+		return;
+	}
+
+	const isWindows = navigator.platform.toLowerCase().includes("win");
+	const processShim = {
+		env: {},
+		platform: isWindows ? "win32" : "linux",
+		arch: "x64",
+		versions: {},
+		cwd: () => "/",
+		nextTick: (callback: (...args: any[]) => void, ...args: any[]) => {
+			queueMicrotask(() => callback(...args));
+		},
+		stderr: {
+			write: () => true,
+		},
+		stdout: {
+			write: () => true,
+		},
+	};
+
+	(globalThis as any).process = processShim;
+
+	// vscode-jsonrpc's node ril.js uses Buffer as a global
+	if (!(globalThis as any).Buffer) {
+		(globalThis as any).Buffer = Buffer;
+	}
+
+	// vscode-jsonrpc uses setImmediate (Node.js global, not available in browsers)
+	if (typeof (globalThis as any).setImmediate === "undefined") {
+		(globalThis as any).setImmediate = (fn: (...args: any[]) => void, ...args: any[]) => setTimeout(fn, 0, ...args);
+	}
+}
+
+ensureProcessShim();
 
 // ---- Main bootstrap ----
 const DIR_HANDLE_KEY = "vault-copilot-dir-handle";
@@ -117,13 +163,14 @@ async function bootstrap(dirHandleOrPath: FileSystemDirectoryHandle | string): P
 		// ---- Step 5: Load the plugin ----
 		console.log("[web-shell] Loading plugin...");
 
-		// Pre-configure for web: default to OpenAI provider since
-		// GitHub Copilot CLI is not available in the browser.
+		// Pre-configure for browser-only mode: default to OpenAI provider since
+		// GitHub Copilot CLI is not available outside Electron.
 		const SETTINGS_KEY = "plugin:obsidian-vault-copilot:data";
 		const existingData = localStorage.getItem(SETTINGS_KEY);
-		if (!existingData) {
+		const isElectronShell = Boolean(window.electronAPI?.isElectron);
+		if (!isElectronShell && !existingData) {
 			localStorage.setItem(SETTINGS_KEY, JSON.stringify({ aiProvider: "openai" }));
-		} else {
+		} else if (!isElectronShell && existingData) {
 			try {
 				const parsed = JSON.parse(existingData);
 				if (parsed.aiProvider === "copilot") {
@@ -662,6 +709,7 @@ function initRibbon(leftSplit: HTMLElement, vault: any, app: any, plugin: any, w
 	const filesBtn = document.querySelector(".ws-ribbon-files") as HTMLElement;
 	const extBtn = document.querySelector(".ws-ribbon-extensions") as HTMLElement;
 	const resizer = document.querySelector('.workspace-resizer[data-resize="left"]') as HTMLElement;
+	const leftContent = leftSplit.querySelector(".ws-left-content") as HTMLElement || leftSplit;
 
 	if (!toggleBtn || !filesBtn || !extBtn) return;
 
@@ -677,17 +725,26 @@ function initRibbon(leftSplit: HTMLElement, vault: any, app: any, plugin: any, w
 	let activeView: "files" | "extensions" = "files";
 	let savedWidth = leftSplit.style.width || "250px";
 
+	const showLeftPane = () => {
+		leftCollapsed = false;
+		leftSplit.style.display = "";
+		leftSplit.style.width = savedWidth;
+		if (resizer) resizer.style.display = "";
+	};
+
+	const hideLeftPane = () => {
+		leftCollapsed = true;
+		savedWidth = leftSplit.style.width || leftSplit.getBoundingClientRect().width + "px";
+		leftSplit.style.display = "none";
+		if (resizer) resizer.style.display = "none";
+	};
+
 	// Toggle collapse
 	toggleBtn.addEventListener("click", () => {
-		leftCollapsed = !leftCollapsed;
 		if (leftCollapsed) {
-			savedWidth = leftSplit.style.width || leftSplit.getBoundingClientRect().width + "px";
-			leftSplit.style.display = "none";
-			if (resizer) resizer.style.display = "none";
+			showLeftPane();
 		} else {
-			leftSplit.style.display = "";
-			leftSplit.style.width = savedWidth;
-			if (resizer) resizer.style.display = "";
+			hideLeftPane();
 		}
 	});
 
@@ -698,33 +755,31 @@ function initRibbon(leftSplit: HTMLElement, vault: any, app: any, plugin: any, w
 
 	// Files view
 	filesBtn.addEventListener("click", () => {
-		if (activeView === "files" && !leftCollapsed) return;
+		if (activeView === "files" && !leftCollapsed) {
+			hideLeftPane();
+			return;
+		}
 		activeView = "files";
 		setActiveRibbonButton("files");
 		if (leftCollapsed) {
-			leftCollapsed = false;
-			leftSplit.style.display = "";
-			leftSplit.style.width = savedWidth;
-			if (resizer) resizer.style.display = "";
+			showLeftPane();
 		}
-		// Clear any leaf content (extension browser) and show file explorer
-		leftSplit.innerHTML = "";
-		renderFileExplorer(leftSplit, vault, app, editorManager);
+		leftContent.innerHTML = "";
+		renderFileExplorer(leftContent, vault, app, editorManager);
 	});
 
 	// Extensions view
 	extBtn.addEventListener("click", async () => {
-		if (activeView === "extensions" && !leftCollapsed) return;
+		if (activeView === "extensions" && !leftCollapsed) {
+			hideLeftPane();
+			return;
+		}
 		activeView = "extensions";
 		setActiveRibbonButton("extensions");
 		if (leftCollapsed) {
-			leftCollapsed = false;
-			leftSplit.style.display = "";
-			leftSplit.style.width = savedWidth;
-			if (resizer) resizer.style.display = "";
+			showLeftPane();
 		}
-		// Clear file explorer and open extension browser in the left pane
-		leftSplit.innerHTML = "";
+		leftContent.innerHTML = "";
 		await plugin.activateExtensionBrowser();
 	});
 }

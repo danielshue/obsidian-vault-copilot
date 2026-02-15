@@ -15,12 +15,14 @@ export abstract class SettingTab {
 	app: App;
 	id: string;
 	name: string;
+	icon?: string;
 	containerEl: HTMLElement;
 
-	constructor(app: App, id: string, name: string) {
+	constructor(app: App, id: string, name: string, icon?: string) {
 		this.app = app;
 		this.id = id;
 		this.name = name;
+		this.icon = icon;
 		this.containerEl = document.createElement("div");
 		this.containerEl.addClass("vertical-tab-content");
 	}
