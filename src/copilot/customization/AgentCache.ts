@@ -3,8 +3,8 @@
  * Loads agents on startup and watches for changes to agent directories.
  */
 
-import { App, TFile, TFolder, TAbstractFile, EventRef } from "obsidian";
-import { CustomizationLoader, CustomAgent, AgentHandoff } from "./CustomizationLoader";
+import { App, TFile, TAbstractFile, EventRef } from "obsidian";
+import { CustomizationLoader, CustomAgent, AgentHandoff, parseFrontmatter } from "./CustomizationLoader";
 
 /**
  * Lightweight agent info for caching (excludes the full instructions)
@@ -293,7 +293,6 @@ export class AgentCache {
 	 * Uses the shared parseFrontmatter/parseYamlKeyValues for consistency.
 	 */
 	private parseAgentFile(path: string, content: string): CachedAgentInfo | null {
-		const { parseFrontmatter } = require("./CustomizationLoader");
 		const { frontmatter } = parseFrontmatter(content);
 
 		if (!frontmatter.name || !frontmatter.description) return null;
@@ -327,7 +326,8 @@ export class AgentCache {
 			tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
 			model,
 			handoffs,
-			userInvokable: typeof frontmatter.userInvokable === 'boolean' ? frontmatter.userInvokable : undefined,
+			userInvokable: (() => { const v = frontmatter['user-invokable'] ?? frontmatter.userInvokable; return typeof v === 'boolean' ? v : undefined; })(),
+			argumentHint: frontmatter['argument-hint'] ? String(frontmatter['argument-hint']) : (frontmatter.argumentHint ? String(frontmatter.argumentHint) : undefined),
 			path,
 		};
 	}
