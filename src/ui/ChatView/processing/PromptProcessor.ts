@@ -118,25 +118,31 @@ export class PromptProcessor {
 	}
 
 	/**
-	 * Process ${input:name:description} and ${input:name:description|option1|option2} variables
-	 * Uses provided user input for the first variable, defaults for others
+	 * Process ${input:name:description}, ${input:name:description|option1|option2},
+	 * and ${input:name} variables.
+	 * Uses provided user input for the first variable, defaults for others.
 	 */
 	processInputVariables(content: string, userInput?: string): string {
-		// Match ${input:name:description} or ${input:name:description|opt1|opt2|...}
-		const inputRegex = /\$\{input:([^:}]+):([^}]+)\}/g;
+		// Match ${input:name}, ${input:name:description}, or ${input:name:description|opt1|opt2|...}
+		const inputRegex = /\$\{input:([^:}]+)(?::([^}]+))?\}/g;
 		let firstInputReplaced = false;
 		
 		return content.replace(inputRegex, (match, varName, descAndOptions) => {
-			// Check if there are options (pipe-delimited after the description)
-			const parts = descAndOptions.split('|');
-			const description = parts[0]?.trim() || varName;
-			const options = parts.slice(1).map((opt: string) => opt.trim()).filter((opt: string) => opt);
-			
 			// For the first input variable, use user's input if available
 			if (!firstInputReplaced && userInput) {
 				firstInputReplaced = true;
 				return userInput;
 			}
+
+			// No description/options part — bare ${input:name}
+			if (!descAndOptions) {
+				return `[${varName}]`;
+			}
+
+			// Check if there are options (pipe-delimited after the description)
+			const parts = descAndOptions.split('|');
+			const description = parts[0]?.trim() || varName;
+			const options = parts.slice(1).map((opt: string) => opt.trim()).filter((opt: string) => opt);
 			
 			// For subsequent variables or when no user input, use first option as default
 			if (options.length > 0) {

@@ -82,6 +82,8 @@ import { VoiceManager } from "./managers/VoiceManager";
 import { RealtimeAgentManager } from "./managers/RealtimeAgentManager";
 import { ToolbarManager } from "./managers/ToolbarManager";
 import { PromptExecutor } from "./managers/PromptExecutor";
+import { HandoffButtons } from "./components/HandoffButtons";
+import { AgentHandoff } from "../../copilot/customization/CustomizationLoader";
 
 export const COPILOT_VIEW_TYPE = "copilot-chat-view";
 
@@ -131,6 +133,9 @@ export class CopilotChatView extends ItemView {
 	
 	// Prompt execution
 	private promptExecutor: PromptExecutor;
+	
+	// Handoff buttons
+	private handoffButtons: HandoffButtons;
 	
 	// Thinking indicator
 	private thinkingIndicatorEl: HTMLElement | null = null;
@@ -245,6 +250,11 @@ export class CopilotChatView extends ItemView {
 				getMessagesContainer: () => this.messagesContainer,
 			}
 		);
+
+		// Initialize HandoffButtons
+		this.handoffButtons = new HandoffButtons({
+			onHandoff: (handoff: AgentHandoff) => this.handleHandoff(handoff),
+		});
 		
 		// Initialize VoiceChatService
 		const voiceSettings = this.plugin.settings.voice || {
@@ -509,6 +519,9 @@ export class CopilotChatView extends ItemView {
 				containerEl: this.promptPickerEl,
 				inputEl: this.inputEl,
 				getPrompts: () => this.plugin.promptCache.getPrompts(),
+				getAgents: () => this.plugin.agentCache.getAgents(),
+				getSkills: () => [...this.plugin.skillCache.getSkills(), ...this.plugin.skillRegistry.listSkills()],
+				getGrouping: () => this.plugin.settings.slashMenuGrouping ?? 'flat',
 				onSelect: (prompt) => this.promptExecutor.executePrompt(prompt),
 			});
 		}
@@ -815,6 +828,61 @@ export class CopilotChatView extends ItemView {
 		return this.toolbarManager.getSelectedAgent();
 	}
 
+	/**
+	 * Handle a handoff transition from the current agent to a target agent.
+	 *
+	 * Switches the active agent, pre-fills the input with the handoff prompt,
+	 * and optionally auto-submits it.
+	 *
+	 * @param handoff - The handoff definition to execute
+	 * @internal
+	 */
+	private handleHandoff(handoff: AgentHandoff): void {
+		// Remove existing handoff buttons since the user chose one
+		HandoffButtons.removeAll(this.messagesContainer);
+
+		// Switch to the target agent
+		const found = this.toolbarManager.selectAgentByName(handoff.agent);
+		if (!found) {
+			this.addErrorMessage(`Handoff target agent "${handoff.agent}" not found. Check that the agent exists in your agent directories.`);
+			return;
+		}
+
+		// Pre-fill the input with the handoff prompt
+		if (handoff.prompt) {
+			this.inputEl.textContent = handoff.prompt;
+			this.inputAreaManager.autoResizeInput();
+			this.inputEl.focus();
+
+			// Place cursor at end
+			const range = document.createRange();
+			const selection = window.getSelection();
+			range.selectNodeContents(this.inputEl);
+			range.collapse(false);
+			if (selection) {
+				selection.removeAllRanges();
+				selection.addRange(range);
+			}
+		}
+
+		// Auto-submit if send: true
+		if (handoff.send && handoff.prompt) {
+			this.sendMessage();
+		}
+	}
+
+	/**
+	 * Render handoff buttons after an assistant response if the active agent has handoffs.
+	 * @internal
+	 */
+	private renderHandoffButtonsIfNeeded(): void {
+		const selectedAgent = this.toolbarManager.getSelectedAgent();
+		if (selectedAgent?.handoffs && selectedAgent.handoffs.length > 0) {
+			this.handoffButtons.render(this.messagesContainer, selectedAgent.handoffs);
+			this.scrollToBottom();
+		}
+	}
+
 	private getCurrentSession(): CopilotSession | undefined {
 		return this.sessionManager.getCurrentSession();
 	}
@@ -1021,6 +1089,9 @@ export class CopilotChatView extends ItemView {
 		const { text: message, chipFilePaths } = this.inputAreaManager.extractInputContent();
 		if (!message || this.isProcessing) return;
 
+		// Remove any previous handoff buttons
+		HandoffButtons.removeAll(this.messagesContainer);
+
 		this.editorSelectionManager.clearHighlight();
 		this.inputAreaManager.addToHistory(message);
 
@@ -1140,6 +1211,9 @@ export class CopilotChatView extends ItemView {
 			this.addErrorMessage(String(error));
 		} finally {
 			this.hideThinkingIndicator();
+			
+			// Render handoff buttons if the active agent defines handoffs
+			this.renderHandoffButtonsIfNeeded();
 			
 			await this.sessionManager.autoRenameSessionFromFirstMessage(
 				message,

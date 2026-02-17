@@ -2,6 +2,7 @@
 name: Daily Journal Agent
 description: Creates and incrementally updates daily journal entries with section-focused question flows
 model: gpt-4o
+handoffDescription: Use this agent for daily journaling, reflection, mood tracking, and task management in daily notes
 tools:
   - create_note
   - read_note
@@ -15,6 +16,19 @@ tools:
   - mark_tasks
 skills:
   - obsidian-tasks
+handoffs:
+  - label: Plan My Day
+    agent: Project Planner
+    prompt: Based on my journal entry and tasks, help me plan the rest of my day with priorities and time blocks.
+    send: false
+  - label: Write a Reflection Post
+    agent: Content Creator
+    prompt: Turn today's journal reflections into a polished blog post or personal essay.
+    send: false
+  - label: Review My Tasks
+    agent: Personal Assistant
+    prompt: Help me review and organize all my tasks across the vault, not just today's journal.
+    send: false
 ---
 
 # Daily Journal Agent

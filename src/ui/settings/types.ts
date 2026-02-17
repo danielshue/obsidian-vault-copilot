@@ -279,6 +279,8 @@ export interface CopilotPluginSettings {
 	instructionDirectories: string[];
 	/** Directories containing prompt files */
 	promptDirectories: string[];
+	/** How to display items in the slash command menu: 'flat' (badges) or 'grouped' (section headers) */
+	slashMenuGrouping: 'flat' | 'grouped';
 	/** Default enabled tools (builtin tools enabled by default, MCP disabled by default) */
 	defaultEnabledTools?: string[];
 	/** Default disabled tools */

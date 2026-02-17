@@ -102,6 +102,22 @@ export class ToolbarManager {
 	}
 
 	/**
+	 * Select an agent by name (used by handoff transitions).
+	 *
+	 * @param name - The agent name to switch to
+	 * @returns true if the agent was found and selected
+	 */
+	selectAgentByName(name: string): boolean {
+		const agent = this.plugin.agentCache.getAgentByName(name);
+		if (agent) {
+			this.selectedAgent = agent;
+			this.updateAgentSelectorText();
+			return true;
+		}
+		return false;
+	}
+
+	/**
 	 * Create the left-side toolbar buttons (agent, model, tool selectors)
 	 */
 	createToolbarLeft(toolbarLeft: HTMLDivElement): void {
@@ -452,7 +468,7 @@ export class ToolbarManager {
 				if (this.selectedAgent === null) item.setChecked(true);
 			});
 
-			const agents = this.plugin.agentCache.getAgents();
+			const agents = this.plugin.agentCache.getAgents().filter(a => a.userInvokable !== false);
 
 			if (agents.length > 0) {
 				menu.addSeparator();

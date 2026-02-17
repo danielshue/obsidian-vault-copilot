@@ -4,7 +4,12 @@
  */
 
 import { App, TFile, TAbstractFile, EventRef } from "obsidian";
-import { CustomizationLoader, CustomPrompt } from "./CustomizationLoader";
+import { CustomizationLoader, CustomPrompt, parseFrontmatter } from "./CustomizationLoader";
+
+/**
+ * The type of item in the slash command menu
+ */
+export type SlashMenuItemType = 'command' | 'prompt' | 'agent' | 'skill';
 
 /**
  * Lightweight prompt info for caching (same as CustomPrompt but can be extended)
@@ -26,6 +31,8 @@ export interface CachedPromptInfo {
 	timeout?: number;
 	/** Full path to the prompt file */
 	path: string;
+	/** Type of item for slash menu display (command, prompt, agent, skill) */
+	type?: SlashMenuItemType;
 }
 
 /**
@@ -113,6 +120,7 @@ export class PromptCache {
 					model: prompt.model,
 					agent: prompt.agent,
 					argumentHint: prompt.argumentHint,
+					timeout: prompt.timeout,
 					path: prompt.path,
 				});
 			}
@@ -289,39 +297,11 @@ export class PromptCache {
 
 	/**
 	 * Parse a prompt file and extract the cached info.
+	 * Reuses the shared parseFrontmatter from CustomizationLoader to avoid
+	 * duplicating YAML parsing logic.
 	 */
 	private parsePromptFile(path: string, basename: string, content: string): CachedPromptInfo | null {
-		const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-		const frontmatter: Record<string, unknown> = {};
-
-		if (match) {
-			const yamlStr = match[1] || '';
-
-			// Simple YAML parser
-			const lines = yamlStr.split(/\r?\n/);
-			for (const line of lines) {
-				const colonIndex = line.indexOf(':');
-				if (colonIndex === -1) continue;
-
-				const key = line.slice(0, colonIndex).trim();
-				let value: unknown = line.slice(colonIndex + 1).trim();
-
-				// Handle arrays like ["read", "search", "edit"]
-				if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
-					try {
-						value = JSON.parse(value.replace(/'/g, '"'));
-					} catch {
-						// Keep as string
-					}
-				}
-				// Handle quoted strings
-				else if (typeof value === 'string' && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
-					value = value.slice(1, -1);
-				}
-
-				frontmatter[key] = value;
-			}
-		}
+		const { frontmatter } = parseFrontmatter(content);
 
 		// Extract name from frontmatter or filename
 		let name = frontmatter.name ? String(frontmatter.name) : basename;

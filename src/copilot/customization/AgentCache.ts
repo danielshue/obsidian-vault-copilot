@@ -4,7 +4,7 @@
  */
 
 import { App, TFile, TFolder, TAbstractFile, EventRef } from "obsidian";
-import { CustomizationLoader, CustomAgent } from "./CustomizationLoader";
+import { CustomizationLoader, CustomAgent, AgentHandoff } from "./CustomizationLoader";
 
 /**
  * Lightweight agent info for caching (excludes the full instructions)
@@ -16,6 +16,12 @@ export interface CachedAgentInfo {
 	description: string;
 	/** Tools the agent can use */
 	tools?: string[];
+	/** Optional model preference */
+	model?: string | string[];
+	/** Handoff definitions for transitioning to other agents */
+	handoffs?: AgentHandoff[];
+	/** Whether this agent appears in user-facing menus (default: true) */
+	userInvokable?: boolean;
 	/** Full path to the agent file */
 	path: string;
 }
@@ -102,6 +108,9 @@ export class AgentCache {
 					name: agent.name,
 					description: agent.description,
 					tools: agent.tools,
+					model: agent.model,
+					handoffs: agent.handoffs,
+					userInvokable: agent.userInvokable,
 					path: agent.path,
 				});
 			}
@@ -278,49 +287,46 @@ export class AgentCache {
 
 	/**
 	 * Parse an agent file and extract the cached info.
+	 * Uses the shared parseFrontmatter/parseYamlKeyValues for consistency.
 	 */
 	private parseAgentFile(path: string, content: string): CachedAgentInfo | null {
-		const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-		if (!match) return null;
+		const { parseFrontmatter } = require("./CustomizationLoader");
+		const { frontmatter } = parseFrontmatter(content);
 
-		const yamlStr = match[1] || '';
-		const frontmatter: Record<string, unknown> = {};
+		if (!frontmatter.name || !frontmatter.description) return null;
 
-		// Simple YAML parser
-		const lines = yamlStr.split(/\r?\n/);
-		for (const line of lines) {
-			const colonIndex = line.indexOf(':');
-			if (colonIndex === -1) continue;
-
-			const key = line.slice(0, colonIndex).trim();
-			let value: unknown = line.slice(colonIndex + 1).trim();
-
-			// Handle arrays like ["read", "search", "edit"]
-			if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
-				try {
-					value = JSON.parse(value.replace(/'/g, '"'));
-				} catch {
-					// Keep as string
-				}
-			}
-			// Handle quoted strings
-			else if (typeof value === 'string' && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
-				value = value.slice(1, -1);
-			}
-
-			frontmatter[key] = value;
+		// Parse handoffs (array of objects)
+		let handoffs: AgentHandoff[] | undefined;
+		if (Array.isArray(frontmatter.handoffs)) {
+			handoffs = (frontmatter.handoffs as Record<string, unknown>[])
+				.filter(h => typeof h === 'object' && h !== null && h.label && h.agent)
+				.map(h => ({
+					label: String(h.label),
+					agent: String(h.agent),
+					prompt: h.prompt ? String(h.prompt) : undefined,
+					send: typeof h.send === 'boolean' ? h.send : false,
+					model: h.model ? String(h.model) : undefined,
+				}));
+			if (handoffs.length === 0) handoffs = undefined;
 		}
 
-		if (frontmatter.name && frontmatter.description) {
-			return {
-				name: String(frontmatter.name),
-				description: String(frontmatter.description),
-				tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
-				path,
-			};
+		// Parse model
+		let model: string | string[] | undefined;
+		if (Array.isArray(frontmatter.model)) {
+			model = frontmatter.model.map(String);
+		} else if (frontmatter.model) {
+			model = String(frontmatter.model);
 		}
 
-		return null;
+		return {
+			name: String(frontmatter.name),
+			description: String(frontmatter.description),
+			tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
+			model,
+			handoffs,
+			userInvokable: typeof frontmatter.userInvokable === 'boolean' ? frontmatter.userInvokable : undefined,
+			path,
+		};
 	}
 
 	/**

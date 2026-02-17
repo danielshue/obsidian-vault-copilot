@@ -1,15 +1,17 @@
 ---
 agent: 'agent'
+name: research
 description: 'Research a topic and summarize findings'
 model: 'Opus 4.5'
 tools: ['fetch']
+argument-hint: 'Enter the topic to research'
 ---
 
 Research the following topic and provide a summary:
 
-**Topic:** {{researchTopic}}
-**Focus Areas:** {{focusAreas}}
-**Depth:** {{depth}}  <!-- quick overview, detailed analysis, comprehensive report -->
+**Topic:** ${input:researchTopic:Enter the topic to research}
+**Focus Areas:** ${input:focusAreas:Comma-separated focus areas}
+**Depth:** ${input:depth:What level of detail?|quick overview|detailed analysis|comprehensive report}
 
 ## Instructions
 

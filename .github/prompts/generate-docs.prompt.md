@@ -3,8 +3,13 @@ agent: 'agent'
 name: generate-docs
 description: Generate comprehensive documentation
 model: 'Opus 4.5'
+tools: ['search', 'read', 'edit']
 ---
-Add documentation to the selected code including:
+Add documentation to the following code:
+
+${selection}
+
+Include:
 
 - JSDoc comments for all exports
 - Inline comments for complex logic

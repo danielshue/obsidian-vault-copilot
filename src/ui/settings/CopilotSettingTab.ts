@@ -2250,6 +2250,21 @@ console.log("Discovering models...");
 		
 		const sectionHeader = section.createDiv({ cls: "vc-section-header" });
 		sectionHeader.createEl("h3", { text: "Registered Skills & MCP Servers" });
+
+		// Slash menu display mode setting
+		new Setting(section)
+			.setName("Slash menu display")
+			.setDesc("How to display prompts, agents, and skills in the / command menu")
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption("flat", "Flat list with type badges")
+					.addOption("grouped", "Grouped by type")
+					.setValue(this.plugin.settings.slashMenuGrouping ?? "flat")
+					.onChange(async (value) => {
+						this.plugin.settings.slashMenuGrouping = value as 'flat' | 'grouped';
+						await this.plugin.saveSettings();
+					});
+			});
 		
 		this.skillsContainer = section.createDiv({ cls: "vc-skills-container" });
 		

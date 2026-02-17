@@ -28,8 +28,7 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	justify-content: space-between;
-	gap: 16px;
+	gap: 8px;
 	padding: 4px 10px;
 	cursor: pointer;
 	min-height: 22px;
@@ -40,6 +39,15 @@
 	background: var(--background-modifier-hover);
 }
 
+/* Left column: name + badge grouped together for consistent alignment */
+.vc-prompt-picker-left {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+	min-width: 260px;
+}
+
 .vc-prompt-picker-name {
 	flex-shrink: 0;
 	color: var(--text-normal);
@@ -47,7 +55,7 @@
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	max-width: 50%;
+	max-width: 200px;
 }
 
 .vc-prompt-picker-desc {
@@ -57,7 +65,65 @@
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	text-align: right;
+	text-align: left;
+	min-width: 0;
+}
+
+/* ---- Type badges ---- */
+
+.vc-prompt-picker-badge {
+	flex-shrink: 0;
+	font-size: 10px;
+	line-height: 1;
+	padding: 2px 6px;
+	border-radius: 8px;
+	text-transform: uppercase;
+	font-weight: 500;
+	letter-spacing: 0.03em;
+	white-space: nowrap;
+}
+
+.vc-badge-command {
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.vc-badge-prompt {
+	background: var(--color-accent);
+	color: var(--text-on-accent);
+	opacity: 0.85;
+}
+
+.vc-badge-agent {
+	background: var(--text-accent);
+	color: var(--background-primary);
+	opacity: 0.85;
+}
+
+.vc-badge-skill {
+	background: var(--interactive-success);
+	color: var(--background-primary);
+	opacity: 0.85;
+}
+
+/* ---- Group headers (grouped display mode) ---- */
+
+.vc-prompt-picker-group-header {
+	padding: 6px 10px 2px;
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-faint);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	pointer-events: none;
+	cursor: default;
+	user-select: none;
+}
+
+.vc-prompt-picker-group-header:not(:first-child) {
+	border-top: 1px solid var(--background-modifier-border);
+	margin-top: 2px;
+	padding-top: 6px;
 }
 
 /* Scrollbar styling for prompt picker */

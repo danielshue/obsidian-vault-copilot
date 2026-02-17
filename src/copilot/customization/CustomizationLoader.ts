@@ -14,6 +14,38 @@
 
 import { App, TFile, TFolder, FileSystemAdapter } from "obsidian";
 import { normalizeVaultPath, isVaultRoot, toVaultRelativePath, expandHomePath } from "../../utils/pathUtils";
+import { isDesktop } from "../../utils/platform";
+
+/**
+ * Handoff definition for transitioning between agents.
+ * When present, handoff buttons render after an assistant response completes,
+ * letting the user switch to another agent with context and an optional prompt.
+ *
+ * @example
+ * ```yaml
+ * handoffs:
+ *   - label: Start Implementation
+ *     agent: implementation
+ *     prompt: Now implement the plan outlined above.
+ *     send: false
+ *     model: GPT-5.2
+ * ```
+ *
+ * @see {@link CustomAgent} for the agent definition that contains handoffs
+ * @since 0.0.26
+ */
+export interface AgentHandoff {
+	/** Display text shown on the handoff button */
+	label: string;
+	/** Target agent name to switch to */
+	agent: string;
+	/** Optional prompt text to send to the target agent */
+	prompt?: string;
+	/** When true, the prompt auto-submits on handoff (default: false) */
+	send?: boolean;
+	/** Optional model override for the target agent */
+	model?: string;
+}
 
 /**
  * Parsed agent from .agent.md file
@@ -25,6 +57,16 @@ export interface CustomAgent {
 	description: string;
 	/** Tools the agent can use */
 	tools?: string[];
+	/** Optional model preference (single or prioritized list) */
+	model?: string | string[];
+	/** Optional hint text shown in the chat input when this agent is active */
+	argumentHint?: string;
+	/** Description used by other agents to determine when to hand off to this one */
+	handoffDescription?: string;
+	/** Handoff definitions for transitioning to other agents */
+	handoffs?: AgentHandoff[];
+	/** Whether this agent appears in user-facing menus (default: true) */
+	userInvokable?: boolean;
 	/** Full path to the agent file */
 	path: string;
 	/** Raw content of the agent file (without frontmatter) */
@@ -109,42 +151,166 @@ export interface VoiceAgentDefinition {
 }
 
 /**
- * Simple YAML key-value parser
+ * Simple YAML key-value parser.
+ * Supports:
+ * - Inline arrays: `tools: ["read", "search"]` or `tools: ['read', 'search']`
+ * - Block arrays: `tools:\n  - read\n  - search`
+ * - Block arrays of objects: `handoffs:\n  - label: Go\n    agent: impl`
+ * - Quoted strings (single or double)
+ * - Numeric values (integer and float)
+ * - Boolean values (true/false)
+ *
+ * @param yamlStr - Raw YAML string (without --- delimiters)
+ * @returns Parsed key-value record
+ * @internal
  */
-function parseYamlKeyValues(yamlStr: string): Record<string, unknown> {
+export function parseYamlKeyValues(yamlStr: string): Record<string, unknown> {
 	const frontmatter: Record<string, unknown> = {};
 	const lines = yamlStr.split(/\r?\n/);
 	
-	for (const line of lines) {
+	let currentKey: string | null = null;
+	let currentArray: unknown[] | null = null;
+	/** When inside a `- key: val` block, accumulates the current object */
+	let currentObj: Record<string, unknown> | null = null;
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i]!;
+
+		// --- Detect a YAML block array item starting with "  - " ---
+		const arrayItemMatch = line.match(/^(\s+)-\s+(.*)$/);
+		if (arrayItemMatch && currentKey) {
+			const rawValue = arrayItemMatch[2]!.trim();
+
+			// Check if this array item is a key-value pair (object item)
+			const kvMatch = rawValue.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
+			if (kvMatch) {
+				// Flush any previous object in the array
+				if (currentObj) {
+					if (!currentArray) currentArray = [];
+					currentArray.push(currentObj);
+				}
+				currentObj = {};
+				currentObj[kvMatch[1]!] = parseScalarValue(kvMatch[2]!.trim());
+			} else {
+				// Simple scalar array item — flush any pending object first
+				if (currentObj) {
+					if (!currentArray) currentArray = [];
+					currentArray.push(currentObj);
+					currentObj = null;
+				}
+				if (!currentArray) currentArray = [];
+				let itemValue = rawValue;
+				// Strip quotes
+				if ((itemValue.startsWith('"') && itemValue.endsWith('"')) || (itemValue.startsWith("'") && itemValue.endsWith("'"))) {
+					itemValue = itemValue.slice(1, -1);
+				}
+				currentArray.push(itemValue);
+			}
+			continue;
+		}
+
+		// --- Continuation keys inside object items (indented key: value without leading -) ---
+		if (currentKey && currentObj && line.match(/^\s{4,}[A-Za-z_]/)) {
+			const kvMatch = line.trim().match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
+			if (kvMatch) {
+				currentObj[kvMatch[1]!] = parseScalarValue(kvMatch[2]!.trim());
+				continue;
+			}
+		}
+
+		// --- If we hit a non-indented line, flush any pending array/object ---
+		if (currentKey && (currentArray || currentObj)) {
+			if (currentObj) {
+				if (!currentArray) currentArray = [];
+				currentArray.push(currentObj);
+				currentObj = null;
+			}
+			if (currentArray) {
+				frontmatter[currentKey] = currentArray;
+			}
+			currentKey = null;
+			currentArray = null;
+		}
+
 		const colonIndex = line.indexOf(':');
 		if (colonIndex === -1) continue;
 
 		const key = line.slice(0, colonIndex).trim();
+		// Skip indented lines that happen to contain colons (not top-level keys)
+		if (key !== line.slice(0, colonIndex) && line.match(/^\s/)) continue;
+		
 		let value: unknown = line.slice(colonIndex + 1).trim();
 
-		// Handle arrays like ["read", "search", "edit"]
-		if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
-			try {
-				value = JSON.parse(value.replace(/'/g, '"'));
-			} catch {
-				// Keep as string if parsing fails
-			}
-		}
-		// Handle quoted strings
-		else if (typeof value === 'string' && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
-			value = value.slice(1, -1);
+		// Empty value after colon — may be followed by block array items
+		if (value === '') {
+			currentKey = key;
+			currentArray = null;
+			currentObj = null;
+			continue;
 		}
 
+		value = parseScalarValue(value as string);
+
+		currentKey = key;
+		currentArray = null;
+		currentObj = null;
 		frontmatter[key] = value;
 	}
 	
+	// Flush any trailing array/object
+	if (currentKey && (currentArray || currentObj)) {
+		if (currentObj) {
+			if (!currentArray) currentArray = [];
+			currentArray.push(currentObj);
+		}
+		if (currentArray) {
+			frontmatter[currentKey] = currentArray;
+		}
+	}
+
 	return frontmatter;
 }
 
 /**
- * Parse YAML frontmatter from markdown content
+ * Parse a scalar YAML value (string, number, boolean, inline array).
+ * @param raw - Trimmed string value from YAML
+ * @returns Parsed value
+ * @internal
  */
-function parseFrontmatter(content: string): { frontmatter: Record<string, unknown>; body: string } {
+function parseScalarValue(raw: string): unknown {
+	if (raw === '') return '';
+
+	// Handle inline arrays like ["read", "search"] or ['read', 'search']
+	if (raw.startsWith('[') && raw.endsWith(']')) {
+		try {
+			return JSON.parse(raw.replace(/'/g, '"'));
+		} catch {
+			return raw;
+		}
+	}
+	// Handle quoted strings
+	if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+		return raw.slice(1, -1);
+	}
+	// Handle boolean values
+	if (raw === 'true' || raw === 'false') {
+		return raw === 'true';
+	}
+	// Handle numeric values
+	if (/^-?\d+(\.\d+)?$/.test(raw)) {
+		return Number(raw);
+	}
+	return raw;
+}
+
+/**
+ * Parse YAML frontmatter from markdown content.
+ * Extracts frontmatter between `---` delimiters and parses key-value pairs.
+ *
+ * @param content - Full markdown content with optional frontmatter
+ * @returns Object with parsed frontmatter record and body text
+ */
+export function parseFrontmatter(content: string): { frontmatter: Record<string, unknown>; body: string } {
 	const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
 	if (!match) {
 		return { frontmatter: {}, body: content };
@@ -245,6 +411,124 @@ private getFolderFromPath(dir: string): TFolder | null {
 }
 
 	/**
+	 * Check if a path is an absolute path outside the vault.
+	 * Used to determine when to fall back to Node.js fs for reading files.
+	 *
+	 * @param dir - The original directory path (before expansion)
+	 * @returns The expanded absolute path if external, or null if it's a vault path
+	 * @internal
+	 */
+	private getExternalAbsolutePath(dir: string): string | null {
+		if (!isDesktop) return null;
+
+		const expanded = expandHomePath(dir.trim());
+		// Check if it's an absolute path (Unix or Windows)
+		const isAbsolute = expanded.startsWith('/') || /^[A-Za-z]:[\\/]/.test(expanded);
+		if (!isAbsolute) return null;
+
+		// Check if it's inside the vault
+		const vaultBasePath = this.getVaultBasePath();
+		if (vaultBasePath) {
+			const normalizedExpanded = expanded.replace(/\\/g, '/');
+			const normalizedVault = vaultBasePath.replace(/\\/g, '/');
+			if (normalizedExpanded.startsWith(normalizedVault + '/') || normalizedExpanded === normalizedVault) {
+				return null; // Inside vault, use normal vault API
+			}
+		}
+
+		return expanded;
+	}
+
+	/**
+	 * Read files from an external directory using Node.js fs.
+	 * Used as fallback when directory is outside the vault.
+	 *
+	 * @param absDir - Absolute path to the directory
+	 * @param filter - Function to filter file names (e.g., check extension)
+	 * @returns Array of { name, content } for matching files
+	 * @internal
+	 */
+	private readExternalFiles(absDir: string, filter: (name: string) => boolean): { name: string; path: string; content: string }[] {
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const fs = require("fs") as typeof import("fs");
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const path = require("path") as typeof import("path");
+
+			if (!fs.existsSync(absDir)) {
+				console.log(`[VC] External directory does not exist: ${absDir}`);
+				return [];
+			}
+
+			const entries = fs.readdirSync(absDir, { withFileTypes: true });
+			const results: { name: string; path: string; content: string }[] = [];
+
+			for (const entry of entries) {
+				if (entry.isFile() && filter(entry.name)) {
+					const fullPath = path.join(absDir, entry.name);
+					try {
+						const content = fs.readFileSync(fullPath, 'utf-8');
+						results.push({ name: entry.name, path: fullPath.replace(/\\/g, '/'), content });
+					} catch (err) {
+						console.error(`[VC] Failed to read external file: ${fullPath}`, err);
+					}
+				}
+			}
+
+			return results;
+		} catch (err) {
+			console.error(`[VC] Failed to read external directory: ${absDir}`, err);
+			return [];
+		}
+	}
+
+	/**
+	 * List subdirectories in an external directory.
+	 * Used for skill loading where skills are in subdirectories.
+	 *
+	 * @param absDir - Absolute path to the parent directory
+	 * @returns Array of { name, absPath } for subdirectories
+	 * @internal
+	 */
+	private listExternalSubdirs(absDir: string): { name: string; absPath: string }[] {
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const fs = require("fs") as typeof import("fs");
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const path = require("path") as typeof import("path");
+
+			if (!fs.existsSync(absDir)) return [];
+
+			const entries = fs.readdirSync(absDir, { withFileTypes: true });
+			return entries
+				.filter(e => e.isDirectory())
+				.map(e => ({ name: e.name, absPath: path.join(absDir, e.name).replace(/\\/g, '/') }));
+		} catch (err) {
+			console.error(`[VC] Failed to list external subdirectories: ${absDir}`, err);
+			return [];
+		}
+	}
+
+	/**
+	 * Read a single file from an external path.
+	 *
+	 * @param absPath - Absolute path to the file
+	 * @returns File content as string, or null if not found
+	 * @internal
+	 */
+	private readExternalFile(absPath: string): string | null {
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const fs = require("fs") as typeof import("fs");
+			if (!fs.existsSync(absPath)) return null;
+			return fs.readFileSync(absPath, 'utf-8');
+		} catch (err) {
+			console.error(`[VC] Failed to read external file: ${absPath}`, err);
+			return null;
+		}
+	}
+
+	/**
 	 * Load all agents from the configured agent directories
 	 */
 	async loadAgents(directories: string[]): Promise<CustomAgent[]> {
@@ -253,7 +537,14 @@ private getFolderFromPath(dir: string): TFolder | null {
 		for (const dir of directories) {
 			const folder = this.getFolderFromPath(dir);
 			if (!folder) {
-				console.log(`[VC] Agent directory not found: "${dir}"`);
+				// Try external fs fallback for absolute paths outside the vault
+				const extPath = this.getExternalAbsolutePath(dir);
+				if (extPath) {
+					const extAgents = this.loadAgentsFromExternal(extPath);
+					agents.push(...extAgents);
+				} else {
+					console.log(`[VC] Agent directory not found: "${dir}"`);
+				}
 				continue;
 			}
 
@@ -267,10 +558,38 @@ private getFolderFromPath(dir: string): TFolder | null {
 						const { frontmatter, body } = parseFrontmatter(content);
 
 						if (frontmatter.name && frontmatter.description) {
+							// Parse handoffs (array of objects)
+							let handoffs: AgentHandoff[] | undefined;
+							if (Array.isArray(frontmatter.handoffs)) {
+								handoffs = (frontmatter.handoffs as Record<string, unknown>[])
+									.filter(h => typeof h === 'object' && h !== null && h.label && h.agent)
+									.map(h => ({
+										label: String(h.label),
+										agent: String(h.agent),
+										prompt: h.prompt ? String(h.prompt) : undefined,
+										send: typeof h.send === 'boolean' ? h.send : false,
+										model: h.model ? String(h.model) : undefined,
+									}));
+								if (handoffs.length === 0) handoffs = undefined;
+							}
+
+							// Parse model (string or array)
+							let model: string | string[] | undefined;
+							if (Array.isArray(frontmatter.model)) {
+								model = frontmatter.model.map(String);
+							} else if (frontmatter.model) {
+								model = String(frontmatter.model);
+							}
+
 							agents.push({
 								name: String(frontmatter.name),
 								description: String(frontmatter.description),
 								tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
+								model,
+								argumentHint: frontmatter['argument-hint'] ? String(frontmatter['argument-hint']) : undefined,
+								handoffDescription: frontmatter.handoffDescription ? String(frontmatter.handoffDescription) : undefined,
+								handoffs,
+								userInvokable: typeof frontmatter.userInvokable === 'boolean' ? frontmatter.userInvokable : undefined,
 								path: child.path,
 								instructions: body,
 							});
@@ -294,6 +613,14 @@ private getFolderFromPath(dir: string): TFolder | null {
 		for (const dir of directories) {
 			const folder = this.getFolderFromPath(dir);
 			if (!folder) {
+				// Try external fs fallback for absolute paths outside the vault
+				const extPath = this.getExternalAbsolutePath(dir);
+				if (extPath) {
+					const extSkills = this.loadSkillsFromExternal(extPath);
+					skills.push(...extSkills);
+				} else {
+					console.log(`[VC] Skill directory not found: "${dir}"`);
+				}
 				continue;
 			}
 
@@ -392,7 +719,14 @@ private getFolderFromPath(dir: string): TFolder | null {
 		for (const dir of directories) {
 			const folder = this.getFolderFromPath(dir);
 			if (!folder) {
-				console.log(`[VC] Prompt directory not found: "${dir}"`);
+				// Try external fs fallback for absolute paths outside the vault
+				const extPath = this.getExternalAbsolutePath(dir);
+				if (extPath) {
+					const extPrompts = this.loadPromptsFromExternal(extPath);
+					prompts.push(...extPrompts);
+				} else {
+					console.log(`[VC] Prompt directory not found: "${dir}"`);
+				}
 				continue;
 			}
 
@@ -434,6 +768,157 @@ private getFolderFromPath(dir: string): TFolder | null {
 			}
 		}
 
+		return prompts;
+	}
+
+	/**
+	 * Load agents from an external directory using Node.js fs.
+	 * Desktop-only fallback for directories outside the vault.
+	 *
+	 * @param absDir - Absolute path to the agent directory
+	 * @returns Array of parsed CustomAgent objects
+	 * @internal
+	 */
+	private loadAgentsFromExternal(absDir: string): CustomAgent[] {
+		const agents: CustomAgent[] = [];
+		const files = this.readExternalFiles(absDir, name => name.endsWith('.agent.md'));
+
+		console.log(`[VC] Scanning external agent directory: "${absDir}" with ${files.length} agent files`);
+
+		for (const file of files) {
+			try {
+				const { frontmatter, body } = parseFrontmatter(file.content);
+				if (frontmatter.name && frontmatter.description) {
+					// Parse handoffs
+					let handoffs: AgentHandoff[] | undefined;
+					if (Array.isArray(frontmatter.handoffs)) {
+						handoffs = (frontmatter.handoffs as Record<string, unknown>[])
+							.filter(h => typeof h === 'object' && h !== null && h.label && h.agent)
+							.map(h => ({
+								label: String(h.label),
+								agent: String(h.agent),
+								prompt: h.prompt ? String(h.prompt) : undefined,
+								send: typeof h.send === 'boolean' ? h.send : false,
+								model: h.model ? String(h.model) : undefined,
+							}));
+						if (handoffs.length === 0) handoffs = undefined;
+					}
+
+					// Parse model
+					let model: string | string[] | undefined;
+					if (Array.isArray(frontmatter.model)) {
+						model = frontmatter.model.map(String);
+					} else if (frontmatter.model) {
+						model = String(frontmatter.model);
+					}
+
+					agents.push({
+						name: String(frontmatter.name),
+						description: String(frontmatter.description),
+						tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
+						model,
+						argumentHint: frontmatter['argument-hint'] ? String(frontmatter['argument-hint']) : undefined,
+						handoffDescription: frontmatter.handoffDescription ? String(frontmatter.handoffDescription) : undefined,
+						handoffs,
+						userInvokable: typeof frontmatter.userInvokable === 'boolean' ? frontmatter.userInvokable : undefined,
+						path: file.path,
+						instructions: body,
+					});
+				}
+			} catch (error) {
+				console.error(`[VC] Failed to load external agent from ${file.path}:`, error);
+			}
+		}
+		return agents;
+	}
+
+	/**
+	 * Load skills from an external directory using Node.js fs.
+	 * Desktop-only fallback for directories outside the vault.
+	 * Skills are expected in subdirectories containing a SKILL.md file.
+	 *
+	 * @param absDir - Absolute path to the skills directory
+	 * @returns Array of parsed CustomSkill objects
+	 * @internal
+	 */
+	private loadSkillsFromExternal(absDir: string): CustomSkill[] {
+		const skills: CustomSkill[] = [];
+		const subdirs = this.listExternalSubdirs(absDir);
+
+		console.log(`[VC] Scanning external skill directory: "${absDir}" with ${subdirs.length} subdirectories`);
+
+		for (const subdir of subdirs) {
+			const skillFilePath = subdir.absPath + '/SKILL.md';
+			const content = this.readExternalFile(skillFilePath);
+			if (!content) continue;
+
+			try {
+				// Try parsing as code block first
+				let parsed = parseCodeBlockContent(content, 'skill');
+				if (!parsed) {
+					parsed = parseFrontmatter(content);
+				}
+
+				const { frontmatter, body } = parsed;
+
+				if (frontmatter.name && frontmatter.description) {
+					skills.push({
+						name: String(frontmatter.name),
+						description: String(frontmatter.description),
+						license: frontmatter.license ? String(frontmatter.license) : undefined,
+						path: subdir.absPath,
+						instructions: body,
+					});
+				}
+			} catch (error) {
+				console.error(`[VC] Failed to load external skill from ${skillFilePath}:`, error);
+			}
+		}
+		return skills;
+	}
+
+	/**
+	 * Load prompts from an external directory using Node.js fs.
+	 * Desktop-only fallback for directories outside the vault.
+	 *
+	 * @param absDir - Absolute path to the prompt directory
+	 * @returns Array of parsed CustomPrompt objects
+	 * @internal
+	 */
+	private loadPromptsFromExternal(absDir: string): CustomPrompt[] {
+		const prompts: CustomPrompt[] = [];
+		const files = this.readExternalFiles(absDir, name => name.endsWith('.prompt.md'));
+
+		console.log(`[VC] Scanning external prompt directory: "${absDir}" with ${files.length} prompt files`);
+
+		for (const file of files) {
+			try {
+				const { frontmatter, body } = parseFrontmatter(file.content);
+
+				let name = frontmatter.name ? String(frontmatter.name) : file.name.replace(/\.prompt\.md$/, '');
+				if (name.endsWith('.prompt')) {
+					name = name.replace('.prompt', '');
+				}
+
+				const description = frontmatter.description
+					? String(frontmatter.description)
+					: `Prompt from ${file.name}`;
+
+				prompts.push({
+					name,
+					description,
+					tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
+					model: frontmatter.model ? String(frontmatter.model) : undefined,
+					agent: frontmatter.agent ? String(frontmatter.agent) : undefined,
+					argumentHint: frontmatter['argument-hint'] ? String(frontmatter['argument-hint']) : undefined,
+					timeout: typeof frontmatter.timeout === 'number' ? frontmatter.timeout : undefined,
+					path: file.path,
+					content: body,
+				});
+			} catch (error) {
+				console.error(`[VC] Failed to load external prompt from ${file.path}:`, error);
+			}
+		}
 		return prompts;
 	}
 

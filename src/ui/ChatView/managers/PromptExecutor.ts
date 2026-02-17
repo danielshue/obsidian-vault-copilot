@@ -357,13 +357,16 @@ export class PromptExecutor {
 	}
 
 	/**
-	 * Process ${input:name:...} variables with pre-collected values
+	 * Process ${input:name:...} and ${input:name} variables with pre-collected values
 	 */
 	private processInputVariablesWithValues(content: string, values: Map<string, string>): string {
-		const inputRegex = /\$\{input:([^:}]+):([^}]+)\}/g;
+		const inputRegex = /\$\{input:([^:}]+)(?::([^}]+))?\}/g;
 
 		return content.replace(inputRegex, (_match, varName, descAndOptions) => {
 			if (values.has(varName)) return values.get(varName) || '';
+
+			// Bare ${input:name} — no description or options
+			if (!descAndOptions) return `[${varName}]`;
 
 			const parts = descAndOptions.split('|');
 			const options = parts.slice(1).map((opt: string) => opt.trim()).filter((opt: string) => opt);

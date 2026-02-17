@@ -2,6 +2,21 @@
 name: Learning Companion
 description: Helps you learn new topics by creating study notes, flashcards, and explaining concepts
 tools: ["create_note", "read_note", "search_notes", "append_to_note", "list_notes"]
+model: gpt-4o
+handoffDescription: Use this agent when the user wants to learn, study, or understand a topic more deeply
+handoffs:
+  - label: Write About This
+    agent: Content Creator
+    prompt: I've finished studying and want to write about what I learned. Create content based on the notes and concepts above.
+    send: false
+  - label: Start a Project
+    agent: Project Planner
+    prompt: I'm ready to apply what I've learned. Help me plan a project based on the concepts discussed above.
+    send: false
+  - label: Deep Dive Tutoring
+    agent: tutor
+    prompt: I want a more rigorous, graduate-level exploration of the topics covered above.
+    send: false
 ---
 
 # Learning Companion

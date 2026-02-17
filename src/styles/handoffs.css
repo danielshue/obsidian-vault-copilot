@@ -1,0 +1,50 @@
+/* Handoff buttons — rendered below assistant responses when the active agent defines handoffs */
+
+.vc-handoff-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0 12px;
+    margin: 0 4px;
+}
+
+.vc-handoff-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 16px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: var(--font-ui-small);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    line-height: 1.4;
+}
+
+.vc-handoff-btn:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.vc-handoff-btn:active {
+    background: var(--background-modifier-active-hover);
+    transform: scale(0.98);
+}
+
+.vc-handoff-icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.vc-handoff-btn:hover .vc-handoff-icon {
+    color: var(--interactive-accent);
+}
+
+.vc-handoff-label {
+    white-space: nowrap;
+}

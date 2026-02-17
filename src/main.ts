@@ -66,6 +66,7 @@ import {
 import { McpManager } from "./copilot/mcp/McpManager";
 import { AgentCache, CachedAgentInfo } from "./copilot/customization/AgentCache";
 import { PromptCache, CachedPromptInfo } from "./copilot/customization/PromptCache";
+import { SkillCache, CachedSkillInfo } from "./copilot/customization/SkillCache";
 import { CustomPrompt } from "./copilot/customization/CustomizationLoader";
 import { OpenAIService } from "./copilot/providers/OpenAIService";
 import { AzureOpenAIService } from "./copilot/providers/AzureOpenAIService";
@@ -366,6 +367,8 @@ export default class CopilotPlugin extends Plugin {
 	agentCache!: AgentCache;
 	/** Cache for custom prompt definitions */
 	promptCache!: PromptCache;
+	/** Cache for file-based skill definitions */
+	skillCache!: SkillCache;
 	/** MCP server manager */
 	mcpManager!: McpManager;
 	/** Automation engine for scheduled/triggered workflows */
@@ -633,6 +636,10 @@ export default class CopilotPlugin extends Plugin {
 		this.promptCache = new PromptCache(this.app);
 		await this.promptCache.initialize(this.settings.promptDirectories);
 
+		// Initialize skill cache for file-based skills
+		this.skillCache = new SkillCache(this.app);
+		await this.skillCache.initialize(this.settings.skillDirectories);
+
 		// Initialize MCP manager (platform-aware internally)
 		this.mcpManager = new McpManager(this.app);
 		await this.mcpManager.initialize();
@@ -788,6 +795,7 @@ export default class CopilotPlugin extends Plugin {
 		await this.automationEngine?.shutdown();
 		this.agentCache?.destroy();
 		this.promptCache?.destroy();
+		this.skillCache?.destroy();
 		
 		// Unregister built-in voice agents
 		MainVaultAssistant.unregisterBuiltInAgents();
@@ -1014,6 +1022,11 @@ export default class CopilotPlugin extends Plugin {
 		// This involves file system scanning and can be slow
 		if (this.promptCache) {
 			await this.promptCache.updateDirectories(this.settings.promptDirectories);
+		}
+
+		// Update skill cache when skill directories change
+		if (this.skillCache) {
+			await this.skillCache.updateDirectories(this.settings.skillDirectories);
 		}
 	}
 

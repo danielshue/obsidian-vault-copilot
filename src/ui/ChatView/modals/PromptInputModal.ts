@@ -94,10 +94,11 @@ export class PromptInputModal extends Modal {
 }
 
 /**
- * Parse ${input:name:desc|opt1|opt2} variables from prompt content
+ * Parse ${input:name:desc|opt1|opt2} and ${input:name} variables from prompt content.
+ * Only returns variables that have pipe-delimited options (requiring user selection).
  */
 export function parseInputVariables(content: string): PromptInputVariable[] {
-	const regex = /\$\{input:([^:}]+):([^}]+)\}/g;
+	const regex = /\$\{input:([^:}]+)(?::([^}]+))?\}/g;
 	const variables: PromptInputVariable[] = [];
 	const seen = new Set<string>();
 	
@@ -106,12 +107,15 @@ export function parseInputVariables(content: string): PromptInputVariable[] {
 		const name = match[1];
 		const descAndOptions = match[2];
 		
-		// Skip if capture groups are undefined
-		if (!name || !descAndOptions) continue;
+		// Skip if name capture group is undefined
+		if (!name) continue;
 		
 		// Skip duplicates
 		if (seen.has(name)) continue;
 		seen.add(name);
+		
+		// Bare ${input:name} — no description or options
+		if (!descAndOptions) continue;
 		
 		const parts = descAndOptions.split("|");
 		const description = parts[0]?.trim() || name;
