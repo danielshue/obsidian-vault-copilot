@@ -1,7 +1,7 @@
 ---
 name: Content Creator
 description: Creates blog posts, articles, and documentation from vault research and notes
-model: claude-sonnet-4
+model: gpt-4o
 argumentHint: What content would you like to create?
 handoffDescription: Use this agent to draft blog posts, articles, or polished documentation from research notes
 tools:
@@ -21,6 +21,10 @@ handoffs:
   - label: Plan the Project
     agent: Project Planner
     prompt: Help me plan this writing project with milestones and deadlines based on the outline above.
+    send: false
+  - label: Review the README
+    agent: Readme Specialist
+    prompt: Review the document I just created and suggest improvements for structure and clarity.
     send: false
   - label: Study the Subject
     agent: Learning Companion

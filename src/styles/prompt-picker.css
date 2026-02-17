@@ -84,25 +84,25 @@
 }
 
 .vc-badge-command {
-	background: var(--background-modifier-border);
-	color: var(--text-muted);
+	background: var(--background-modifier-border, #404040);
+	color: var(--text-muted, #999);
 }
 
 .vc-badge-prompt {
-	background: var(--color-accent);
-	color: var(--text-on-accent);
+	background: var(--color-accent, #7c5cbf);
+	color: var(--text-on-accent, #fff);
 	opacity: 0.85;
 }
 
 .vc-badge-agent {
-	background: var(--text-accent);
-	color: var(--background-primary);
+	background: #e07832;
+	color: #fff;
 	opacity: 0.85;
 }
 
 .vc-badge-skill {
-	background: var(--interactive-success);
-	color: var(--background-primary);
+	background: #48b34e;
+	color: #fff;
 	opacity: 0.85;
 }
 
