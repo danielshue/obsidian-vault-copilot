@@ -647,6 +647,36 @@ export class CopilotChatView extends ItemView {
 	}
 
 	/**
+	 * Wire up the session-reconnect callback so the UI shows a subtle notice
+	 * when the SDK session is transparently recreated after idle timeout.
+	 */
+	private wireSessionReconnectCallback(service: GitHubCopilotCliService | AIProvider): void {
+		if (service && typeof (service as any).setSessionReconnectCallback === 'function') {
+			(service as GitHubCopilotCliService).setSessionReconnectCallback(() => {
+				this.showReconnectNotice();
+			});
+		}
+	}
+
+	/**
+	 * Show a subtle, auto-dismissing notice in the chat when the session was
+	 * recreated due to the CLI idle timeout (~30 min).
+	 */
+	private showReconnectNotice(): void {
+		if (!this.messagesContainer) return;
+
+		const noticeEl = this.messagesContainer.createDiv({ cls: "vc-reconnect-notice" });
+		noticeEl.createEl("span", { text: "Session expired — reconnected. AI context was reset, but your chat history is preserved." });
+		this.scrollToBottom();
+
+		// Auto-fade after 8 seconds
+		setTimeout(() => {
+			noticeEl.addClass("vc-reconnect-notice-fade");
+			setTimeout(() => noticeEl.remove(), 500);
+		}, 8000);
+	}
+
+	/**
 	 * Show "Thinking..." indicator
 	 */
 	private showThinkingIndicator(): void {
@@ -684,6 +714,9 @@ export class CopilotChatView extends ItemView {
 			if (!this.githubCopilotCliService.isConnected()) {
 				await this.githubCopilotCliService.start();
 				
+				// Wire the session-reconnect callback before any session use
+				this.wireSessionReconnectCallback(this.githubCopilotCliService);
+
 				const activeSessionId = this.plugin.settings.activeSessionId;
 				if (activeSessionId) {
 					await this.githubCopilotCliService.loadSession(activeSessionId);

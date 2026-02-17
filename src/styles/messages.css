@@ -115,6 +115,23 @@
 	color: var(--text-error);
 }
 
+/* Session reconnect notice — subtle, auto-dismissing */
+.vc-reconnect-notice {
+	padding: 8px 14px;
+	margin: 6px 0;
+	background: rgba(var(--color-yellow-rgb, 255, 193, 7), 0.1);
+	border: 1px solid rgba(var(--color-yellow-rgb, 255, 193, 7), 0.3);
+	border-radius: 8px;
+	color: var(--text-muted);
+	font-size: 12px;
+	text-align: center;
+	transition: opacity 0.5s ease;
+}
+
+.vc-reconnect-notice-fade {
+	opacity: 0;
+}
+
 /* Thinking Indicator */
 .vc-thinking {
 	padding: 12px 16px;

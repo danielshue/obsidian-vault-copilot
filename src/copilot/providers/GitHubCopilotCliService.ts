@@ -161,6 +161,11 @@ export interface ModelInfoResult {
  * Service class that wraps the GitHub Copilot SDK for use in Obsidian.
  * Handles client lifecycle, session management, and provides Obsidian-specific tools.
  */
+/** Default SDK session idle timeout (CLI auto-cleans after 30 min) */
+const SDK_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+/** Safety margin — reconnect if idle for 25 min (before the 30-min CLI timeout) */
+const SESSION_STALE_THRESHOLD_MS = 25 * 60 * 1000;
+
 export class GitHubCopilotCliService {
 	private client: CopilotClient | null = null;
 	private session: CopilotSession | null = null;
@@ -172,6 +177,17 @@ export class GitHubCopilotCliService {
 	private loadedInstructions: CustomInstruction[] = [];
 	private mcpEventUnsubscribe: (() => void) | null = null;
 	private questionCallback: ((question: QuestionRequest) => Promise<QuestionResponse | null>) | null = null;
+	/**
+	 * Timestamp (ms) of the last SDK activity (send or receive).
+	 * Used to detect whether the CLI's 30-minute idle timeout has likely expired.
+	 */
+	private lastSdkActivity: number = Date.now();
+	/**
+	 * Optional callback invoked when the session is automatically recreated
+	 * because the CLI idle timeout was exceeded. The UI can use this to show
+	 * a subtle notification to the user.
+	 */
+	private onSessionReconnect: (() => void) | null = null;
 
 	constructor(app: App, config: GitHubCopilotCliConfig) {
 		this.app = app;
@@ -496,6 +512,7 @@ export class GitHubCopilotCliService {
 		});
 
 		this.messageHistory = [];
+		this.touchActivity();
 		
 		const actualSessionId = this.session.sessionId;
 		console.log('[Vault Copilot] Session created with ID:', actualSessionId);
@@ -548,6 +565,7 @@ export class GitHubCopilotCliService {
 			// Restore message history from the SDK session
 			const events = await this.session.getMessages();
 			this.messageHistory = this.convertEventsToMessageHistory(events);
+			this.touchActivity();
 			
 			console.log('[Vault Copilot] Session resumed with', this.messageHistory.length, 'messages');
 			return this.session.sessionId;
@@ -766,6 +784,68 @@ export class GitHubCopilotCliService {
 	}
 
 	/**
+	 * Register a callback that fires when the session is transparently recreated
+	 * after the CLI idle timeout (~30 min). The UI should use this to show an
+	 * informational notice so the user knows AI context was reset.
+	 *
+	 * @param callback - Function to call on reconnect, or null to unregister
+	 */
+	setSessionReconnectCallback(callback: (() => void) | null): void {
+		this.onSessionReconnect = callback;
+	}
+
+	/**
+	 * Update the last-activity timestamp. Called after every SDK interaction
+	 * (sending a prompt or receiving a response) to track idle time.
+	 * @internal
+	 */
+	private touchActivity(): void {
+		this.lastSdkActivity = Date.now();
+	}
+
+	/**
+	 * Check whether the SDK session has likely expired due to the CLI's
+	 * 30-minute idle timeout. If the session is stale (>25 min idle),
+	 * transparently recreate it and restore local message history.
+	 *
+	 * @returns true if the session was recreated, false if still alive
+	 * @internal
+	 */
+	private async ensureSessionAlive(): Promise<boolean> {
+		if (!this.session) return false;
+
+		const idleMs = Date.now() - this.lastSdkActivity;
+		if (idleMs < SESSION_STALE_THRESHOLD_MS) return false;
+
+		const idleMinutes = Math.round(idleMs / 60000);
+		console.log(`[Vault Copilot] Session idle for ${idleMinutes} min (threshold: ${SESSION_STALE_THRESHOLD_MS / 60000} min) — recreating`);
+
+		const tracingService = getTracingService();
+		tracingService.addSdkLog('info', `[Session Reconnect] Idle ${idleMinutes} min — recreating session`, 'session-lifecycle');
+
+		// Preserve current message history before recreating
+		const savedHistory = [...this.messageHistory];
+		const currentSessionId = this.session.sessionId;
+
+		try {
+			await this.createSession(currentSessionId);
+			// Restore the local message history (AI context is lost, but UI history is preserved)
+			this.messageHistory = savedHistory;
+			this.touchActivity();
+
+			// Notify the UI
+			if (this.onSessionReconnect) {
+				this.onSessionReconnect();
+			}
+			return true;
+		} catch (error) {
+			console.error('[Vault Copilot] Failed to recreate stale session:', error);
+			tracingService.addSdkLog('error', `[Session Reconnect Failed] ${error}`, 'session-lifecycle');
+			throw error;
+		}
+	}
+
+	/**
 	 * Send a message and wait for the complete response
 	 * @param prompt The message to send
 	 * @param timeout Optional timeout in milliseconds (uses config.requestTimeout if not specified)
@@ -774,6 +854,9 @@ export class GitHubCopilotCliService {
 		if (!this.session) {
 			await this.createSession();
 		}
+
+		// Check if the session has gone stale (CLI 30-min idle timeout)
+		await this.ensureSessionAlive();
 
 		// Log the prompt to tracing service
 		const tracingService = getTracingService();
@@ -785,11 +868,15 @@ export class GitHubCopilotCliService {
 			timestamp: new Date(),
 		});
 
+		this.touchActivity();
+
 		const requestTimeout = timeout ?? this.config.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT;
 		
 		try {
 			const response = await this.session!.sendAndWait({ prompt }, requestTimeout);
 			
+			this.touchActivity();
+
 			const assistantContent = response?.data?.content || "";
 			
 			// Log the response to tracing service
@@ -832,6 +919,9 @@ export class GitHubCopilotCliService {
 			await this.createSession();
 		}
 
+		// Check if the session has gone stale (CLI 30-min idle timeout)
+		await this.ensureSessionAlive();
+
 		// Log the prompt to tracing service
 		const tracingService = getTracingService();
 		tracingService.addSdkLog('info', `[User Prompt (Streaming)]\n${prompt}`, 'copilot-prompt');
@@ -841,6 +931,8 @@ export class GitHubCopilotCliService {
 			content: prompt,
 			timestamp: new Date(),
 		});
+
+		this.touchActivity();
 
 		let fullContent = "";
 		const requestTimeout = timeout ?? this.config.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT;
@@ -908,6 +1000,7 @@ export class GitHubCopilotCliService {
 					fullContent = (event.data as { content: string }).content;
 				} else if (event.type === "session.idle") {
 					cleanup();
+					this.touchActivity();
 					this.messageHistory.push({
 						role: "assistant",
 						content: fullContent,
