@@ -246,3 +246,11 @@
 	content: attr(data-placeholder);
 }
 
+/* Argument hint for slash commands (shown after the /command text) */
+.vc-input[data-argument-hint]::after {
+	content: attr(data-argument-hint);
+	color: var(--text-muted);
+	pointer-events: none;
+	font-style: italic;
+}
+

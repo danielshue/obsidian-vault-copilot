@@ -45,6 +45,12 @@ export interface CachedSkillInfo {
 	description: string;
 	/** Optional license */
 	license?: string;
+	/** Whether this skill appears in user-facing slash menus (default: true) */
+	userInvokable?: boolean;
+	/** When true, prevents model from auto-activating this skill (default: false) */
+	disableModelInvocation?: boolean;
+	/** Optional hint text shown in the chat input when this skill is invoked */
+	argumentHint?: string;
 	/** Full path to the skill directory */
 	path: string;
 }
@@ -144,6 +150,9 @@ export class SkillCache {
 					name: skill.name,
 					description: skill.description,
 					license: skill.license,
+					userInvokable: skill.userInvokable,
+					disableModelInvocation: skill.disableModelInvocation,
+					argumentHint: skill.argumentHint,
 					path: skill.path,
 				});
 			}

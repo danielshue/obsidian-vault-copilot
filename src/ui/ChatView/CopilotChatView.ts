@@ -245,7 +245,7 @@ export class CopilotChatView extends ItemView {
 				scrollMessageToTop: (el) => this.scrollMessageToTop(el),
 				getPreservedSelectionText: () => this.editorSelectionManager.getPreservedSelectionText(),
 				logToolContext: (tools) => this.toolbarManager.logToolContext(tools),
-				clearInput: () => { if (this.inputEl) this.inputEl.innerHTML = ""; },
+				clearInput: () => { if (this.inputEl) { this.inputEl.innerHTML = ""; this.inputEl.removeAttribute('data-argument-hint'); } },
 				autoResizeInput: () => this.inputAreaManager?.autoResizeInput(),
 				getMessagesContainer: () => this.messagesContainer,
 			}
@@ -1054,6 +1054,47 @@ export class CopilotChatView extends ItemView {
 		
 		if (promptInfo) {
 			await this.promptExecutor.executePromptWithArgs(promptInfo, args?.trim() || "");
+			return true;
+		}
+		
+		// Check skills (file-based + runtime-registered)
+		const allSkills = [...this.plugin.skillCache.getSkills(), ...this.plugin.skillRegistry.listSkills()];
+		const skillInfo = allSkills.find(
+			s => ('userInvokable' in s ? s.userInvokable : undefined) !== false && (
+				s.name.toLowerCase().replace(/\s+/g, '-') === normalizedCommand ||
+				s.name.toLowerCase() === normalizedCommand
+			)
+		);
+		
+		if (skillInfo) {
+			await this.promptExecutor.executeSkillWithArgs(skillInfo, args?.trim() || "");
+			return true;
+		}
+		
+		// Check agents
+		const agentInfo = this.plugin.agentCache.getAgents().find(
+			a => a.userInvokable !== false && (
+				a.name.toLowerCase().replace(/\s+/g, '-') === normalizedCommand ||
+				a.name.toLowerCase() === normalizedCommand
+			)
+		);
+		
+		if (agentInfo) {
+			// Set agent in toolbar — any subsequent message will use this agent
+			this.toolbarManager.selectAgentByName(agentInfo.name);
+			if (args?.trim()) {
+				// If user typed args after the agent name, put them in the input for the next send
+				this.inputEl.innerText = args.trim();
+				this.inputEl.focus();
+				const range = document.createRange();
+				range.selectNodeContents(this.inputEl);
+				range.collapse(false);
+				const sel = window.getSelection();
+				if (sel) {
+					sel.removeAllRanges();
+					sel.addRange(range);
+				}
+			}
 			return true;
 		}
 		

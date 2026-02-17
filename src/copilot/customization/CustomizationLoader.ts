@@ -83,6 +83,12 @@ export interface CustomSkill {
 	description: string;
 	/** Optional license */
 	license?: string;
+	/** Whether this skill appears in user-facing slash menus (default: true) */
+	userInvokable?: boolean;
+	/** When true, prevents model from auto-activating this skill (default: false) */
+	disableModelInvocation?: boolean;
+	/** Optional hint text shown in the chat input when this skill is invoked */
+	argumentHint?: string;
 	/** Full path to the skill directory */
 	path: string;
 	/** Raw content of the skill file (without frontmatter) */
@@ -756,7 +762,7 @@ private getFolderFromPath(dir: string): TFolder | null {
 							tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
 							model: frontmatter.model ? String(frontmatter.model) : undefined,
 							agent: frontmatter.agent ? String(frontmatter.agent) : undefined,
-							argumentHint: frontmatter['argument-hint'] ? String(frontmatter['argument-hint']) : undefined,
+							argumentHint: frontmatter['argument-hint'] ? String(frontmatter['argument-hint']) : (frontmatter.argumentHint ? String(frontmatter.argumentHint) : undefined),
 							timeout: typeof frontmatter.timeout === 'number' ? frontmatter.timeout : undefined,
 							path: child.path,
 							content: body,
@@ -817,10 +823,10 @@ private getFolderFromPath(dir: string): TFolder | null {
 						description: String(frontmatter.description),
 						tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
 						model,
-						argumentHint: frontmatter['argument-hint'] ? String(frontmatter['argument-hint']) : undefined,
+						argumentHint: frontmatter['argument-hint'] ? String(frontmatter['argument-hint']) : (frontmatter.argumentHint ? String(frontmatter.argumentHint) : undefined),
 						handoffDescription: frontmatter.handoffDescription ? String(frontmatter.handoffDescription) : undefined,
 						handoffs,
-						userInvokable: typeof frontmatter.userInvokable === 'boolean' ? frontmatter.userInvokable : undefined,
+						userInvokable: (() => { const v = frontmatter['user-invokable'] ?? frontmatter.userInvokable; return typeof v === 'boolean' ? v : undefined; })(),
 						path: file.path,
 						instructions: body,
 					});
@@ -862,10 +868,18 @@ private getFolderFromPath(dir: string): TFolder | null {
 				const { frontmatter, body } = parsed;
 
 				if (frontmatter.name && frontmatter.description) {
+					// Read user-invokable: check kebab-case first, then camelCase
+					const rawUserInvokable = frontmatter['user-invokable'] ?? frontmatter.userInvokable;
+					const rawDisableModel = frontmatter['disable-model-invocation'] ?? frontmatter.disableModelInvocation;
+					const rawArgHint = frontmatter['argument-hint'] ?? frontmatter.argumentHint;
+
 					skills.push({
 						name: String(frontmatter.name),
 						description: String(frontmatter.description),
 						license: frontmatter.license ? String(frontmatter.license) : undefined,
+						userInvokable: typeof rawUserInvokable === 'boolean' ? rawUserInvokable : undefined,
+						disableModelInvocation: typeof rawDisableModel === 'boolean' ? rawDisableModel : undefined,
+						argumentHint: rawArgHint ? String(rawArgHint) : undefined,
 						path: subdir.absPath,
 						instructions: body,
 					});
@@ -910,7 +924,7 @@ private getFolderFromPath(dir: string): TFolder | null {
 					tools: Array.isArray(frontmatter.tools) ? frontmatter.tools : undefined,
 					model: frontmatter.model ? String(frontmatter.model) : undefined,
 					agent: frontmatter.agent ? String(frontmatter.agent) : undefined,
-					argumentHint: frontmatter['argument-hint'] ? String(frontmatter['argument-hint']) : undefined,
+					argumentHint: frontmatter['argument-hint'] ? String(frontmatter['argument-hint']) : (frontmatter.argumentHint ? String(frontmatter.argumentHint) : undefined),
 					timeout: typeof frontmatter.timeout === 'number' ? frontmatter.timeout : undefined,
 					path: file.path,
 					content: body,

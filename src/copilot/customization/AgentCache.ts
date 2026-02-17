@@ -22,6 +22,8 @@ export interface CachedAgentInfo {
 	handoffs?: AgentHandoff[];
 	/** Whether this agent appears in user-facing menus (default: true) */
 	userInvokable?: boolean;
+	/** Optional hint text shown in the chat input when this agent is invoked */
+	argumentHint?: string;
 	/** Full path to the agent file */
 	path: string;
 }
@@ -111,6 +113,7 @@ export class AgentCache {
 					model: agent.model,
 					handoffs: agent.handoffs,
 					userInvokable: agent.userInvokable,
+					argumentHint: agent.argumentHint,
 					path: agent.path,
 				});
 			}

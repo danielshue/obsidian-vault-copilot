@@ -26,6 +26,10 @@ import { CachedAgentInfo } from "../../../copilot/customization/AgentCache";
 interface PickerSkillInfo {
 	name: string;
 	description: string;
+	/** Whether this skill appears in user-facing slash menus (default: true) */
+	userInvokable?: boolean;
+	/** Optional hint text shown in the chat input when this skill is invoked */
+	argumentHint?: string;
 }
 import { SLASH_COMMANDS } from "../processing/SlashCommands";
 
@@ -237,14 +241,16 @@ export class PromptPicker {
 			name: a.name,
 			description: a.description,
 			tools: a.tools,
+			argumentHint: a.argumentHint,
 			path: `agent:${a.name}`,
 			type: 'agent' as SlashMenuItemType,
 		}));
 		
-		// Skills from registry
-		const skillItems: CachedPromptInfo[] = this.getSkills().map(s => ({
+		// Skills from registry — filtered by userInvokable
+		const skillItems: CachedPromptInfo[] = this.getSkills().filter(s => s.userInvokable !== false).map(s => ({
 			name: s.name,
 			description: s.description,
+			argumentHint: s.argumentHint,
 			path: `skill:${s.name}`,
 			type: 'skill' as SlashMenuItemType,
 		}));
@@ -432,7 +438,21 @@ export class PromptPicker {
 			sel.addRange(range);
 		}
 		
-		// Trigger input event to update any listeners
+		// Trigger input event to update any listeners (must fire before hint listener is added)
 		this.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+		
+		// Show argument hint if the selected item has one
+		// Added after the input event dispatch so the hint isn't immediately cleared
+		if (selectedPrompt.argumentHint) {
+			this.inputEl.setAttribute('data-argument-hint', selectedPrompt.argumentHint);
+			// Remove hint on the next keystroke — user is now typing their own content
+			const removeHint = () => {
+				this.inputEl.removeAttribute('data-argument-hint');
+				this.inputEl.removeEventListener('input', removeHint);
+			};
+			this.inputEl.addEventListener('input', removeHint);
+		} else {
+			this.inputEl.removeAttribute('data-argument-hint');
+		}
 	}
 }

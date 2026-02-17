@@ -378,6 +378,113 @@ export class PromptExecutor {
 	}
 
 	/**
+	 * Execute a skill with additional user arguments.
+	 * Called when user types /skill-name additional text here.
+	 *
+	 * Loads the full skill instructions (Level 2 loading) and sends them
+	 * along with user arguments to the AI service.
+	 *
+	 * @param skillInfo - The skill metadata (name & description minimum)
+	 * @param userArgs - Additional text after the slash command
+	 *
+	 * @example
+	 * ```typescript
+	 * await executor.executeSkillWithArgs(
+	 *   { name: "json-canvas", description: "Create JSON Canvas files" },
+	 *   "Create a mind map of TypeScript concepts"
+	 * );
+	 * ```
+	 */
+	async executeSkillWithArgs(skillInfo: { name: string; description: string }, userArgs: string): Promise<void> {
+		this.callbacks.clearInput();
+		this.callbacks.autoResizeInput();
+
+		// Level 2 loading — load full skill instructions from disk
+		const fullSkill = await this.plugin.skillCache.getFullSkill(skillInfo.name);
+		if (!fullSkill) {
+			console.error(`Could not load skill: ${skillInfo.name}`);
+			this.callbacks.addErrorMessage(`Could not load skill: ${skillInfo.name}`);
+			return;
+		}
+
+		await this.callbacks.ensureSessionExists();
+
+		// Clear welcome message if present
+		const messagesContainer = this.callbacks.getMessagesContainer();
+		const welcomeEl = messagesContainer.querySelector(".vc-welcome");
+		if (welcomeEl) welcomeEl.remove();
+
+		// Build display message
+		let userMessage = `Run skill: **${skillInfo.name}**\n\n> ${skillInfo.description}`;
+		if (userArgs) userMessage += `\n\n**Input:** ${userArgs}`;
+		await this.callbacks.renderMessage({ role: "user", content: userMessage, timestamp: new Date() });
+
+		const skillUserMsgEl = messagesContainer.lastElementChild as HTMLElement;
+		if (skillUserMsgEl) {
+			this.callbacks.scrollMessageToTop(skillUserMsgEl);
+		}
+
+		this.callbacks.setProcessing(true);
+		this.callbacks.updateUIState();
+		this.callbacks.showThinkingIndicator();
+
+		try {
+			// Build content from skill instructions + user input
+			let content = fullSkill.instructions;
+
+			// Check for {{input:...}} variables in the skill instructions
+			const inputVariables = parseInputVariables(content);
+			if (inputVariables.length > 0) {
+				// Collect variable values via modal, then continue execution
+				const modal = new PromptInputModal(this.app, inputVariables, async (values) => {
+					// Replace input variables with collected values
+					const inputRegex = /\$\{input:([^:}]+)(?::([^}]+))?\}/g;
+					content = content.replace(inputRegex, (_match, varName) => {
+						if (values.has(varName)) return values.get(varName) || '';
+						return `[${varName}]`;
+					});
+					await this.executeSkillContent(content, userArgs);
+				});
+				modal.open();
+				return;
+			}
+
+			await this.executeSkillContent(content, userArgs);
+		} catch (error) {
+			console.error(`Skill execution error: ${error}`);
+			if (this.currentStreamingMessageEl) {
+				this.currentStreamingMessageEl.remove();
+				this.currentStreamingMessageEl = null;
+			}
+			this.callbacks.addErrorMessage(String(error));
+		} finally {
+			this.callbacks.hideThinkingIndicator();
+			this.callbacks.setProcessing(false);
+			this.callbacks.updateUIState();
+			this.callbacks.scrollToBottom();
+		}
+	}
+
+	/**
+	 * Execute skill content after any input variables have been resolved.
+	 * Appends user arguments and sends to the AI service.
+	 *
+	 * @param content - The skill instructions (with variables already resolved)
+	 * @param userArgs - Additional user-provided text
+	 * @internal
+	 */
+	private async executeSkillContent(content: string, userArgs: string): Promise<void> {
+		if (userArgs) {
+			content += `\n\nUser request: ${userArgs}`;
+		}
+
+		this.currentStreamingMessageEl = this.callbacks.createMessageElement("assistant", "");
+		this.callbacks.scrollToBottom();
+
+		await this.sendContent(content);
+	}
+
+	/**
 	 * Send content to the AI service (handles streaming vs non-streaming)
 	 */
 	private async sendContent(content: string, timeoutMs?: number): Promise<void> {
