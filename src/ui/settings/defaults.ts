@@ -73,6 +73,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	sessions: [],
 	activeSessionId: null,
 	skillDirectories: [],
+	disabledSkills: [],
 	agentDirectories: ["Reference/Agents"],
 	instructionDirectories: ["."],  // vault root for AGENTS.md and copilot-instructions.md
 	promptDirectories: ["Reference/Prompts"],

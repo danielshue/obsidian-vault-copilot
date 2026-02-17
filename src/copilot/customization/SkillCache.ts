@@ -24,7 +24,7 @@
  */
 
 import { App, TFile, TFolder, TAbstractFile, EventRef } from "obsidian";
-import { CustomizationLoader, CustomSkill, parseFrontmatter } from "./CustomizationLoader";
+import { CustomizationLoader, CustomSkill, SkillResource, parseFrontmatter } from "./CustomizationLoader";
 
 /**
  * Lightweight skill info for caching (excludes the full instructions)
@@ -53,6 +53,8 @@ export interface CachedSkillInfo {
 	argumentHint?: string;
 	/** Full path to the skill directory */
 	path: string;
+	/** Summary of available resource files (scripts, examples, etc.) */
+	resources?: SkillResource[];
 }
 
 /**
@@ -154,6 +156,7 @@ export class SkillCache {
 					disableModelInvocation: skill.disableModelInvocation,
 					argumentHint: skill.argumentHint,
 					path: skill.path,
+					resources: skill.resources,
 				});
 			}
 
@@ -372,10 +375,18 @@ export class SkillCache {
 
 		if (!frontmatter.name || !frontmatter.description) return null;
 
+		// Parse invocation control fields (kebab-case first, then camelCase)
+		const rawUserInvokable = frontmatter['user-invokable'] ?? frontmatter.userInvokable;
+		const rawDisableModel = frontmatter['disable-model-invocation'] ?? frontmatter.disableModelInvocation;
+		const rawArgHint = frontmatter['argument-hint'] ?? frontmatter.argumentHint;
+
 		return {
 			name: String(frontmatter.name),
 			description: String(frontmatter.description),
 			license: frontmatter.license ? String(frontmatter.license) : undefined,
+			userInvokable: typeof rawUserInvokable === 'boolean' ? rawUserInvokable : undefined,
+			disableModelInvocation: typeof rawDisableModel === 'boolean' ? rawDisableModel : undefined,
+			argumentHint: rawArgHint ? String(rawArgHint) : undefined,
 			path,
 		};
 	}

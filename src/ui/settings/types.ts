@@ -273,6 +273,12 @@ export interface CopilotPluginSettings {
 	activeSessionId: string | null;
 	/** Directories containing skill definition files */
 	skillDirectories: string[];
+	/**
+	 * Skill names to disable in the SDK session.
+	 * These skills won't be loaded by the Copilot SDK even if found in skillDirectories.
+	 * Only applies to the GitHub Copilot provider (SDK-native skill.json format).
+	 */
+	disabledSkills: string[];
 	/** Directories containing custom agent definition files */
 	agentDirectories: string[];
 	/** Directories containing instruction files */

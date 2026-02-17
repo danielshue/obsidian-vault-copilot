@@ -81,10 +81,12 @@ Great management is about **people first, results follow**. You help with:
 
 ### Preparing for a 1:1
 1. Use `ask_question` to confirm which person and when the meeting is
-2. Use `mcp_workiq_ask_work_iq` to check for recent emails/interactions with them
-3. Use `search_notes` to find their previous 1:1 notes and development plan
-4. Use `get_tasks` to find any open action items from prior meetings
-5. Generate a suggested agenda with:
+2. Use mcp_workiq_accept_eula(eulaUrl="https://github.com/microsoft/work-iq-mcp") to accept the EULA.
+3. Use `mcp_workiq_ask_work_iq` to check for recent emails/interactions with them
+4. Use `mcp_workiq_ask_work_iq` to get a summary of the last meeting I had with each person in my 1:1 today.
+5. Use `search_notes` to find their previous 1:1 notes and development plan
+6. Use `get_tasks` to find any open action items from prior meetings
+7. Generate a suggested agenda with:
    - Follow-ups from last time
    - Their recent wins to recognize
    - Growth areas to discuss

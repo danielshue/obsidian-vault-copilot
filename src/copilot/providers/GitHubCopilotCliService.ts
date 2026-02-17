@@ -81,6 +81,12 @@ export interface GitHubCopilotCliConfig {
 	mcpManager?: McpManager;
 	/** Directories containing skill definition files */
 	skillDirectories?: string[];
+	/**
+	 * Skill names to disable in the SDK session.
+	 * Passed as `disabledSkills` to createSession() — the SDK will skip loading these
+	 * even if they exist in the configured skillDirectories.
+	 */
+	disabledSkills?: string[];
 	/** Directories containing custom agent definition files */
 	agentDirectories?: string[];
 	/** Directories containing instruction files */
@@ -466,6 +472,12 @@ export class GitHubCopilotCliService {
 		if (this.config.skillDirectories && this.config.skillDirectories.length > 0) {
 			sessionConfig.skillDirectories = this.config.skillDirectories;
 			console.log('[Vault Copilot] Skill directories:', this.config.skillDirectories);
+		}
+
+		// Add disabled skills if configured (SDK will skip these even if found in skillDirectories)
+		if (this.config.disabledSkills && this.config.disabledSkills.length > 0) {
+			sessionConfig.disabledSkills = this.config.disabledSkills;
+			console.log('[Vault Copilot] Disabled skills:', this.config.disabledSkills);
 		}
 
 		// Add custom agents from agent directories if configured
@@ -1605,18 +1617,26 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.LIST_AVAILABLE_SKILLS],
 				handler: async (args: { source?: string }) => {
 					const source = args.source || "all";
-					const results: Array<{ name: string; description: string; source: string; path?: string }> = [];
+					const results: Array<{ name: string; description: string; source: string; path?: string; resources?: Array<{ name: string; path: string; type: string }> }> = [];
 
 					// File-based skills from CustomizationLoader
 					if (source === "all" || source === "file") {
 						const dirs = this.config.skillDirectories ?? [];
 						const fileSkills = await this.customizationLoader.loadSkills(dirs);
 						for (const skill of fileSkills) {
+							// Enforce disableModelInvocation: skip skills that opt out of AI auto-discovery
+							if (skill.disableModelInvocation === true) continue;
+
 							results.push({
 								name: skill.name,
 								description: skill.description,
 								source: "file",
 								path: skill.path,
+								resources: skill.resources?.map(r => ({
+									name: r.name,
+									path: r.relativePath,
+									type: r.type,
+								})),
 							});
 						}
 					}
@@ -1635,6 +1655,35 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 					}
 
 					return { count: results.length, source, skills: results };
+				},
+			}),
+
+			defineTool(TOOL_NAMES.READ_SKILL_RESOURCE, {
+				description: TOOL_DESCRIPTIONS[TOOL_NAMES.READ_SKILL_RESOURCE],
+				parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.READ_SKILL_RESOURCE],
+				handler: async (args: { skillName: string; resourcePath: string }) => {
+					// Find the skill to get its path
+					const dirs = this.config.skillDirectories ?? [];
+					const fileSkills = await this.customizationLoader.loadSkills(dirs);
+					const skill = fileSkills.find(s => s.name.toLowerCase() === args.skillName.toLowerCase());
+					if (!skill) {
+						return { error: `Skill '${args.skillName}' not found. Use list_available_skills to see available skills.` };
+					}
+
+					try {
+						const content = await this.customizationLoader.readSkillResource(skill.path, args.resourcePath);
+						if (content === null) {
+							return { error: `Resource '${args.resourcePath}' not found in skill '${args.skillName}'.` };
+						}
+						return {
+							skillName: args.skillName,
+							resourcePath: args.resourcePath,
+							content,
+							size: content.length,
+						};
+					} catch (err) {
+						return { error: `Failed to read resource: ${err instanceof Error ? err.message : String(err)}` };
+					}
 				},
 			}),
 

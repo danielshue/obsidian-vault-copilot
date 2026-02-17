@@ -8,8 +8,16 @@
  *           The SKILL.md can use either:
  *           1. Standard frontmatter at the top
  *           2. A ```skill code block with frontmatter inside
+ *           Alternatively, <skill-name>/skill.json (SDK-native format) is also recognized.
+ *           skill.json uses: { name, displayName, description, version, author, prompts[], tools[] }
  * - Instructions: *.instructions.md, copilot-instructions.md, or AGENTS.md with optional frontmatter (applyTo)
  * - Prompts: *.prompt.md with frontmatter (name, description, tools, model)
+ *
+ * **Dual-loading note**: When the GitHub Copilot provider is active, skill directories are
+ * also passed to the SDK via `createSession({ skillDirectories })`. The SDK loads its own
+ * `skill.json` files natively. This loader independently loads both SKILL.md and skill.json
+ * files so that non-SDK providers (OpenAI, Azure OpenAI) also benefit from skill discovery.
+ * Duplicate skill names from both loaders are deduplicated by SkillCache.
  */
 
 import { App, TFile, TFolder, FileSystemAdapter } from "obsidian";
@@ -74,6 +82,31 @@ export interface CustomAgent {
 }
 
 /**
+ * A resource file discovered within a skill directory.
+ * Resources are companion files (scripts, examples, templates, references)
+ * that the AI can access on-demand via the read_skill_resource tool.
+ *
+ * @example
+ * ```typescript
+ * const resource: SkillResource = {
+ *   relativePath: "scripts/helper.js",
+ *   name: "helper.js",
+ *   type: "script",
+ * };
+ * ```
+ *
+ * @since 0.1.1
+ */
+export interface SkillResource {
+	/** Path relative to the skill directory (e.g., "scripts/helper.js") */
+	relativePath: string;
+	/** File name portion (e.g., "helper.js") */
+	name: string;
+	/** Resource type inferred from parent subdirectory */
+	type: 'script' | 'reference' | 'asset' | 'template' | 'example' | 'other';
+}
+
+/**
  * Parsed skill from SKILL.md file
  */
 export interface CustomSkill {
@@ -93,6 +126,8 @@ export interface CustomSkill {
 	path: string;
 	/** Raw content of the skill file (without frontmatter) */
 	instructions: string;
+	/** Discovered resource files in the skill directory (Level 3) */
+	resources?: SkillResource[];
 }
 
 /**
@@ -535,6 +570,159 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
+	 * Infer the resource type from its path within the skill directory.
+	 * Maps well-known subdirectory names to resource types.
+	 *
+	 * @param relativePath - Path relative to the skill directory
+	 * @returns The inferred resource type
+	 * @internal
+	 */
+	private inferResourceType(relativePath: string): SkillResource['type'] {
+		const normalized = relativePath.replace(/\\/g, '/');
+		const firstSegment = normalized.split('/')[0]?.toLowerCase();
+		switch (firstSegment) {
+			case 'scripts': return 'script';
+			case 'references': return 'reference';
+			case 'assets': return 'asset';
+			case 'templates': return 'template';
+			case 'examples': return 'example';
+			default: return 'other';
+		}
+	}
+
+	/**
+	 * Discover resource files in a vault-internal skill directory.
+	 * Returns all files except SKILL.md itself.
+	 *
+	 * @param skillFolder - The TFolder for the skill directory
+	 * @returns Array of discovered SkillResource objects
+	 * @internal
+	 */
+	private discoverVaultResources(skillFolder: TFolder): SkillResource[] {
+		const resources: SkillResource[] = [];
+		const basePath = skillFolder.path;
+
+		const walk = (folder: TFolder) => {
+			for (const child of folder.children) {
+				if (child instanceof TFile) {
+					if (child.name === 'SKILL.md') continue;
+					const relativePath = child.path.slice(basePath.length + 1);
+					resources.push({
+						relativePath,
+						name: child.name,
+						type: this.inferResourceType(relativePath),
+					});
+				} else if (child instanceof TFolder) {
+					walk(child);
+				}
+			}
+		};
+
+		walk(skillFolder);
+		return resources;
+	}
+
+	/**
+	 * Discover resource files in an external skill directory.
+	 * Returns all files except SKILL.md itself.
+	 *
+	 * @param absDir - Absolute path to the skill directory
+	 * @returns Array of discovered SkillResource objects
+	 * @internal
+	 */
+	private discoverExternalResources(absDir: string): SkillResource[] {
+		if (!isDesktop) return [];
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const fs = require("fs") as typeof import("fs");
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const path = require("path") as typeof import("path");
+
+			const resources: SkillResource[] = [];
+			const walk = (dir: string, prefix: string) => {
+				if (!fs.existsSync(dir)) return;
+				const entries = fs.readdirSync(dir, { withFileTypes: true });
+				for (const entry of entries) {
+					const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+					if (entry.isFile()) {
+						if (entry.name === 'SKILL.md') continue;
+						resources.push({
+							relativePath,
+							name: entry.name,
+							type: this.inferResourceType(relativePath),
+						});
+					} else if (entry.isDirectory()) {
+						walk(path.join(dir, entry.name), relativePath);
+					}
+				}
+			};
+
+			walk(absDir, '');
+			return resources;
+		} catch (err) {
+			console.error(`[VC] Failed to discover external resources: ${absDir}`, err);
+			return [];
+		}
+	}
+
+	/**
+	 * Read a resource file from a skill directory.
+	 * Supports both vault-internal and external (absolute) skill paths.
+	 * Validates that the resource path doesn't escape the skill directory.
+	 *
+	 * @param skillPath - The skill directory path (as stored in CustomSkill.path)
+	 * @param resourcePath - Relative path within the skill directory
+	 * @returns File content as string, or null if not found or access denied
+	 *
+	 * @example
+	 * ```typescript
+	 * const content = await loader.readSkillResource(
+	 *   'Reference/Skills/webapp-testing',
+	 *   'scripts/test-template.js'
+	 * );
+	 * ```
+	 *
+	 * @since 0.1.1
+	 */
+	async readSkillResource(skillPath: string, resourcePath: string): Promise<string | null> {
+		// Security: prevent path traversal
+		const normalized = resourcePath.replace(/\\/g, '/');
+		if (normalized.includes('..') || normalized.startsWith('/')) {
+			console.error(`[VC] Blocked path traversal attempt in skill resource: ${resourcePath}`);
+			return null;
+		}
+
+		// Try vault-internal first
+		const vaultFilePath = `${skillPath}/${normalized}`;
+		const file = this.app.vault.getAbstractFileByPath(vaultFilePath);
+		if (file && file instanceof TFile) {
+			try {
+				return await this.app.vault.read(file);
+			} catch (err) {
+				console.error(`[VC] Failed to read vault skill resource: ${vaultFilePath}`, err);
+				return null;
+			}
+		}
+
+		// Try external path (desktop only)
+		if (isDesktop) {
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const nodePath = require("path") as typeof import("path");
+			const absPath = nodePath.join(skillPath, normalized).replace(/\\/g, '/');
+			// Verify the resolved path is still within the skill directory
+			const resolvedSkill = nodePath.resolve(skillPath).replace(/\\/g, '/');
+			const resolvedResource = nodePath.resolve(absPath).replace(/\\/g, '/');
+			if (!resolvedResource.startsWith(resolvedSkill + '/')) {
+				console.error(`[VC] Resource path escaped skill directory: ${resourcePath}`);
+				return null;
+			}
+			return this.readExternalFile(absPath);
+		}
+
+		return null;
+	}
+
+	/**
 	 * Load all agents from the configured agent directories
 	 */
 	async loadAgents(directories: string[]): Promise<CustomAgent[]> {
@@ -630,7 +818,7 @@ private getFolderFromPath(dir: string): TFolder | null {
 				continue;
 			}
 
-			// Skills are in subdirectories with SKILL.md files
+			// Skills are in subdirectories with SKILL.md or skill.json files
 			for (const child of folder.children) {
 				if (child instanceof TFolder) {
 					// Look for SKILL.md in this subdirectory
@@ -650,16 +838,39 @@ private getFolderFromPath(dir: string): TFolder | null {
 							const { frontmatter, body } = parsed;
 
 							if (frontmatter.name && frontmatter.description) {
+								// Discover resources (Level 3)
+								const resources = this.discoverVaultResources(child);
+
+								// Parse invocation control fields (kebab-case first, then camelCase)
+								const rawUserInvokable = frontmatter['user-invokable'] ?? frontmatter.userInvokable;
+								const rawDisableModel = frontmatter['disable-model-invocation'] ?? frontmatter.disableModelInvocation;
+								const rawArgHint = frontmatter['argument-hint'] ?? frontmatter.argumentHint;
+
 								skills.push({
 									name: String(frontmatter.name),
 									description: String(frontmatter.description),
 									license: frontmatter.license ? String(frontmatter.license) : undefined,
+									userInvokable: typeof rawUserInvokable === 'boolean' ? rawUserInvokable : undefined,
+									disableModelInvocation: typeof rawDisableModel === 'boolean' ? rawDisableModel : undefined,
+									argumentHint: rawArgHint ? String(rawArgHint) : undefined,
 									path: child.path,
 									instructions: body,
+									resources: resources.length > 0 ? resources : undefined,
 								});
 							}
 						} catch (error) {
 							console.error(`Failed to load skill from ${skillFile.path}:`, error);
+						}
+					} else {
+						// Fallback: look for skill.json (SDK-native format)
+						const jsonFile = this.app.vault.getAbstractFileByPath(`${child.path}/skill.json`);
+						if (jsonFile && jsonFile instanceof TFile) {
+							try {
+								const skill = await this.loadSkillFromJson(jsonFile, child);
+								if (skill) skills.push(skill);
+							} catch (error) {
+								console.error(`Failed to load skill from ${jsonFile.path}:`, error);
+							}
 						}
 					}
 				}
@@ -667,6 +878,75 @@ private getFolderFromPath(dir: string): TFolder | null {
 		}
 
 		return skills;
+	}
+
+	/**
+	 * Load a skill from a vault-internal skill.json file (SDK-native format).
+	 *
+	 * The SDK skill.json schema uses:
+	 * ```json
+	 * { "name": "id", "displayName": "...", "description": "...", "version": "...",
+	 *   "author": "...", "prompts": [{ "type": "...", "ref": "..." }],
+	 *   "tools": [{ "name": "...", "path": "..." }] }
+	 * ```
+	 *
+	 * We map this to our CustomSkill interface for uniform consumption across all providers.
+	 *
+	 * @param file - The TFile for skill.json
+	 * @param folder - The parent TFolder containing the skill
+	 * @returns A CustomSkill or null if parsing fails
+	 * @internal
+	 */
+	private async loadSkillFromJson(file: TFile, folder: TFolder): Promise<CustomSkill | null> {
+		const raw = await this.app.vault.read(file);
+		return this.parseSkillJson(raw, folder.path);
+	}
+
+	/**
+	 * Parse a skill.json string (SDK-native format) into a CustomSkill.
+	 *
+	 * Works for both vault-internal and external (fs-based) skill directories.
+	 *
+	 * @param raw - Raw JSON string content of skill.json
+	 * @param skillPath - Path to the skill directory (vault-relative or absolute)
+	 * @returns A CustomSkill or null if the JSON is invalid or missing required fields
+	 * @internal
+	 */
+	private parseSkillJson(raw: string, skillPath: string): CustomSkill | null {
+		const json = JSON.parse(raw);
+
+		const name = json.name || json.displayName;
+		const description = json.description;
+		if (!name || !description) return null;
+
+		// Build instructions from prompts array if present
+		let instructions = '';
+		if (Array.isArray(json.prompts)) {
+			const promptRefs = json.prompts
+				.map((p: { type?: string; ref?: string }) => p.ref || '')
+				.filter(Boolean);
+			if (promptRefs.length > 0) {
+				instructions = `Prompts: ${promptRefs.join(', ')}`;
+			}
+		}
+
+		// Surface tools info if present
+		if (Array.isArray(json.tools) && json.tools.length > 0) {
+			const toolNames = json.tools
+				.map((t: { name?: string }) => t.name || '')
+				.filter(Boolean);
+			if (toolNames.length > 0) {
+				instructions += (instructions ? '\n' : '') + `Tools: ${toolNames.join(', ')}`;
+			}
+		}
+
+		return {
+			name: String(name),
+			description: String(description),
+			license: json.license ? String(json.license) : undefined,
+			path: skillPath,
+			instructions: instructions || description,
+		};
 	}
 
 	/**
@@ -856,7 +1136,20 @@ private getFolderFromPath(dir: string): TFolder | null {
 		for (const subdir of subdirs) {
 			const skillFilePath = subdir.absPath + '/SKILL.md';
 			const content = this.readExternalFile(skillFilePath);
-			if (!content) continue;
+			if (!content) {
+				// Fallback: try skill.json (SDK-native format)
+				const jsonPath = subdir.absPath + '/skill.json';
+				const jsonContent = this.readExternalFile(jsonPath);
+				if (jsonContent) {
+					try {
+						const skill = this.parseSkillJson(jsonContent, subdir.absPath);
+						if (skill) skills.push(skill);
+					} catch (error) {
+						console.error(`[VC] Failed to load external skill.json from ${jsonPath}:`, error);
+					}
+				}
+				continue;
+			}
 
 			try {
 				// Try parsing as code block first
@@ -873,6 +1166,9 @@ private getFolderFromPath(dir: string): TFolder | null {
 					const rawDisableModel = frontmatter['disable-model-invocation'] ?? frontmatter.disableModelInvocation;
 					const rawArgHint = frontmatter['argument-hint'] ?? frontmatter.argumentHint;
 
+					// Discover resources (Level 3)
+					const resources = this.discoverExternalResources(subdir.absPath);
+
 					skills.push({
 						name: String(frontmatter.name),
 						description: String(frontmatter.description),
@@ -882,6 +1178,7 @@ private getFolderFromPath(dir: string): TFolder | null {
 						argumentHint: rawArgHint ? String(rawArgHint) : undefined,
 						path: subdir.absPath,
 						instructions: body,
+						resources: resources.length > 0 ? resources : undefined,
 					});
 				}
 			} catch (error) {

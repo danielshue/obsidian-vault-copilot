@@ -127,6 +127,7 @@ const BUILTIN_TOOLS: ToolInfo[] = [
 	// Introspection tools
 	createBuiltinTool(TOOL_NAMES.LIST_AVAILABLE_TOOLS, "List Available Tools"),
 	createBuiltinTool(TOOL_NAMES.LIST_AVAILABLE_SKILLS, "List Available Skills"),
+	createBuiltinTool(TOOL_NAMES.READ_SKILL_RESOURCE, "Read Skill Resource"),
 	createBuiltinTool(TOOL_NAMES.LIST_AVAILABLE_AGENTS, "List Available Agents"),
 	createBuiltinTool(TOOL_NAMES.LIST_AVAILABLE_PROMPTS, "List Available Prompts"),
 	createBuiltinTool(TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS, "List Available Instructions"),

@@ -428,31 +428,127 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Execute run-agent action
+	 * Execute run-agent action.
+	 *
+	 * Loads the full agent definition from AgentCache and sends its instructions
+	 * along with any user input to the active AI provider.
+	 *
+	 * @param action - The run-agent action with agentId and optional input
+	 * @param context - The execution context with automation metadata
+	 * @returns The agent execution result
+	 * @throws {Error} If the agent is not found or no AI provider is available
+	 *
+	 * @since 0.1.1
 	 */
 	private async executeRunAgent(action: Extract<AutomationAction, { type: 'run-agent' }>, context: AutomationExecutionContext): Promise<unknown> {
-		// TODO: Implement agent execution
-		// This would integrate with the agent system to run the specified agent
-		console.log(`AutomationEngine: Running agent '${action.agentId}' with input:`, action.input);
-		throw new Error('Agent execution not yet implemented');
+		const { agentId, input } = action;
+		console.log(`AutomationEngine: Running agent '${agentId}' with input:`, input);
+
+		const fullAgent = await this.plugin.agentCache.getFullAgent(agentId);
+		if (!fullAgent) {
+			throw new Error(`Agent '${agentId}' not found in AgentCache`);
+		}
+
+		const inputStr = input ? Object.entries(input).map(([k, v]) => `${k}: ${String(v)}`).join('\n') : '';
+		const prompt = `You are acting as the agent "${fullAgent.name}": ${fullAgent.description}\n\n${fullAgent.instructions}${inputStr ? `\n\nUser input:\n${inputStr}` : ''}`;
+
+		const provider = this.plugin.getActiveService?.();
+		if (provider && 'isReady' in provider && (provider as { isReady(): boolean }).isReady()) {
+			const response = await provider.sendMessage(prompt);
+			return { agentId, source: 'file', response };
+		}
+
+		return { agentId, source: 'file', instructions: fullAgent.instructions, note: 'No AI provider available to execute agent' };
 	}
 
 	/**
-	 * Execute run-prompt action
+	 * Execute run-prompt action.
+	 *
+	 * Loads the full prompt definition from PromptCache and sends its content
+	 * along with any user input to the active AI provider.
+	 *
+	 * @param action - The run-prompt action with promptId and optional input
+	 * @param context - The execution context with automation metadata
+	 * @returns The prompt execution result
+	 * @throws {Error} If the prompt is not found or no AI provider is available
+	 *
+	 * @since 0.1.1
 	 */
 	private async executeRunPrompt(action: Extract<AutomationAction, { type: 'run-prompt' }>, context: AutomationExecutionContext): Promise<unknown> {
-		// TODO: Implement prompt execution
-		console.log(`AutomationEngine: Running prompt '${action.promptId}' with input:`, action.input);
-		throw new Error('Prompt execution not yet implemented');
+		const { promptId, input } = action;
+		console.log(`AutomationEngine: Running prompt '${promptId}' with input:`, input);
+
+		const fullPrompt = await this.plugin.promptCache.getFullPrompt(promptId);
+		if (!fullPrompt) {
+			throw new Error(`Prompt '${promptId}' not found in PromptCache`);
+		}
+
+		const inputStr = input ? Object.entries(input).map(([k, v]) => `${k}: ${String(v)}`).join('\n') : '';
+		const prompt = `${fullPrompt.content}${inputStr ? `\n\nUser input:\n${inputStr}` : ''}`;
+
+		const provider = this.plugin.getActiveService?.();
+		if (provider && 'isReady' in provider && (provider as { isReady(): boolean }).isReady()) {
+			const response = await provider.sendMessage(prompt);
+			return { promptId, source: 'file', response };
+		}
+
+		return { promptId, source: 'file', content: fullPrompt.content, note: 'No AI provider available to execute prompt' };
 	}
 
 	/**
-	 * Execute run-skill action
+	 * Execute run-skill action.
+	 *
+	 * Checks the SkillRegistry first for runtime-registered skills with a handler.
+	 * Falls back to file-based skills from SkillCache, loading the full instructions
+	 * and sending them to the active AI provider for execution.
+	 *
+	 * @param action - The run-skill action with skillId and optional input
+	 * @param context - The execution context with automation metadata
+	 * @returns The skill execution result
+	 * @throws {Error} If the skill is not found in either registry or cache
+	 *
+	 * @example
+	 * ```typescript
+	 * // Runtime skill with handler
+	 * await engine.executeRunSkill(
+	 *   { type: 'run-skill', skillId: 'my-skill', input: { key: 'value' } },
+	 *   context
+	 * );
+	 * ```
+	 *
+	 * @since 0.1.1
 	 */
 	private async executeRunSkill(action: Extract<AutomationAction, { type: 'run-skill' }>, context: AutomationExecutionContext): Promise<unknown> {
-		// TODO: Implement skill execution
-		console.log(`AutomationEngine: Running skill '${action.skillId}' with input:`, action.input);
-		throw new Error('Skill execution not yet implemented');
+		const { skillId, input } = action;
+		console.log(`AutomationEngine: Running skill '${skillId}' with input:`, input);
+
+		// 1. Try runtime skills first (they have direct handlers)
+		const runtimeSkill = this.plugin.skillRegistry.getSkill(skillId);
+		if (runtimeSkill) {
+			console.log(`AutomationEngine: Executing runtime skill '${skillId}' via handler`);
+			const result = await this.plugin.skillRegistry.executeSkill(skillId, input || {});
+			return result;
+		}
+
+		// 2. Fall back to file-based skills from SkillCache
+		const fullSkill = await this.plugin.skillCache.getFullSkill(skillId);
+		if (fullSkill) {
+			console.log(`AutomationEngine: Executing file-based skill '${skillId}' via AI provider`);
+			const inputStr = input ? Object.entries(input).map(([k, v]) => `${k}: ${String(v)}`).join('\n') : '';
+			const prompt = `Execute the following skill instructions:\n\n${fullSkill.instructions}${inputStr ? `\n\nUser input:\n${inputStr}` : ''}`;
+
+			// Send to AI provider via the plugin's chat service if available
+			const provider = this.plugin.getActiveService?.();
+			if (provider && 'isReady' in provider && (provider as { isReady(): boolean }).isReady()) {
+				const response = await provider.sendMessage(prompt);
+				return { skillId, source: 'file', response };
+			}
+
+			// If no provider is available, return the instructions as-is
+			return { skillId, source: 'file', instructions: fullSkill.instructions, note: 'No AI provider available to execute skill' };
+		}
+
+		throw new Error(`Skill '${skillId}' not found in SkillRegistry or SkillCache`);
 	}
 
 	/**

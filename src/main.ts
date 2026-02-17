@@ -1060,6 +1060,7 @@ export default class CopilotPlugin extends Plugin {
 			skillRegistry: this.skillRegistry,
 			mcpManager: this.mcpManager,
 			skillDirectories: resolvePaths(this.settings.skillDirectories),
+			disabledSkills: this.settings.disabledSkills,
 			agentDirectories: resolvePaths(this.settings.agentDirectories),
 			instructionDirectories: resolvePaths(this.settings.instructionDirectories),
 			promptDirectories: resolvePaths(this.settings.promptDirectories),

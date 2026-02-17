@@ -381,7 +381,8 @@ export class PromptExecutor {
 	 * Execute a skill with additional user arguments.
 	 * Called when user types /skill-name additional text here.
 	 *
-	 * Loads the full skill instructions (Level 2 loading) and sends them
+	 * Loads the full skill instructions (Level 2 loading) and resolves
+	 * any referenced resource files (Level 3 loading) before sending them
 	 * along with user arguments to the AI service.
 	 *
 	 * @param skillInfo - The skill metadata (name & description minimum)
@@ -432,6 +433,9 @@ export class PromptExecutor {
 			// Build content from skill instructions + user input
 			let content = fullSkill.instructions;
 
+			// Level 3 loading — resolve referenced resource files
+			content = await this.resolveSkillResources(content, fullSkill);
+
 			// Check for {{input:...}} variables in the skill instructions
 			const inputVariables = parseInputVariables(content);
 			if (inputVariables.length > 0) {
@@ -463,6 +467,64 @@ export class PromptExecutor {
 			this.callbacks.updateUIState();
 			this.callbacks.scrollToBottom();
 		}
+	}
+
+	/**
+	 * Resolve resource file references in skill instructions (Level 3 loading).
+	 *
+	 * Scans the skill body for markdown links with relative paths
+	 * (e.g., `[test script](./test-template.js)`) and auto-injects the
+	 * referenced file content as fenced code blocks appended to the instructions.
+	 *
+	 * @param content - The raw skill instructions
+	 * @param skill - The full skill object with path and optional resources
+	 * @returns Updated content with resolved resource files appended
+	 * @internal
+	 * @since 0.1.1
+	 */
+	private async resolveSkillResources(content: string, skill: { path: string; resources?: Array<{ relativePath: string; name: string; type: string }> }): Promise<string> {
+		// Match markdown links with relative paths: [label](./path) or [label](path)
+		const linkRegex = /\[([^\]]+)\]\(\.?\/?([^)]+)\)/g;
+		const resolvedPaths = new Set<string>();
+		const resourceBlocks: string[] = [];
+		let totalSize = 0;
+		const MAX_RESOURCE_SIZE = 50 * 1024; // 50KB limit
+
+		let match;
+		while ((match = linkRegex.exec(content)) !== null) {
+			const relativePath = match[2]!;
+			// Skip external URLs and anchors
+			if (relativePath.startsWith('http') || relativePath.startsWith('#') || relativePath.startsWith('mailto:')) continue;
+			// Skip SKILL.md self-references
+			if (relativePath === 'SKILL.md') continue;
+			// Deduplicate
+			if (resolvedPaths.has(relativePath)) continue;
+			resolvedPaths.add(relativePath);
+
+			try {
+				const loader = this.plugin.skillCache['loader'] as import('../../../copilot/customization/CustomizationLoader').CustomizationLoader;
+				const fileContent = await loader.readSkillResource(skill.path, relativePath);
+				if (fileContent) {
+					if (totalSize + fileContent.length > MAX_RESOURCE_SIZE) {
+						console.warn(`[VC] Skill resource injection truncated at ${MAX_RESOURCE_SIZE} bytes`);
+						resourceBlocks.push(`\n<!-- Resource ${relativePath} skipped: size limit reached -->`);
+						break;
+					}
+					totalSize += fileContent.length;
+					// Infer language from file extension for syntax highlighting
+					const ext = relativePath.split('.').pop() || '';
+					resourceBlocks.push(`\n## Resource: ${relativePath}\n\n\`\`\`${ext}\n${fileContent}\n\`\`\``);
+				}
+			} catch (err) {
+				console.warn(`[VC] Failed to resolve skill resource: ${relativePath}`, err);
+			}
+		}
+
+		if (resourceBlocks.length > 0) {
+			content += '\n\n---\n**Referenced skill resources:**' + resourceBlocks.join('\n');
+		}
+
+		return content;
 	}
 
 	/**

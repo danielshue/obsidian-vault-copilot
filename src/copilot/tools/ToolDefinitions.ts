@@ -129,6 +129,7 @@ export const TOOL_NAMES = {
 	// Introspection operations
 	LIST_AVAILABLE_TOOLS: "list_available_tools",
 	LIST_AVAILABLE_SKILLS: "list_available_skills",
+	READ_SKILL_RESOURCE: "read_skill_resource",
 	LIST_AVAILABLE_AGENTS: "list_available_agents",
 	LIST_AVAILABLE_PROMPTS: "list_available_prompts",
 	LIST_AVAILABLE_INSTRUCTIONS: "list_available_instructions",
@@ -178,6 +179,7 @@ export const TOOL_DESCRIPTIONS = {
 	[TOOL_NAMES.ASK_QUESTION]: "Ask the user a question and get their response. Supports text input, multiple choice, radio buttons, and mixed (choice + text) questions. Use this when you need clarification, additional information, or user preferences to complete a task.",
 	[TOOL_NAMES.LIST_AVAILABLE_TOOLS]: "List all available tools in the current environment. Returns tool names, descriptions, and sources (builtin, plugin, mcp). Use source parameter to filter by origin.",
 	[TOOL_NAMES.LIST_AVAILABLE_SKILLS]: "List all available skills (both file-based SKILL.md and runtime-registered). Returns skill names, descriptions, and sources. Use source parameter to filter.",
+	[TOOL_NAMES.READ_SKILL_RESOURCE]: "Read a resource file bundled with a skill. Returns the file content. Use list_available_skills first to discover skill names and their available resources.",
 	[TOOL_NAMES.LIST_AVAILABLE_AGENTS]: "List all available custom agents loaded from .agent.md files. Returns agent names, descriptions, configured tools, and file paths.",
 	[TOOL_NAMES.LIST_AVAILABLE_PROMPTS]: "List all available prompt templates loaded from .prompt.md files. Returns prompt names, descriptions, configured tools, models, and file paths.",
 	[TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS]: "List all available instruction files loaded from .instructions.md files. Returns instruction names, applyTo patterns, and file paths.",
@@ -355,6 +357,14 @@ export interface ListAvailableToolsParams {
 export interface ListAvailableSkillsParams {
 	/** Filter by source: 'file' (SKILL.md), 'runtime' (SkillRegistry), or 'all' (default: 'all') */
 	source?: string;
+}
+
+/** Parameters for read_skill_resource */
+export interface ReadSkillResourceParams {
+	/** The name of the skill that owns the resource */
+	skillName: string;
+	/** Relative path to the resource file within the skill directory */
+	resourcePath: string;
 }
 
 /** Parameters for list_available_agents */
@@ -672,6 +682,21 @@ export const TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
 		required: []
 	},
 
+	[TOOL_NAMES.READ_SKILL_RESOURCE]: {
+		type: "object",
+		properties: {
+			skillName: {
+				type: "string",
+				description: "The name of the skill that owns the resource"
+			},
+			resourcePath: {
+				type: "string",
+				description: "Relative path to the resource file within the skill directory"
+			}
+		},
+		required: ["skillName", "resourcePath"]
+	},
+
 	[TOOL_NAMES.LIST_AVAILABLE_AGENTS]: {
 		type: "object",
 		properties: {
@@ -890,6 +915,7 @@ export const TOOL_CATEGORIES = {
 	INTROSPECTION: [
 		TOOL_NAMES.LIST_AVAILABLE_TOOLS,
 		TOOL_NAMES.LIST_AVAILABLE_SKILLS,
+		TOOL_NAMES.READ_SKILL_RESOURCE,
 		TOOL_NAMES.LIST_AVAILABLE_AGENTS,
 		TOOL_NAMES.LIST_AVAILABLE_PROMPTS,
 		TOOL_NAMES.LIST_AVAILABLE_INSTRUCTIONS,

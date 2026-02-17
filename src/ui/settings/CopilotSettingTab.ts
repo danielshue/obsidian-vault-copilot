@@ -2721,6 +2721,22 @@ console.log("Discovering models...");
 			}
 		);
 
+		// Disabled Skills (SDK passthrough)
+		new Setting(content)
+			.setName("Disabled skills")
+			.setDesc("Skill names to exclude from the SDK session (one per line). Only applies to the GitHub Copilot provider. These skills won't be loaded even if found in skill directories.")
+			.addTextArea(text => text
+				.setPlaceholder("skill-name-1\nskill-name-2")
+				.setValue(this.plugin.settings.disabledSkills.join('\n'))
+				.onChange(async (value) => {
+					this.plugin.settings.disabledSkills = value
+						.split('\n')
+						.map(s => s.trim())
+						.filter(s => s.length > 0);
+					await this.plugin.saveSettings();
+				})
+			);
+
 		// Agent Directories Section
 		this.renderDirectoryList(
 			content,
