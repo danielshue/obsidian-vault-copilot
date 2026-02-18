@@ -268,6 +268,8 @@ export interface CopilotPluginSettings {
 	tracingEnabled: boolean;
 	/** Log level for SDK logging when tracing is enabled */
 	logLevel: 'debug' | 'info' | 'warn' | 'error';
+	/** Write SDK logs to disk (desktop only). Files are saved in the plugin's logs/ folder. */
+	fileLoggingEnabled: boolean;
 	showInStatusBar: boolean;
 	sessions: CopilotSession[];
 	activeSessionId: string | null;

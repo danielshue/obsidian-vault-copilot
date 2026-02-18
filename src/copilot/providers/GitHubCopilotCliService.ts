@@ -189,6 +189,14 @@ export class GitHubCopilotCliService {
 	 */
 	private onSessionReconnect: (() => void) | null = null;
 
+	// ── Structured tracing state ──────────────────────────────────────────
+	/** Active TracingService trace ID for the current session lifecycle */
+	private activeSessionTraceId: string = "";
+	/** Map of toolCallId → TracingService spanId for in-flight tool calls */
+	private activeToolSpans: Map<string, string> = new Map();
+	/** Accumulated token counts for the current session (reset on session create/resume) */
+	private sessionTokenUsage = { inputTokens: 0, outputTokens: 0, totalCost: 0 };
+
 	constructor(app: App, config: GitHubCopilotCliConfig) {
 		this.app = app;
 		this.config = config;
@@ -980,6 +988,10 @@ export class GitHubCopilotCliService {
 			// Start the initial timeout
 			resetTimeout();
 			
+			// Track last content passed to onComplete to avoid redundant renders
+			// when assistant.message and session.idle fire back-to-back with identical content
+			let lastRenderedContent = "";
+
 			const unsubscribe = this.session!.on((event: SessionEvent) => {
 				if (hasCompleted) return;
 
@@ -988,7 +1000,7 @@ export class GitHubCopilotCliService {
 				resetTimeout();
 				
 				// Log all events for debugging (except deltas which are too verbose)
-				if (event.type !== "assistant.message_delta") {
+				if (event.type !== "assistant.message_delta" && event.type !== "assistant.reasoning_delta") {
 					tracingService.addSdkLog('debug', `[SDK Event] ${event.type}: ${JSON.stringify(event.data).substring(0, 200)}`, 'copilot-event');
 				}
 				
@@ -997,7 +1009,17 @@ export class GitHubCopilotCliService {
 					fullContent += delta;
 					onDelta(delta);
 				} else if (event.type === "assistant.message") {
-					fullContent = (event.data as { content: string }).content;
+					// Don't reset fullContent — keep accumulating across all turns
+					// so multi-turn subagent responses preserve earlier content.
+					// Trigger intermediate markdown render so content is readable
+					// while subsequent tool calls execute.
+					// Skip if fullContent hasn't changed (empty intermediate messages
+					// between tool calls would cause redundant contentEl.empty() +
+					// re-render cycles that briefly blank the screen).
+					if (onComplete && fullContent && fullContent !== lastRenderedContent) {
+						lastRenderedContent = fullContent;
+						onComplete(fullContent);
+					}
 				} else if (event.type === "session.idle") {
 					cleanup();
 					this.touchActivity();
@@ -1010,7 +1032,9 @@ export class GitHubCopilotCliService {
 					// Log the response to tracing service
 					tracingService.addSdkLog('info', `[Assistant Response (Streaming)]\n${fullContent.substring(0, 500)}${fullContent.length > 500 ? '...' : ''}`, 'copilot-response');
 					
-					if (onComplete) {
+					// Only call onComplete if content changed since last render
+					// (assistant.message already rendered the same content moments ago)
+					if (onComplete && fullContent !== lastRenderedContent) {
 						onComplete(fullContent);
 					}
 					unsubscribe();
@@ -1138,170 +1162,449 @@ export class GitHubCopilotCliService {
 	}
 
 	/**
-	 * Log session events to TracingService with appropriate categorization
-	 * 
-	 * SDK SessionEvent types:
-	 * - Session lifecycle: session.start, session.resume, session.idle, session.error, session.info
-	 * - Session state: session.model_change, session.handoff, session.truncation, session.snapshot_rewind,
-	 *                  session.usage_info, session.compaction_start, session.compaction_complete
-	 * - User events: user.message, pending_messages.modified
-	 * - Assistant events: assistant.turn_start, assistant.intent, assistant.reasoning, assistant.reasoning_delta,
-	 *                     assistant.message, assistant.message_delta, assistant.turn_end, assistant.usage
-	 * - Tool events: tool.user_requested, tool.execution_start, tool.execution_partial_result, 
-	 *                tool.execution_progress, tool.execution_complete
-	 * - Subagent events: subagent.started, subagent.completed, subagent.failed, subagent.selected
-	 * - Other: abort, hook.start, hook.end, system.message
+	 * Log session events to TracingService with enriched data and structured traces.
+	 *
+	 * Creates structured trace spans for session lifecycle and tool execution so that
+	 * the Tracing modal shows a correlated timeline. All 32 SDK SessionEvent types are
+	 * handled explicitly (no fallback to a generic default).
+	 *
+	 * Truncation limits:
+	 * - User prompts: 1 000 chars
+	 * - Tool arguments / results: 2 000 chars
+	 * - Assistant messages: 500 chars
+	 *
+	 * @internal
+	 * @see https://github.com/github/copilot-sdk/blob/main/docs/getting-started.md
 	 */
 	private logSessionEventToTracing(event: SessionEvent): void {
-		const tracingService = getTracingService();
 		const eventType = event.type;
+
+		// Skip ephemeral streaming deltas — too verbose, no diagnostic value
+		if (eventType === 'assistant.message_delta' || eventType === 'assistant.reasoning_delta') {
+			return;
+		}
+
+		const tracingService = getTracingService();
 		const eventData = 'data' in event ? event.data : {};
-		
-		// Determine log level and source based on event type
+
+		// Helper to safely truncate strings
+		const truncate = (s: string | undefined, max: number): string => {
+			if (!s) return '';
+			return s.length > max ? s.substring(0, max) + '…' : s;
+		};
+
+		// Helper to safely stringify objects for logging
+		const safeStringify = (obj: unknown, max: number): string => {
+			try {
+				const json = JSON.stringify(obj);
+				return truncate(json, max);
+			} catch {
+				return '[unserializable]';
+			}
+		};
+
 		let level: 'debug' | 'info' | 'warning' | 'error' = 'debug';
 		let source = 'sdk-event';
 		let message = '';
-		
+
 		switch (eventType) {
-			// Session lifecycle events
-			case 'session.start':
+			// ── Session lifecycle ───────────────────────────────────────────
+			case 'session.start': {
 				level = 'info';
 				source = 'session-lifecycle';
-				message = `[Session Start] sessionId=${(eventData as { sessionId?: string }).sessionId || 'unknown'}`;
+				const d = eventData as {
+					sessionId?: string; version?: string;
+					copilotVersion?: string; selectedModel?: string;
+					context?: Record<string, unknown>;
+				};
+				message = `[Session Start] sessionId=${d.sessionId || 'unknown'} model=${d.selectedModel || 'unknown'} sdk=${d.version || '?'} copilot=${d.copilotVersion || '?'}`;
+
+				// Start a structured trace for this session
+				this.sessionTokenUsage = { inputTokens: 0, outputTokens: 0, totalCost: 0 };
+				this.activeToolSpans.clear();
+				this.activeSessionTraceId = tracingService.startTrace(
+					`Session ${d.sessionId?.substring(0, 8) || 'unknown'}`,
+					{ sessionId: d.sessionId, model: d.selectedModel, sdkVersion: d.version, copilotVersion: d.copilotVersion },
+				);
 				break;
-			case 'session.resume':
+			}
+			case 'session.resume': {
 				level = 'info';
 				source = 'session-lifecycle';
-				message = `[Session Resume] eventCount=${(eventData as { eventCount?: number }).eventCount || 0}`;
+				const d = eventData as { eventCount?: number; resumeTime?: number; context?: Record<string, unknown> };
+				message = `[Session Resume] eventCount=${d.eventCount || 0}`;
+
+				this.sessionTokenUsage = { inputTokens: 0, outputTokens: 0, totalCost: 0 };
+				this.activeToolSpans.clear();
+				this.activeSessionTraceId = tracingService.startTrace(
+					'Session Resumed',
+					{ eventCount: d.eventCount },
+				);
 				break;
-			case 'session.idle':
-				level = 'debug';
+			}
+			case 'session.idle': {
+				level = 'info';
 				source = 'session-lifecycle';
-				message = '[Session Idle]';
+				const tokenSummary = this.sessionTokenUsage.inputTokens + this.sessionTokenUsage.outputTokens > 0
+					? ` tokens(in=${this.sessionTokenUsage.inputTokens} out=${this.sessionTokenUsage.outputTokens})`
+					: '';
+				message = `[Session Idle]${tokenSummary}`;
+
+				// End the structured session trace
+				if (this.activeSessionTraceId) {
+					tracingService.endTrace(this.activeSessionTraceId);
+					this.activeSessionTraceId = '';
+				}
 				break;
-			case 'session.error':
+			}
+			case 'session.error': {
 				level = 'error';
 				source = 'session-lifecycle';
-				message = `[Session Error] ${(eventData as { errorType?: string; message?: string }).errorType}: ${(eventData as { message?: string }).message || 'Unknown error'}`;
+				const d = eventData as { errorType?: string; message?: string; stack?: string };
+				message = `[Session Error] ${d.errorType || 'unknown'}: ${d.message || 'Unknown error'}`;
+				if (d.stack) {
+					message += `\n${truncate(d.stack, 1000)}`;
+				}
+
+				// Record error as a span on the session trace
+				if (this.activeSessionTraceId) {
+					const spanId = tracingService.addSpan(this.activeSessionTraceId, 'Session Error', 'error', {
+						errorType: d.errorType, message: d.message, stack: d.stack,
+					});
+					tracingService.completeSpan(spanId, d.message || 'Session error');
+				}
 				break;
-			case 'session.info':
+			}
+			case 'session.info': {
 				level = 'info';
 				source = 'session-lifecycle';
-				message = `[Session Info] ${(eventData as { infoType?: string; message?: string }).infoType}: ${(eventData as { message?: string }).message || ''}`;
+				const d = eventData as { infoType?: string; message?: string };
+				message = `[Session Info] ${d.infoType || 'unknown'}: ${d.message || ''}`;
 				break;
-			case 'session.model_change':
+			}
+
+			// ── Session state ──────────────────────────────────────────────
+			case 'session.model_change': {
 				level = 'info';
 				source = 'session-state';
-				message = `[Model Change] ${(eventData as { previousModel?: string }).previousModel || 'none'} → ${(eventData as { newModel?: string }).newModel || 'unknown'}`;
+				const d = eventData as { previousModel?: string; newModel?: string };
+				message = `[Model Change] ${d.previousModel || 'none'} → ${d.newModel || 'unknown'}`;
 				break;
-			case 'session.handoff':
+			}
+			case 'session.handoff': {
 				level = 'info';
 				source = 'session-state';
-				message = `[Session Handoff] sourceType=${(eventData as { sourceType?: string }).sourceType || 'unknown'}`;
+				const d = eventData as { sourceType?: string; repository?: string; summary?: string };
+				message = `[Session Handoff] sourceType=${d.sourceType || 'unknown'}${d.repository ? ` repo=${d.repository}` : ''}`;
 				break;
-			
-			// User events
-			case 'user.message':
+			}
+			case 'session.truncation': {
+				level = 'warning';
+				source = 'session-state';
+				const d = eventData as {
+					tokenLimit?: number; preTokenCount?: number; postTokenCount?: number;
+					preMessageCount?: number; postMessageCount?: number;
+				};
+				message = `[Session Truncation] limit=${d.tokenLimit || '?'} tokens(${d.preTokenCount || '?'}→${d.postTokenCount || '?'}) messages(${d.preMessageCount || '?'}→${d.postMessageCount || '?'})`;
+				break;
+			}
+			case 'session.snapshot_rewind': {
+				level = 'info';
+				source = 'session-state';
+				const d = eventData as { upToEventId?: string; eventsRemoved?: number };
+				message = `[Snapshot Rewind] upToEventId=${d.upToEventId || '?'} eventsRemoved=${d.eventsRemoved ?? '?'}`;
+				break;
+			}
+			case 'session.usage_info': {
+				level = 'debug';
+				source = 'session-state';
+				const d = eventData as { tokenLimit?: number; currentTokens?: number; messagesLength?: number };
+				message = `[Usage Info] tokens=${d.currentTokens || 0}/${d.tokenLimit || '?'} messages=${d.messagesLength || 0}`;
+				break;
+			}
+			case 'session.compaction_start': {
+				level = 'info';
+				source = 'session-state';
+				message = '[Compaction Start]';
+				break;
+			}
+			case 'session.compaction_complete': {
+				level = 'info';
+				source = 'session-state';
+				const d = eventData as {
+					success?: boolean; preTokenCount?: number; postTokenCount?: number;
+					summaryContent?: string;
+				};
+				message = `[Compaction Complete] success=${d.success ?? '?'} tokens(${d.preTokenCount || '?'}→${d.postTokenCount || '?'})`;
+				break;
+			}
+
+			// ── User events ────────────────────────────────────────────────
+			case 'user.message': {
 				level = 'info';
 				source = 'user-event';
-				const userContent = (eventData as { content?: string }).content || '';
-				message = `[User Message] ${userContent.substring(0, 100)}${userContent.length > 100 ? '...' : ''}`;
+				const d = eventData as { content?: string; source?: string; attachments?: unknown[]; transformedContent?: string };
+				const preview = truncate(d.content, 1000);
+				const attachCount = Array.isArray(d.attachments) ? d.attachments.length : 0;
+				message = `[User Message] ${preview}`;
+				if (d.source) message += ` (source=${d.source})`;
+				if (attachCount > 0) message += ` [${attachCount} attachment(s)]`;
+
+				// Record as a span so it appears in the trace timeline
+				if (this.activeSessionTraceId) {
+					const spanId = tracingService.addSpan(this.activeSessionTraceId, 'User Prompt', 'user-message', {
+						contentLength: d.content?.length || 0,
+						source: d.source,
+						attachments: attachCount,
+					});
+					tracingService.completeSpan(spanId);
+				}
 				break;
-			
-			// Assistant events
-			case 'assistant.turn_start':
+			}
+			case 'pending_messages.modified': {
+				level = 'debug';
+				source = 'user-event';
+				message = '[Pending Messages Modified]';
+				break;
+			}
+
+			// ── Assistant events ───────────────────────────────────────────
+			case 'assistant.turn_start': {
 				level = 'debug';
 				source = 'assistant-event';
-				message = `[Turn Start] turnId=${(eventData as { turnId?: string }).turnId || 'unknown'}`;
+				const d = eventData as { turnId?: string };
+				message = `[Turn Start] turnId=${d.turnId || 'unknown'}`;
 				break;
-			case 'assistant.message':
+			}
+			case 'assistant.intent': {
 				level = 'info';
 				source = 'assistant-event';
-				const assistantContent = (eventData as { content?: string }).content || '';
-				message = `[Assistant Message] ${assistantContent.substring(0, 200)}${assistantContent.length > 200 ? '...' : ''}`;
+				const d = eventData as { intent?: string };
+				message = `[Intent] ${truncate(d.intent, 500)}`;
 				break;
-			case 'assistant.message_delta':
+			}
+			case 'assistant.reasoning': {
 				level = 'debug';
 				source = 'assistant-event';
-				// Don't log full delta content to avoid noise
-				message = `[Message Delta] messageId=${(eventData as { messageId?: string }).messageId || 'unknown'}`;
+				const d = eventData as { reasoningId?: string; content?: string };
+				message = `[Reasoning] reasoningId=${d.reasoningId || 'unknown'} ${truncate(d.content, 300)}`;
 				break;
-			case 'assistant.turn_end':
-				level = 'debug';
-				source = 'assistant-event';
-				message = `[Turn End] turnId=${(eventData as { turnId?: string }).turnId || 'unknown'}`;
-				break;
-			case 'assistant.reasoning':
-				level = 'debug';
-				source = 'assistant-event';
-				message = `[Reasoning] reasoningId=${(eventData as { reasoningId?: string }).reasoningId || 'unknown'}`;
-				break;
-			case 'assistant.usage':
+			}
+			case 'assistant.message': {
 				level = 'info';
 				source = 'assistant-event';
-				const usage = eventData as { inputTokens?: number; outputTokens?: number; model?: string };
-				message = `[Usage] model=${usage.model || 'unknown'} input=${usage.inputTokens || 0} output=${usage.outputTokens || 0}`;
+				const d = eventData as { messageId?: string; content?: string; toolRequests?: unknown[] };
+				const toolReqs = Array.isArray(d.toolRequests) ? d.toolRequests.length : 0;
+				message = `[Assistant Message] ${truncate(d.content, 500)}`;
+				if (toolReqs > 0) message += ` [${toolReqs} tool request(s)]`;
 				break;
-			
-			// Tool events
-			case 'tool.execution_start':
+			}
+			case 'assistant.turn_end': {
+				level = 'debug';
+				source = 'assistant-event';
+				const d = eventData as { turnId?: string };
+				message = `[Turn End] turnId=${d.turnId || 'unknown'}`;
+				break;
+			}
+			case 'assistant.usage': {
+				level = 'info';
+				source = 'assistant-event';
+				const d = eventData as {
+					model?: string; inputTokens?: number; outputTokens?: number;
+					cacheReadTokens?: number; cost?: number; duration?: number;
+				};
+				// Accumulate per-session totals
+				this.sessionTokenUsage.inputTokens += d.inputTokens || 0;
+				this.sessionTokenUsage.outputTokens += d.outputTokens || 0;
+				this.sessionTokenUsage.totalCost += d.cost || 0;
+
+				message = `[Usage] model=${d.model || 'unknown'} input=${d.inputTokens || 0} output=${d.outputTokens || 0}`;
+				if (d.cacheReadTokens) message += ` cache=${d.cacheReadTokens}`;
+				if (d.cost !== undefined) message += ` cost=$${d.cost.toFixed(4)}`;
+				if (d.duration) message += ` duration=${d.duration}ms`;
+				message += ` | session_total(in=${this.sessionTokenUsage.inputTokens} out=${this.sessionTokenUsage.outputTokens})`;
+				break;
+			}
+
+			// ── Tool events ────────────────────────────────────────────────
+			case 'tool.user_requested': {
 				level = 'info';
 				source = 'tool-event';
-				message = `[Tool Start] ${(eventData as { toolName?: string }).toolName || 'unknown'} (${(eventData as { toolCallId?: string }).toolCallId || 'unknown'})`;
+				const d = eventData as { toolName?: string; toolCallId?: string; arguments?: unknown };
+				message = `[Tool Requested] ${d.toolName || 'unknown'}`;
+				if (d.arguments) message += ` args=${safeStringify(d.arguments, 500)}`;
 				break;
-			case 'tool.execution_complete':
+			}
+			case 'tool.execution_start': {
 				level = 'info';
 				source = 'tool-event';
-				const toolResult = eventData as { toolCallId?: string; success?: boolean };
-				message = `[Tool Complete] ${toolResult.toolCallId || 'unknown'} success=${toolResult.success ?? 'unknown'}`;
+				const d = eventData as {
+					toolName?: string; toolCallId?: string; arguments?: unknown;
+					mcpServerName?: string; parentToolCallId?: string;
+				};
+				const toolName = d.toolName || 'unknown';
+				message = `[Tool Start] ${toolName} (${d.toolCallId || 'unknown'})`;
+				if (d.mcpServerName) message += ` mcp=${d.mcpServerName}`;
+				if (d.arguments) message += ` args=${safeStringify(d.arguments, 2000)}`;
+
+				// Start a structured span for this tool call
+				if (this.activeSessionTraceId && d.toolCallId) {
+					const spanId = tracingService.addSpan(this.activeSessionTraceId, `Tool: ${toolName}`, 'tool-call', {
+						toolName,
+						toolCallId: d.toolCallId,
+						mcpServerName: d.mcpServerName,
+						arguments: d.arguments,
+					});
+					this.activeToolSpans.set(d.toolCallId, spanId);
+				}
 				break;
-			case 'tool.execution_progress':
+			}
+			case 'tool.execution_partial_result': {
 				level = 'debug';
 				source = 'tool-event';
-				message = `[Tool Progress] ${(eventData as { progressMessage?: string }).progressMessage || ''}`;
+				const d = eventData as { toolCallId?: string; partialOutput?: string };
+				message = `[Tool Partial] ${d.toolCallId || 'unknown'} ${truncate(d.partialOutput, 200)}`;
 				break;
-			case 'tool.user_requested':
-				level = 'info';
+			}
+			case 'tool.execution_progress': {
+				level = 'debug';
 				source = 'tool-event';
-				message = `[Tool Requested] ${(eventData as { toolName?: string }).toolName || 'unknown'}`;
+				const d = eventData as { toolCallId?: string; progressMessage?: string };
+				message = `[Tool Progress] ${d.toolCallId || 'unknown'}: ${d.progressMessage || ''}`;
 				break;
-			
-			// Subagent events
-			case 'subagent.started':
+			}
+			case 'tool.execution_complete': {
+				const d = eventData as {
+					toolCallId?: string; toolName?: string; success?: boolean;
+					result?: unknown; error?: string; toolTelemetry?: Record<string, unknown>;
+				};
+				level = d.success === false ? 'error' : 'info';
+				source = 'tool-event';
+				const toolCallId = d.toolCallId || 'unknown';
+				message = `[Tool Complete] ${toolCallId} success=${d.success ?? 'unknown'}`;
+				if (d.success === false && d.error) {
+					message += ` error=${truncate(d.error, 500)}`;
+				}
+				if (d.result !== undefined) {
+					message += ` result=${safeStringify(d.result, 2000)}`;
+				}
+
+				// Complete the structured span
+				if (d.toolCallId) {
+					const spanId = this.activeToolSpans.get(d.toolCallId);
+					if (spanId) {
+						tracingService.completeSpan(spanId, d.success === false ? (d.error || 'Tool failed') : undefined);
+						this.activeToolSpans.delete(d.toolCallId);
+					}
+				}
+				break;
+			}
+
+			// ── Subagent events ────────────────────────────────────────────
+			case 'subagent.started': {
 				level = 'info';
 				source = 'subagent-event';
-				message = `[Subagent Started] ${(eventData as { agentDisplayName?: string }).agentDisplayName || (eventData as { agentName?: string }).agentName || 'unknown'}`;
+				const d = eventData as { toolCallId?: string; agentName?: string; agentDisplayName?: string; agentDescription?: string };
+				message = `[Subagent Started] ${d.agentDisplayName || d.agentName || 'unknown'}`;
+				if (d.agentDescription) message += `: ${truncate(d.agentDescription, 200)}`;
+
+				// Start a span for the subagent
+				if (this.activeSessionTraceId && d.toolCallId) {
+					const spanId = tracingService.addSpan(this.activeSessionTraceId, `Subagent: ${d.agentDisplayName || d.agentName || 'unknown'}`, 'subagent', {
+						agentName: d.agentName,
+						agentDisplayName: d.agentDisplayName,
+					});
+					this.activeToolSpans.set(d.toolCallId, spanId);
+				}
 				break;
-			case 'subagent.completed':
+			}
+			case 'subagent.completed': {
 				level = 'info';
 				source = 'subagent-event';
-				message = `[Subagent Completed] ${(eventData as { agentName?: string }).agentName || 'unknown'}`;
+				const d = eventData as { toolCallId?: string; agentName?: string };
+				message = `[Subagent Completed] ${d.agentName || 'unknown'}`;
+
+				if (d.toolCallId) {
+					const spanId = this.activeToolSpans.get(d.toolCallId);
+					if (spanId) {
+						tracingService.completeSpan(spanId);
+						this.activeToolSpans.delete(d.toolCallId);
+					}
+				}
 				break;
-			case 'subagent.failed':
+			}
+			case 'subagent.failed': {
 				level = 'error';
 				source = 'subagent-event';
-				message = `[Subagent Failed] ${(eventData as { agentName?: string }).agentName || 'unknown'}: ${(eventData as { error?: string }).error || 'Unknown error'}`;
+				const d = eventData as { toolCallId?: string; agentName?: string; error?: string };
+				message = `[Subagent Failed] ${d.agentName || 'unknown'}: ${d.error || 'Unknown error'}`;
+
+				if (d.toolCallId) {
+					const spanId = this.activeToolSpans.get(d.toolCallId);
+					if (spanId) {
+						tracingService.completeSpan(spanId, d.error || 'Subagent failed');
+						this.activeToolSpans.delete(d.toolCallId);
+					}
+				}
 				break;
-			case 'subagent.selected':
-				level = 'debug';
+			}
+			case 'subagent.selected': {
+				level = 'info';
 				source = 'subagent-event';
-				message = `[Subagent Selected] ${(eventData as { agentDisplayName?: string }).agentDisplayName || 'unknown'}`;
+				const d = eventData as { agentName?: string; agentDisplayName?: string; tools?: unknown[] };
+				const toolCount = Array.isArray(d.tools) ? d.tools.length : 0;
+				message = `[Subagent Selected] ${d.agentDisplayName || d.agentName || 'unknown'} (${toolCount} tools)`;
 				break;
-			
-			// Abort event
-			case 'abort':
+			}
+
+			// ── Abort ──────────────────────────────────────────────────────
+			case 'abort': {
 				level = 'warning';
 				source = 'session-lifecycle';
-				message = `[Abort] reason=${(eventData as { reason?: string }).reason || 'unknown'}`;
+				const d = eventData as { reason?: string };
+				message = `[Abort] reason=${d.reason || 'unknown'}`;
+
+				// End the session trace on abort
+				if (this.activeSessionTraceId) {
+					tracingService.endTrace(this.activeSessionTraceId);
+					this.activeSessionTraceId = '';
+				}
 				break;
-			
-			// Default for other events
+			}
+
+			// ── Hook observation ───────────────────────────────────────────
+			case 'hook.start': {
+				level = 'debug';
+				source = 'hook-event';
+				const d = eventData as { hookInvocationId?: string; hookType?: string; input?: unknown };
+				message = `[Hook Start] type=${d.hookType || 'unknown'} id=${d.hookInvocationId || 'unknown'}`;
+				break;
+			}
+			case 'hook.end': {
+				level = 'debug';
+				source = 'hook-event';
+				const d = eventData as { hookInvocationId?: string; hookType?: string; success?: boolean; error?: string };
+				message = `[Hook End] type=${d.hookType || 'unknown'} success=${d.success ?? '?'}`;
+				if (d.error) message += ` error=${truncate(d.error, 200)}`;
+				break;
+			}
+
+			// ── System message ─────────────────────────────────────────────
+			case 'system.message': {
+				level = 'info';
+				source = 'system-event';
+				const d = eventData as { content?: string; role?: string; name?: string };
+				message = `[System Message] role=${d.role || 'system'}${d.name ? ` name=${d.name}` : ''} ${truncate(d.content, 500)}`;
+				break;
+			}
+
+			// ── Catch-all for any future/unknown event types ───────────────
 			default:
 				level = 'debug';
 				source = 'sdk-event';
-				message = `[${eventType}] ${JSON.stringify(eventData).substring(0, 200)}`;
+				message = `[${eventType}] ${safeStringify(eventData, 500)}`;
 		}
-		
+
 		tracingService.addSdkLog(level, message, source);
 	}
 

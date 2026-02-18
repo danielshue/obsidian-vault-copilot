@@ -14,6 +14,29 @@ export interface UsedReference {
 }
 
 /**
+ * Controller for inline activity items that show tool calls and sub-agent invocations.
+ * Created by {@link MessageRenderer.renderActivityPanel} and used by CopilotChatView to display
+ * real-time tool/agent activity between the user message and the assistant response.
+ *
+ * Each tool call or sub-agent invocation appears as its own inline row in chronological order,
+ * matching the VS Code Copilot chat UX. Items are individually expandable to show arguments.
+ */
+export interface ActivityPanel {
+	/** Anchor element (hidden sentinel used for insertion positioning) */
+	el: HTMLElement;
+	/** Add a tool call entry (shown with wrench icon, spinning while running) */
+	addToolCall(toolName: string, toolCallId: string, args?: string): void;
+	/** Mark a tool call as complete (changes icon to checkmark or X) */
+	updateToolComplete(toolCallId: string, success: boolean): void;
+	/** Add a sub-agent entry (shown with bot icon) */
+	addSubagent(agentName: string, toolCallId: string): void;
+	/** Mark a sub-agent as complete */
+	updateSubagentComplete(toolCallId: string, success: boolean): void;
+	/** Finalize — clean up any remaining spinners */
+	finalize(): void;
+}
+
+/**
  * Handles rendering of chat messages with markdown support and copy functionality
  */
 export class MessageRenderer {
@@ -55,18 +78,27 @@ export class MessageRenderer {
 	 * Render markdown content in a message element
 	 */
 	async renderMarkdownContent(messageEl: HTMLElement, content: string): Promise<void> {
-		const contentEl = messageEl.querySelector(".vc-message-content");
-		if (contentEl) {
-			contentEl.empty();
+		const oldContentEl = messageEl.querySelector(".vc-message-content");
+		console.log(`[RenderMD] renderMarkdownContent called: messageElInDOM=${messageEl.isConnected} foundContentEl=${!!oldContentEl} contentLen=${content.length}`);
+		if (oldContentEl) {
+			// Render into a NEW off-DOM element first, then atomically swap
+			// it into the DOM. This prevents the flash of empty content that
+			// occurs when contentEl.empty() runs before the async
+			// MarkdownRenderer.render() completes.
+			const newContentEl = document.createElement("div");
+			newContentEl.className = "vc-message-content";
 			await MarkdownRenderer.render(
 				this.app,
 				content,
-				contentEl as HTMLElement,
+				newContentEl,
 				"",
 				this.component
 			);
+			// Atomic swap — old content stays visible until new content is ready
+			oldContentEl.replaceWith(newContentEl);
+			console.log(`[RenderMD] Atomic swap complete: newElInDOM=${newContentEl.isConnected} childNodes=${newContentEl.childNodes.length}`);
 			// Make internal links clickable
-			this.registerInternalLinks(contentEl as HTMLElement);
+			this.registerInternalLinks(newContentEl);
 		}
 	}
 
@@ -105,6 +137,10 @@ export class MessageRenderer {
 	addCopyButton(messageEl: HTMLElement): void {
 		const contentEl = messageEl.querySelector(".vc-message-content");
 		if (!contentEl) return;
+
+		// Remove any existing actions bar to avoid duplicates on re-render
+		const existing = messageEl.querySelector(".vc-message-actions");
+		if (existing) existing.remove();
 
 		const actionsEl = messageEl.createDiv({ cls: "vc-message-actions" });
 		
@@ -284,6 +320,216 @@ export class MessageRenderer {
 		});
 		
 		return refsEl;
+	}
+
+	/**
+	 * Create inline activity items that show tool calls and sub-agent invocations during streaming.
+	 * Returns an {@link ActivityPanel} controller with methods to add entries and finalize.
+	 *
+	 * Each tool call / sub-agent appears as its own standalone row inserted into the messages
+	 * container before the assistant streaming element, matching VS Code Copilot's inline style.
+	 * Items are individually expandable to show arguments on click.
+	 *
+	 * @param container - The messages container element
+	 * @param beforeEl - The element to insert before (the assistant streaming message)
+	 * @returns ActivityPanel controller
+	 *
+	 * @example
+	 * ```typescript
+	 * const panel = messageRenderer.renderActivityPanel(messagesContainer, streamingEl);
+	 * panel.addToolCall("search_notes", "tc-1", '{"query":"foo"}');
+	 * panel.updateToolComplete("tc-1", true);
+	 * panel.finalize();
+	 * ```
+	 */
+	renderActivityPanel(container: HTMLElement, beforeEl: HTMLElement, onActivity?: () => void): ActivityPanel {
+		// Always-visible wrapper inserted before the streaming element
+		const wrapperEl = createDiv({ cls: "vc-activity-wrapper" });
+		container.insertBefore(wrapperEl, beforeEl);
+
+		// Header row: summary text + spinning indicator (no chevron, no collapse)
+		const headerEl = wrapperEl.createDiv({ cls: "vc-activity-header" });
+		const summaryTextEl = headerEl.createSpan({ cls: "vc-activity-summary-text", text: "Working…" });
+		const headerDurationEl = headerEl.createSpan({ cls: "vc-activity-header-duration" });
+		headerDurationEl.style.display = "none";
+		const headerSpinnerEl = headerEl.createSpan({ cls: "vc-activity-header-spinner" });
+		headerSpinnerEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
+
+		// Body holds all individual activity items — always visible
+		const bodyEl = wrapperEl.createDiv({ cls: "vc-activity-body" });
+
+		// Counters for summary text
+		let toolCount = 0;
+		let agentCount = 0;
+		let runningCount = 0;
+
+		/** Wall-clock timing: first activity start → last activity completion */
+		let panelStartTime: number | null = null;
+		let panelEndTime: number | null = null;
+
+		/** Update the summary text in the header, e.g. "Running 3 tools, 1 agent…" */
+		const updateSummary = () => {
+			const parts: string[] = [];
+			if (toolCount > 0) parts.push(`${toolCount} tool${toolCount > 1 ? "s" : ""}`);
+			if (agentCount > 0) parts.push(`${agentCount} agent${agentCount > 1 ? "s" : ""}`);
+			const label = parts.length > 0 ? parts.join(", ") : "activity";
+			if (runningCount > 0) {
+				summaryTextEl.textContent = `Running ${label}…`;
+				headerSpinnerEl.style.display = "";
+				headerDurationEl.style.display = "none";
+			} else {
+				summaryTextEl.textContent = `Used ${label}`;
+				headerSpinnerEl.style.display = "none";
+				// Show wall-clock duration badge when all activity has completed
+				if (panelStartTime !== null && panelEndTime !== null) {
+					const totalMs = panelEndTime - panelStartTime;
+					headerDurationEl.textContent = formatDuration(totalMs);
+					headerDurationEl.style.display = "inline";
+				}
+			}
+		};
+
+		/** Create a single inline activity item and append it to the body */
+		const createItem = (id: string, iconSvg: string, name: string, cssExtra: string, args?: string): HTMLElement => {
+			console.log(`[ActivityPanel] createItem: name=${name} id=${id} bodyChildren=${bodyEl.childElementCount} wrapperInDOM=${wrapperEl.isConnected}`);
+			const itemEl = createDiv({ cls: `vc-activity-item ${cssExtra}`.trim(), attr: { "data-id": id } });
+
+			// Status icon (spinning while running)
+			const iconEl = itemEl.createSpan({ cls: "vc-activity-item-icon vc-activity-item-running" });
+			iconEl.innerHTML = iconSvg;
+
+			// Label
+			itemEl.createSpan({ cls: "vc-activity-item-name", text: name });
+
+			// Truncated args preview
+			if (args) {
+				itemEl.createSpan({ cls: "vc-activity-item-args", text: args });
+			}
+
+			// Expandable detail area (collapsed by default, shown on click)
+			if (args) {
+				const detailEl = itemEl.createDiv({ cls: "vc-activity-item-detail" });
+				detailEl.createEl("pre", { text: args });
+
+				itemEl.addEventListener("click", (e) => {
+					e.stopPropagation();
+					itemEl.toggleClass("vc-activity-item-expanded", !itemEl.hasClass("vc-activity-item-expanded"));
+				});
+				itemEl.addClass("vc-activity-item-clickable");
+			}
+
+			bodyEl.appendChild(itemEl);
+			onActivity?.();
+			return itemEl;
+		};
+
+		const ICON_WRENCH = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+		const ICON_BOT = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" x2="8" y1="16" y2="16"/><line x1="16" x2="16" y1="16" y2="16"/></svg>`;
+		const ICON_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+		const ICON_X = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+
+		/** Track start times for elapsed duration */
+		const startTimes = new Map<string, number>();
+
+		/** Format milliseconds into a friendly duration string */
+		const formatDuration = (ms: number): string => {
+			if (ms < 1000) return `${Math.round(ms)}ms`;
+			if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+			const mins = Math.floor(ms / 60_000);
+			const secs = Math.round((ms % 60_000) / 1000);
+			return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+		};
+
+		const updateComplete = (toolCallId: string, success: boolean) => {
+			const itemEl = bodyEl.querySelector(`.vc-activity-item[data-id="${toolCallId}"]`);
+			console.log(`[ActivityPanel] updateComplete: id=${toolCallId} success=${success} found=${!!itemEl} bodyChildren=${bodyEl.childElementCount} wrapperInDOM=${wrapperEl.isConnected}`);
+			if (!itemEl) return;
+			const iconEl = itemEl.querySelector(".vc-activity-item-icon");
+			if (iconEl) {
+				iconEl.removeClass("vc-activity-item-running");
+				if (success) {
+					iconEl.addClass("vc-activity-item-success");
+					iconEl.innerHTML = ICON_CHECK;
+				} else {
+					iconEl.addClass("vc-activity-item-error");
+					iconEl.innerHTML = ICON_X;
+				}
+			}
+
+			// Update wall-clock end time on every completion
+			panelEndTime = Date.now();
+
+			// Show elapsed time
+			const startTime = startTimes.get(toolCallId);
+			if (startTime !== undefined) {
+				const elapsed = Date.now() - startTime;
+				const durationEl = (itemEl as HTMLElement).createSpan({ cls: "vc-activity-item-duration", text: formatDuration(elapsed) });
+				// Insert before args (or at end)
+				const argsEl = itemEl.querySelector(".vc-activity-item-args");
+				if (argsEl) {
+					itemEl.insertBefore(durationEl, argsEl);
+				}
+				startTimes.delete(toolCallId);
+			}
+
+			// Decrement running count and update summary
+			runningCount = Math.max(0, runningCount - 1);
+			updateSummary();
+		};
+
+		const panel: ActivityPanel = {
+			el: wrapperEl,
+
+			addToolCall(toolName: string, toolCallId: string, args?: string) {
+				toolCount++;
+				runningCount++;
+				updateSummary();
+				const now = Date.now();
+				if (panelStartTime === null) panelStartTime = now;
+				startTimes.set(toolCallId, now);
+				createItem(toolCallId, ICON_WRENCH, toolName, "", args);
+			},
+
+			updateToolComplete(toolCallId: string, success: boolean) {
+				updateComplete(toolCallId, success);
+			},
+
+			addSubagent(agentName: string, toolCallId: string) {
+				agentCount++;
+				runningCount++;
+				updateSummary();
+				const now = Date.now();
+				if (panelStartTime === null) panelStartTime = now;
+				startTimes.set(toolCallId, now);
+				createItem(toolCallId, ICON_BOT, `Agent: ${agentName}`, "vc-activity-item-subagent");
+			},
+
+			updateSubagentComplete(toolCallId: string, success: boolean) {
+				updateComplete(toolCallId, success);
+			},
+
+			finalize() {
+				console.log(`[ActivityPanel] finalize: toolCount=${toolCount} agentCount=${agentCount} bodyChildren=${bodyEl.childElementCount} wrapperInDOM=${wrapperEl.isConnected}`);
+				// Convert any still-running items to success
+				const runningItems = bodyEl.querySelectorAll(".vc-activity-item .vc-activity-item-running");
+				runningItems.forEach((iconEl) => {
+					iconEl.removeClass("vc-activity-item-running");
+					iconEl.addClass("vc-activity-item-success");
+					iconEl.innerHTML = ICON_CHECK;
+				});
+				runningCount = 0;
+				if (panelStartTime !== null && panelEndTime === null) {
+					panelEndTime = Date.now();
+				}
+				updateSummary();
+				// Hide entirely if nothing was added
+				if (toolCount === 0 && agentCount === 0) {
+					wrapperEl.style.display = "none";
+				}
+			},
+		};
+
+		return panel;
 	}
 
 	/**

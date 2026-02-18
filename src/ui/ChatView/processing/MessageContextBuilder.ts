@@ -203,6 +203,12 @@ export class MessageContextBuilder {
 			}
 		}
 
+		// Add current date/time context from settings
+		const dateTimeContext = this.formatDateTimeContext();
+		if (dateTimeContext) {
+			fullMessage = `${dateTimeContext}\n\n${fullMessage}`;
+		}
+
 		// Collect all used references for display
 		const usedReferences: UsedReference[] = [];
 
@@ -305,6 +311,63 @@ export class MessageContextBuilder {
 		}
 
 		return { fullMessage, usedReferences };
+	}
+
+	/**
+	 * Format the current date/time as a context block for the LLM.
+	 *
+	 * Uses the timezone and weekStartDay from plugin settings to provide
+	 * temporal awareness to the AI. If no timezone is configured, falls
+	 * back to the system default.
+	 *
+	 * @returns Formatted date/time context string, or empty string if formatting fails
+	 * @internal
+	 */
+	private formatDateTimeContext(): string {
+		try {
+			const settings = this.plugin.settings;
+			const timezone = settings.timezone || undefined; // undefined = system default
+			const now = new Date();
+
+			// Full date with day of week: "Monday, February 17, 2026"
+			const fullDate = new Intl.DateTimeFormat('en-US', {
+				timeZone: timezone,
+				weekday: 'long',
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric',
+			}).format(now);
+
+			// Time with timezone abbreviation: "2:30:15 PM PST"
+			const time = new Intl.DateTimeFormat('en-US', {
+				timeZone: timezone,
+				hour: 'numeric',
+				minute: '2-digit',
+				second: '2-digit',
+				hour12: true,
+				timeZoneName: 'short',
+			}).format(now);
+
+			// ISO string for unambiguous machine parsing
+			const isoDate = now.toISOString();
+
+			// Resolve display timezone name
+			const tzDisplay = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+			const lines = [
+				'[Current Date & Time]',
+				`${fullDate}, ${time}`,
+				`ISO: ${isoDate}`,
+				`Timezone: ${tzDisplay}`,
+				`Week starts on: ${settings.weekStartDay.charAt(0).toUpperCase() + settings.weekStartDay.slice(1)}`,
+				'[End Date & Time]',
+			];
+
+			return lines.join('\n');
+		} catch (e) {
+			console.warn('Failed to format date/time context:', e);
+			return '';
+		}
 	}
 
 	/**

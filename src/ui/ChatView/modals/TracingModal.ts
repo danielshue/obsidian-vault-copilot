@@ -208,9 +208,20 @@ class TracingPanel {
 		// Main content area
 		this.tracingContentEl = contentEl.createDiv({ cls: "vc-tracing-content" });
 		
-		// Subscribe to events for live updates
+		// Subscribe to events for live updates.
+		// SDK log events are throttled to avoid excessive re-renders during streaming.
+		let sdkLogThrottleTimer: ReturnType<typeof setTimeout> | null = null;
 		this.unsubscribe = this.tracingService.on((event) => {
-			if (this.autoRefresh) {
+			if (!this.autoRefresh) return;
+			if (event.type === 'sdk-log-added') {
+				// Throttle SDK log re-renders to at most once per 500ms
+				if (!sdkLogThrottleTimer) {
+					sdkLogThrottleTimer = setTimeout(() => {
+						sdkLogThrottleTimer = null;
+						this.render();
+					}, 500);
+				}
+			} else {
 				this.render();
 			}
 		});

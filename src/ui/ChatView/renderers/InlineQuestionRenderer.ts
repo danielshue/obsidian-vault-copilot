@@ -41,6 +41,7 @@ import type {
  */
 export class InlineQuestionRenderer {
 	private container: HTMLElement;
+	private insertBefore: HTMLElement | null;
 	private questionEl: HTMLElement | null = null;
 	private selectedOptions: Set<string> = new Set();
 	private textInput: HTMLInputElement | HTMLTextAreaElement | null = null;
@@ -48,9 +49,11 @@ export class InlineQuestionRenderer {
 
 	/**
 	 * @param container - The messages container element to append the question into
+	 * @param insertBefore - Optional element to insert the question before (for inline positioning)
 	 */
-	constructor(container: HTMLElement) {
+	constructor(container: HTMLElement, insertBefore?: HTMLElement) {
 		this.container = container;
+		this.insertBefore = insertBefore ?? null;
 	}
 
 	/**
@@ -77,8 +80,13 @@ export class InlineQuestionRenderer {
 			this.selectedOptions.clear();
 			this.textInput = null;
 
-			// Create the inline question card
-			this.questionEl = this.container.createDiv({ cls: "vc-inline-question" });
+			// Create the inline question card — insert before streaming element if available
+			if (this.insertBefore && this.insertBefore.parentElement === this.container) {
+				this.questionEl = createDiv({ cls: "vc-inline-question" });
+				this.container.insertBefore(this.questionEl, this.insertBefore);
+			} else {
+				this.questionEl = this.container.createDiv({ cls: "vc-inline-question" });
+			}
 
 			// Question icon + text header
 			const headerEl = this.questionEl.createDiv({ cls: "vc-inline-question-header" });

@@ -93,7 +93,8 @@ export type TracingEvent =
 	| { type: "trace-started"; trace: TracingTrace }
 	| { type: "trace-ended"; trace: TracingTrace }
 	| { type: "span-started"; span: TracingSpan }
-	| { type: "span-ended"; span: TracingSpan };
+	| { type: "span-ended"; span: TracingSpan }
+	| { type: "sdk-log-added"; log: SDKLogEntry };
 
 type TracingEventListener = (event: TracingEvent) => void;
 
@@ -635,6 +636,23 @@ export class TracingService {
 	private sdkLogs: SDKLogEntry[] = [];
 	private maxSdkLogs: number = 500;
 
+	/** Optional file-system logger for writing logs to disk */
+	private fileLogger: { log(entry: SDKLogEntry): void } | null = null;
+
+	/**
+	 * Attach a file logger that persists SDK logs to the file system.
+	 *
+	 * @param logger - Logger instance (must implement `log(entry)`)
+	 *
+	 * @example
+	 * ```typescript
+	 * tracingService.setFileLogger(new FileLogger(logDir));
+	 * ```
+	 */
+	setFileLogger(logger: { log(entry: SDKLogEntry): void } | null): void {
+		this.fileLogger = logger;
+	}
+
 	/**
 	 * Load SDK logs from IndexedDB
 	 */
@@ -726,11 +744,19 @@ export class TracingService {
 		
 		this.sdkLogs.push(entry);
 		this.saveSdkLogToDB(entry);
+
+		// Write to file system if a file logger is attached
+		if (this.fileLogger) {
+			this.fileLogger.log(entry);
+		}
 		
 		// Prune old logs in memory
 		if (this.sdkLogs.length > this.maxSdkLogs) {
 			this.sdkLogs = this.sdkLogs.slice(-this.maxSdkLogs);
 		}
+
+		// Notify listeners so the SDK Logs tab can auto-refresh
+		this.emit({ type: "sdk-log-added", log: entry });
 	}
 
 	/**

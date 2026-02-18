@@ -72,8 +72,9 @@ import { OpenAIService } from "./copilot/providers/OpenAIService";
 import { AzureOpenAIService } from "./copilot/providers/AzureOpenAIService";
 import { AIProviderType, AIProvider } from "./copilot/providers/AIProvider";
 import { getTracingService } from "./copilot/TracingService";
+import { FileLogger } from "./utils/FileLogger";
 import { MainVaultAssistant } from "./copilot/realtime-agent/MainVaultAssistant";
-import { isMobile, supportsLocalProcesses } from "./utils/platform";
+import { isMobile, isDesktop, supportsLocalProcesses } from "./utils/platform";
 import { expandHomePath } from "./utils/pathUtils";
 import * as VaultOps from "./copilot/tools/VaultOperations";
 import { loadAuthorInfo } from "./ui/extensions/Submission/utils";
@@ -383,6 +384,8 @@ export default class CopilotPlugin extends Plugin {
 	private saveSettingsTimer: ReturnType<typeof setTimeout> | null = null;
 	/** Debounce delay for settings save (ms) */
 	private static readonly SAVE_SETTINGS_DEBOUNCE_MS = 100;
+	/** File logger for SDK diagnostics (desktop only) */
+	private fileLogger: FileLogger | null = null;
 
 	/**
 	 * Get the CLI manager instance for checking Copilot CLI availability.
@@ -622,6 +625,11 @@ export default class CopilotPlugin extends Plugin {
 			getTracingService().enable();
 		}
 
+		// Attach file logger for SDK logs (desktop only — needs Node.js fs)
+		if (isDesktop && this.settings.fileLoggingEnabled) {
+			this.initializeFileLogger();
+		}
+
 		// Initialize skill registry
 		this.skillRegistry = getSkillRegistry();
 
@@ -796,6 +804,10 @@ export default class CopilotPlugin extends Plugin {
 		this.agentCache?.destroy();
 		this.promptCache?.destroy();
 		this.skillCache?.destroy();
+
+		// Clean up file logger
+		this.fileLogger?.destroy();
+		this.fileLogger = null;
 		
 		// Unregister built-in voice agents
 		MainVaultAssistant.unregisterBuiltInAgents();
@@ -983,6 +995,17 @@ export default class CopilotPlugin extends Plugin {
 		} else {
 			tracingService.disable();
 		}
+
+		// Start or stop file logging based on setting
+		if (isDesktop) {
+			if (this.settings.fileLoggingEnabled && !this.fileLogger) {
+				this.initializeFileLogger();
+			} else if (!this.settings.fileLoggingEnabled && this.fileLogger) {
+				this.fileLogger.destroy();
+				this.fileLogger = null;
+				tracingService.setFileLogger(null);
+			}
+		}
 		
 		// Update CLI manager path if changed
 		if (this.cliManager) {
@@ -1073,6 +1096,33 @@ export default class CopilotPlugin extends Plugin {
 			return adapter.getBasePath();
 		}
 		return undefined;
+	}
+
+	/**
+	 * Initialize the file logger for SDK diagnostics.
+	 *
+	 * Writes logs to `.obsidian/plugins/obsidian-vault-copilot/logs/`.
+	 * Only called on desktop where Node.js `fs` is available.
+	 *
+	 * @internal
+	 */
+	private initializeFileLogger(): void {
+		try {
+			const basePath = this.getVaultBasePath();
+			if (!basePath) {
+				console.warn("[Vault Copilot] Cannot initialize file logger — vault base path unavailable");
+				return;
+			}
+
+			const nodePath = require("path") as typeof import("path");
+			const logDir = nodePath.join(basePath, this.app.vault.configDir, "plugins", "obsidian-vault-copilot", "logs");
+
+			this.fileLogger = new FileLogger(logDir);
+			getTracingService().setFileLogger(this.fileLogger);
+			console.log(`[Vault Copilot] File logger initialized: ${logDir}`);
+		} catch (error) {
+			console.warn("[Vault Copilot] Failed to initialize file logger:", error);
+		}
 	}
 
 	async activateChatView(): Promise<void> {

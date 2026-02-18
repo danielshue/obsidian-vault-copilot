@@ -69,6 +69,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	weekStartDay: "sunday",
 	tracingEnabled: true,
 	logLevel: 'info',
+	fileLoggingEnabled: true,
 	showInStatusBar: true,
 	sessions: [],
 	activeSessionId: null,

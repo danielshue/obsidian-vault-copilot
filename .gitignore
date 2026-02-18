@@ -43,3 +43,4 @@ azure-functions/local.settings.json
 
 release-notes.txt
 packages/
+test-vault/.obsidian/plugins/obsidian-vault-copilot/logs/

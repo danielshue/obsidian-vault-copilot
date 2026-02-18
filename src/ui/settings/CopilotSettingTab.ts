@@ -622,6 +622,19 @@ console.log("Discovering models...");
 					})
 			);
 
+		// File logging toggle (desktop only)
+		new Setting(section)
+			.setName("Write logs to file")
+			.setDesc("Save SDK logs to .obsidian/plugins/obsidian-vault-copilot/logs/ as daily .log and .jsonl files. Desktop only.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.fileLoggingEnabled)
+					.onChange(async (value) => {
+						this.plugin.settings.fileLoggingEnabled = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
 		// Status bar toggle
 		new Setting(section)
 			.setName("Status Bar Indicator")

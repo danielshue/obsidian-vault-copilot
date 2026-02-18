@@ -64,7 +64,7 @@ import { PromptPicker } from "./pickers/PromptPicker";
 import { ContextPicker } from "./pickers/ContextPicker";
 import { PromptProcessor } from "./processing/PromptProcessor";
 import { ContextAugmentation } from "./processing/ContextAugmentation";
-import { MessageRenderer, UsedReference } from "./renderers/MessageRenderer";
+import { MessageRenderer, UsedReference, ActivityPanel } from "./renderers/MessageRenderer";
 import { SessionManager } from "./managers/SessionManager";
 import { ToolExecutionRenderer } from "./renderers/ToolExecutionRenderer";
 import { VoiceChatService } from "../../copilot/voice-chat";
@@ -625,7 +625,11 @@ export class CopilotChatView extends ItemView {
 	 */
 	private async handleQuestionRequest(question: QuestionRequest): Promise<QuestionResponse | null> {
 		this.hideThinkingIndicator();
-		const renderer = new InlineQuestionRenderer(this.messagesContainer);
+		// Insert question before the streaming element so it appears right after the tool call item
+		const renderer = new InlineQuestionRenderer(
+			this.messagesContainer,
+			this.currentStreamingMessageEl ?? undefined
+		);
 		const response = await renderer.render(question);
 		this.showThinkingIndicator();
 		return response;
@@ -1245,36 +1249,135 @@ export class CopilotChatView extends ItemView {
 
 			this.toolbarManager.logToolContext();
 
-			let isFirstDelta = true;
-			if (this.plugin.settings.streaming) {
-				await this.githubCopilotCliService.sendMessageStreaming(
-					fullMessage,
-					(delta) => {
-						if (isFirstDelta) {
-							this.hideThinkingIndicator();
-							isFirstDelta = false;
+			// Create activity panel to show tool calls and sub-agent activity
+			const activityPanel: ActivityPanel = this.messageRenderer.renderActivityPanel(
+				this.messagesContainer,
+				this.currentStreamingMessageEl,
+				() => this.scrollToBottom()
+			);
+
+			// Subscribe to session events for tool/sub-agent activity
+			const unsubscribeEvents = this.githubCopilotCliService.onEvent((event) => {
+				const data = (event as Record<string, unknown>).data as Record<string, unknown> | undefined;
+				switch ((event as Record<string, unknown>).type) {
+					case "tool.execution_start":
+						if (data) {
+							activityPanel.addToolCall(
+								String(data.toolName ?? "unknown"),
+								String(data.toolCallId ?? ""),
+								data.arguments ? JSON.stringify(data.arguments) : undefined
+							);
 						}
-						if (this.currentStreamingMessageEl) {
-							const contentEl = this.currentStreamingMessageEl.querySelector(".vc-message-content");
-							if (contentEl) contentEl.textContent += delta;
+						break;
+					case "tool.execution_complete":
+						if (data) {
+							activityPanel.updateToolComplete(
+								String(data.toolCallId ?? ""),
+								(data.success as boolean) !== false
+							);
 						}
-					},
-					async (fullContent) => {
-						if (this.currentStreamingMessageEl) {
-							await this.messageRenderer.renderMarkdownContent(this.currentStreamingMessageEl, fullContent);
-							this.messageRenderer.addCopyButton(this.currentStreamingMessageEl);
+						break;
+					case "subagent.started":
+						if (data) {
+							activityPanel.addSubagent(
+								String(data.agentDisplayName ?? data.agentName ?? "Sub-agent"),
+								String(data.toolCallId ?? "")
+							);
 						}
-						this.currentStreamingMessageEl = null;
-					}
-				);
-			} else {
-				this.hideThinkingIndicator();
-				const response = await this.githubCopilotCliService.sendMessage(fullMessage);
-				if (this.currentStreamingMessageEl) {
-					await this.messageRenderer.renderMarkdownContent(this.currentStreamingMessageEl, response);
-					this.messageRenderer.addCopyButton(this.currentStreamingMessageEl);
+						break;
+					case "subagent.completed":
+						if (data) {
+							activityPanel.updateSubagentComplete(
+								String(data.toolCallId ?? ""),
+								true
+							);
+						}
+						break;
+					case "subagent.failed":
+						if (data) {
+							activityPanel.updateSubagentComplete(
+								String(data.toolCallId ?? ""),
+								false
+							);
+						}
+						break;
 				}
-				this.currentStreamingMessageEl = null;
+			});
+
+			let isFirstDelta = true;
+			try {
+				if (this.plugin.settings.streaming) {
+					let lastScrollTime = 0;
+					// Track accumulated raw text locally so we never read back from
+					// the DOM after renderMarkdownContent (which would strip HTML
+					// and lose paragraph spacing in multi-turn responses).
+					let accumulatedText = "";
+					// Serialize onComplete calls to prevent concurrent
+					// renderMarkdownContent races (assistant.message and
+					// session.idle can fire back-to-back, causing two
+					// contentEl.empty() + MarkdownRenderer.render() calls
+					// to overlap and leave the message blank).
+					let renderChain = Promise.resolve();
+					let lastOnCompleteContent = "";
+					const streamingEl = this.currentStreamingMessageEl;
+					await this.githubCopilotCliService.sendMessageStreaming(
+						fullMessage,
+						(delta) => {
+							if (isFirstDelta) {
+								this.hideThinkingIndicator();
+								isFirstDelta = false;
+							}
+							accumulatedText += delta;
+							if (streamingEl) {
+								const contentEl = streamingEl.querySelector(".vc-message-content");
+								if (contentEl) contentEl.textContent = accumulatedText;
+							}
+							// Throttled scroll during streaming (every 150ms)
+							const now = Date.now();
+							if (now - lastScrollTime > 150) {
+								lastScrollTime = now;
+								this.scrollToBottom();
+							}
+						},
+						(fullContent) => {
+							// Belt-and-suspenders dedup: skip if content unchanged
+							if (fullContent === lastOnCompleteContent) {
+								console.log(`[onComplete] SKIPPED (dedup): contentLen=${fullContent.length}`);
+								return;
+							}
+							console.log(`[onComplete] QUEUED render: contentLen=${fullContent.length} streamingElInDOM=${streamingEl?.isConnected}`);
+							lastOnCompleteContent = fullContent;
+							renderChain = renderChain.then(async () => {
+								if (streamingEl) {
+									try {
+										await this.messageRenderer.renderMarkdownContent(streamingEl, fullContent);
+									} catch (err) {
+										// Fallback to plain text if markdown render fails
+										console.error("[VC] Markdown render error, falling back to plain text:", err);
+										const contentEl = streamingEl.querySelector(".vc-message-content");
+										if (contentEl) contentEl.textContent = fullContent;
+									}
+									this.messageRenderer.addCopyButton(streamingEl);
+								}
+								this.scrollToBottom();
+							});
+						}
+					);
+					// Wait for any in-flight renders to finish before cleaning up
+					await renderChain;
+					this.currentStreamingMessageEl = null;
+				} else {
+					this.hideThinkingIndicator();
+					const response = await this.githubCopilotCliService.sendMessage(fullMessage);
+					if (this.currentStreamingMessageEl) {
+						await this.messageRenderer.renderMarkdownContent(this.currentStreamingMessageEl, response);
+						this.messageRenderer.addCopyButton(this.currentStreamingMessageEl);
+					}
+					this.currentStreamingMessageEl = null;
+				}
+			} finally {
+				unsubscribeEvents();
+				activityPanel.finalize();
 			}
 		} catch (error) {
 			console.error(`Vault Copilot error: ${error}`);
