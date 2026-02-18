@@ -76,6 +76,7 @@ import { FileLogger } from "./utils/FileLogger";
 import { MainVaultAssistant } from "./copilot/realtime-agent/MainVaultAssistant";
 import { isMobile, isDesktop, supportsLocalProcesses } from "./utils/platform";
 import { expandHomePath } from "./utils/pathUtils";
+import * as nodePath from "path";
 import * as VaultOps from "./copilot/tools/VaultOperations";
 import { loadAuthorInfo } from "./ui/extensions/Submission/utils";
 
@@ -1114,7 +1115,6 @@ export default class CopilotPlugin extends Plugin {
 				return;
 			}
 
-			const nodePath = require("path") as typeof import("path");
 			const logDir = nodePath.join(basePath, this.app.vault.configDir, "plugins", "obsidian-vault-copilot", "logs");
 
 			this.fileLogger = new FileLogger(logDir);

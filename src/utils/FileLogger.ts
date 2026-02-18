@@ -3,6 +3,9 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import * as fs from "fs";
+import * as nodePath from "path";
+
 /**
  * @module FileLogger
  * @description Writes SDK diagnostic logs to the file system for offline review.
@@ -202,9 +205,6 @@ export class FileLogger {
 	 */
 	private appendToFile(filename: string, data: string): void {
 		try {
-			const fs = require("fs") as typeof import("fs");
-			const nodePath = require("path") as typeof import("path");
-
 			// Ensure directory exists on first write
 			if (!this.dirReady) {
 				fs.mkdirSync(this.logDir, { recursive: true });
