@@ -943,6 +943,7 @@ export class GitHubCopilotCliService {
 		this.touchActivity();
 
 		let fullContent = "";
+		let finalContent = "";
 		const requestTimeout = timeout ?? this.config.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT;
 
 		return new Promise<void>((resolve, reject) => {
@@ -1007,8 +1008,15 @@ export class GitHubCopilotCliService {
 				if (event.type === "assistant.message_delta") {
 					const delta = (event.data as { deltaContent: string }).deltaContent;
 					fullContent += delta;
+					finalContent = fullContent;
 					onDelta(delta);
 				} else if (event.type === "assistant.message") {
+					const assistantContent = (event.data as { content?: string }).content ?? "";
+					if (fullContent.length === 0 || assistantContent.length > fullContent.length) {
+						finalContent = assistantContent;
+					} else {
+						finalContent = fullContent;
+					}
 					// Don't reset fullContent — keep accumulating across all turns
 					// so multi-turn subagent responses preserve earlier content.
 					// Trigger intermediate markdown render so content is readable
@@ -1016,26 +1024,27 @@ export class GitHubCopilotCliService {
 					// Skip if fullContent hasn't changed (empty intermediate messages
 					// between tool calls would cause redundant contentEl.empty() +
 					// re-render cycles that briefly blank the screen).
-					if (onComplete && fullContent && fullContent !== lastRenderedContent) {
-						lastRenderedContent = fullContent;
-						onComplete(fullContent);
+					if (onComplete && finalContent && finalContent !== lastRenderedContent) {
+						lastRenderedContent = finalContent;
+						onComplete(finalContent);
 					}
 				} else if (event.type === "session.idle") {
 					cleanup();
 					this.touchActivity();
+					const resolvedContent = finalContent || fullContent;
 					this.messageHistory.push({
 						role: "assistant",
-						content: fullContent,
+						content: resolvedContent,
 						timestamp: new Date(),
 					});
 					
 					// Log the response to tracing service
-					tracingService.addSdkLog('info', `[Assistant Response (Streaming)]\n${fullContent.substring(0, 500)}${fullContent.length > 500 ? '...' : ''}`, 'copilot-response');
+					tracingService.addSdkLog('info', `[Assistant Response (Streaming)]\n${resolvedContent.substring(0, 500)}${resolvedContent.length > 500 ? '...' : ''}`, 'copilot-response');
 					
 					// Only call onComplete if content changed since last render
 					// (assistant.message already rendered the same content moments ago)
-					if (onComplete && fullContent !== lastRenderedContent) {
-						onComplete(fullContent);
+					if (onComplete && resolvedContent !== lastRenderedContent) {
+						onComplete(resolvedContent);
 					}
 					unsubscribe();
 					resolve();

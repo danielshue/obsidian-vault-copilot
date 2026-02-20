@@ -502,8 +502,8 @@ export class CopilotChatView extends ItemView {
 			}
 
 			if (e.key === "Enter" && (!e.shiftKey || (e.ctrlKey && e.altKey))) {
-				if (this.promptPicker?.checkAndClearJustSelected()) return;
 				e.preventDefault();
+				this.promptPicker?.checkAndClearJustSelected();
 				this.sendMessage();
 			}
 		});
