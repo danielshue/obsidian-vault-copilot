@@ -52,6 +52,8 @@
 
 import { CopilotClient, CopilotSession, SessionEvent, defineTool } from "@github/copilot-sdk";
 import { App, TFile } from "obsidian";
+import { existsSync } from "node:fs";
+import * as nodePath from "node:path";
 import { SkillRegistry, VaultCopilotSkill } from "../customization/SkillRegistry";
 import { CustomizationLoader, CustomInstruction } from "../customization/CustomizationLoader";
 import { McpManager, McpManagerEvent } from "../mcp/McpManager";
@@ -216,6 +218,45 @@ export class GitHubCopilotCliService {
 	}
 
 	/**
+	 * Resolve the Copilot CLI executable path with platform-aware fallbacks.
+	 * On Windows, probes known absolute install locations since Obsidian's
+	 * Electron process may not inherit the user's shell PATH.
+	 *
+	 * @returns The resolved CLI path (may be an absolute path on Windows)
+	 * @internal
+	 */
+	private resolveCliPath(): string {
+		const configuredCliPath = this.config.cliPath?.trim();
+		if (configuredCliPath && configuredCliPath.length > 0) {
+			return configuredCliPath;
+		}
+
+		if (process.platform === "win32") {
+			const appData = process.env.APPDATA;
+			const localAppData = process.env.LOCALAPPDATA;
+			const userProfile = process.env.USERPROFILE;
+
+			const candidates = [
+				appData ? nodePath.join(appData, "npm", "copilot.cmd") : undefined,
+				appData ? nodePath.join(appData, "npm", "copilot") : undefined,
+				appData ? nodePath.join(appData, "Code - Insiders", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot.bat") : undefined,
+				appData ? nodePath.join(appData, "Code", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot.bat") : undefined,
+				localAppData ? nodePath.join(localAppData, "Programs", "Microsoft VS Code Insiders", "bin", "copilot.cmd") : undefined,
+				localAppData ? nodePath.join(localAppData, "Programs", "Microsoft VS Code", "bin", "copilot.cmd") : undefined,
+				userProfile ? nodePath.join(userProfile, "AppData", "Roaming", "npm", "copilot.cmd") : undefined,
+			];
+
+			for (const candidate of candidates) {
+				if (candidate && existsSync(candidate)) {
+					return candidate;
+				}
+			}
+		}
+
+		return "copilot";
+	}
+
+	/**
 	 * Initialize and start the Copilot client
 	 * Handles specific error conditions like missing CLI or connection failures
 	 */
@@ -226,21 +267,33 @@ export class GitHubCopilotCliService {
 
 		const clientOptions: Record<string, unknown> = {};
 		
-		const configuredCliPath = this.config.cliPath?.trim();
-		clientOptions.cliPath = configuredCliPath && configuredCliPath.length > 0 ? configuredCliPath : "copilot";
+		const resolvedCliPath = this.resolveCliPath();
 		
 		if (this.config.cliUrl) {
 			clientOptions.cliUrl = this.config.cliUrl;
 		}
 
 		// Set vault path as working directory and add-dir for file access
+		const vaultArgs: string[] = [];
 		if (this.config.vaultPath) {
 			// Normalize path for cross-platform compatibility
 			const normalizedPath = this.config.vaultPath.replace(/\\/g, "/");
 			// Set working directory for the CLI process
 			clientOptions.cwd = this.config.vaultPath;
 			// Add --add-dir to grant CLI access to the vault directory
-			clientOptions.cliArgs = [`--add-dir`, normalizedPath];
+			vaultArgs.push("--add-dir", normalizedPath);
+		}
+
+		// On Windows, .cmd/.bat files cannot be spawned directly without shell:true.
+		// The SDK uses child_process.spawn() without shell:true, so we wrap
+		// the .cmd/.bat path with cmd.exe /c to make it work.
+		if (process.platform === "win32" && /\.(cmd|bat)$/i.test(resolvedCliPath)) {
+			const comSpec = process.env.ComSpec || "cmd.exe";
+			clientOptions.cliPath = comSpec;
+			clientOptions.cliArgs = ["/c", resolvedCliPath, ...vaultArgs];
+		} else {
+			clientOptions.cliPath = resolvedCliPath;
+			clientOptions.cliArgs = [...vaultArgs];
 		}
 
 		// Enable SDK logging when tracing is enabled
@@ -260,7 +313,7 @@ export class GitHubCopilotCliService {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			
 			// Handle specific error types with user-friendly messages
-			if (errorMessage.includes('ENOENT') || errorMessage.toLowerCase().includes('not found')) {
+			if (errorMessage.includes('ENOENT') || errorMessage.includes('EINVAL') || errorMessage.toLowerCase().includes('not found')) {
 				this.client = null;
 				throw new Error(
 					'GitHub Copilot CLI not found. Please ensure it is installed and in your PATH. ' +
