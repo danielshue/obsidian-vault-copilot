@@ -1317,7 +1317,7 @@ export class CopilotChatView extends ItemView {
 					// session.idle can fire back-to-back, causing two
 					// contentEl.empty() + MarkdownRenderer.render() calls
 					// to overlap and leave the message blank).
-					let renderChain = Promise.resolve();
+					let renderChain: Promise<void> = new Promise((resolve) => resolve());
 					let lastOnCompleteContent = "";
 					const streamingEl = this.currentStreamingMessageEl;
 					await this.githubCopilotCliService.sendMessageStreaming(
@@ -1380,7 +1380,7 @@ export class CopilotChatView extends ItemView {
 				activityPanel.finalize();
 			}
 		} catch (error) {
-			console.error(`Vault Copilot error: ${error}`);
+			console.error("Vault Copilot error:", error);
 			if (this.currentStreamingMessageEl) {
 				this.currentStreamingMessageEl.remove();
 				this.currentStreamingMessageEl = null;
@@ -1504,3 +1504,6 @@ export class CopilotChatView extends ItemView {
 		this.messagesContainer.scrollTop = scrollAmount;
 	}
 }
+
+
+
