@@ -226,9 +226,8 @@ export class GitHubCopilotCliService {
 
 		const clientOptions: Record<string, unknown> = {};
 		
-		if (this.config.cliPath) {
-			clientOptions.cliPath = this.config.cliPath;
-		}
+		const configuredCliPath = this.config.cliPath?.trim();
+		clientOptions.cliPath = configuredCliPath && configuredCliPath.length > 0 ? configuredCliPath : "copilot";
 		
 		if (this.config.cliUrl) {
 			clientOptions.cliUrl = this.config.cliUrl;
@@ -2327,3 +2326,4 @@ File pattern: \`*.instructions.md\`, \`copilot-instructions.md\`, \`AGENTS.md\``
 		}
 	}
 }
+
