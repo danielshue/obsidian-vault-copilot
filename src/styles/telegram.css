@@ -1,0 +1,111 @@
+/* Telegram integration styles */
+
+/* ── Session panel: Telegram source icon ── */
+.vc-session-source-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-accent);
+	flex-shrink: 0;
+}
+
+.vc-session-source-icon svg {
+	fill: #2AABEE;
+}
+
+/* ── Message: Telegram badge ── */
+.vc-message-telegram {
+	position: relative;
+}
+
+.vc-message-source-badge {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: var(--background-modifier-hover);
+	opacity: 0.6;
+	transition: opacity 150ms ease;
+	z-index: 1;
+}
+
+.vc-message-telegram:hover .vc-message-source-badge {
+	opacity: 1;
+}
+
+.vc-message-source-badge svg {
+	fill: #2AABEE;
+}
+
+/* ── Message: Voice input badge ── */
+.vc-message-voice-badge {
+	position: absolute;
+	top: 4px;
+	right: 28px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: var(--background-modifier-hover);
+	opacity: 0.6;
+	transition: opacity 150ms ease;
+	z-index: 1;
+}
+
+.vc-message:hover .vc-message-voice-badge {
+	opacity: 1;
+}
+
+.vc-message-voice-badge svg {
+	stroke: var(--text-accent);
+}
+
+/* ── Settings: Telegram section ── */
+.vc-telegram-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 4px;
+	font-size: var(--font-ui-small);
+}
+
+.vc-telegram-status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.vc-telegram-status-dot.is-connected {
+	background: var(--color-green);
+}
+
+.vc-telegram-status-dot.is-disconnected {
+	background: var(--color-red);
+}
+
+.vc-telegram-status-dot.is-polling {
+	background: var(--color-yellow);
+	animation: vc-telegram-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes vc-telegram-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.4; }
+}
+
+.vc-telegram-chat-ids {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+}
+
+.vc-telegram-test-btn {
+	margin-top: 8px;
+}

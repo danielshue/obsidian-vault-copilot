@@ -10,6 +10,7 @@
  */
 
 import { DEFAULT_TOOL_CONFIG } from "../../copilot/voice-chat";
+import { DEFAULT_TELEGRAM_SETTINGS } from "../../telegram/types";
 import type {
 	CopilotPluginSettings,
 	PeriodicNotesSettings,
@@ -120,6 +121,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	analyticsEndpoint: 'https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io',
 	githubUsername: '',
 	anonymousId: '',
+	telegram: { ...DEFAULT_TELEGRAM_SETTINGS },
 };
 
 // ============================================================================

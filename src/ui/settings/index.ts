@@ -60,6 +60,10 @@ export type {
 	CopilotPluginSettings,
 } from "./types";
 
+// Re-export Telegram types
+export type { TelegramSettings, VoiceReplyMode, TelegramBotStatus } from "../../telegram/types";
+export { DEFAULT_TELEGRAM_SETTINGS } from "../../telegram/types";
+
 // Re-export defaults
 export {
 	DEFAULT_PERIODIC_NOTES,

@@ -112,6 +112,10 @@ export interface ChatMessage {
 	role: "user" | "assistant";
 	content: string;
 	timestamp: Date;
+	/** Origin of the message: 'obsidian' (default) or 'telegram' */
+	source?: "obsidian" | "telegram";
+	/** How the message was input: 'text' (default) or 'voice' */
+	inputType?: "text" | "voice";
 }
 
 /**
@@ -926,6 +930,7 @@ export class GitHubCopilotCliService {
 			role: "user",
 			content: prompt,
 			timestamp: new Date(),
+			source: "obsidian" as const,
 		});
 
 		this.touchActivity();
@@ -946,6 +951,7 @@ export class GitHubCopilotCliService {
 				role: "assistant",
 				content: assistantContent,
 				timestamp: new Date(),
+				source: "obsidian" as const,
 			});
 
 			return assistantContent;
@@ -990,6 +996,7 @@ export class GitHubCopilotCliService {
 			role: "user",
 			content: prompt,
 			timestamp: new Date(),
+			source: "obsidian" as const,
 		});
 
 		this.touchActivity();
@@ -1088,6 +1095,7 @@ export class GitHubCopilotCliService {
 						role: "assistant",
 						content: resolvedContent,
 						timestamp: new Date(),
+						source: "obsidian" as const,
 					});
 					
 					// Log the response to tracing service
@@ -1173,9 +1181,12 @@ export class GitHubCopilotCliService {
 			await this.resumeSession(sessionId);
 			console.log('[Vault Copilot] Session loaded via SDK persistence');
 		} catch (error) {
-			console.warn('[Vault Copilot] Could not resume session, creating new with fallback messages:', error);
-			// Fallback: create a new session and restore message history manually
-			await this.createSession(sessionId);
+			console.warn('[Vault Copilot] Could not resume session, creating fresh SDK session with fallback messages:', error);
+			// Fallback: create a NEW SDK session WITHOUT the old sessionId.
+			// The old ID may be a local-only ID (e.g. from Telegram /new) that was
+			// never registered with the SDK server. Passing it to createSession
+			// would cause a "Session not found" error on the first sendAndWait.
+			await this.createSession();
 			
 			if (messages) {
 				this.messageHistory = messages.map(msg => ({

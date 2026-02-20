@@ -279,6 +279,21 @@
 	background: var(--background-modifier-hover);
 }
 
+.vc-session-item-active {
+	background: var(--background-modifier-active-hover, rgba(var(--interactive-accent-rgb, 71, 135, 255), 0.1));
+	border-left: 2px solid var(--interactive-accent);
+	padding-left: 6px;
+}
+
+.vc-session-item-active .vc-session-item-name {
+	color: var(--interactive-accent);
+	font-weight: 600;
+}
+
+.vc-session-item-active:hover {
+	background: var(--background-modifier-active-hover, rgba(var(--interactive-accent-rgb, 71, 135, 255), 0.15));
+}
+
 .vc-session-item-content {
 	flex: 1;
 	min-width: 0;
