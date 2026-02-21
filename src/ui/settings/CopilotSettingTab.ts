@@ -52,6 +52,8 @@ import {
 import { getModelDisplayName, getAvailableModels } from "./utils";
 import { AIProviderProfileModal, AddHttpMcpServerModal } from "./modals";
 import { AutomationDetailsModal } from "./modals/AutomationDetailsModal";
+import type { TelegramBotStatus } from "../../telegram/types";
+import { DEFAULT_TELEGRAM_SETTINGS, DEFAULT_TELEGRAM_SYSTEM_PROMPT, TELEGRAM_PROMPT_VARIABLES } from "../../telegram/types";
 
 export class CopilotSettingTab extends PluginSettingTab {
 	plugin: CopilotPlugin;
@@ -86,6 +88,11 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 		// Automations Section
 		this.renderAutomationsSection(containerEl);
+
+		// Telegram Bot Section (desktop only)
+		if (!isMobile) {
+			this.renderTelegramSection(containerEl);
+		}
 
 		// Advanced Settings (always visible)
 		this.renderAdvancedSettings(containerEl);
@@ -2713,6 +2720,328 @@ console.log("Discovering models...");
 	private showAutomationDetails(automation: import('../../automation/types').AutomationInstance): void {
 		const modal = new AutomationDetailsModal(this.app, automation);
 		modal.open();
+	}
+
+	// ========================================================================
+	// Telegram Bot Settings
+	// ========================================================================
+
+	/**
+	 * Render the Telegram Bot settings section.
+	 * Only shown on desktop since the bot requires local polling.
+	 * @internal
+	 */
+	private renderTelegramSection(containerEl: HTMLElement): void {
+		const section = containerEl.createDiv({ cls: "vc-settings-section" });
+		const sectionHeader = section.createDiv({ cls: "vc-section-header" });
+		sectionHeader.createEl("h3", { text: "Telegram Bot" });
+
+		section.createEl("p", {
+			text: "Connect a Telegram bot to interact with Vault Copilot from your phone. Messages are processed locally via long-polling (desktop only).",
+			cls: "vc-status-desc",
+		});
+
+		// Ensure telegram settings object exists
+		if (!this.plugin.settings.telegram) {
+			this.plugin.settings.telegram = { ...DEFAULT_TELEGRAM_SETTINGS };
+		}
+
+		const telegram = this.plugin.settings.telegram;
+
+		// Enable/disable toggle
+		new Setting(section)
+			.setName("Enable Telegram bot")
+			.setDesc("Start the Telegram bot polling loop when Obsidian launches.")
+			.addToggle((toggle) =>
+				toggle.setValue(telegram.enabled).onChange(async (value) => {
+					telegram.enabled = value;
+					await this.plugin.saveSettings();
+					// Live start/stop the bot
+					if (value) {
+						(this.plugin as any).startTelegramBot();
+					} else {
+						(this.plugin as any).stopTelegramBot();
+					}
+					this.display(); // Refresh to show/hide status
+				})
+			);
+
+		if (!telegram.enabled) return;
+
+		// Bot token
+		new Setting(section)
+			.setName("Bot token")
+			.setDesc("Paste your Telegram bot token from @BotFather. Stored securely.")
+			.addText((text) => {
+				text.inputEl.type = "password";
+				text.inputEl.style.width = "300px";
+				// Read from SecretStorage
+				const currentId = telegram.botTokenSecretId;
+				if (currentId) {
+					text.setPlaceholder("••••••• (saved)");
+				} else {
+					text.setPlaceholder("123456:ABC-DEF...");
+				}
+				text.onChange(async (value) => {
+					if (value.trim()) {
+						// Store in SecretStorage
+						const secretId = "telegram-bot-token";
+						try {
+							await (this.app as any).saveLocalStorage(secretId, value.trim());
+							telegram.botTokenSecretId = secretId;
+							await this.plugin.saveSettings();
+						} catch {
+							// Fall back to plain settings (not ideal but functional)
+							telegram.botTokenSecretId = secretId;
+							await this.plugin.saveSettings();
+						}
+					}
+				});
+			});
+
+		// Authorized chat IDs
+		new Setting(section)
+			.setName("Authorized chat IDs")
+			.setDesc("Comma-separated Telegram chat IDs that are allowed to message the bot. Send /start to get your chat ID.")
+			.addText((text) => {
+				text.inputEl.style.width = "300px";
+				text.inputEl.addClass("vc-telegram-chat-ids");
+				text.setValue(telegram.authorizedChatIds?.join(", ") || "");
+				text.setPlaceholder("123456789, 987654321");
+				text.onChange(async (value) => {
+					telegram.authorizedChatIds = value
+						.split(",")
+						.map((s) => s.trim())
+						.filter((s) => s.length > 0);
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// Save conversations
+		new Setting(section)
+			.setName("Save conversations")
+			.setDesc("Persist Telegram conversations in the session list. When off, messages are ephemeral.")
+			.addToggle((toggle) =>
+				toggle.setValue(telegram.saveConversations).onChange(async (value) => {
+					telegram.saveConversations = value;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		// Max session messages
+		new Setting(section)
+			.setName("Max session messages")
+			.setDesc("Maximum messages to keep in context per Telegram chat.")
+			.addText((text) => {
+				text.inputEl.type = "number";
+				text.inputEl.style.width = "80px";
+				text.setValue(String(telegram.maxSessionMessages || 40));
+				text.onChange(async (value) => {
+					const num = parseInt(value, 10);
+					if (!isNaN(num) && num > 0) {
+						telegram.maxSessionMessages = num;
+						await this.plugin.saveSettings();
+					}
+				});
+			});
+
+		// System prompt section
+		section.createEl("h4", { text: "System prompt" });
+
+		// Description above the textarea (not inside a Setting row)
+		const promptDesc = section.createDiv({ cls: "setting-item-description" });
+		promptDesc.style.marginBottom = "8px";
+		promptDesc.setText("Instructions sent to the AI for Telegram conversations. Leave blank to use default. Use {{variable}} placeholders for dynamic content.");
+
+		// Full-width textarea (not wrapped in Setting's side-by-side layout)
+		let textAreaEl: HTMLTextAreaElement | null = null;
+		const textAreaWrapper = section.createDiv();
+		const ta = document.createElement("textarea");
+		ta.rows = 14;
+		ta.style.width = "100%";
+		ta.style.fontFamily = "monospace";
+		ta.style.fontSize = "12px";
+		ta.style.resize = "vertical";
+		ta.placeholder = DEFAULT_TELEGRAM_SYSTEM_PROMPT.substring(0, 200) + "…";
+		ta.value = telegram.systemPrompt || "";
+		ta.addEventListener("input", async () => {
+			telegram.systemPrompt = ta.value.trim() || undefined;
+			await this.plugin.saveSettings();
+		});
+		textAreaWrapper.appendChild(ta);
+		textAreaEl = ta;
+
+		// Variable insertion buttons
+		const varContainer = section.createDiv({ cls: "vc-prompt-variables" });
+		varContainer.createEl("small", { text: "Insert variable: " });
+		for (const v of TELEGRAM_PROMPT_VARIABLES) {
+			const btn = varContainer.createEl("button", {
+				text: v.variable,
+				cls: "vc-prompt-var-btn",
+				attr: { title: `${v.label}: ${v.description}` },
+			});
+			btn.style.margin = "2px 4px";
+			btn.style.padding = "2px 8px";
+			btn.style.fontSize = "11px";
+			btn.style.cursor = "pointer";
+			btn.addEventListener("click", () => {
+				if (textAreaEl) {
+					const start = textAreaEl.selectionStart;
+					const end = textAreaEl.selectionEnd;
+					const current = textAreaEl.value;
+					textAreaEl.value = current.substring(0, start) + v.variable + current.substring(end);
+					textAreaEl.selectionStart = textAreaEl.selectionEnd = start + v.variable.length;
+					textAreaEl.focus();
+					textAreaEl.dispatchEvent(new Event("input"));
+				}
+			});
+		}
+
+		const resetBtn = new Setting(section)
+			.setName("Reset to default")
+			.setDesc("Restore the built-in Telegram system prompt.");
+		resetBtn.addButton((btn) =>
+			btn.setButtonText("Reset").onClick(async () => {
+				telegram.systemPrompt = undefined;
+				await this.plugin.saveSettings();
+				this.display();
+			})
+		);
+
+		// Voice section
+		section.createEl("h4", { text: "Voice messages" });
+
+		// Transcribe voice messages
+		new Setting(section)
+			.setName("Transcribe voice messages")
+			.setDesc("Automatically transcribe incoming voice messages using Whisper.")
+			.addToggle((toggle) =>
+				toggle.setValue(telegram.transcribeVoiceMessages).onChange(async (value) => {
+					telegram.transcribeVoiceMessages = value;
+					await this.plugin.saveSettings();
+					this.display();
+				})
+			);
+
+		if (telegram.transcribeVoiceMessages) {
+			// Voice reply mode
+			new Setting(section)
+				.setName("Voice replies")
+				.setDesc("When to send voice note replies instead of (or in addition to) text.")
+				.addDropdown((dropdown) => {
+					dropdown.addOption("never", "Text only");
+					dropdown.addOption("voice-only", "Voice replies for voice messages");
+					dropdown.addOption("always", "Always send voice replies");
+					dropdown.setValue(telegram.voiceReplies || "never");
+					dropdown.onChange(async (value) => {
+						telegram.voiceReplies = value as import("../../telegram/types").VoiceReplyMode;
+						await this.plugin.saveSettings();
+						this.display();
+					});
+				});
+
+			if (telegram.voiceReplies !== "never") {
+				// TTS voice
+				new Setting(section)
+					.setName("TTS voice")
+					.setDesc("Voice to use for text-to-speech replies.")
+					.addDropdown((dropdown) => {
+						const voices = ["alloy", "ash", "coral", "echo", "fable", "onyx", "nova", "sage", "shimmer"];
+						for (const v of voices) {
+							dropdown.addOption(v, v.charAt(0).toUpperCase() + v.slice(1));
+						}
+						dropdown.setValue(telegram.ttsVoice || "alloy");
+						dropdown.onChange(async (value) => {
+							telegram.ttsVoice = value;
+							await this.plugin.saveSettings();
+						});
+					});
+
+				// TTS model
+				new Setting(section)
+					.setName("TTS model")
+					.setDesc("tts-1 is faster, tts-1-hd is higher quality.")
+					.addDropdown((dropdown) => {
+						dropdown.addOption("tts-1", "tts-1 (Standard)");
+						dropdown.addOption("tts-1-hd", "tts-1-hd (HD)");
+						dropdown.setValue(telegram.ttsModel || "tts-1");
+						dropdown.onChange(async (value) => {
+							telegram.ttsModel = value as "tts-1" | "tts-1-hd";
+							await this.plugin.saveSettings();
+						});
+					});
+			}
+		}
+
+		// Bot status indicator
+		const statusEl = section.createDiv({ cls: "vc-telegram-status" });
+		const statusDot = statusEl.createSpan({ cls: "vc-telegram-status-dot" });
+		const statusText = statusEl.createSpan();
+
+		// Check if the bot is running via the plugin reference
+		const botStatus = (this.plugin as any).telegramBotStatus as TelegramBotStatus | undefined;
+		if (botStatus === "polling") {
+			statusDot.addClass("is-polling");
+			statusText.setText("Bot is running (polling)");
+		} else if (botStatus === "connecting") {
+			statusDot.addClass("is-connected");
+			statusText.setText("Bot is connecting...");
+		} else {
+			statusDot.addClass("is-disconnected");
+			statusText.setText(telegram.enabled ? "Bot is not running" : "Bot is disabled");
+		}
+
+		// Start / Stop button
+		new Setting(section)
+			.addButton((button) => {
+				const isRunning = botStatus === "polling" || botStatus === "connecting";
+				button
+					.setButtonText(isRunning ? "Stop bot" : "Start bot")
+					.setCta()
+					.onClick(async () => {
+						if (isRunning) {
+							(this.plugin as any).stopTelegramBot();
+						} else {
+							(this.plugin as any).startTelegramBot();
+						}
+						// Refresh after a short delay to let status update
+						setTimeout(() => this.display(), 500);
+					});
+			})
+
+		// Test connection button
+		new Setting(section)
+			.addButton((button) =>
+				button
+					.setButtonText("Test connection")
+					.setCta()
+					.onClick(async () => {
+						button.setButtonText("Testing...");
+						button.setDisabled(true);
+						try {
+							const token = (this.app as any).loadLocalStorage?.("telegram-bot-token") as string | undefined;
+							if (!token) {
+								statusText.setText("⚠️ No bot token configured");
+								return;
+							}
+							const resp = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+							const result = await resp.json();
+							if (result.ok) {
+								statusText.setText(`✓ Connected as @${result.result.username}`);
+								statusDot.className = "vc-telegram-status-dot is-connected";
+							} else {
+								statusText.setText(`✗ ${result.description || "Connection failed"}`);
+								statusDot.className = "vc-telegram-status-dot is-disconnected";
+							}
+						} catch (err) {
+							statusText.setText(`✗ ${err instanceof Error ? err.message : "Connection failed"}`);
+							statusDot.className = "vc-telegram-status-dot is-disconnected";
+						} finally {
+							button.setButtonText("Test connection");
+							button.setDisabled(false);
+						}
+					})
+			);
 	}
 
 	private renderAdvancedSettings(containerEl: HTMLElement): void {

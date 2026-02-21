@@ -72,7 +72,11 @@ export class SessionManager {
 	}
 
 	/**
-	 * Create a new chat session
+	 * Create a new chat session.
+	 *
+	 * Creates a local session with a local ID and a fresh SDK conversation.
+	 * The SDK-assigned conversation ID is stored in `conversationId` — the
+	 * local `id` never touches the SDK.
 	 */
 	async createNewSession(name?: string): Promise<void> {
 		// Save current session before creating new one
@@ -86,17 +90,17 @@ export class SessionManager {
 		const defaultName = `Chat ${new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 		const sessionId = `session-${now}`;
 		
-		// Create the SDK session with the ID for persistence
-		const actualSessionId = await this.githubCopilotCliService.createSession(sessionId);
+		// Create a fresh SDK conversation (no ID passed — let the server assign one)
+		const conversationId = await this.githubCopilotCliService.createSession();
 		
-		// Use the actual session ID from the SDK (it may differ)
 		const newSession: CopilotSession = {
-			id: actualSessionId || sessionId,
+			id: sessionId,
 			name: name || defaultName,
 			createdAt: now,
 			lastUsedAt: now,
 			archived: false,
 			messages: [],
+			conversationId: conversationId || undefined,
 		};
 
 		this.settings.sessions.push(newSession);
@@ -112,7 +116,10 @@ export class SessionManager {
 	}
 
 	/**
-	 * Load a session by its data
+	 * Load a session by its data.
+	 *
+	 * Uses the session's `conversationId` to resume the correct SDK conversation.
+	 * If the session has no conversation yet, creates a fresh one and links it.
 	 */
 	async loadSession(session: CopilotSession): Promise<void> {
 		// Save current session first
@@ -123,8 +130,33 @@ export class SessionManager {
 		session.lastUsedAt = Date.now();
 		await this.saveSettings();
 
-		// Load the session into the service
-		await this.githubCopilotCliService.loadSession(session.id, session.messages || []);
+		// Load the SDK conversation backing this session
+		if (session.conversationId) {
+			try {
+				await this.githubCopilotCliService.loadSession(session.conversationId, session.messages || []);
+			} catch (loadErr) {
+				// Conversation expired server-side — create a fresh one
+				console.warn(`[VC] Failed to load conversation ${session.conversationId}, creating new:`, loadErr);
+				const freshConvId = await this.githubCopilotCliService.createSession();
+				if (freshConvId) {
+					session.conversationId = freshConvId;
+					await this.saveSettings();
+				}
+			}
+		} else {
+			// No conversation yet — create one and link it
+			const convId = await this.githubCopilotCliService.createSession();
+			if (convId) {
+				session.conversationId = convId;
+				await this.saveSettings();
+			}
+			if (session.messages?.length) {
+				// Restore local message history for display
+				(this.githubCopilotCliService as any).messageHistory = session.messages.map((msg: ChatMessage) => ({
+					...msg, timestamp: new Date(msg.timestamp),
+				}));
+			}
+		}
 
 		// Notify view to update UI
 		this.callbacks.onClearUI();
@@ -140,7 +172,7 @@ export class SessionManager {
 	}
 
 	/**
-	 * Save the current session's messages
+	 * Save the current session's messages and backfill conversationId if needed.
 	 */
 	async saveCurrentSession(): Promise<void> {
 		const activeSessionId = this.settings.activeSessionId;
@@ -149,13 +181,22 @@ export class SessionManager {
 			if (session) {
 				session.messages = this.githubCopilotCliService.getMessageHistory();
 				session.lastUsedAt = Date.now();
+				// Backfill conversationId for sessions that pre-date this field
+				if (!session.conversationId) {
+					const sdkId = this.githubCopilotCliService.getSessionId();
+					if (sdkId) {
+						session.conversationId = sdkId;
+					}
+				}
 				await this.saveSettings();
 			}
 		}
 	}
 
 	/**
-	 * Ensure a session exists in our tracking system before sending messages
+	 * Ensure a session exists in our tracking system before sending messages.
+	 *
+	 * Links the current SDK conversation (if any) as the session's `conversationId`.
 	 */
 	async ensureSessionExists(): Promise<void> {
 		// If there's already an active session, we're good
@@ -164,25 +205,32 @@ export class SessionManager {
 				s => s.id === this.settings.activeSessionId
 			);
 			if (existingSession) {
+				// Backfill conversationId if session pre-dates this field
+				if (!existingSession.conversationId) {
+					const sdkId = this.githubCopilotCliService.getSessionId();
+					if (sdkId) {
+						existingSession.conversationId = sdkId;
+						await this.saveSettings();
+					}
+				}
 				return;
 			}
 		}
 
-		// Create a new session with SDK persistence
+		// Create a new session with a local ID and link the SDK conversation
 		const now = Date.now();
 		const defaultName = `Chat ${new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 		const sessionId = `session-${now}`;
-		
-		// Get the actual session ID from GitHubCopilotCliService (creates session if needed)
-		const actualSessionId = this.githubCopilotCliService.getSessionId() || sessionId;
+		const conversationId = this.githubCopilotCliService.getSessionId() || undefined;
 		
 		const newSession: CopilotSession = {
-			id: actualSessionId,
+			id: sessionId,
 			name: defaultName,
 			createdAt: now,
 			lastUsedAt: now,
 			archived: false,
 			messages: [],
+			conversationId,
 		};
 
 		this.settings.sessions.push(newSession);
@@ -190,7 +238,7 @@ export class SessionManager {
 		await this.saveSettings();
 		
 		this.callbacks.onHeaderUpdate();
-		console.log("[VC] Created new session:", newSession.name, "with SDK ID:", actualSessionId);
+		console.log("[VC] Created new session:", newSession.name, "conversationId:", conversationId ?? "(none)");
 	}
 
 	/**

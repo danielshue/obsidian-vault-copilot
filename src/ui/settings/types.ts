@@ -14,6 +14,7 @@ import type { ChatMessage } from "../../copilot/providers/GitHubCopilotCliServic
 import type { AIProviderType } from "../../copilot/providers/AIProvider";
 import type { RealtimeToolConfig } from "../../copilot/voice-chat";
 import type { CliStatus } from "../../copilot/providers/GitHubCopilotCliManager";
+import type { TelegramSettings } from "../../telegram/types";
 
 // ============================================================================
 // Session Types
@@ -64,6 +65,12 @@ export interface CopilotSession {
 		/** If set, these tools are disabled for this session */
 		disabled?: string[];
 	};
+	/** SDK conversation ID backing this session (server-assigned by Copilot CLI) */
+	conversationId?: string;
+	/** Origin of this session: 'obsidian' (default) or 'telegram' */
+	source?: "obsidian" | "telegram";
+	/** Telegram chat ID linked to this session (for Telegram-originated sessions) */
+	telegramChatId?: string;
 }
 
 // ============================================================================
@@ -376,4 +383,6 @@ export interface CopilotPluginSettings {
 	githubUsername?: string;
 	/** Generated anonymous ID for users without GitHub username */
 	anonymousId?: string;
+	/** Telegram bot integration settings */
+	telegram?: TelegramSettings;
 }

@@ -143,6 +143,8 @@ export class CopilotChatView extends ItemView {
 	// No provider placeholder
 	private noProviderPlaceholder: NoProviderPlaceholder | null = null;
 	private settingsChangeUnsubscribe: (() => void) | null = null;
+	/** Unsubscribe from external session updates (e.g., Telegram) */
+	private sessionUpdateUnsubscribe: (() => void) | null = null;
 
 	// Editor selection preservation
 	private editorSelectionManager: EditorSelectionManager;
@@ -550,6 +552,11 @@ export class CopilotChatView extends ItemView {
 		this.settingsChangeUnsubscribe = this.plugin.onSettingsChange(() => {
 			this.updateProviderAvailabilityUI();
 		});
+
+		// Subscribe to external session updates (e.g., Telegram messages)
+		this.sessionUpdateUnsubscribe = this.plugin.onSessionUpdate(() => {
+			this.refreshActiveSession();
+		});
 	}
 
 	/**
@@ -723,8 +730,30 @@ export class CopilotChatView extends ItemView {
 
 				const activeSessionId = this.plugin.settings.activeSessionId;
 				if (activeSessionId) {
-					await this.githubCopilotCliService.loadSession(activeSessionId);
-					console.log('[Vault Copilot] Resumed session:', activeSessionId);
+					const session = this.plugin.settings.sessions.find(s => s.id === activeSessionId);
+					if (session?.conversationId) {
+						// Resume the SDK conversation linked to this session
+						try {
+							await this.githubCopilotCliService.loadSession(session.conversationId, session.messages || []);
+							console.log('[Vault Copilot] Resumed conversation:', session.conversationId, 'for session:', activeSessionId);
+						} catch (loadErr) {
+							// Conversation expired server-side — create a fresh one
+							console.warn('[Vault Copilot] Failed to resume conversation, creating new:', loadErr);
+							const freshConvId = await this.githubCopilotCliService.createSession();
+							if (session && freshConvId) {
+								session.conversationId = freshConvId;
+								await this.plugin.saveSettings();
+							}
+						}
+					} else {
+						// Session has no conversation yet — create one and link it
+						const convId = await this.githubCopilotCliService.createSession();
+						if (session && convId) {
+							session.conversationId = convId;
+							await this.plugin.saveSettings();
+						}
+						console.log('[Vault Copilot] Created new conversation for existing session:', activeSessionId);
+					}
 				} else {
 					await this.githubCopilotCliService.createSession();
 				}
@@ -983,6 +1012,11 @@ export class CopilotChatView extends ItemView {
 			this.settingsChangeUnsubscribe();
 			this.settingsChangeUnsubscribe = null;
 		}
+		// Cleanup session update subscription
+		if (this.sessionUpdateUnsubscribe) {
+			this.sessionUpdateUnsubscribe();
+			this.sessionUpdateUnsubscribe = null;
+		}
 		// Cleanup no provider placeholder
 		if (this.noProviderPlaceholder) {
 			this.noProviderPlaceholder.destroy();
@@ -998,6 +1032,46 @@ export class CopilotChatView extends ItemView {
 			await this.messageRenderer.renderMessage(this.messagesContainer, message);
 		}
 		this.scrollToBottom();
+	}
+
+	/**
+	 * Refresh the ChatView to reflect sessions updated externally (e.g., via Telegram).
+	 *
+	 * Re-renders the session panel so new Telegram sessions appear, and if the
+	 * active session was modified, re-renders the messages container too.
+	 *
+	 * @internal
+	 */
+	private async refreshActiveSession(): Promise<void> {
+		// Always refresh the session panel so new/updated sessions appear
+		if (this.sessionPanel) {
+			this.sessionPanel.render();
+		}
+
+		// If the active session was modified externally, reload messages
+		const session = this.sessionManager.getCurrentSession();
+		if (session) {
+			const currentHistory = this.githubCopilotCliService.getMessageHistory();
+			if (session.messages.length !== currentHistory.length) {
+				if (session.conversationId) {
+					try {
+						await this.githubCopilotCliService.loadSession(session.conversationId, session.messages || []);
+					} catch (loadErr) {
+						// Conversation expired server-side — just restore local history
+						console.warn('[Vault Copilot] Failed to load conversation for refresh, falling back:', loadErr);
+						session.conversationId = undefined;
+						await this.plugin.saveSettings();
+					}
+				} else {
+					// No conversation — just restore local message history for display
+					(this.githubCopilotCliService as any).messageHistory = (session.messages || []).map((msg: any) => ({
+						...msg, timestamp: new Date(msg.timestamp),
+					}));
+				}
+				this.messagesContainer.empty();
+				await this.loadMessages();
+			}
+		}
 	}
 
 	private addWelcomeMessage(): void {
@@ -1396,6 +1470,10 @@ export class CopilotChatView extends ItemView {
 				message,
 				this.sessionPanel ? () => this.sessionPanel!.render() : undefined
 			);
+
+			// Persist session messages and notify other consumers (e.g., Telegram)
+			await this.sessionManager.saveCurrentSession();
+			this.plugin.notifySessionUpdate();
 			
 			this.isProcessing = false;
 			this.updateUIState();

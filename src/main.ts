@@ -79,6 +79,10 @@ import { expandHomePath } from "./utils/pathUtils";
 import * as nodePath from "path";
 import * as VaultOps from "./copilot/tools/VaultOperations";
 import { loadAuthorInfo } from "./ui/extensions/Submission/utils";
+import { TelegramBotService } from "./telegram/TelegramBotService";
+import { TelegramMessageHandler } from "./telegram/TelegramMessageHandler";
+import { TelegramVoiceHandler } from "./telegram/TelegramVoiceHandler";
+import type { TelegramBotStatus, TelegramSettings } from "./telegram/types";
 
 /**
  * Session information combining local UI state with SDK session metadata.
@@ -381,12 +385,22 @@ export default class CopilotPlugin extends Plugin {
 	private cliManager: GitHubCopilotCliManager | null = null;
 	/** Settings change listeners */
 	private settingsChangeListeners: Set<() => void> = new Set();
+	/** Session update listeners (notified when external sources like Telegram add messages) */
+	private sessionUpdateListeners: Set<() => void> = new Set();
 	/** Debounce timer for settings save */
 	private saveSettingsTimer: ReturnType<typeof setTimeout> | null = null;
 	/** Debounce delay for settings save (ms) */
 	private static readonly SAVE_SETTINGS_DEBOUNCE_MS = 100;
 	/** File logger for SDK diagnostics (desktop only) */
 	private fileLogger: FileLogger | null = null;
+	/** Telegram bot service (desktop only) */
+	private telegramBotService: TelegramBotService | null = null;
+	/** Telegram message handler */
+	private telegramMessageHandler: TelegramMessageHandler | null = null;
+	/** Telegram voice handler */
+	private telegramVoiceHandler: TelegramVoiceHandler | null = null;
+	/** Current Telegram bot status (exposed for settings UI) */
+	telegramBotStatus: TelegramBotStatus = "stopped";
 
 	/**
 	 * Get the CLI manager instance for checking Copilot CLI availability.
@@ -410,6 +424,40 @@ export default class CopilotPlugin extends Plugin {
 		return () => {
 			this.settingsChangeListeners.delete(listener);
 		};
+	}
+
+	/**
+	 * Register a listener for session updates from external sources (e.g., Telegram).
+	 *
+	 * Called when messages are added to the active session by non-ChatView sources,
+	 * so the ChatView can refresh its display.
+	 *
+	 * @param listener - Callback to invoke when the active session is updated externally
+	 * @returns Function to unsubscribe the listener
+	 */
+	onSessionUpdate(listener: () => void): () => void {
+		this.sessionUpdateListeners.add(listener);
+		return () => {
+			this.sessionUpdateListeners.delete(listener);
+		};
+	}
+
+	/**
+	 * Notify all session update listeners that the active session has changed.
+	 *
+	 * Called by Telegram (or other external message sources) after appending
+	 * messages to the active session.
+	 *
+	 * @internal
+	 */
+	notifySessionUpdate(): void {
+		for (const listener of this.sessionUpdateListeners) {
+			try {
+				listener();
+			} catch (e) {
+				console.error("[VaultCopilot] Session update listener error:", e);
+			}
+		}
 	}
 
 	/**
@@ -777,6 +825,11 @@ export default class CopilotPlugin extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new CopilotSettingTab(this.app, this));
 
+		// Initialize Telegram bot (desktop only)
+		if (isDesktop && this.settings.telegram?.enabled) {
+			this.startTelegramBot();
+		}
+
 		// Auto-connect on startup (optional)
 		// await this.connectCopilot();
 	}
@@ -799,6 +852,9 @@ export default class CopilotPlugin extends Plugin {
 			this.saveSettingsTimer = null;
 		}
 		
+		// Stop Telegram bot
+		this.stopTelegramBot();
+
 		await this.disconnectCopilot();
 		await this.mcpManager?.shutdown();
 		await this.automationEngine?.shutdown();
@@ -851,6 +907,10 @@ export default class CopilotPlugin extends Plugin {
 				...DEFAULT_SETTINGS.periodicNotes,
 				...(savedData.periodicNotes || {}),
 			},
+			telegram: {
+				...DEFAULT_SETTINGS.telegram,
+				...(savedData.telegram || {}),
+			} as TelegramSettings,
 			// Ensure AI provider profiles array exists
 			aiProviderProfiles: savedData.aiProviderProfiles ?? [],
 			voiceInputProfileId: savedData.voiceInputProfileId ?? null,
@@ -958,6 +1018,86 @@ export default class CopilotPlugin extends Plugin {
 			await this.saveSettings();
 			console.log(`[CopilotPlugin] Discovered ${result.models.length} models from CLI`);
 		}
+	}
+
+	// ========================================================================
+	// Telegram Bot Management
+	// ========================================================================
+
+	/**
+	 * Start the Telegram bot polling loop.
+	 *
+	 * Creates the bot service, message handler, and voice handler,
+	 * then starts long-polling for updates. Desktop only.
+	 */
+	public startTelegramBot(): void {
+		if (this.telegramBotService) {
+			console.log("[VaultCopilot/Telegram] Bot already running");
+			return;
+		}
+
+		const telegram = this.settings.telegram;
+		if (!telegram?.enabled) return;
+
+		// Get bot token from localStorage (where settings UI saved it)
+		const botToken = (this.app as any).loadLocalStorage?.("telegram-bot-token") as string | undefined;
+		if (!botToken) {
+			console.warn("[VaultCopilot/Telegram] No bot token configured — skipping bot start");
+			this.telegramBotStatus = "stopped";
+			return;
+		}
+
+		console.log("[VaultCopilot/Telegram] Starting bot...");
+
+		// Create bot service
+		this.telegramBotService = new TelegramBotService({
+			botToken,
+			onMessage: async (message) => {
+				if (this.telegramMessageHandler) {
+					await this.telegramMessageHandler.handleMessage(message);
+				}
+			},
+			onStatusChange: (status) => {
+				this.telegramBotStatus = status;
+				console.log(`[VaultCopilot/Telegram] Status: ${status}`);
+			},
+		});
+
+		// Create message handler
+		this.telegramMessageHandler = new TelegramMessageHandler({
+			plugin: this,
+			botService: this.telegramBotService,
+		});
+
+		// Create voice handler
+		this.telegramVoiceHandler = new TelegramVoiceHandler({
+			plugin: this,
+			botService: this.telegramBotService,
+			messageHandler: this.telegramMessageHandler,
+		});
+
+		// Wire voice handler into message handler
+		this.telegramMessageHandler.setVoiceHandler(this.telegramVoiceHandler);
+
+		// Start polling
+		this.telegramBotService.start();
+	}
+
+	/**
+	 * Stop the Telegram bot and clean up resources.
+	 * @internal
+	 */
+	public stopTelegramBot(): void {
+		if (this.telegramBotService) {
+			this.telegramBotService.stop();
+			this.telegramBotService = null;
+		}
+		if (this.telegramVoiceHandler) {
+			this.telegramVoiceHandler.destroy();
+			this.telegramVoiceHandler = null;
+		}
+		this.telegramMessageHandler = null;
+		this.telegramBotStatus = "stopped";
 	}
 
 	/**

@@ -1,5 +1,6 @@
 import { App, MarkdownRenderer, Component } from "obsidian";
 import { ChatMessage } from "../../../copilot/providers/GitHubCopilotCliService";
+import { TTSService, type TTSConfig } from "../../../telegram/TTSService";
 
 /**
  * Represents a reference used in a chat message
@@ -42,10 +43,20 @@ export interface ActivityPanel {
 export class MessageRenderer {
 	private app: App;
 	private component: Component;
+	private ttsService: TTSService | null = null;
+	private currentAudio: HTMLAudioElement | null = null;
 
 	constructor(app: App, component: Component) {
 		this.app = app;
 		this.component = component;
+	}
+
+	/**
+	 * Configure the TTS service for voice playback.
+	 * @param config - TTS configuration with API key and base URL
+	 */
+	setTTSConfig(config: TTSConfig): void {
+		this.ttsService = new TTSService(config);
 	}
 
 	/**
@@ -67,6 +78,22 @@ export class MessageRenderer {
 	 */
 	async renderMessage(container: HTMLElement, message: ChatMessage): Promise<HTMLElement> {
 		const messageEl = this.createMessageElement(container, message.role, "");
+
+		// Add Telegram source badge
+		if (message.source === "telegram") {
+			messageEl.addClass("vc-message-telegram");
+			const badge = messageEl.createDiv({ cls: "vc-message-source-badge" });
+			badge.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>`;
+			badge.setAttribute("aria-label", "Telegram message");
+		}
+
+		// Add voice input badge
+		if (message.inputType === "voice") {
+			const voiceBadge = messageEl.createDiv({ cls: "vc-message-voice-badge" });
+			voiceBadge.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
+			voiceBadge.setAttribute("aria-label", "Voice input");
+		}
+
 		await this.renderMarkdownContent(messageEl, message.content);
 		if (message.role === "assistant") {
 			this.addCopyButton(messageEl);
@@ -606,25 +633,62 @@ export class MessageRenderer {
 			return;
 		}
 
+		// If already playing, stop
+		if (this.currentAudio) {
+			this.currentAudio.pause();
+			this.currentAudio = null;
+			return;
+		}
+
 		// Show loading state
 		const originalIcon = button.innerHTML;
 		button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="vc-spinner"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;
 		button.disabled = true;
 
 		try {
-			// TODO: Implement actual TTS server call
-			// This is a stub - replace with actual TTS implementation
-			console.log('TTS stub: Would send text to TTS server:', text.substring(0, 100) + '...');
-			
-			// Placeholder: simulate TTS processing
-			await new Promise(resolve => setTimeout(resolve, 500));
+			if (!this.ttsService) {
+				console.log('[TTS] No TTS service configured. Set an OpenAI API key to enable.');
+				return;
+			}
+
+			const audioBuffer = await this.ttsService.synthesize(text, {
+				voice: "alloy",
+				format: "mp3",
+			});
+
+			if (audioBuffer) {
+				const blob = new Blob([audioBuffer], { type: "audio/mpeg" });
+				const url = URL.createObjectURL(blob);
+				const audio = new Audio(url);
+				this.currentAudio = audio;
+
+				// Show playing state
+				button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+				button.disabled = false;
+
+				audio.onended = () => {
+					URL.revokeObjectURL(url);
+					this.currentAudio = null;
+					button.innerHTML = originalIcon;
+				};
+				audio.onerror = () => {
+					URL.revokeObjectURL(url);
+					this.currentAudio = null;
+					button.innerHTML = originalIcon;
+				};
+
+				await audio.play();
+				return; // Don't restore icon yet — playing state handles it
+			}
 		} catch (error) {
 			console.error('TTS error:', error);
-			console.error(`TTS error: ${error instanceof Error ? error.message : String(error)}`);
+			this.currentAudio = null;
 		} finally {
-			// Restore button state
-			button.innerHTML = originalIcon;
-			button.disabled = false;
+			// Restore button state (only if not playing)
+			if (!this.currentAudio) {
+				button.innerHTML = originalIcon;
+				button.disabled = false;
+			}
 		}
 	}
 }
