@@ -202,7 +202,8 @@ export class ExtensionBrowserView extends ItemView {
 			{ label: "Voice Agents", value: "voice-agent", icon: "mic" },
 			{ label: "Prompts", value: "prompt", icon: "file-text" },
 			{ label: "Skills", value: "skill", icon: "wrench" },
-			{ label: "MCP Servers", value: "mcp-server", icon: "plug" }
+			{ label: "MCP Servers", value: "mcp-server", icon: "plug" },
+			{ label: "Automations", value: "automation", icon: "clock" }
 		];
 		
 		for (const t of types) {

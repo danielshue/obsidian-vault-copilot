@@ -16,7 +16,7 @@
 /**
  * Extension type category
  */
-export type ExtensionType = "agent" | "voice-agent" | "prompt" | "skill" | "mcp-server";
+export type ExtensionType = "agent" | "voice-agent" | "prompt" | "skill" | "mcp-server" | "automation";
 
 /**
  * Form data for extension submission

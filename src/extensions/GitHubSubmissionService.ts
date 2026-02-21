@@ -97,7 +97,7 @@ export interface ExtensionSubmissionParams {
 	extensionId: string;
 	
 	/** Type of extension being submitted */
-	extensionType: "agent" | "voice-agent" | "prompt" | "skill" | "mcp-server";
+	extensionType: "agent" | "voice-agent" | "prompt" | "skill" | "mcp-server" | "automation";
 	
 	/** Semantic version of the extension */
 	version: string;
@@ -743,6 +743,8 @@ export class GitHubSubmissionService {
 				return "skill.md";
 			case "mcp-server":
 				return "mcp-config.json";
+			case "automation":
+				return `${id}.automation.md`;
 			default:
 				return `${id}.md`;
 		}
@@ -768,6 +770,8 @@ export class GitHubSubmissionService {
 				return "skills";
 			case "mcp-server":
 				return "mcp-servers";
+			case "automation":
+				return "automations";
 			default:
 				return type + "s";
 		}

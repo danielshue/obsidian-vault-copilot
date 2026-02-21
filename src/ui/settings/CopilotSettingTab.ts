@@ -13,7 +13,7 @@
  * @since 0.0.1
  */
 
-import { App, PluginSettingTab, Setting, FileSystemAdapter } from "obsidian";
+import { App, PluginSettingTab, Setting, FileSystemAdapter, TFile } from "obsidian";
 import CopilotPlugin from "../../main";
 import { GitHubCopilotCliManager, CliStatus } from "../../copilot/providers/GitHubCopilotCliManager";
 import { SkillInfo, McpServerConfig } from "../../copilot/customization/SkillRegistry";
@@ -2614,37 +2614,74 @@ console.log("Discovering models...");
 		const thead = table.createEl("thead");
 		const headerRow = thead.createEl("tr");
 		headerRow.createEl("th", { text: "Name" });
-		headerRow.createEl("th", { text: "Triggers" });
-		headerRow.createEl("th", { text: "Status" });
+		headerRow.createEl("th", { text: "Trigger" });
+		headerRow.createEl("th", { text: "Scheduled" });
+		headerRow.createEl("th", { text: "Next Run" });
 		headerRow.createEl("th", { text: "Last Run" });
+		headerRow.createEl("th", { text: "Status" });
 		headerRow.createEl("th", { text: "Actions" });
 		
 		// Body rows
 		const tbody = table.createEl("tbody");
 		for (const automation of automations) {
 			const row = tbody.createEl("tr");
+			const isRunning = this.plugin.automationEngine?.isAutomationRunning(automation.id) ?? false;
+			const isScheduled = this.isScheduledAutomation(automation);
+			const triggerSummary = this.getPrimaryTriggerSummary(automation);
+			const sourcePath = this.resolveAutomationSourcePath(automation);
 			
 			// Name
-			row.createEl("td", { text: automation.name, cls: "vc-automation-name" });
+			const nameCell = row.createEl("td", { cls: "vc-automation-name" });
+			const wikiLabel = `[[${automation.name}]]`;
+			if (sourcePath) {
+				const link = nameCell.createEl("a", {
+					text: wikiLabel,
+					href: "#",
+					cls: "vc-automation-link",
+				});
+				link.addEventListener("click", async (event) => {
+					event.preventDefault();
+					await this.openAutomationSourceFile(automation, sourcePath);
+				});
+			} else {
+				nameCell.createEl("span", { text: wikiLabel });
+			}
 			
 			// Triggers
-			const triggersCell = row.createEl("td", { cls: "vc-automation-triggers" });
-			const triggerTypes = automation.config.triggers.map(t => t.type).join(", ");
-			triggersCell.createEl("span", { text: triggerTypes });
+			const triggerCell = row.createEl("td", { cls: "vc-automation-triggers" });
+			triggerCell.createEl("span", { text: triggerSummary });
+			
+			const scheduledCell = row.createEl("td", { cls: "vc-automation-scheduled" });
+			scheduledCell.createEl("span", {
+				cls: `vc-status-badge ${isScheduled ? 'vc-status-enabled' : 'vc-status-disabled'}`,
+				text: isScheduled ? "Yes" : "No",
+			});
+
+			const nextRunCell = row.createEl("td", { cls: "vc-automation-next-run" });
+			if (isScheduled && automation.nextRun) {
+				nextRunCell.createEl("span", { text: this.formatDateTime(automation.nextRun) });
+			} else {
+				nextRunCell.createEl("span", { text: "—", cls: "vc-text-muted" });
+			}
 			
 			// Status
 			const statusCell = row.createEl("td", { cls: "vc-automation-status" });
-			const statusBadge = statusCell.createEl("span", { 
+			statusCell.createEl("span", {
 				cls: `vc-status-badge ${automation.enabled ? 'vc-status-enabled' : 'vc-status-disabled'}`,
 				text: automation.enabled ? "Enabled" : "Disabled"
 			});
+			if (isRunning) {
+				statusCell.createEl("span", {
+					cls: "vc-status-badge vc-status-running",
+					text: "Running",
+				});
+			}
 			
 			// Last Run
 			const lastRunCell = row.createEl("td", { cls: "vc-automation-lastrun" });
 			if (automation.lastRun) {
-				const date = new Date(automation.lastRun);
-				const timeAgo = this.formatTimeAgo(date);
-				lastRunCell.createEl("span", { text: timeAgo });
+				lastRunCell.createEl("span", { text: this.formatDateTime(automation.lastRun) });
+				lastRunCell.createEl("div", { text: this.formatTimeAgo(new Date(automation.lastRun)), cls: "vc-text-muted" });
 				if (automation.lastResult) {
 					const resultIcon = automation.lastResult.success ? "✓" : "✗";
 					const resultClass = automation.lastResult.success ? "vc-result-success" : "vc-result-failure";
@@ -2659,6 +2696,15 @@ console.log("Discovering models...");
 			
 			// Actions
 			const actionsCell = row.createEl("td", { cls: "vc-automation-actions" });
+
+			const openFileBtn = actionsCell.createEl("button", {
+				cls: "vc-btn vc-btn-small",
+				text: "Open File"
+			});
+			openFileBtn.disabled = !sourcePath;
+			openFileBtn.onclick = async () => {
+				await this.openAutomationSourceFile(automation, sourcePath);
+			};
 			
 			// Toggle button
 			const toggleBtn = actionsCell.createEl("button", { 
@@ -2694,7 +2740,7 @@ console.log("Discovering models...");
 				text: "Details"
 			});
 			detailsBtn.onclick = () => {
-				this.showAutomationDetails(automation);
+				this.showAutomationDetails(automation, isRunning);
 			};
 		}
 		
@@ -2717,8 +2763,67 @@ console.log("Discovering models...");
 		return date.toLocaleDateString();
 	}
 
-	private showAutomationDetails(automation: import('../../automation/types').AutomationInstance): void {
-		const modal = new AutomationDetailsModal(this.app, automation);
+	private formatDateTime(timestamp: number): string {
+		return new Date(timestamp).toLocaleString();
+	}
+
+	private isScheduledAutomation(automation: import('../../automation/types').AutomationInstance): boolean {
+		return automation.config.triggers.some((trigger) => trigger.type === "schedule");
+	}
+
+	private getPrimaryTriggerSummary(automation: import('../../automation/types').AutomationInstance): string {
+		const trigger = automation.config.triggers[0];
+		if (!trigger) {
+			return "Unknown";
+		}
+
+		switch (trigger.type) {
+			case "schedule":
+				return `schedule (${(trigger as { schedule?: string }).schedule ?? "n/a"})`;
+			case "file-created":
+			case "file-modified":
+			case "file-deleted":
+				return `${trigger.type} (${(trigger as { pattern?: string }).pattern ?? "*"})`;
+			case "tag-added":
+				return `tag-added (${(trigger as { tag?: string }).tag ?? ""})`;
+			default:
+				return trigger.type;
+		}
+	}
+
+	private resolveAutomationSourcePath(automation: import('../../automation/types').AutomationInstance): string | null {
+		if (automation.sourcePath) {
+			return automation.sourcePath;
+		}
+
+		const markdownCandidate = `.obsidian/automations/${automation.id}.automation.md`;
+		if (this.app.vault.getAbstractFileByPath(markdownCandidate) instanceof TFile) {
+			return markdownCandidate;
+		}
+
+		return null;
+	}
+
+	private async openAutomationSourceFile(
+		automation: import('../../automation/types').AutomationInstance,
+		resolvedSourcePath?: string | null
+	): Promise<void> {
+		const sourcePath = resolvedSourcePath ?? this.resolveAutomationSourcePath(automation);
+		if (!sourcePath) {
+			return;
+		}
+
+		const file = this.app.vault.getAbstractFileByPath(sourcePath);
+		if (file instanceof TFile) {
+			await this.app.workspace.getLeaf(true).openFile(file);
+			return;
+		}
+
+		await this.app.workspace.openLinkText(sourcePath, "", false);
+	}
+
+	private showAutomationDetails(automation: import('../../automation/types').AutomationInstance, isRunning: boolean): void {
+		const modal = new AutomationDetailsModal(this.app, automation, isRunning);
 		modal.open();
 	}
 

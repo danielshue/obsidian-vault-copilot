@@ -227,7 +227,8 @@ export async function parseOrDeriveExtensionInfo(
 				"voice-agent": ".voice-agent.md",
 				"prompt": ".prompt.md",
 				"skill": ".skill.md",
-				"mcp-server": ".mcp-server.md"
+				"mcp-server": ".mcp-server.md",
+				"automation": ".automation.md"
 			};
 			
 			const targetExtension = (extensionType ? extensions[extensionType] : undefined) || ".agent.md";
@@ -282,7 +283,8 @@ export async function parseOrDeriveExtensionInfo(
 				"voice-agent": ".voice-agent.md",
 				"prompt": ".prompt.md",
 				"skill": ".skill.md",
-				"mcp-server": ".mcp-server.md"
+				"mcp-server": ".mcp-server.md",
+				"automation": ".automation.md"
 			};
 			
 			const targetExtension = (extensionType ? extensions[extensionType] : undefined) || ".agent.md";
@@ -687,7 +689,8 @@ Instructions:
  * Supports both file and folder inputs:
  * - If the path points to a file, that file is read directly.
  * - If the path points to a folder, common extension files are probed using the
- *   derived extension ID (agent/prompt/voice-agent) and finally README.md.
+	 *   derived extension ID (agent/prompt/voice-agent/automation) plus skill and MCP
+	 *   defaults, then finally README.md.
  */
 async function readExtensionContent(
 	app: App,
@@ -719,7 +722,10 @@ async function readExtensionContent(
 			possibleFiles.push(
 				`${basePath}/${extensionId}.agent.md`,
 				`${basePath}/${extensionId}.prompt.md`,
-				`${basePath}/${extensionId}.voice-agent.md`
+				`${basePath}/${extensionId}.voice-agent.md`,
+				`${basePath}/${extensionId}.automation.md`,
+				`${basePath}/skill.md`,
+				`${basePath}/mcp-config.json`
 			);
 		}
 		possibleFiles.push(`${basePath}/README.md`);

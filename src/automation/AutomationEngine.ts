@@ -32,6 +32,9 @@
  *   executionCount: 0
  * });
  * ```
+ *
+ * @see {@link AutomationIntegration}
+ * @see {@link AutomationEngineState}
  * 
  * @since 0.1.0
  */
@@ -53,17 +56,41 @@ import {
 } from './types';
 
 /**
- * Core automation engine singleton
+ * Core automation engine for runtime registration, scheduling, and execution.
+ *
+ * Manages automation lifecycle, trigger routing, action execution, and
+ * persistent execution history.
+ *
+ * @example
+ * ```typescript
+ * const engine = new AutomationEngine(app, plugin);
+ * await engine.initialize();
+ * ```
  */
 export class AutomationEngine {
+	/** Obsidian app instance. @internal */
 	private app: App;
+	/** Plugin instance used for service integrations. @internal */
 	private plugin: VaultCopilotPlugin;
+	/** In-memory engine state. @internal */
 	private state: AutomationEngineState;
+	/** Active schedule timers keyed by automation ID. @internal */
 	private scheduledTimers: Map<string, NodeJS.Timeout> = new Map();
+	/** Event cleanup registrations. @internal */
 	private eventRegistrations: Map<string, () => void> = new Map();
+	/** In-flight execution counts keyed by automation ID. @internal */
+	private runningExecutionCounts: Map<string, number> = new Map();
+	/** Maximum retained history entries. @internal */
 	private maxHistoryEntries = 100;
+	/** Persistent state file path. @internal */
 	private stateFilePath = '.obsidian/vault-copilot-automations.json';
 
+	/**
+	 * Create a new automation engine instance.
+	 *
+	 * @param app - Obsidian app instance
+	 * @param plugin - Vault Copilot plugin instance
+	 */
 	constructor(app: App, plugin: VaultCopilotPlugin) {
 		this.app = app;
 		this.plugin = plugin;
@@ -74,8 +101,14 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Initialize the automation engine
-	 * Loads state and sets up event listeners
+	 * Initialize the automation engine.
+	 * Loads state, registers vault listeners, and starts eligible triggers.
+	 *
+	 * @returns Resolves when initialization is complete
+	 * @example
+	 * ```typescript
+	 * await engine.initialize();
+	 * ```
 	 */
 	async initialize(): Promise<void> {
 		console.log('AutomationEngine: Initializing...');
@@ -87,22 +120,34 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Shutdown the automation engine
-	 * Stops all timers and saves state
+	 * Shutdown the automation engine.
+	 * Stops active timers/listeners and persists state.
+	 *
+	 * @returns Resolves when shutdown is complete
+	 * @example
+	 * ```typescript
+	 * await engine.shutdown();
+	 * ```
 	 */
 	async shutdown(): Promise<void> {
 		console.log('AutomationEngine: Shutting down...');
 		this.stopAllScheduledAutomations();
 		this.cleanupEventListeners();
+		this.runningExecutionCounts.clear();
 		await this.saveState();
 		console.log('AutomationEngine: Shutdown complete');
 	}
 
 	/**
-	 * Register a new automation
-	 * 
+	 * Register a new automation.
+	 *
 	 * @param automation - Automation instance to register
+	 * @returns Resolves when registration is persisted
 	 * @throws {Error} If automation with same ID already exists
+	 * @example
+	 * ```typescript
+	 * await engine.registerAutomation(automation);
+	 * ```
 	 */
 	async registerAutomation(automation: AutomationInstance): Promise<void> {
 		if (this.state.automations[automation.id]) {
@@ -121,9 +166,14 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Unregister an automation
-	 * 
+	 * Unregister an automation.
+	 *
 	 * @param automationId - ID of automation to unregister
+	 * @returns Resolves when unregistration is complete
+	 * @example
+	 * ```typescript
+	 * await engine.unregisterAutomation("daily-note");
+	 * ```
 	 */
 	async unregisterAutomation(automationId: string): Promise<void> {
 		const automation = this.state.automations[automationId];
@@ -134,15 +184,22 @@ export class AutomationEngine {
 
 		console.log(`AutomationEngine: Unregistering automation '${automation.name}' (${automationId})`);
 		await this.deactivateAutomation(automationId);
+		this.runningExecutionCounts.delete(automationId);
 		delete this.state.automations[automationId];
 		await this.saveState();
 		new Notice(`Automation '${automation.name}' unregistered`);
 	}
 
 	/**
-	 * Enable an automation
-	 * 
+	 * Enable an automation.
+	 *
 	 * @param automationId - ID of automation to enable
+	 * @returns Resolves when enable flow is complete
+	 * @throws {Error} If automation is not found
+	 * @example
+	 * ```typescript
+	 * await engine.enableAutomation("daily-note");
+	 * ```
 	 */
 	async enableAutomation(automationId: string): Promise<void> {
 		const automation = this.state.automations[automationId];
@@ -159,9 +216,15 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Disable an automation
-	 * 
+	 * Disable an automation.
+	 *
 	 * @param automationId - ID of automation to disable
+	 * @returns Resolves when disable flow is complete
+	 * @throws {Error} If automation is not found
+	 * @example
+	 * ```typescript
+	 * await engine.disableAutomation("daily-note");
+	 * ```
 	 */
 	async disableAutomation(automationId: string): Promise<void> {
 		const automation = this.state.automations[automationId];
@@ -178,10 +241,16 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Manually run an automation
-	 * 
+	 * Manually run an automation.
+	 *
 	 * @param automationId - ID of automation to run
 	 * @param trigger - Optional trigger to use (defaults to manual trigger)
+	 * @returns Execution result payload
+	 * @throws {Error} If automation or trigger configuration is missing
+	 * @example
+	 * ```typescript
+	 * const result = await engine.runAutomation("daily-note");
+	 * ```
 	 */
 	async runAutomation(automationId: string, trigger?: AutomationTrigger): Promise<AutomationExecutionResult> {
 		const automation = this.state.automations[automationId];
@@ -199,21 +268,66 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Get all registered automations
+	 * Get all registered automations.
+	 *
+	 * @returns Registered automation instances
+	 * @example
+	 * ```typescript
+	 * const automations = engine.getAllAutomations();
+	 * ```
 	 */
 	getAllAutomations(): AutomationInstance[] {
 		return Object.values(this.state.automations);
 	}
 
 	/**
-	 * Get automation by ID
+	 * Check whether an automation currently has in-flight executions.
+	 *
+	 * @param automationId - Automation identifier
+	 * @returns True when currently running
+	 */
+	isAutomationRunning(automationId: string): boolean {
+		return (this.runningExecutionCounts.get(automationId) ?? 0) > 0;
+	}
+
+	/**
+	 * Get IDs of all automations that are currently running.
+	 *
+	 * @returns Automation IDs with active executions
+	 */
+	getRunningAutomationIds(): string[] {
+		const runningIds: string[] = [];
+		for (const [automationId, executionCount] of this.runningExecutionCounts.entries()) {
+			if (executionCount > 0) {
+				runningIds.push(automationId);
+			}
+		}
+		return runningIds;
+	}
+
+	/**
+	 * Get automation by ID.
+	 *
+	 * @param automationId - Automation identifier
+	 * @returns Automation instance or `undefined`
+	 * @example
+	 * ```typescript
+	 * const automation = engine.getAutomation("daily-note");
+	 * ```
 	 */
 	getAutomation(automationId: string): AutomationInstance | undefined {
 		return this.state.automations[automationId];
 	}
 
 	/**
-	 * Get execution history
+	 * Get execution history.
+	 *
+	 * @param limit - Optional maximum number of entries
+	 * @returns History entries (most recent first)
+	 * @example
+	 * ```typescript
+	 * const recent = engine.getHistory(20);
+	 * ```
 	 */
 	getHistory(limit?: number): AutomationHistoryEntry[] {
 		const history = [...this.state.history].reverse(); // Most recent first
@@ -221,7 +335,13 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Clear execution history
+	 * Clear execution history.
+	 *
+	 * @returns Resolves when history is persisted
+	 * @example
+	 * ```typescript
+	 * await engine.clearHistory();
+	 * ```
 	 */
 	async clearHistory(): Promise<void> {
 		this.state.history = [];
@@ -233,7 +353,11 @@ export class AutomationEngine {
 	// =========================================================================
 
 	/**
-	 * Activate an automation (set up timers and listeners)
+	 * Activate an automation (schedule timers/listeners as needed).
+	 *
+	 * @param automationId - Automation identifier
+	 * @returns Resolves when activation steps complete
+	 * @internal
 	 */
 	private async activateAutomation(automationId: string): Promise<void> {
 		const automation = this.state.automations[automationId];
@@ -250,7 +374,11 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Deactivate an automation (clear timers and listeners)
+	 * Deactivate an automation (clear timers/listeners).
+	 *
+	 * @param automationId - Automation identifier
+	 * @returns Resolves when deactivation completes
+	 * @internal
 	 */
 	private async deactivateAutomation(automationId: string): Promise<void> {
 		const automation = this.state.automations[automationId];
@@ -268,7 +396,12 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Schedule an automation with a cron expression
+	 * Schedule an automation using a cron expression.
+	 *
+	 * @param automationId - Automation identifier
+	 * @param trigger - Schedule trigger configuration
+	 * @returns Nothing
+	 * @internal
 	 */
 	private scheduleAutomation(automationId: string, trigger: ScheduleTrigger): void {
 		try {
@@ -298,85 +431,124 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Execute an automation
+	 * Execute an automation end-to-end.
+	 *
+	 * @param automation - Automation instance
+	 * @param trigger - Trigger used for this execution
+	 * @returns Execution result payload
+	 * @internal
 	 */
 	private async executeAutomation(
 		automation: AutomationInstance,
 		trigger: AutomationTrigger
 	): Promise<AutomationExecutionResult> {
 		console.log(`AutomationEngine: Executing automation '${automation.name}' (trigger: ${trigger.type})`);
+		this.incrementRunningExecutionCount(automation.id);
 
-		const context: AutomationExecutionContext = {
-			automation,
-			trigger,
-			startTime: Date.now(),
-		};
+		try {
+			const context: AutomationExecutionContext = {
+				automation,
+				trigger,
+				startTime: Date.now(),
+			};
 
-		const actionResults: ActionExecutionResult[] = [];
-		let overallSuccess = true;
-		let overallError: string | undefined;
+			const actionResults: ActionExecutionResult[] = [];
+			let overallSuccess = true;
+			let overallError: string | undefined;
 
-		// Apply trigger delay if specified
-		if (trigger.delay && trigger.delay > 0) {
-			await this.sleep(trigger.delay);
-		}
-
-		// Execute each action in sequence
-		for (const action of automation.config.actions) {
-			try {
-				const result = await this.executeAction(action, context);
-				actionResults.push(result);
-				if (!result.success) {
-					overallSuccess = false;
-				}
-			} catch (error) {
-				const errorMsg = error instanceof Error ? error.message : String(error);
-				console.error(`AutomationEngine: Action execution failed:`, error);
-				actionResults.push({
-					action,
-					success: false,
-					error: errorMsg,
-					duration: 0,
-				});
-				overallSuccess = false;
-				overallError = errorMsg;
-				break; // Stop on first failure
+			if (trigger.delay && trigger.delay > 0) {
+				await this.sleep(trigger.delay);
 			}
+
+			for (const action of automation.config.actions) {
+				try {
+					const result = await this.executeAction(action, context);
+					actionResults.push(result);
+					if (!result.success) {
+						overallSuccess = false;
+					}
+				} catch (error) {
+					const errorMsg = error instanceof Error ? error.message : String(error);
+					console.error(`AutomationEngine: Action execution failed:`, error);
+					actionResults.push({
+						action,
+						success: false,
+						error: errorMsg,
+						duration: 0,
+					});
+					overallSuccess = false;
+					overallError = errorMsg;
+					break;
+				}
+			}
+
+			const result: AutomationExecutionResult = {
+				success: overallSuccess,
+				timestamp: Date.now(),
+				trigger,
+				actionResults,
+				error: overallError,
+			};
+
+			automation.lastRun = result.timestamp;
+			automation.lastResult = result;
+			automation.executionCount++;
+
+			this.addToHistory({
+				automationId: automation.id,
+				result,
+				timestamp: result.timestamp,
+			});
+
+			await this.saveState();
+
+			if (overallSuccess) {
+				new Notice(`Automation '${automation.name}' completed successfully`);
+			} else {
+				new Notice(`Automation '${automation.name}' failed: ${overallError}`);
+			}
+
+			return result;
+		} finally {
+			this.decrementRunningExecutionCount(automation.id);
 		}
-
-		const result: AutomationExecutionResult = {
-			success: overallSuccess,
-			timestamp: Date.now(),
-			trigger,
-			actionResults,
-			error: overallError,
-		};
-
-		// Update automation state
-		automation.lastRun = result.timestamp;
-		automation.lastResult = result;
-		automation.executionCount++;
-
-		// Add to history
-		this.addToHistory({
-			automationId: automation.id,
-			result,
-			timestamp: result.timestamp,
-		});
-
-		await this.saveState();
-
-		if (overallSuccess) {
-			new Notice(`Automation '${automation.name}' completed successfully`);
-		} else {
-			new Notice(`Automation '${automation.name}' failed: ${overallError}`);
-		}
-
-		return result;
 	}
 
 	/**
-	 * Execute a single action
+	 * Increment in-flight execution counter for an automation.
+	 *
+	 * @param automationId - Automation identifier
+	 * @returns Nothing
+	 * @internal
+	 */
+	private incrementRunningExecutionCount(automationId: string): void {
+		const currentCount = this.runningExecutionCounts.get(automationId) ?? 0;
+		this.runningExecutionCounts.set(automationId, currentCount + 1);
+	}
+
+	/**
+	 * Decrement in-flight execution counter for an automation.
+	 *
+	 * @param automationId - Automation identifier
+	 * @returns Nothing
+	 * @internal
+	 */
+	private decrementRunningExecutionCount(automationId: string): void {
+		const currentCount = this.runningExecutionCounts.get(automationId) ?? 0;
+		if (currentCount <= 1) {
+			this.runningExecutionCounts.delete(automationId);
+			return;
+		}
+		this.runningExecutionCounts.set(automationId, currentCount - 1);
+	}
+
+	/**
+	 * Execute a single automation action.
+	 *
+	 * @param action - Action configuration
+	 * @param context - Execution context
+	 * @returns Action execution result
+	 * @internal
 	 */
 	private async executeAction(
 		action: AutomationAction,
@@ -437,6 +609,7 @@ export class AutomationEngine {
 	 * @param context - The execution context with automation metadata
 	 * @returns The agent execution result
 	 * @throws {Error} If the agent is not found or no AI provider is available
+	 * @internal
 	 *
 	 * @since 0.1.1
 	 */
@@ -471,6 +644,7 @@ export class AutomationEngine {
 	 * @param context - The execution context with automation metadata
 	 * @returns The prompt execution result
 	 * @throws {Error} If the prompt is not found or no AI provider is available
+	 * @internal
 	 *
 	 * @since 0.1.1
 	 */
@@ -517,6 +691,7 @@ export class AutomationEngine {
 	 * ```
 	 *
 	 * @since 0.1.1
+	 * @internal
 	 */
 	private async executeRunSkill(action: Extract<AutomationAction, { type: 'run-skill' }>, context: AutomationExecutionContext): Promise<unknown> {
 		const { skillId, input } = action;
@@ -552,7 +727,13 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Execute create-note action
+	 * Execute `create-note` action.
+	 *
+	 * @param action - Create-note action config
+	 * @param context - Execution context
+	 * @returns Created note path
+	 * @throws {Error} If note already exists
+	 * @internal
 	 */
 	private async executeCreateNote(action: Extract<AutomationAction, { type: 'create-note' }>, context: AutomationExecutionContext): Promise<string> {
 		const { path, template } = action;
@@ -572,7 +753,13 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Execute update-note action
+	 * Execute `update-note` action.
+	 *
+	 * @param action - Update-note action config
+	 * @param context - Execution context
+	 * @returns Updated note path
+	 * @throws {Error} If note is not found
+	 * @internal
 	 */
 	private async executeUpdateNote(action: Extract<AutomationAction, { type: 'update-note' }>, context: AutomationExecutionContext): Promise<string> {
 		const { path, template } = action;
@@ -593,7 +780,13 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Execute run-command action
+	 * Execute `run-command` action.
+	 *
+	 * @param action - Run-command action config
+	 * @param context - Execution context
+	 * @returns `true` when command execution succeeds
+	 * @throws {Error} If command execution fails
+	 * @internal
 	 */
 	private async executeRunCommand(action: Extract<AutomationAction, { type: 'run-command' }>, context: AutomationExecutionContext): Promise<boolean> {
 		const { commandId } = action;
@@ -610,7 +803,10 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Set up vault event listeners for file-based and tag-based triggers
+	 * Set up vault event listeners for trigger routing.
+	 *
+	 * @returns Nothing
+	 * @internal
 	 */
 	private setupVaultListeners(): void {
 		// File created
@@ -647,7 +843,12 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Handle file events and trigger matching automations
+	 * Handle file events and trigger matching automations.
+	 *
+	 * @param eventType - File event type
+	 * @param filePath - Affected file path
+	 * @returns Nothing
+	 * @internal
 	 */
 	private handleFileEvent(eventType: 'file-created' | 'file-modified' | 'file-deleted', filePath: string): void {
 		for (const automation of Object.values(this.state.automations)) {
@@ -668,7 +869,10 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Handle vault opened event
+	 * Handle vault-opened trigger dispatch.
+	 *
+	 * @returns Nothing
+	 * @internal
 	 */
 	private handleVaultOpened(): void {
 		for (const automation of Object.values(this.state.automations)) {
@@ -686,7 +890,10 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Run startup automations
+	 * Run startup-trigger automations.
+	 *
+	 * @returns Nothing
+	 * @internal
 	 */
 	private runStartupAutomations(): void {
 		for (const automation of Object.values(this.state.automations)) {
@@ -704,7 +911,10 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Start all scheduled automations
+	 * Start all enabled scheduled automations.
+	 *
+	 * @returns Nothing
+	 * @internal
 	 */
 	private startScheduledAutomations(): void {
 		for (const automation of Object.values(this.state.automations)) {
@@ -719,7 +929,10 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Stop all scheduled automations
+	 * Stop all scheduled automations.
+	 *
+	 * @returns Nothing
+	 * @internal
 	 */
 	private stopAllScheduledAutomations(): void {
 		for (const timer of this.scheduledTimers.values()) {
@@ -729,7 +942,10 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Cleanup event listeners
+	 * Cleanup registered event listeners.
+	 *
+	 * @returns Nothing
+	 * @internal
 	 */
 	private cleanupEventListeners(): void {
 		for (const cleanup of this.eventRegistrations.values()) {
@@ -739,7 +955,12 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Check if a file path matches a pattern
+	 * Check whether a file path matches a glob-like pattern.
+	 *
+	 * @param filePath - Candidate file path
+	 * @param pattern - Trigger pattern
+	 * @returns `true` when the path matches
+	 * @internal
 	 */
 	private matchesPattern(filePath: string, pattern: string): boolean {
 		// Convert glob pattern to regex
@@ -753,7 +974,11 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Add entry to history
+	 * Add an entry to execution history with bounded retention.
+	 *
+	 * @param entry - History entry
+	 * @returns Nothing
+	 * @internal
 	 */
 	private addToHistory(entry: AutomationHistoryEntry): void {
 		this.state.history.push(entry);
@@ -765,21 +990,32 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Get timer key for an automation
+	 * Get the timer key for an automation.
+	 *
+	 * @param automationId - Automation identifier
+	 * @returns Timer map key
+	 * @internal
 	 */
 	private getTimerKey(automationId: string): string {
 		return `automation-${automationId}`;
 	}
 
 	/**
-	 * Sleep utility
+	 * Sleep utility for trigger delays.
+	 *
+	 * @param ms - Delay in milliseconds
+	 * @returns Promise resolving after delay
+	 * @internal
 	 */
 	private sleep(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
 
 	/**
-	 * Load state from disk
+	 * Load persistent automation state from disk.
+	 *
+	 * @returns Resolves when load attempt completes
+	 * @internal
 	 */
 	private async loadState(): Promise<void> {
 		try {
@@ -793,7 +1029,10 @@ export class AutomationEngine {
 	}
 
 	/**
-	 * Save state to disk
+	 * Persist automation state to disk.
+	 *
+	 * @returns Resolves when save attempt completes
+	 * @internal
 	 */
 	private async saveState(): Promise<void> {
 		try {
@@ -806,16 +1045,23 @@ export class AutomationEngine {
 }
 
 /**
- * Global automation engine instance
+ * Global automation engine instance.
+ * @internal
  */
 let automationEngineInstance: AutomationEngine | null = null;
 
 /**
- * Get the global automation engine instance
- * 
+ * Get the global automation engine instance.
+ *
  * @param app - Obsidian app instance
  * @param plugin - Plugin instance
  * @returns Automation engine instance
+ * @throws {Error} If engine is not initialized and dependencies are not provided
+ *
+ * @example
+ * ```typescript
+ * const engine = getAutomationEngine(app, plugin);
+ * ```
  */
 export function getAutomationEngine(app?: App, plugin?: VaultCopilotPlugin): AutomationEngine {
 	if (!automationEngineInstance && app && plugin) {
@@ -828,7 +1074,14 @@ export function getAutomationEngine(app?: App, plugin?: VaultCopilotPlugin): Aut
 }
 
 /**
- * Reset the global automation engine instance (for testing)
+ * Reset the global automation engine instance (for testing).
+ *
+ * @returns Nothing
+ *
+ * @example
+ * ```typescript
+ * resetAutomationEngine();
+ * ```
  */
 export function resetAutomationEngine(): void {
 	automationEngineInstance = null;

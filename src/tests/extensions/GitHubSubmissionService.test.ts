@@ -389,6 +389,7 @@ describe("GitHubSubmissionService", () => {
 			["prompt", "my-prompt.prompt.md"],
 			["skill", "skill.md"],
 			["mcp-server", "mcp-config.json"],
+			["automation", "my-automation.automation.md"],
 		])(
 			"should validate %s extension type expects %s file",
 			async (type, expectedFile) => {

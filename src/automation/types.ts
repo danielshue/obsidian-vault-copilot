@@ -12,15 +12,16 @@
  * 
  * @example
  * ```typescript
- * import { AutomationManifest, AutomationTrigger, AutomationAction } from './automation/types';
+ * import { AutomationConfig, AutomationTrigger, AutomationAction } from './automation/types';
  * 
- * const automation: AutomationManifest = {
- *   id: 'daily-note-automation',
- *   type: 'automation',
+ * const automation: AutomationConfig = {
  *   triggers: [{ type: 'schedule', schedule: '0 6 * * *' }],
  *   actions: [{ type: 'run-agent', agentId: 'daily-journal' }]
  * };
  * ```
+ *
+ * @see {@link AutomationEngineState}
+ * @see {@link AutomationExecutionResult}
  * 
  * @since 0.1.0
  */
@@ -236,6 +237,10 @@ export interface AutomationInstance {
 	id: string;
 	/** Display name of the automation */
 	name: string;
+	/** Vault-relative path to the automation definition file */
+	sourcePath?: string;
+	/** Source file format for this automation definition */
+	sourceFormat?: 'automation-markdown';
 	/** Automation configuration */
 	config: AutomationConfig;
 	/** Whether the automation is currently enabled */
@@ -292,7 +297,9 @@ export interface AutomationExecutionContext {
 	trigger: AutomationTrigger;
 	/** Trigger-specific data (e.g., file path for file triggers) */
 	triggerData?: {
+		/** File path associated with a file trigger. */
 		filePath?: string;
+		/** Tag associated with a tag trigger. */
 		tag?: string;
 	};
 	/** Timestamp when execution started */

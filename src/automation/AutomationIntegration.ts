@@ -24,6 +24,9 @@
  *   await handleAutomationUninstall(app, plugin, extensionId);
  * }
  * ```
+ *
+ * @see {@link getAutomationEngine}
+ * @see {@link AutomationConfig}
  * 
  * @since 0.1.0
  */
@@ -31,17 +34,24 @@
 import { App } from 'obsidian';
 import type VaultCopilotPlugin from '../main';
 import { getAutomationEngine } from './AutomationEngine';
-import { AutomationInstance, AutomationConfig } from './types';
+import { AutomationAction, AutomationConfig, AutomationInstance, AutomationTrigger } from './types';
 import { MarketplaceExtension } from '../extensions/types';
+import { parseFrontmatter } from '../copilot/customization/CustomizationLoader';
 
 /**
- * Handle automation extension installation
- * Reads the automation manifest and registers it with the AutomationEngine
- * 
+ * Handle automation extension installation.
+ * Reads the automation manifest and registers it with the AutomationEngine.
+ *
  * @param app - Obsidian app instance
  * @param plugin - Plugin instance
  * @param manifest - Extension manifest
+ * @returns Resolves when installation registration is complete
  * @throws {Error} If automation configuration is invalid or registration fails
+ *
+ * @example
+ * ```typescript
+ * await handleAutomationInstall(app, plugin, manifest);
+ * ```
  */
 export async function handleAutomationInstall(
 	app: App,
@@ -51,38 +61,35 @@ export async function handleAutomationInstall(
 	console.log(`AutomationIntegration: Handling installation of automation '${manifest.uniqueId}'`);
 
 	try {
-		// Get the automation engine
 		const engine = getAutomationEngine(app, plugin);
 
-		// Find the automation configuration file from packageContents
-		const configFile = manifest.packageContents.find(
-			(file) => file.targetLocation.endsWith('.json') && file.targetLocation.includes('.obsidian/automations/')
+		const configFile = manifest.packageContents.find((file) =>
+			file.targetLocation.endsWith('.automation.md')
 		);
 
 		if (!configFile) {
-			throw new Error('No automation configuration file found in package contents');
+			throw new Error('No automation configuration file found in package contents (expected .automation.md)');
 		}
 
-		// Read the automation configuration
 		const configContent = await app.vault.adapter.read(configFile.targetLocation);
-		const config: AutomationConfig = JSON.parse(configContent);
+		const sourceFormat = 'automation-markdown' as const;
+		const parsedConfig = parseFrontmatterAutomationConfig(configContent);
+		const config = parsedConfig.config;
 
-		// Validate the configuration
 		validateAutomationConfig(config);
 
-		// Create automation instance
 		const automation: AutomationInstance = {
 			id: manifest.uniqueId,
-			name: manifest.displayTitle,
+			name: parsedConfig.name ?? manifest.displayTitle,
+			sourcePath: configFile.targetLocation,
+			sourceFormat,
 			config,
 			enabled: config.enabled ?? false,
 			executionCount: 0,
 		};
 
-		// Register with automation engine
 		await engine.registerAutomation(automation);
 
-		// Run on install if configured
 		if (config.runOnInstall) {
 			console.log(`AutomationIntegration: Running automation '${manifest.uniqueId}' on install`);
 			await engine.runAutomation(manifest.uniqueId);
@@ -96,12 +103,111 @@ export async function handleAutomationInstall(
 }
 
 /**
- * Handle automation extension uninstallation
- * Unregisters the automation from the AutomationEngine
- * 
+ * Parse automation configuration from `.automation.md` frontmatter.
+ *
+ * @param content - Automation markdown content
+ * @returns Parsed automation config and optional display name
+ * @throws {Error} If required frontmatter fields are missing
+ * @internal
+ */
+function parseFrontmatterAutomationConfig(content: string): { config: AutomationConfig; name?: string } {
+	const { frontmatter } = parseFrontmatter(content);
+	const configRoot = isRecord(frontmatter.automation)
+		? frontmatter.automation
+		: frontmatter;
+
+	const triggers = toTriggerArray(configRoot.triggers);
+	const actions = toActionArray(configRoot.actions);
+	const enabled = toOptionalBoolean(configRoot.enabled);
+	const runOnInstall = toOptionalBoolean(configRoot.runOnInstall)
+		?? toOptionalBoolean(configRoot['run-on-install'])
+		?? toOptionalBoolean(configRoot.run_on_install);
+
+	const name = typeof configRoot.name === 'string'
+		? configRoot.name
+		: (typeof frontmatter.name === 'string' ? frontmatter.name : undefined);
+
+	return {
+		name,
+		config: {
+			triggers,
+			actions,
+			enabled,
+			runOnInstall,
+		},
+	};
+}
+
+/**
+ * Convert unknown trigger value into a typed trigger array.
+ *
+ * @param value - Raw frontmatter trigger value
+ * @returns Trigger array
+ * @internal
+ */
+function toTriggerArray(value: unknown): AutomationTrigger[] {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+	return value.filter(isRecord).map((item) => item as unknown as AutomationTrigger);
+}
+
+/**
+ * Convert unknown action value into a typed action array.
+ *
+ * @param value - Raw frontmatter action value
+ * @returns Action array
+ * @internal
+ */
+function toActionArray(value: unknown): AutomationAction[] {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+	return value.filter(isRecord).map((item) => item as unknown as AutomationAction);
+}
+
+/**
+ * Parse an optional boolean from frontmatter values.
+ *
+ * @param value - Input value
+ * @returns Boolean when parseable, otherwise undefined
+ * @internal
+ */
+function toOptionalBoolean(value: unknown): boolean | undefined {
+	if (typeof value === 'boolean') {
+		return value;
+	}
+	if (typeof value === 'string') {
+		if (value.toLowerCase() === 'true') return true;
+		if (value.toLowerCase() === 'false') return false;
+	}
+	return undefined;
+}
+
+/**
+ * Check whether value is a plain object record.
+ *
+ * @param value - Unknown input value
+ * @returns True when value is a non-null object record
+ * @internal
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Handle automation extension uninstallation.
+ * Unregisters the automation from the AutomationEngine.
+ *
  * @param app - Obsidian app instance
  * @param plugin - Plugin instance
  * @param extensionId - ID of extension being uninstalled
+ * @returns Resolves when uninstall cleanup completes
+ *
+ * @example
+ * ```typescript
+ * await handleAutomationUninstall(app, plugin, "daily-note-automation");
+ * ```
  */
 export async function handleAutomationUninstall(
 	app: App,
@@ -125,10 +231,12 @@ export async function handleAutomationUninstall(
 }
 
 /**
- * Validate automation configuration
- * 
+ * Validate automation configuration.
+ *
  * @param config - Automation configuration to validate
+ * @returns Nothing
  * @throws {Error} If configuration is invalid
+ * @internal
  */
 function validateAutomationConfig(config: AutomationConfig): void {
 	if (!config.triggers || config.triggers.length === 0) {

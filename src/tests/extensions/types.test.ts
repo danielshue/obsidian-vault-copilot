@@ -33,6 +33,7 @@ describe("ExtensionTypes", () => {
 				expect(isValidExtensionKind("prompt")).toBe(true);
 				expect(isValidExtensionKind("skill")).toBe(true);
 				expect(isValidExtensionKind("mcp-server")).toBe(true);
+				expect(isValidExtensionKind("automation")).toBe(true);
 			});
 
 			it("should return false for invalid extension kinds", () => {
@@ -307,9 +308,10 @@ describe("ExtensionTypes", () => {
 				"prompt",
 				"skill",
 				"mcp-server",
+				"automation",
 			];
 
-			expect(kinds).toHaveLength(5);
+			expect(kinds).toHaveLength(6);
 			kinds.forEach(kind => {
 				expect(isValidExtensionKind(kind)).toBe(true);
 			});

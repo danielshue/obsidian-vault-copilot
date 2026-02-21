@@ -895,7 +895,8 @@ export class ExtensionSubmissionModal extends Modal {
 				"voice-agent": ".voice-agent.md",
 				"prompt": ".prompt.md",
 				"skill": ".skill.md",
-				"mcp-server": ".mcp-server.md"
+				"mcp-server": ".mcp-server.md",
+				"automation": ".automation.md"
 			};
 			const suffix = suffixes[data.extensionType] || ".md";
 			const oldFileName = `${this.originalDerivedId}${suffix}`;
@@ -924,6 +925,8 @@ export class ExtensionSubmissionModal extends Modal {
 						return "skill.md";
 					case "mcp-server":
 						return "mcp-config.json";
+					case "automation":
+						return `${data.extensionId}.automation.md`;
 					default:
 						return `${data.extensionId}.md`;
 				}

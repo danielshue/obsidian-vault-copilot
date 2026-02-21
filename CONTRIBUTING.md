@@ -86,9 +86,11 @@ Create a folder for your extension in the appropriate type directory:
 
 ```bash
 # Choose the right folder for your extension type
-mkdir -p extensions/agents/my-extension-name
-cd extensions/agents/my-extension-name
+mkdir -p extensions/<type>/my-extension-name
+cd extensions/<type>/my-extension-name
 ```
+
+Replace `<type>` with one of: `agents`, `voice-agents`, `prompts`, `skills`, `automations`, `mcp-servers`.
 
 **Folder Structure:**
 
@@ -105,6 +107,7 @@ extensions/
 ├── voice-agents/
 ├── prompts/
 ├── skills/
+├── automations/
 └── mcp-servers/
 ```
 
@@ -164,7 +167,7 @@ The manifest defines your extension's metadata and configuration:
 | `id` | Yes | Unique identifier (lowercase, hyphens only) |
 | `name` | Yes | Display name (max 50 characters) |
 | `version` | Yes | Semantic version (x.y.z) |
-| `type` | Yes | `agent`, `voice-agent`, `prompt`, `skill`, or `mcp-server` |
+| `type` | Yes | `agent`, `voice-agent`, `prompt`, `skill`, `automation`, or `mcp-server` |
 | `description` | Yes | Short description (max 200 characters) |
 | `author` | Yes | Author info with at least `name` |
 | `files` | Yes | Array of files with `source` and `installPath` |
@@ -245,6 +248,7 @@ Create the actual extension content file based on your extension type:
 | Voice Agent | `*.voice-agent.md` | `my-extension.voice-agent.md` |
 | Prompt | `*.prompt.md` | `my-extension.prompt.md` |
 | Skill | `skill.md` | `skill.md` |
+| Automation | `*.automation.md` | `my-extension.automation.md` |
 | MCP Server | `mcp-config.json` | `mcp-config.json` |
 
 #### `preview.png` (Recommended)
@@ -303,7 +307,7 @@ If not provided, the extension defaults to MIT License. Include a LICENSE file i
 Run the validation script in the [vault-copilot-extensions](https://github.com/danielshue/vault-copilot-extensions) repo to check your extension before submitting:
 
 ```bash
-node scripts/validate-extension.cjs extensions/agents/my-extension-name
+node scripts/validate-extension.cjs extensions/<type>/my-extension-name
 ```
 
 **The validator checks:**
@@ -328,7 +332,7 @@ Create a branch and submit your extension:
 git checkout -b add-my-extension-name
 
 # Stage your extension files
-git add extensions/agents/my-extension-name
+git add extensions/<type>/my-extension-name
 
 # Commit with a descriptive message
 git commit -m "feat: add My Extension Name"

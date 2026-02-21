@@ -79,6 +79,50 @@ Registered skills appear in the Vault Copilot settings panel, and the AI automat
 
 For implementation details, TypeScript types, and code examples, see the [Developer API Documentation](docs/developer-api.md).
 
+### Automation packaging
+
+If you are creating automation extensions, package them as markdown automation files:
+
+- Use extension type `automation` in `manifest.json`
+- Place automation packages under `extensions/automations/<extension-id>/`
+- Include a single primary automation file named `<extension-id>.automation.md`
+- Define automation behavior in YAML frontmatter (`name`, `enabled`, `run-on-install`, `triggers`, `actions`)
+- Automation installs to `.obsidian/automations/` in the target vault
+
+Example:
+
+```json
+// manifest.json
+{
+	"id": "daily-review",
+	"type": "automation",
+	"files": [
+		{
+			"source": "daily-review.automation.md",
+			"installPath": ".obsidian/automations/"
+		}
+	]
+}
+```
+
+```markdown
+---
+name: Daily review
+enabled: true
+run-on-install: false
+triggers:
+	- type: schedule
+		schedule: "0 17 * * 1-5"
+actions:
+	- type: run-prompt
+		promptId: daily-review
+	- type: create-note
+		path: "Daily Notes/{{date:YYYY-MM-DD}}-review.md"
+---
+```
+
+See the contributor workflow in [CONTRIBUTING.md](CONTRIBUTING.md) and working examples in [test-vault/automations/README.md](test-vault/automations/README.md).
+
 ## Contributing
 Contributions are welcome! Please read our Contributing Guide for details on our code of conduct and the process for submitting pull requests.
 

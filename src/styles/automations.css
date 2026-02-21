@@ -43,6 +43,16 @@
 	color: var(--text-normal);
 }
 
+.vc-automation-link {
+	color: var(--link-color);
+	text-decoration: none;
+	font-family: var(--font-text);
+}
+
+.vc-automation-link:hover {
+	text-decoration: underline;
+}
+
 .vc-automation-triggers {
 	color: var(--text-muted);
 	font-size: 0.9em;
@@ -60,6 +70,10 @@
 	font-weight: 500;
 }
 
+.vc-automation-status .vc-status-badge + .vc-status-badge {
+	margin-left: 0.4em;
+}
+
 .vc-status-enabled {
 	background: var(--interactive-success);
 	color: var(--text-on-accent);
@@ -70,7 +84,18 @@
 	color: var(--text-muted);
 }
 
+.vc-status-running {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
 .vc-automation-lastrun {
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.vc-automation-next-run,
+.vc-automation-scheduled {
 	font-size: 0.9em;
 	color: var(--text-muted);
 }
@@ -87,6 +112,7 @@
 
 .vc-automation-actions {
 	text-align: right;
+	white-space: nowrap;
 }
 
 .vc-automation-actions button {
@@ -191,6 +217,10 @@
 .vc-grid-value {
 	font-weight: 500;
 	color: var(--text-normal);
+}
+
+.vc-automation-source-actions {
+	margin-top: 0.75em;
 }
 
 .vc-automation-list {

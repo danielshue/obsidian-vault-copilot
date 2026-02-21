@@ -390,7 +390,7 @@ export interface UpdateNotification {
  */
 export function isValidExtensionKind(value: unknown): value is VaultExtensionKind {
 	return typeof value === "string" && 
-		["agent", "voice-agent", "prompt", "skill", "mcp-server"].includes(value);
+		["agent", "voice-agent", "prompt", "skill", "mcp-server", "automation"].includes(value);
 }
 
 /**

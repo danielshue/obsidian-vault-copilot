@@ -12,15 +12,17 @@
  * @since 0.1.0
  */
 
-import { App, Modal } from 'obsidian';
+import { App, Modal, Notice, TFile } from 'obsidian';
 import type { AutomationInstance } from '../../../automation/types';
 
 export class AutomationDetailsModal extends Modal {
 	private automation: AutomationInstance;
+	private isRunning: boolean;
 
-	constructor(app: App, automation: AutomationInstance) {
+	constructor(app: App, automation: AutomationInstance, isRunning: boolean = false) {
 		super(app);
 		this.automation = automation;
+		this.isRunning = isRunning;
 	}
 
 	onOpen(): void {
@@ -35,6 +37,12 @@ export class AutomationDetailsModal extends Modal {
 			cls: `vc-status-badge ${this.automation.enabled ? 'vc-status-enabled' : 'vc-status-disabled'}`,
 			text: this.automation.enabled ? 'Enabled' : 'Disabled'
 		});
+		if (this.isRunning) {
+			header.createEl('span', {
+				cls: 'vc-status-badge vc-status-running',
+				text: 'Running',
+			});
+		}
 
 		// Overview section
 		const overview = contentEl.createDiv({ cls: 'vc-automation-section' });
@@ -44,6 +52,17 @@ export class AutomationDetailsModal extends Modal {
 		
 		this.addGridItem(overviewGrid, 'ID', this.automation.id);
 		this.addGridItem(overviewGrid, 'Execution Count', String(this.automation.executionCount));
+		if (this.automation.sourcePath) {
+			this.addGridItem(overviewGrid, 'Source', this.automation.sourcePath);
+			const sourceActions = overview.createDiv({ cls: 'vc-automation-source-actions' });
+			const openBtn = sourceActions.createEl('button', {
+				cls: 'mod-cta',
+				text: 'Open source file',
+			});
+			openBtn.onclick = async () => {
+				await this.openSourceFile();
+			};
+		}
 		
 		if (this.automation.lastRun) {
 			const date = new Date(this.automation.lastRun);
@@ -173,5 +192,20 @@ export class AutomationDetailsModal extends Modal {
 		const item = container.createEl('div', { cls: 'vc-grid-item' });
 		item.createEl('div', { text: label, cls: 'vc-grid-label' });
 		item.createEl('div', { text: value, cls: 'vc-grid-value' });
+	}
+
+	private async openSourceFile(): Promise<void> {
+		if (!this.automation.sourcePath) {
+			new Notice('No source file available for this automation');
+			return;
+		}
+
+		const file = this.app.vault.getAbstractFileByPath(this.automation.sourcePath);
+		if (file instanceof TFile) {
+			await this.app.workspace.getLeaf(true).openFile(file);
+			return;
+		}
+
+		new Notice(`Could not find source file: ${this.automation.sourcePath}`);
 	}
 }
