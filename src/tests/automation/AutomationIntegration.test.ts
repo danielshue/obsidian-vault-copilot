@@ -60,8 +60,8 @@ run-on-install: true
 triggers:
   - type: startup
 actions:
-  - type: run-command
-    commandId: command-palette:open
+  - type: run-agent
+    agentId: morning-planner
 ---
 `),
 				},

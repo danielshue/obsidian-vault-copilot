@@ -39,7 +39,7 @@
  * @since 0.1.0
  */
 
-import { App, TFile, Notice } from 'obsidian';
+import { App, TFile, TFolder, EventRef } from 'obsidian';
 import CronExpressionParser from 'cron-parser';
 import type VaultCopilotPlugin from '../main';
 import {
@@ -53,7 +53,9 @@ import {
 	AutomationHistoryEntry,
 	ScheduleTrigger,
 	FileTrigger,
+	TagAddedTrigger,
 } from './types';
+import { parseFrontmatterAutomationConfig, validateAutomationConfig } from './AutomationIntegration';
 
 /**
  * Core automation engine for runtime registration, scheduling, and execution.
@@ -84,6 +86,12 @@ export class AutomationEngine {
 	private maxHistoryEntries = 100;
 	/** Persistent state file path. @internal */
 	private stateFilePath = '.obsidian/vault-copilot-automations.json';
+	/** Directories to scan for vault-based .automation.md files. @internal */
+	private automationDirectories: string[] = [];
+	/** File watcher event references for cleanup. @internal */
+	private fileWatcherRefs: EventRef[] = [];
+	/** Cached tag state per file for tag-added detection. @internal */
+	private tagCache: Map<string, Set<string>> = new Map();
 
 	/**
 	 * Create a new automation engine instance.
@@ -102,18 +110,23 @@ export class AutomationEngine {
 
 	/**
 	 * Initialize the automation engine.
-	 * Loads state, registers vault listeners, and starts eligible triggers.
+	 * Loads state, scans vault directories for .automation.md files,
+	 * registers vault listeners, and starts eligible triggers.
 	 *
+	 * @param directories - Directories to scan for vault-based .automation.md files
 	 * @returns Resolves when initialization is complete
 	 * @example
 	 * ```typescript
-	 * await engine.initialize();
+	 * await engine.initialize(['automations']);
 	 * ```
 	 */
-	async initialize(): Promise<void> {
+	async initialize(directories: string[] = []): Promise<void> {
 		console.log('AutomationEngine: Initializing...');
+		this.automationDirectories = directories;
 		await this.loadState();
+		await this.scanVaultAutomations();
 		this.setupVaultListeners();
+		this.setupAutomationFileWatchers();
 		this.startScheduledAutomations();
 		this.runStartupAutomations();
 		console.log(`AutomationEngine: Initialized with ${Object.keys(this.state.automations).length} automations`);
@@ -133,7 +146,9 @@ export class AutomationEngine {
 		console.log('AutomationEngine: Shutting down...');
 		this.stopAllScheduledAutomations();
 		this.cleanupEventListeners();
+		this.cleanupFileWatchers();
 		this.runningExecutionCounts.clear();
+		this.tagCache.clear();
 		await this.saveState();
 		console.log('AutomationEngine: Shutdown complete');
 	}
@@ -162,7 +177,97 @@ export class AutomationEngine {
 		}
 
 		await this.saveState();
-		new Notice(`Automation '${automation.name}' registered`);
+	}
+
+	/**
+	 * Update an existing automation's config while preserving runtime state.
+	 *
+	 * Used when a vault `.automation.md` file is modified — the config (triggers,
+	 * actions) is re-read from the file, but runtime state like `lastRun`,
+	 * `executionCount`, and `enabled` is preserved.
+	 *
+	 * @param automation - Updated automation instance (runtime state fields are ignored)
+	 * @returns Resolves when update is persisted
+	 * @example
+	 * ```typescript
+	 * await engine.updateAutomation(updatedAutomation);
+	 * ```
+	 */
+	async updateAutomation(automation: AutomationInstance): Promise<void> {
+		const existing = this.state.automations[automation.id];
+		if (!existing) {
+			// Not yet registered — treat as new registration
+			return this.registerAutomation(automation);
+		}
+
+		console.log(`AutomationEngine: Updating automation '${automation.name}' (${automation.id})`);
+
+		// Deactivate before updating triggers
+		await this.deactivateAutomation(automation.id);
+
+		// Update config-derived fields, preserve runtime state
+		existing.name = automation.name;
+		existing.config = automation.config;
+		existing.sourcePath = automation.sourcePath;
+		existing.sourceFormat = automation.sourceFormat;
+		existing.origin = automation.origin;
+
+		// Re-apply enabled from file if automation hasn't been toggled by user
+		// (keep user's enabled preference if they've manually toggled it)
+
+		// Reactivate if enabled
+		if (existing.enabled) {
+			await this.activateAutomation(automation.id);
+		}
+
+		await this.saveState();
+	}
+
+	/**
+	 * Update automation directories and rescan.
+	 *
+	 * Called when the user changes automation directories in settings.
+	 *
+	 * @param directories - New list of directories to scan
+	 * @returns Resolves when rescan is complete
+	 * @example
+	 * ```typescript
+	 * await engine.updateDirectories(['automations', 'workflows']);
+	 * ```
+	 */
+	async updateDirectories(directories: string[]): Promise<void> {
+		const normalized = directories.map(d => d.replace(/\\/g, '/').replace(/\/+$/, ''));
+		const oldNormalized = this.automationDirectories.map(d => d.replace(/\\/g, '/').replace(/\/+$/, ''));
+
+		if (JSON.stringify(normalized) === JSON.stringify(oldNormalized)) {
+			return; // No change
+		}
+
+		console.log('AutomationEngine: Automation directories changed, rescanning...');
+		this.automationDirectories = directories;
+
+		// Remove vault-origin automations that are no longer in configured directories
+		for (const automation of Object.values(this.state.automations)) {
+			if (automation.origin === 'vault' && automation.sourcePath) {
+				if (!this.isAutomationFile(automation.sourcePath)) {
+					console.log(`AutomationEngine: Removing automation '${automation.name}' — no longer in configured directories`);
+					await this.deactivateAutomation(automation.id);
+					delete this.state.automations[automation.id];
+				}
+			}
+		}
+
+		// Rescan to pick up new automations
+		await this.scanVaultAutomations();
+
+		// Re-setup file watchers for new directories
+		this.cleanupFileWatchers();
+		this.setupAutomationFileWatchers();
+
+		// Restart schedules for newly discovered automations
+		this.startScheduledAutomations();
+
+		await this.saveState();
 	}
 
 	/**
@@ -187,7 +292,6 @@ export class AutomationEngine {
 		this.runningExecutionCounts.delete(automationId);
 		delete this.state.automations[automationId];
 		await this.saveState();
-		new Notice(`Automation '${automation.name}' unregistered`);
 	}
 
 	/**
@@ -211,7 +315,6 @@ export class AutomationEngine {
 			automation.enabled = true;
 			await this.activateAutomation(automationId);
 			await this.saveState();
-			new Notice(`Automation '${automation.name}' enabled`);
 		}
 	}
 
@@ -236,7 +339,6 @@ export class AutomationEngine {
 			automation.enabled = false;
 			await this.deactivateAutomation(automationId);
 			await this.saveState();
-			new Notice(`Automation '${automation.name}' disabled`);
 		}
 	}
 
@@ -426,7 +528,6 @@ export class AutomationEngine {
 			this.scheduledTimers.set(timerKey, timer);
 		} catch (error) {
 			console.error(`AutomationEngine: Failed to schedule automation ${automationId}:`, error);
-			new Notice(`Failed to schedule automation: Invalid cron expression`);
 		}
 	}
 
@@ -502,11 +603,7 @@ export class AutomationEngine {
 
 			await this.saveState();
 
-			if (overallSuccess) {
-				new Notice(`Automation '${automation.name}' completed successfully`);
-			} else {
-				new Notice(`Automation '${automation.name}' failed: ${overallError}`);
-			}
+
 
 			return result;
 		} finally {
@@ -569,15 +666,6 @@ export class AutomationEngine {
 				case 'run-skill':
 					result = await this.executeRunSkill(action, context);
 					break;
-				case 'create-note':
-					result = await this.executeCreateNote(action, context);
-					break;
-				case 'update-note':
-					result = await this.executeUpdateNote(action, context);
-					break;
-				case 'run-command':
-					result = await this.executeRunCommand(action, context);
-					break;
 				default:
 					throw new Error(`Unknown action type: ${(action as AutomationAction).type}`);
 			}
@@ -619,7 +707,8 @@ export class AutomationEngine {
 
 		const fullAgent = await this.plugin.agentCache.getFullAgent(agentId);
 		if (!fullAgent) {
-			throw new Error(`Agent '${agentId}' not found in AgentCache`);
+			const available = this.plugin.agentCache.getAgents().map(a => a.name).join(', ');
+			throw new Error(`Agent '${agentId}' not found in AgentCache. Available agents: [${available}]`);
 		}
 
 		const inputStr = input ? Object.entries(input).map(([k, v]) => `${k}: ${String(v)}`).join('\n') : '';
@@ -726,81 +815,7 @@ export class AutomationEngine {
 		throw new Error(`Skill '${skillId}' not found in SkillRegistry or SkillCache`);
 	}
 
-	/**
-	 * Execute `create-note` action.
-	 *
-	 * @param action - Create-note action config
-	 * @param context - Execution context
-	 * @returns Created note path
-	 * @throws {Error} If note already exists
-	 * @internal
-	 */
-	private async executeCreateNote(action: Extract<AutomationAction, { type: 'create-note' }>, context: AutomationExecutionContext): Promise<string> {
-		const { path, template } = action;
-		console.log(`AutomationEngine: Creating note at '${path}'`);
-		
-		// Check if file already exists
-		const existingFile = this.app.vault.getAbstractFileByPath(path);
-		if (existingFile) {
-			throw new Error(`Note already exists at ${path}`);
-		}
 
-		// Create the note
-		const content = template || '';
-		const file = await this.app.vault.create(path, content);
-		
-		return file.path;
-	}
-
-	/**
-	 * Execute `update-note` action.
-	 *
-	 * @param action - Update-note action config
-	 * @param context - Execution context
-	 * @returns Updated note path
-	 * @throws {Error} If note is not found
-	 * @internal
-	 */
-	private async executeUpdateNote(action: Extract<AutomationAction, { type: 'update-note' }>, context: AutomationExecutionContext): Promise<string> {
-		const { path, template } = action;
-		console.log(`AutomationEngine: Updating note at '${path}'`);
-		
-		// Get the file
-		const file = this.app.vault.getAbstractFileByPath(path);
-		if (!file || !(file instanceof TFile)) {
-			throw new Error(`Note not found at ${path}`);
-		}
-
-		// Update the note
-		if (template) {
-			await this.app.vault.modify(file, template);
-		}
-		
-		return file.path;
-	}
-
-	/**
-	 * Execute `run-command` action.
-	 *
-	 * @param action - Run-command action config
-	 * @param context - Execution context
-	 * @returns `true` when command execution succeeds
-	 * @throws {Error} If command execution fails
-	 * @internal
-	 */
-	private async executeRunCommand(action: Extract<AutomationAction, { type: 'run-command' }>, context: AutomationExecutionContext): Promise<boolean> {
-		const { commandId } = action;
-		console.log(`AutomationEngine: Running command '${commandId}'`);
-		
-		// Execute the command
-		const success = (this.app as any).commands.executeCommandById(commandId);
-		
-		if (!success) {
-			throw new Error(`Command '${commandId}' failed or not found`);
-		}
-		
-		return true;
-	}
 
 	/**
 	 * Set up vault event listeners for trigger routing.
@@ -840,6 +855,18 @@ export class AutomationEngine {
 		this.app.workspace.onLayoutReady(() => {
 			this.handleVaultOpened();
 		});
+
+		// Tag-added detection via metadata cache
+		this.plugin.registerEvent(
+			this.app.metadataCache.on('changed', (file) => {
+				if (file instanceof TFile) {
+					this.handleMetadataChanged(file);
+				}
+			})
+		);
+
+		// Initialize tag cache for existing files
+		this.initializeTagCache();
 	}
 
 	/**
@@ -905,6 +932,97 @@ export class AutomationEngine {
 					this.executeAutomation(automation, trigger).catch((error) => {
 						console.error(`AutomationEngine: Failed to execute automation:`, error);
 					});
+				}
+			}
+		}
+	}
+
+	/**
+	 * Initialize the tag cache from current vault metadata.
+	 *
+	 * @returns Nothing
+	 * @internal
+	 */
+	private initializeTagCache(): void {
+		const files = this.app.vault.getMarkdownFiles();
+		for (const file of files) {
+			const cache = this.app.metadataCache.getFileCache(file);
+			const tags = new Set<string>();
+			if (cache?.tags) {
+				for (const t of cache.tags) {
+					tags.add(t.tag);
+				}
+			}
+			if (cache?.frontmatter?.tags) {
+				const fmTags: string[] = Array.isArray(cache.frontmatter.tags) ? cache.frontmatter.tags : [];
+				for (const t of fmTags) {
+					tags.add(t.startsWith('#') ? t : `#${t}`);
+				}
+			}
+			if (tags.size > 0) {
+				this.tagCache.set(file.path, tags);
+			}
+		}
+		console.log(`AutomationEngine: Initialized tag cache for ${this.tagCache.size} files`);
+	}
+
+	/**
+	 * Handle metadata changed events and detect newly added tags.
+	 *
+	 * @param file - File whose metadata changed
+	 * @returns Nothing
+	 * @internal
+	 */
+	private handleMetadataChanged(file: TFile): void {
+		const cache = this.app.metadataCache.getFileCache(file);
+		const newTags = new Set<string>();
+
+		if (cache?.tags) {
+			for (const t of cache.tags) {
+				newTags.add(t.tag);
+			}
+		}
+		if (cache?.frontmatter?.tags) {
+			const fmTags: string[] = Array.isArray(cache.frontmatter.tags) ? cache.frontmatter.tags : [];
+			for (const t of fmTags) {
+				newTags.add(t.startsWith('#') ? t : `#${t}`);
+			}
+		}
+
+		const oldTags = this.tagCache.get(file.path) || new Set<string>();
+		const addedTags = new Set([...newTags].filter(t => !oldTags.has(t)));
+
+		// Update cache
+		this.tagCache.set(file.path, newTags);
+
+		// Dispatch tag-added triggers
+		if (addedTags.size > 0) {
+			this.handleTagsAdded(file.path, addedTags);
+		}
+	}
+
+	/**
+	 * Handle newly added tags by dispatching matching automations.
+	 *
+	 * @param filePath - File where tags were added
+	 * @param addedTags - Set of newly added tags
+	 * @returns Nothing
+	 * @internal
+	 */
+	private handleTagsAdded(filePath: string, addedTags: Set<string>): void {
+		for (const automation of Object.values(this.state.automations)) {
+			if (!automation.enabled) continue;
+
+			for (const trigger of automation.config.triggers) {
+				if (trigger.type === 'tag-added') {
+					const tagTrigger = trigger as TagAddedTrigger;
+					const normalizedTriggerTag = tagTrigger.tag.startsWith('#') ? tagTrigger.tag : `#${tagTrigger.tag}`;
+					if (addedTags.has(normalizedTriggerTag)) {
+						console.log(`AutomationEngine: Tag '${normalizedTriggerTag}' added to '${filePath}', triggering automation '${automation.name}'`);
+						this.executeAutomation(automation, trigger).catch((error) => {
+							console.error(`AutomationEngine: Failed to execute tag-added automation '${automation.name}':`, error);
+						});
+					}
 				}
 			}
 		}
@@ -1009,6 +1127,327 @@ export class AutomationEngine {
 	 */
 	private sleep(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	// =========================================================================
+	// Vault Automation Scanning & File Watchers
+	// =========================================================================
+
+	/**
+	 * Derive an automation ID from a vault file path.
+	 *
+	 * @param filePath - Vault-relative path to a `.automation.md` file
+	 * @returns Prefixed automation ID (e.g., `vault:daily-planning-brief`)
+	 * @internal
+	 */
+	private deriveAutomationId(filePath: string): string {
+		const basename = filePath.split('/').pop() || filePath;
+		const name = basename.replace(/\.automation\.md$/i, '');
+		return `vault:${name}`;
+	}
+
+	/**
+	 * Check whether a file path is an automation definition file within
+	 * a configured automation directory.
+	 *
+	 * @param filePath - Vault-relative file path to check
+	 * @returns `true` when the path is an `.automation.md` file inside a configured directory
+	 * @internal
+	 */
+	private isAutomationFile(filePath: string): boolean {
+		if (!filePath.endsWith('.automation.md')) {
+			return false;
+		}
+		return this.automationDirectories.some(dir => {
+			const normalizedDir = dir.replace(/\\/g, '/').replace(/\/+$/, '');
+			const normalizedPath = filePath.replace(/\\/g, '/');
+			return normalizedPath.startsWith(normalizedDir + '/');
+		});
+	}
+
+	/**
+	 * Scan configured vault directories for `.automation.md` files and
+	 * register/update them in the engine.
+	 *
+	 * For new vault automations, registers them. For existing ones (persisted
+	 * from a previous session), re-reads config from the file (source of truth)
+	 * while preserving runtime state.
+	 *
+	 * Also removes vault-origin automations whose source file no longer exists.
+	 *
+	 * @returns Resolves when scanning is complete
+	 * @internal
+	 */
+	private async scanVaultAutomations(): Promise<void> {
+		if (this.automationDirectories.length === 0) {
+			return;
+		}
+
+		console.log(`AutomationEngine: Scanning vault directories for .automation.md files: ${this.automationDirectories.join(', ')}`);
+		const discoveredIds = new Set<string>();
+
+		for (const dir of this.automationDirectories) {
+			const normalizedDir = dir.replace(/\\/g, '/').replace(/\/+$/, '');
+			const folder = this.app.vault.getAbstractFileByPath(normalizedDir);
+			if (!folder || !(folder instanceof TFolder)) {
+				console.log(`AutomationEngine: Directory '${normalizedDir}' not found, skipping`);
+				continue;
+			}
+
+			// Recursively find .automation.md files
+			const automationFiles = this.findAutomationFiles(folder);
+			console.log(`AutomationEngine: Found ${automationFiles.length} .automation.md file(s) in '${normalizedDir}'`);
+
+			for (const file of automationFiles) {
+				try {
+					const automationId = this.deriveAutomationId(file.path);
+					discoveredIds.add(automationId);
+
+					// Check for ID collision with extension-installed automations
+					const existing = this.state.automations[automationId];
+					if (existing && existing.origin === 'extension') {
+						console.warn(`AutomationEngine: Vault file '${file.path}' produces ID '${automationId}' which conflicts with extension automation — skipping`);
+						continue;
+					}
+
+					const content = await this.app.vault.read(file);
+					const parsed = parseFrontmatterAutomationConfig(content);
+					validateAutomationConfig(parsed.config);
+
+					const automation: AutomationInstance = {
+						id: automationId,
+						name: parsed.name || file.basename.replace(/\.automation$/, ''),
+						description: parsed.description,
+						sourcePath: file.path,
+						sourceFormat: 'automation-markdown',
+						origin: 'vault',
+						config: parsed.config,
+						enabled: parsed.config.enabled ?? true,
+						executionCount: 0,
+					};
+
+					if (existing && existing.origin === 'vault') {
+						// Update existing vault automation — preserve runtime state
+						await this.updateAutomation(automation);
+					} else {
+						// New vault automation — register
+						this.state.automations[automation.id] = automation;
+						if (automation.enabled) {
+							await this.activateAutomation(automation.id);
+						}
+						// Honor run-on-install for new vault automations
+						if (parsed.config.runOnInstall && automation.enabled && automation.config.triggers[0]) {
+							console.log(`AutomationEngine: Running on install for vault automation '${automation.name}'`);
+							this.executeAutomation(automation, automation.config.triggers[0]).catch((error) => {
+								console.error(`AutomationEngine: run-on-install failed for '${automation.name}':`, error);
+							});
+						}
+					}
+				} catch (error) {
+					console.warn(`AutomationEngine: Failed to load automation from '${file.path}':`, error);
+				}
+			}
+		}
+
+		// Remove vault-origin automations whose source files no longer exist
+		for (const [id, automation] of Object.entries(this.state.automations)) {
+			if (automation.origin === 'vault' && !discoveredIds.has(id)) {
+				console.log(`AutomationEngine: Removing stale vault automation '${automation.name}' (${id}) — source file no longer exists`);
+				await this.deactivateAutomation(id);
+				delete this.state.automations[id];
+			}
+		}
+
+		await this.saveState();
+	}
+
+	/**
+	 * Recursively find `.automation.md` files within a folder.
+	 *
+	 * @param folder - Vault folder to search
+	 * @returns Array of TFile instances matching the `.automation.md` pattern
+	 * @internal
+	 */
+	private findAutomationFiles(folder: TFolder): TFile[] {
+		const files: TFile[] = [];
+		for (const child of folder.children) {
+			if (child instanceof TFile && child.path.endsWith('.automation.md')) {
+				files.push(child);
+			} else if (child instanceof TFolder) {
+				files.push(...this.findAutomationFiles(child));
+			}
+		}
+		return files;
+	}
+
+	/**
+	 * Set up file watchers for `.automation.md` files in configured directories.
+	 *
+	 * Watches for create, modify, delete, and rename events to keep vault automations
+	 * in sync with their source files.
+	 *
+	 * @returns Nothing
+	 * @internal
+	 */
+	private setupAutomationFileWatchers(): void {
+		if (this.automationDirectories.length === 0) {
+			return;
+		}
+
+		// Watch for new automation files
+		const createRef = this.app.vault.on('create', async (file) => {
+			if (file instanceof TFile && this.isAutomationFile(file.path)) {
+				console.log(`AutomationEngine: Detected new automation file '${file.path}'`);
+				try {
+					const content = await this.app.vault.read(file);
+					const parsed = parseFrontmatterAutomationConfig(content);
+					validateAutomationConfig(parsed.config);
+
+					const automationId = this.deriveAutomationId(file.path);
+					const existing = this.state.automations[automationId];
+					if (existing && existing.origin === 'extension') {
+						console.warn(`AutomationEngine: Vault file '${file.path}' conflicts with extension automation '${automationId}' — skipping`);
+						return;
+					}
+
+					const automation: AutomationInstance = {
+						id: automationId,
+						name: parsed.name || file.basename.replace(/\.automation$/, ''),
+						description: parsed.description,
+						sourcePath: file.path,
+						sourceFormat: 'automation-markdown',
+						origin: 'vault',
+						config: parsed.config,
+						enabled: parsed.config.enabled ?? true,
+						executionCount: 0,
+					};
+
+					if (existing) {
+						await this.updateAutomation(automation);
+					} else {
+						await this.registerAutomation(automation);
+					}
+				} catch (error) {
+					console.warn(`AutomationEngine: Failed to register automation from '${file.path}':`, error);
+				}
+			}
+		});
+		this.fileWatcherRefs.push(createRef);
+		this.plugin.registerEvent(createRef);
+
+		// Watch for modified automation files
+		const modifyRef = this.app.vault.on('modify', async (file) => {
+			if (file instanceof TFile && this.isAutomationFile(file.path)) {
+				const automationId = this.deriveAutomationId(file.path);
+				const existing = this.state.automations[automationId];
+				if (!existing || existing.origin !== 'vault') {
+					return; // Only re-read vault-origin automations
+				}
+
+				console.log(`AutomationEngine: Detected modification to automation file '${file.path}'`);
+				try {
+					const content = await this.app.vault.read(file);
+					const parsed = parseFrontmatterAutomationConfig(content);
+					validateAutomationConfig(parsed.config);
+
+					const automation: AutomationInstance = {
+						id: automationId,
+						name: parsed.name || file.basename.replace(/\.automation$/, ''),
+						description: parsed.description,
+						sourcePath: file.path,
+						sourceFormat: 'automation-markdown',
+						origin: 'vault',
+						config: parsed.config,
+						enabled: parsed.config.enabled ?? true,
+						executionCount: 0,
+					};
+
+					await this.updateAutomation(automation);
+				} catch (error) {
+					console.warn(`AutomationEngine: Failed to update automation from '${file.path}':`, error);
+				}
+			}
+		});
+		this.fileWatcherRefs.push(modifyRef);
+		this.plugin.registerEvent(modifyRef);
+
+		// Watch for deleted automation files
+		const deleteRef = this.app.vault.on('delete', async (file) => {
+			if (file instanceof TFile && file.path.endsWith('.automation.md')) {
+				const automationId = this.deriveAutomationId(file.path);
+				const existing = this.state.automations[automationId];
+				if (existing && existing.origin === 'vault') {
+					console.log(`AutomationEngine: Automation file '${file.path}' deleted, unregistering '${automationId}'`);
+					await this.deactivateAutomation(automationId);
+					this.runningExecutionCounts.delete(automationId);
+					delete this.state.automations[automationId];
+					await this.saveState();
+				}
+			}
+		});
+		this.fileWatcherRefs.push(deleteRef);
+		this.plugin.registerEvent(deleteRef);
+
+		// Watch for renamed automation files (treat as delete + create)
+		const renameRef = this.app.vault.on('rename', async (file, oldPath) => {
+			// Handle old path removal
+			if (oldPath.endsWith('.automation.md')) {
+				const oldId = this.deriveAutomationId(oldPath);
+				const existing = this.state.automations[oldId];
+				if (existing && existing.origin === 'vault') {
+					console.log(`AutomationEngine: Automation file renamed from '${oldPath}', unregistering '${oldId}'`);
+					await this.deactivateAutomation(oldId);
+					this.runningExecutionCounts.delete(oldId);
+					delete this.state.automations[oldId];
+				}
+			}
+
+			// Handle new path addition
+			if (file instanceof TFile && this.isAutomationFile(file.path)) {
+				console.log(`AutomationEngine: Automation file renamed to '${file.path}', registering`);
+				try {
+					const content = await this.app.vault.read(file);
+					const parsed = parseFrontmatterAutomationConfig(content);
+					validateAutomationConfig(parsed.config);
+
+					const newId = this.deriveAutomationId(file.path);
+					const automation: AutomationInstance = {
+						id: newId,
+						name: parsed.name || file.basename.replace(/\.automation$/, ''),
+						description: parsed.description,
+						sourcePath: file.path,
+						sourceFormat: 'automation-markdown',
+						origin: 'vault',
+						config: parsed.config,
+						enabled: parsed.config.enabled ?? true,
+						executionCount: 0,
+					};
+
+					await this.registerAutomation(automation);
+				} catch (error) {
+					console.warn(`AutomationEngine: Failed to register renamed automation '${file.path}':`, error);
+				}
+			}
+
+			await this.saveState();
+		});
+		this.fileWatcherRefs.push(renameRef);
+		this.plugin.registerEvent(renameRef);
+
+		console.log(`AutomationEngine: File watchers set up for ${this.automationDirectories.length} director(ies)`);
+	}
+
+	/**
+	 * Clean up file watcher event references.
+	 *
+	 * @returns Nothing
+	 * @internal
+	 */
+	private cleanupFileWatchers(): void {
+		for (const ref of this.fileWatcherRefs) {
+			this.app.vault.offref(ref);
+		}
+		this.fileWatcherRefs = [];
 	}
 
 	/**

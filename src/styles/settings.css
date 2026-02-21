@@ -216,10 +216,45 @@
    PROFESSIONAL SETTINGS UI
    ================================ */
 
+/* --- Settings dialog sizing relative to app window --- */
+.modal.mod-settings {
+	width: clamp(700px, 85vw, 1400px) !important;
+	height: clamp(500px, 80vh, 95vh) !important;
+	max-width: 95vw !important;
+	max-height: 95vh !important;
+}
+
+/* Ensure content pane fills the available dialog space */
+.modal.mod-settings .vertical-tab-content-container {
+	flex: 1;
+	min-width: 0;
+	overflow-y: auto;
+}
+
+.modal.mod-settings .vertical-tab-content {
+	width: 100%;
+	max-width: 100%;
+	padding: clamp(16px, 3vw, 32px);
+	box-sizing: border-box;
+}
+
+/* Root settings container - responsive to window size */
+.vc-settings {
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.vc-main-settings {
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
 /* Settings Header */
 .vc-settings-header {
-	margin-bottom: 24px;
-	padding: 16px;
+	margin-bottom: clamp(16px, 3vw, 24px);
+	padding: clamp(12px, 2vw, 16px);
 	background: var(--background-secondary);
 	border-radius: 8px;
 	border: 1px solid var(--background-modifier-border);
@@ -255,7 +290,7 @@
 .vc-settings-header h2 {
 	margin: 0 0 4px 0;
 	padding-left: 0;
-	font-size: 20px;
+	font-size: clamp(16px, 2.5vw, 20px);
 	font-weight: 600;
 	color: var(--text-normal);
 	text-align: left;
@@ -271,8 +306,8 @@
 
 /* Settings Sections */
 .vc-settings-section {
-	margin-bottom: 24px;
-	padding: 16px;
+	margin-bottom: clamp(16px, 3vw, 24px);
+	padding: clamp(12px, 2vw, 16px);
 	background: var(--background-secondary);
 	border-radius: 8px;
 	border: 1px solid var(--background-modifier-border);
@@ -288,7 +323,7 @@
 .vc-section-header h3 {
 	margin: 0;
 	padding-left: 0;
-	font-size: 16px;
+	font-size: clamp(14px, 2vw, 16px);
 	font-weight: 600;
 	color: var(--text-normal);
 }
@@ -309,8 +344,8 @@
 
 .vc-status-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-	gap: 16px;
+	grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+	gap: clamp(10px, 2vw, 16px);
 }
 
 .vc-status-item {
@@ -583,6 +618,102 @@
 
 .vc-settings-section a:hover {
 	text-decoration: underline;
+}
+
+/* ================================
+   RESPONSIVE SETTINGS LAYOUT
+   ================================ */
+
+/* Table containers scroll horizontally when window is narrow */
+.vc-settings-section .vc-skills-table,
+.vc-settings-section .vc-mcp-table,
+.vc-settings-section .vc-automations-table {
+	display: block;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Small settings windows (< 480px content width) */
+@media (max-width: 600px) {
+	.modal.mod-settings {
+		width: 98vw !important;
+		height: 95vh !important;
+		max-width: 98vw !important;
+	}
+
+	.modal.mod-settings .vertical-tab-content {
+		padding: 10px;
+	}
+
+	.vc-settings-header {
+		padding: 10px;
+		margin-bottom: 12px;
+	}
+
+	.vc-settings-section {
+		padding: 10px;
+		margin-bottom: 12px;
+	}
+
+	.vc-settings-header h2 {
+		font-size: 16px;
+	}
+
+	.vc-section-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	.vc-status-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.vc-btn-row {
+		flex-direction: column;
+	}
+
+	.vc-cmd-row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.vc-session-controls {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.vc-session-dropdown {
+		min-width: unset;
+		width: 100%;
+	}
+
+	.vc-settings-title-row {
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.vc-settings-logo {
+		width: 28px;
+		height: 28px;
+	}
+}
+
+/* Medium settings windows */
+@media (min-width: 601px) and (max-width: 900px) {
+	.modal.mod-settings {
+		width: 92vw !important;
+		height: 85vh !important;
+	}
+
+	.vc-settings-section {
+		padding: 14px;
+		margin-bottom: 18px;
+	}
+
+	.vc-status-grid {
+		grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+	}
 }
 
 /* ================================

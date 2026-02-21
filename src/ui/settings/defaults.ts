@@ -79,6 +79,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	agentDirectories: ["Reference/Agents"],
 	instructionDirectories: ["."],  // vault root for AGENTS.md and copilot-instructions.md
 	promptDirectories: ["Reference/Prompts"],
+	automationDirectories: ["automations"],
 	slashMenuGrouping: 'flat',
 	aiProviderProfiles: [],
 	chatProviderProfileId: null,

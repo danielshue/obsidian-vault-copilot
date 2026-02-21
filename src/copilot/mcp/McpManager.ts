@@ -262,6 +262,13 @@ export class McpManager {
 			throw new Error(`Server not found: ${id}`);
 		}
 
+		// CLI-managed servers (e.g. github-mcp-server) are display-only.
+		// The Copilot CLI process handles their lifecycle and auth.
+		if (server.config.isCliManaged) {
+			console.log(`[McpManager] Skipping CLI-managed server: ${server.config.name}`);
+			return;
+		}
+
 		// Check platform compatibility
 		if (isStdioConfig(server.config) && !supportsLocalProcesses()) {
 			throw new Error(
@@ -348,7 +355,8 @@ export class McpManager {
 	}
 
 	/**
-	 * Get all tools from all connected servers
+	 * Get all tools from all connected servers.
+	 * Respects per-server `allowedTools` allowlist — when set, only matching tools are returned.
 	 */
 	getAllTools(): Array<{ serverId: string; serverName: string; tool: McpTool }> {
 		const tools: Array<{ serverId: string; serverName: string; tool: McpTool }> = [];
@@ -356,7 +364,8 @@ export class McpManager {
 		for (const [id, server] of this.servers) {
 			const client = this.clients.get(id);
 			if (client?.getStatus() === "connected" && server.status.tools) {
-				for (const tool of server.status.tools) {
+				const filtered = this.filterToolsByAllowlist(server.status.tools, server.config.allowedTools);
+				for (const tool of filtered) {
 					tools.push({
 						serverId: id,
 						serverName: server.config.name,
@@ -370,8 +379,9 @@ export class McpManager {
 	}
 
 	/**
-	 * Get tools formatted for SDK registration
-	 * Returns tool definitions with handlers that call through to the MCP server
+	 * Get tools formatted for SDK registration.
+	 * Returns tool definitions with handlers that call through to the MCP server.
+	 * Respects per-server `allowedTools` allowlist.
 	 */
 	getSdkToolDefinitions(): Array<{
 		name: string;
@@ -389,7 +399,8 @@ export class McpManager {
 		for (const [id, server] of this.servers) {
 			const client = this.clients.get(id);
 			if (client?.getStatus() === "connected" && server.status.tools) {
-				for (const tool of server.status.tools) {
+				const filtered = this.filterToolsByAllowlist(server.status.tools, server.config.allowedTools);
+				for (const tool of filtered) {
 					// Prefix tool name with server name to avoid collisions
 					const prefixedName = `mcp_${server.config.name}_${tool.name}`;
 					
@@ -416,6 +427,28 @@ export class McpManager {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Filter tools by the server's allowlist configuration.
+	 *
+	 * - If `allowedTools` is undefined or empty, all tools are returned (no filtering).
+	 * - If `allowedTools` contains `"*"`, all tools are returned.
+	 * - Otherwise, only tools whose names appear in the allowlist are returned.
+	 *
+	 * @param tools - The full set of tools from the MCP server
+	 * @param allowedTools - The allowlist from the server config
+	 * @returns Filtered tools
+	 * @internal
+	 */
+	private filterToolsByAllowlist(tools: McpTool[], allowedTools?: string[]): McpTool[] {
+		// No allowlist or wildcard → return all tools
+		if (!allowedTools || allowedTools.length === 0 || allowedTools.includes("*")) {
+			return tools;
+		}
+		// Only return tools whose names are in the allowlist
+		const allowed = new Set(allowedTools);
+		return tools.filter(t => allowed.has(t.name));
 	}
 
 	/**
@@ -485,7 +518,10 @@ export class McpManager {
 			case "cursor":
 				return this.vaultConfig.autoDiscovery.cursor;
 			case "copilot-cli":
+			case "copilot-cli-builtin":
 				return this.vaultConfig.autoDiscovery.copilotCli;
+			case "windows-mcp-registry":
+				return this.vaultConfig.autoDiscovery.windowsMcpRegistry;
 			case "docker":
 				return this.vaultConfig.autoDiscovery.docker;
 			default:

@@ -453,6 +453,53 @@ export class CustomizationLoader {
 	}
 
 	/**
+	 * Resolve a customization item by name, path, or filename stem.
+	 *
+	 * Supports flexible lookup so automations can reference agents/prompts/skills
+	 * by their display name (e.g., "Daily Journal Agent"), full path
+	 * (e.g., "Reference/Agents/daily-journal.agent"), or path with extension
+	 * (e.g., "Reference/Agents/daily-journal.agent.md").
+	 *
+	 * @param items - Array of items to search (must have `name` and `path` properties)
+	 * @param identifier - The name, path, or filename stem to resolve
+	 * @returns Matching item or `undefined`
+	 * @internal
+	 *
+	 * @since 0.1.2
+	 */
+	private resolveByNameOrPath<T extends { name: string; path: string }>(items: T[], identifier: string): T | undefined {
+		// 1. Exact name match (most common)
+		const byName = items.find(item => item.name === identifier);
+		if (byName) return byName;
+
+		// 2. Exact path match (e.g., "Reference/Agents/daily-journal.agent.md")
+		const byPath = items.find(item => item.path === identifier);
+		if (byPath) return byPath;
+
+		// 3. Path without .md extension (e.g., "Reference/Agents/daily-journal.agent")
+		const withMd = identifier.endsWith('.md') ? identifier : identifier + '.md';
+		const byPathMd = items.find(item => item.path === withMd);
+		if (byPathMd) return byPathMd;
+
+		// 4. Case-insensitive name match
+		const lowerIdentifier = identifier.toLowerCase();
+		const byNameInsensitive = items.find(item => item.name.toLowerCase() === lowerIdentifier);
+		if (byNameInsensitive) return byNameInsensitive;
+
+		// 5. Filename stem match (e.g., "daily-journal" matches "Reference/Agents/daily-journal.agent.md")
+		const stem = identifier.replace(/\.(agent|prompt|skill)(\.md)?$/i, '').split('/').pop();
+		if (stem) {
+			const byStem = items.find(item => {
+				const itemStem = item.path.split('/').pop()?.replace(/\.(agent|prompt|skill)(\.md)?$/i, '').replace(/\.md$/i, '');
+				return itemStem === stem;
+			});
+			if (byStem) return byStem;
+		}
+
+		return undefined;
+	}
+
+	/**
 	 * Convert a directory path to a vault-relative path and resolve a folder.
 	 * Handles absolute paths, vault root (`.`), and relative paths.
 	 *
@@ -1331,7 +1378,7 @@ export class CustomizationLoader {
 	 */
 	async getAgent(directories: string[], name: string): Promise<CustomAgent | undefined> {
 		const agents = await this.loadAgents(directories);
-		return agents.find(a => a.name === name);
+		return this.resolveByNameOrPath(agents, name);
 	}
 
 	/**
@@ -1348,7 +1395,7 @@ export class CustomizationLoader {
 	 */
 	async getPrompt(directories: string[], name: string): Promise<CustomPrompt | undefined> {
 		const prompts = await this.loadPrompts(directories);
-		return prompts.find(p => p.name === name);
+		return this.resolveByNameOrPath(prompts, name);
 	}
 
 	/**

@@ -44,10 +44,7 @@ export type AutomationTriggerType =
 export type AutomationActionType =
 	| 'run-agent'       // Execute an AI agent
 	| 'run-prompt'      // Execute a prompt
-	| 'run-skill'       // Execute a skill
-	| 'create-note'     // Create a new note
-	| 'update-note'     // Update an existing note
-	| 'run-command';    // Execute an Obsidian command
+	| 'run-skill';      // Execute a skill
 
 /**
  * Base interface for all automation triggers
@@ -174,46 +171,12 @@ export interface RunSkillAction extends AutomationActionBase {
 }
 
 /**
- * Create a note action
- */
-export interface CreateNoteAction extends AutomationActionBase {
-	type: 'create-note';
-	/** Target path for the new note */
-	path: string;
-	/** Template content or path to template file */
-	template?: string;
-}
-
-/**
- * Update a note action
- */
-export interface UpdateNoteAction extends AutomationActionBase {
-	type: 'update-note';
-	/** Path to the note to update */
-	path: string;
-	/** Template content for update */
-	template?: string;
-}
-
-/**
- * Run an Obsidian command action
- */
-export interface RunCommandAction extends AutomationActionBase {
-	type: 'run-command';
-	/** Obsidian command ID */
-	commandId: string;
-}
-
-/**
  * Union type for all action types
  */
 export type AutomationAction =
 	| RunAgentAction
 	| RunPromptAction
-	| RunSkillAction
-	| CreateNoteAction
-	| UpdateNoteAction
-	| RunCommandAction;
+	| RunSkillAction;
 
 /**
  * Automation configuration within an extension manifest
@@ -227,6 +190,8 @@ export interface AutomationConfig {
 	enabled?: boolean;
 	/** Whether to run the automation immediately upon installation */
 	runOnInstall?: boolean;
+	/** Human-readable description of what the automation does */
+	description?: string;
 }
 
 /**
@@ -237,10 +202,14 @@ export interface AutomationInstance {
 	id: string;
 	/** Display name of the automation */
 	name: string;
+	/** Human-readable description of what the automation does */
+	description?: string;
 	/** Vault-relative path to the automation definition file */
 	sourcePath?: string;
 	/** Source file format for this automation definition */
 	sourceFormat?: 'automation-markdown';
+	/** Origin of this automation: 'extension' (installed via marketplace) or 'vault' (discovered in vault) */
+	origin?: 'extension' | 'vault';
 	/** Automation configuration */
 	config: AutomationConfig;
 	/** Whether the automation is currently enabled */

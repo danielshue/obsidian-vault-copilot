@@ -41,7 +41,7 @@
 .vc-skills-table {
 	width: 100%;
 	border-collapse: collapse;
-	font-size: 13px;
+	font-size: clamp(12px, 1.5vw, 13px);
 	background: var(--background-primary);
 	border-radius: 6px;
 	overflow: hidden;

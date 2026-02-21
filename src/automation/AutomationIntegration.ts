@@ -83,6 +83,7 @@ export async function handleAutomationInstall(
 			name: parsedConfig.name ?? manifest.displayTitle,
 			sourcePath: configFile.targetLocation,
 			sourceFormat,
+			origin: 'extension',
 			config,
 			enabled: config.enabled ?? false,
 			executionCount: 0,
@@ -108,9 +109,8 @@ export async function handleAutomationInstall(
  * @param content - Automation markdown content
  * @returns Parsed automation config and optional display name
  * @throws {Error} If required frontmatter fields are missing
- * @internal
  */
-function parseFrontmatterAutomationConfig(content: string): { config: AutomationConfig; name?: string } {
+export function parseFrontmatterAutomationConfig(content: string): { config: AutomationConfig; name?: string; description?: string } {
 	const { frontmatter } = parseFrontmatter(content);
 	const configRoot = isRecord(frontmatter.automation)
 		? frontmatter.automation
@@ -127,13 +127,19 @@ function parseFrontmatterAutomationConfig(content: string): { config: Automation
 		? configRoot.name
 		: (typeof frontmatter.name === 'string' ? frontmatter.name : undefined);
 
+	const description = typeof configRoot.description === 'string'
+		? configRoot.description
+		: (typeof frontmatter.description === 'string' ? frontmatter.description : undefined);
+
 	return {
 		name,
+		description,
 		config: {
 			triggers,
 			actions,
 			enabled,
 			runOnInstall,
+			description,
 		},
 	};
 }
@@ -236,9 +242,8 @@ export async function handleAutomationUninstall(
  * @param config - Automation configuration to validate
  * @returns Nothing
  * @throws {Error} If configuration is invalid
- * @internal
  */
-function validateAutomationConfig(config: AutomationConfig): void {
+export function validateAutomationConfig(config: AutomationConfig): void {
 	if (!config.triggers || config.triggers.length === 0) {
 		throw new Error('Automation must have at least one trigger');
 	}
@@ -289,17 +294,6 @@ function validateAutomationConfig(config: AutomationConfig): void {
 			case 'run-skill':
 				if (!(action as any).skillId) {
 					throw new Error('run-skill action must have a skillId');
-				}
-				break;
-			case 'create-note':
-			case 'update-note':
-				if (!(action as any).path) {
-					throw new Error(`${action.type} action must have a path`);
-				}
-				break;
-			case 'run-command':
-				if (!(action as any).commandId) {
-					throw new Error('run-command action must have a commandId');
 				}
 				break;
 		}

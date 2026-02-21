@@ -10,6 +10,7 @@
     "vscode": true,
     "cursor": true,
     "copilotCli": true,
-    "docker": true
+    "docker": true,
+    "windowsMcpRegistry": true
   }
 }

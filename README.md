@@ -116,8 +116,8 @@ triggers:
 actions:
 	- type: run-prompt
 		promptId: daily-review
-	- type: create-note
-		path: "Daily Notes/{{date:YYYY-MM-DD}}-review.md"
+		input:
+			task: "Create a review note at Daily Notes/{{date:YYYY-MM-DD}}-review.md"
 ---
 ```
 

@@ -229,6 +229,11 @@ export class HttpMcpClient {
 			headers["Authorization"] = `Bearer ${this.config.apiKey}`;
 		}
 
+		// Merge custom headers (e.g. X-MCP-Toolsets, X-MCP-Readonly)
+		if (this.config.headers) {
+			Object.assign(headers, this.config.headers);
+		}
+
 		return headers;
 	}
 }

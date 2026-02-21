@@ -16,6 +16,7 @@
 	width: 100%;
 	border-collapse: collapse;
 	margin: 1em 0;
+	font-size: clamp(0.8em, 1.5vw, 1em);
 }
 
 .vc-automations-table th,
@@ -195,7 +196,7 @@
 
 .vc-automation-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
 	gap: 1em;
 	margin: 1em 0;
 }

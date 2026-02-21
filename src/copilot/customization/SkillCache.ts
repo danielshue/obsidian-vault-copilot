@@ -209,7 +209,34 @@ export class SkillCache {
 	 */
 	async getFullSkill(name: string): Promise<CustomSkill | undefined> {
 		const skills = await this.loader.loadSkills(this.skillDirectories);
-		return skills.find(s => s.name === name);
+		// Try exact name first, then path-based resolution
+		const byName = skills.find(s => s.name === name);
+		if (byName) return byName;
+
+		// Exact path match
+		const byPath = skills.find(s => s.path === name);
+		if (byPath) return byPath;
+
+		// Path without .md extension
+		const withMd = name.endsWith('.md') ? name : name + '.md';
+		const byPathMd = skills.find(s => s.path === withMd);
+		if (byPathMd) return byPathMd;
+
+		// Case-insensitive name match
+		const lower = name.toLowerCase();
+		const byNameInsensitive = skills.find(s => s.name.toLowerCase() === lower);
+		if (byNameInsensitive) return byNameInsensitive;
+
+		// Filename stem match
+		const stem = name.replace(/\.(agent|prompt|skill)(\.md)?$/i, '').split('/').pop();
+		if (stem) {
+			return skills.find(s => {
+				const sStem = s.path.split('/').pop()?.replace(/\.(agent|prompt|skill)(\.md)?$/i, '').replace(/\.md$/i, '');
+				return sStem === stem;
+			});
+		}
+
+		return undefined;
 	}
 
 	/**

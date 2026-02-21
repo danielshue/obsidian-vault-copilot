@@ -5,15 +5,16 @@ tags: [automation, file-deleted, audit]
 status: complete
 type: reference
 name: Deleted note audit
+description: Monitors the Projects folder for deleted notes and automatically logs each deletion to a daily audit file, preserving a record of what was removed and when for accountability and recovery purposes.
 enabled: false
 triggers:
   - type: file-deleted
     pattern: "Projects/**/*.md"
 actions:
-  - type: create-note
-    path: "Reference/Automation Logs/{{date:YYYY-MM-DD}}-deletions.md"
-  - type: run-command
-    commandId: "obsidian-vault-copilot:open-chat"
+  - type: run-agent
+    agentId: Reference/Agents/daily-journal.agent
+    input:
+      task: "Log the deleted project note to Reference/Automation Logs/{{date:YYYY-MM-DD}}-deletions.md for audit"
 ---
 # Deleted note audit automation
 

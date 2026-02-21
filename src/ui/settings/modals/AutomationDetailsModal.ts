@@ -32,6 +32,9 @@ export class AutomationDetailsModal extends Modal {
 		// Header
 		const header = contentEl.createDiv({ cls: 'vc-modal-header' });
 		header.createEl('h2', { text: this.automation.name });
+		if (this.automation.description) {
+			header.createEl('p', { text: this.automation.description, cls: 'vc-automation-description' });
+		}
 		
 		const statusBadge = header.createEl('span', { 
 			cls: `vc-status-badge ${this.automation.enabled ? 'vc-status-enabled' : 'vc-status-disabled'}`,
@@ -117,10 +120,6 @@ export class AutomationDetailsModal extends Modal {
 				details = `Prompt: ${action.promptId}`;
 			} else if (action.type === 'run-skill' && 'skillId' in action) {
 				details = `Skill: ${action.skillId}`;
-			} else if ((action.type === 'create-note' || action.type === 'update-note') && 'path' in action) {
-				details = `Path: ${action.path}`;
-			} else if (action.type === 'run-command' && 'commandId' in action) {
-				details = `Command: ${action.commandId}`;
 			}
 			
 			if (details) {

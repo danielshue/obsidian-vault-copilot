@@ -52,6 +52,7 @@ export class AddHttpMcpServerModal extends Modal {
 	private name: string = '';
 	private url: string = '';
 	private apiKey: string = '';
+	private headersText: string = '';
 	private validationError: HTMLElement | null = null;
 
 	/**
@@ -124,6 +125,17 @@ export class AddHttpMcpServerModal extends Modal {
 				text.inputEl.autocomplete = 'off';
 				text.onChange((value) => {
 					this.apiKey = value;
+				});
+			});
+
+		// Custom Headers (optional)
+		new Setting(contentEl)
+			.setName('Custom Headers (Optional)')
+			.setDesc('One header per line as "Header-Name: value" (e.g. X-MCP-Toolsets: repos,issues)')
+			.addTextArea((text) => {
+				text.setPlaceholder('X-MCP-Toolsets: repos,issues\nX-MCP-Readonly: true');
+				text.onChange((value) => {
+					this.headersText = value;
 				});
 			});
 
@@ -271,17 +283,44 @@ export class AddHttpMcpServerModal extends Modal {
 				transport: 'http' as const,
 				url: this.url.trim(),
 				apiKey: this.apiKey.trim() || undefined,
+				headers: this.parseHeaders(),
 			};
 
-			// Add to McpManager
 			await this.plugin.mcpManager.addManualServer(config);
-
-			console.log(`Added MCP server: ${config.name}`);
 			this.onSuccess();
 			this.close();
 		} catch (error) {
 			this.showValidationError(`Failed to add server: ${error instanceof Error ? error.message : String(error)}`);
 		}
+	}
+
+	/**
+	 * Parse the custom headers text into a Record.
+	 *
+	 * Each line should be in the format "Header-Name: value".
+	 * Empty lines and lines without a colon are skipped.
+	 *
+	 * @returns Parsed headers or undefined if none provided
+	 */
+	private parseHeaders(): Record<string, string> | undefined {
+		if (!this.headersText.trim()) {
+			return undefined;
+		}
+
+		const headers: Record<string, string> = {};
+		for (const line of this.headersText.split('\n')) {
+			const trimmed = line.trim();
+			if (!trimmed) continue;
+			const colonIdx = trimmed.indexOf(':');
+			if (colonIdx <= 0) continue;
+			const key = trimmed.substring(0, colonIdx).trim();
+			const value = trimmed.substring(colonIdx + 1).trim();
+			if (key) {
+				headers[key] = value;
+			}
+		}
+
+		return Object.keys(headers).length > 0 ? headers : undefined;
 	}
 
 	/**

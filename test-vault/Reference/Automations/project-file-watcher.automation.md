@@ -5,6 +5,7 @@ tags: [automation, files, projects]
 status: complete
 type: reference
 name: Project file watcher
+description: Watches for any modification to notes inside the Projects folder and summarizes the change using the summarize-project-update prompt, appending an entry to the central project activity log for team visibility.
 enabled: true
 triggers:
   - type: file-modified
@@ -12,8 +13,8 @@ triggers:
 actions:
   - type: run-prompt
     promptId: summarize-project-update
-  - type: update-note
-    path: "Projects/_activity-log.md"
+    input:
+      task: "Summarize the change and append details to Projects/_activity-log.md"
 ---
 # Project file watcher automation
 

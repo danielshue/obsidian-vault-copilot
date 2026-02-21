@@ -47,10 +47,11 @@
 
 /**
  * Transport type for MCP communication.
- * - `stdio`: Local process (desktop only)
- * - `http`: Remote HTTP server (cross-platform)
+ * - `stdio`: Local process via stdin/stdout (desktop only)
+ * - `http`: Remote HTTP server using JSON-RPC over HTTP (cross-platform)
+ * - `sse`: Remote server using Server-Sent Events transport (cross-platform)
  */
-export type McpTransport = "stdio" | "http";
+export type McpTransport = "stdio" | "http" | "sse";
 
 /**
  * Source where the MCP config was discovered.
@@ -61,6 +62,8 @@ export type McpServerSource =
 	| "vscode-insiders"
 	| "cursor"
 	| "copilot-cli"
+	| "copilot-cli-builtin"
+	| "windows-mcp-registry"
 	| "docker"
 	| "vault"
 	| "manual";
@@ -84,6 +87,19 @@ export interface McpServerConfigBase {
 	source: McpServerSource;
 	/** Source file path where config was found */
 	sourcePath?: string;
+	/**
+	 * Tool allowlist from the MCP server configuration.
+	 * - `["*"]` enables all tools (default when omitted)
+	 * - `["tool_a", "tool_b"]` enables only the named tools
+	 * @see https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp
+	 */
+	allowedTools?: string[];
+	/**
+	 * Whether this server is a default/built-in server managed by the CLI runtime.
+	 * Built-in servers cannot be started/stopped independently — the CLI process manages them.
+	 * @internal
+	 */
+	isCliManaged?: boolean;
 }
 
 /**
@@ -102,14 +118,16 @@ export interface StdioMcpServerConfig extends McpServerConfigBase {
 }
 
 /**
- * Configuration for HTTP-based MCP servers
+ * Configuration for HTTP-based MCP servers (includes SSE transport)
  */
 export interface HttpMcpServerConfig extends McpServerConfigBase {
-	transport: "http";
+	transport: "http" | "sse";
 	/** Server URL */
 	url: string;
 	/** Optional API key for authentication */
 	apiKey?: string;
+	/** Optional custom headers sent with every request */
+	headers?: Record<string, string>;
 }
 
 /**
@@ -174,6 +192,8 @@ export interface VaultMcpConfig {
 		cursor: boolean;
 		copilotCli: boolean;
 		docker: boolean;
+		/** Discover MCP servers from Windows MCP registry via odr.exe (Win 26220.7262+) */
+		windowsMcpRegistry: boolean;
 	};
 }
 
@@ -191,18 +211,43 @@ export const DEFAULT_VAULT_MCP_CONFIG: VaultMcpConfig = {
 		cursor: true,
 		copilotCli: true,
 		docker: true,
+		windowsMcpRegistry: true,
 	},
 };
 
 /**
- * Raw MCP server entry from external config files (Claude, VS Code, etc.)
+ * Raw MCP server entry from external config files.
+ *
+ * Follows the standard GitHub Copilot MCP configuration format:
+ * @see https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp
  */
 export interface RawMcpServerEntry {
+	/**
+	 * Server type. Determines transport mechanism.
+	 * - `"local"` or `"stdio"`: Spawns a local process (desktop only)
+	 * - `"http"` or `"sse"`: Connects to a remote server (cross-platform)
+	 *
+	 * When omitted, the type is inferred from the presence of `command` (stdio) or `url` (http).
+	 */
+	type?: "local" | "stdio" | "http" | "sse";
+	/** Command to execute (local/stdio servers) */
 	command?: string;
+	/** Arguments for the command */
 	args?: string[];
+	/** Environment variables for the server process */
 	env?: Record<string, string>;
+	/** Server URL (http/sse servers) */
 	url?: string;
+	/** Optional API key for authentication */
 	apiKey?: string;
+	/** Custom headers sent with every request (http/sse servers) */
+	headers?: Record<string, string>;
+	/**
+	 * Tool allowlist. Controls which tools from this server are exposed.
+	 * - `["*"]` enables all tools
+	 * - `["tool_a", "tool_b"]` enables only the named tools
+	 */
+	tools?: string[];
 }
 
 /**
@@ -213,8 +258,8 @@ export function isStdioConfig(config: McpServerConfig): config is StdioMcpServer
 }
 
 /**
- * Type guard to check if a config is HTTP-based
+ * Type guard to check if a config is HTTP-based (includes SSE transport)
  */
 export function isHttpConfig(config: McpServerConfig): config is HttpMcpServerConfig {
-	return config.transport === "http";
+	return config.transport === "http" || config.transport === "sse";
 }

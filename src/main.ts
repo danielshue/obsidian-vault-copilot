@@ -704,7 +704,7 @@ export default class CopilotPlugin extends Plugin {
 		// Initialize Automation engine
 		const { getAutomationEngine } = await import('./automation/AutomationEngine');
 		this.automationEngine = getAutomationEngine(this.app, this);
-		await this.automationEngine.initialize();
+		await this.automationEngine.initialize(this.settings.automationDirectories);
 
 		// Initialize Copilot service (desktop only)
 		if (supportsLocalProcesses()) {
@@ -1191,6 +1191,11 @@ export default class CopilotPlugin extends Plugin {
 		// Update skill cache when skill directories change
 		if (this.skillCache) {
 			await this.skillCache.updateDirectories(this.settings.skillDirectories);
+		}
+
+		// Update automation engine when automation directories change
+		if (this.automationEngine) {
+			await this.automationEngine.updateDirectories(this.settings.automationDirectories);
 		}
 	}
 

@@ -5,6 +5,7 @@ tags: [automation, weekly, review]
 status: complete
 type: reference
 name: Weekly review
+description: Runs every Friday afternoon and once on first install to generate a comprehensive weekly review note covering wins, blockers, and next-week priorities using the weekly retrospective prompt.
 enabled: true
 run-on-install: true
 triggers:
@@ -14,8 +15,8 @@ triggers:
 actions:
   - type: run-prompt
     promptId: weekly-retrospective
-  - type: create-note
-    path: "Projects/Weekly Review {{date:YYYY-[W]WW}}.md"
+    input:
+      task: "Create a weekly review note at Projects/Weekly Review {{date:YYYY-[W]WW}}.md with wins, blockers, and next-week priorities"
 ---
 # Weekly review automation
 

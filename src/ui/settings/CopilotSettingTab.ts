@@ -61,6 +61,7 @@ export class CopilotSettingTab extends PluginSettingTab {
 	private statusContainer: HTMLElement | null = null;
 	private mainSettingsContainer: HTMLElement | null = null;
 	private skillsContainer: HTMLElement | null = null;
+	private mcpContainer: HTMLElement | null = null;
 	private cachedStatus: CliStatus | null = null;
 	private mainSettingsStatusKey: string | null = null;
 	private skillRegistryUnsubscribe: (() => void) | null = null;
@@ -85,6 +86,9 @@ export class CopilotSettingTab extends PluginSettingTab {
 
 		// Registered Skills Section
 		this.renderRegisteredSkillsSection(containerEl);
+
+		// MCP Servers Section
+		this.renderMcpServersSettingsSection(containerEl);
 
 		// Automations Section
 		this.renderAutomationsSection(containerEl);
@@ -2172,88 +2176,6 @@ console.log("Discovering models...");
 				});
 			});
 
-		// Voice Agent Definition Files Section
-		realtimeSection.createEl("h4", { text: "Voice Agent Definition Files", cls: "setting-item-heading" });
-		realtimeSection.createEl("p", {
-			text: "Configure the instruction/prompt files for each voice agent. Start typing to see suggestions, or type a path manually.",
-			cls: "vc-status-desc"
-		});
-
-		// Main Vault Assistant file
-		new Setting(realtimeSection)
-			.setName("Main Vault Assistant")
-			.setDesc("Orchestrator agent that routes requests to specialists")
-			.addText((text) => {
-				text.setPlaceholder("Reference/Agents/main-vault-assistant.voice-agent.md");
-				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.mainAssistant || "");
-				text.onChange(async (value) => {
-					if (!this.plugin.settings.voice) return;
-					if (!this.plugin.settings.voice.voiceAgentFiles) {
-						this.plugin.settings.voice.voiceAgentFiles = {};
-					}
-					this.plugin.settings.voice.voiceAgentFiles.mainAssistant = value || undefined;
-					await this.plugin.saveSettings();
-				});
-				// Add file suggester for autocomplete
-				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
-			});
-
-		// Note Manager file
-		new Setting(realtimeSection)
-			.setName("Note Manager")
-			.setDesc("Specialist for reading, searching, and editing notes")
-			.addText((text) => {
-				text.setPlaceholder("Reference/Agents/note-manager.voice-agent.md");
-				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.noteManager || "");
-				text.onChange(async (value) => {
-					if (!this.plugin.settings.voice) return;
-					if (!this.plugin.settings.voice.voiceAgentFiles) {
-						this.plugin.settings.voice.voiceAgentFiles = {};
-					}
-					this.plugin.settings.voice.voiceAgentFiles.noteManager = value || undefined;
-					await this.plugin.saveSettings();
-				});
-				// Add file suggester for autocomplete
-				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
-			});
-
-		// Task Manager file
-		new Setting(realtimeSection)
-			.setName("Task Manager")
-			.setDesc("Specialist for managing tasks (create, complete, list)")
-			.addText((text) => {
-				text.setPlaceholder("Reference/Agents/task-manager.voice-agent.md");
-				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.taskManager || "");
-				text.onChange(async (value) => {
-					if (!this.plugin.settings.voice) return;
-					if (!this.plugin.settings.voice.voiceAgentFiles) {
-						this.plugin.settings.voice.voiceAgentFiles = {};
-					}
-					this.plugin.settings.voice.voiceAgentFiles.taskManager = value || undefined;
-					await this.plugin.saveSettings();
-				});
-				// Add file suggester for autocomplete
-				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
-			});
-
-		// WorkIQ file
-		new Setting(realtimeSection)
-			.setName("WorkIQ")
-			.setDesc("Microsoft 365 integration agent")
-			.addText((text) => {
-				text.setPlaceholder("Reference/Agents/workiq.voice-agent.md");
-				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.workiq || "");
-				text.onChange(async (value) => {
-					if (!this.plugin.settings.voice) return;
-					if (!this.plugin.settings.voice.voiceAgentFiles) {
-						this.plugin.settings.voice.voiceAgentFiles = {};
-					}
-					this.plugin.settings.voice.voiceAgentFiles.workiq = value || undefined;
-					await this.plugin.saveSettings();
-				});
-				// Add file suggester for autocomplete
-				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
-			});
 	}
 
 	private updateToolSummary(container: HTMLElement): void {
@@ -2269,7 +2191,7 @@ console.log("Discovering models...");
 		const section = containerEl.createDiv({ cls: "vc-settings-section vc-skills-section" });
 		
 		const sectionHeader = section.createDiv({ cls: "vc-section-header" });
-		sectionHeader.createEl("h3", { text: "Registered Skills & MCP Servers" });
+		sectionHeader.createEl("h3", { text: "Registered Skills" });
 
 		// Slash menu display mode setting
 		new Setting(section)
@@ -2300,6 +2222,24 @@ console.log("Discovering models...");
 		this.updateSkillsDisplay();
 	}
 
+	/**
+	 * Render the MCP Servers settings section.
+	 *
+	 * Separated from the skills section so each has its own collapsible area
+	 * and independent refresh lifecycle.
+	 */
+	private renderMcpServersSettingsSection(containerEl: HTMLElement): void {
+		const section = containerEl.createDiv({ cls: "vc-settings-section vc-mcp-settings-section" });
+		
+		const sectionHeader = section.createDiv({ cls: "vc-section-header" });
+		sectionHeader.createEl("h3", { text: "MCP Servers" });
+		
+		this.mcpContainer = section.createDiv({ cls: "vc-mcp-container" });
+		
+		// Initial render
+		this.updateMcpDisplay();
+	}
+
 	private updateSkillsDisplay(): void {
 		if (!this.skillsContainer) return;
 		this.skillsContainer.empty();
@@ -2308,9 +2248,17 @@ console.log("Discovering models...");
 		
 		// Skills Table
 		this.renderSkillsTable(this.skillsContainer, skills);
+	}
+
+	/**
+	 * Re-render the MCP servers list inside its container.
+	 */
+	private updateMcpDisplay(): void {
+		if (!this.mcpContainer) return;
+		this.mcpContainer.empty();
 		
-		// MCP Servers Table - now using McpManager
-		this.renderMcpServersSection(this.skillsContainer);
+		// MCP Servers Table - using McpManager
+		this.renderMcpServersSection(this.mcpContainer);
 	}
 
 	private renderSkillsTable(container: HTMLElement, skills: SkillInfo[]): void {
@@ -2370,7 +2318,7 @@ console.log("Discovering models...");
 			});
 			refreshBtn.addEventListener("click", async () => {
 				await this.plugin.mcpManager.refreshDiscovery();
-				this.updateSkillsDisplay();
+				this.updateMcpDisplay();
 				console.log("MCP servers refreshed");
 			});
 		}
@@ -2382,7 +2330,7 @@ console.log("Discovering models...");
 		});
 		addHttpBtn.addEventListener("click", () => {
 			const modal = new AddHttpMcpServerModal(this.app, this.plugin, () => {
-				this.updateSkillsDisplay();
+				this.updateMcpDisplay();
 			});
 			modal.open();
 		});
@@ -2513,7 +2461,7 @@ console.log("Discovering models...");
 			stopBtn.addEventListener("click", async () => {
 				try {
 					await this.plugin.mcpManager.stopServer(config.id);
-					this.updateSkillsDisplay();
+					this.updateMcpDisplay();
 					console.log(`Stopped ${config.name}`);
 				} catch (error) {
 					console.error(`Failed to stop: ${error}`);
@@ -2532,11 +2480,11 @@ console.log("Discovering models...");
 					startBtn.disabled = true;
 					startBtn.textContent = "Starting...";
 					await this.plugin.mcpManager.startServer(config.id);
-					this.updateSkillsDisplay();
+					this.updateMcpDisplay();
 					console.log(`Started ${config.name}`);
 				} catch (error) {
 					console.error(`Failed to start: ${error}`);
-					this.updateSkillsDisplay();
+					this.updateMcpDisplay();
 				}
 			});
 		}
@@ -2572,7 +2520,7 @@ console.log("Discovering models...");
 			text: "Manage scheduled and event-triggered workflows. Automations can execute agents, prompts, skills, or vault operations automatically.",
 			cls: "vc-status-desc"
 		});
-		
+
 		// Get automations from engine
 		const automations = this.plugin.automationEngine?.getAllAutomations() || [];
 		
@@ -2580,7 +2528,7 @@ console.log("Discovering models...");
 			const emptyState = section.createDiv({ cls: "vc-empty-state" });
 			emptyState.createEl("p", { text: "No automations installed yet." });
 			emptyState.createEl("p", { 
-				text: "Install automation extensions from the Extension Browser to get started.",
+				text: "Create .automation.md files in your vault or install automation extensions from the Extension Browser.",
 				cls: "vc-status-desc"
 			});
 			
@@ -2614,6 +2562,7 @@ console.log("Discovering models...");
 		const thead = table.createEl("thead");
 		const headerRow = thead.createEl("tr");
 		headerRow.createEl("th", { text: "Name" });
+		headerRow.createEl("th", { text: "Source" });
 		headerRow.createEl("th", { text: "Trigger" });
 		headerRow.createEl("th", { text: "Scheduled" });
 		headerRow.createEl("th", { text: "Next Run" });
@@ -2638,14 +2587,27 @@ console.log("Discovering models...");
 					text: wikiLabel,
 					href: "#",
 					cls: "vc-automation-link",
+					attr: automation.description ? { title: automation.description } : undefined,
 				});
 				link.addEventListener("click", async (event) => {
 					event.preventDefault();
 					await this.openAutomationSourceFile(automation, sourcePath);
 				});
 			} else {
-				nameCell.createEl("span", { text: wikiLabel });
+				nameCell.createEl("span", {
+					text: wikiLabel,
+					attr: automation.description ? { title: automation.description } : undefined,
+				});
 			}
+
+			// Source (origin)
+			const sourceCell = row.createEl("td", { cls: "vc-automation-source" });
+			const originLabel = automation.origin === 'vault' ? 'Vault' : 'Extension';
+			const originClass = automation.origin === 'vault' ? 'vc-status-enabled' : 'vc-status-disabled';
+			sourceCell.createEl("span", {
+				cls: `vc-status-badge ${originClass}`,
+				text: originLabel,
+			});
 			
 			// Triggers
 			const triggerCell = row.createEl("td", { cls: "vc-automation-triggers" });
@@ -3089,7 +3051,7 @@ console.log("Discovering models...");
 	private renderAdvancedSettings(containerEl: HTMLElement): void {
 		const section = containerEl.createDiv({ cls: "vc-settings-section vc-settings-advanced" });
 		
-		section.createEl("h2", { text: "Assistant Customization" });
+		section.createEl("h2", { text: "Customization Paths" });
 		
 		const content = section.createDiv({ cls: "vc-advanced-content" });
 
@@ -3156,6 +3118,101 @@ console.log("Discovering models...");
 				await this.plugin.saveSettings();
 			}
 		);
+
+		// Automation Directories Section
+		this.renderDirectoryList(
+			content,
+			"Automation Directories",
+			"Folders containing .automation.md files. These are scanned automatically for vault-based automations.",
+			this.plugin.settings.automationDirectories,
+			async (dirs) => {
+				this.plugin.settings.automationDirectories = dirs;
+				await this.plugin.saveSettings();
+			}
+		);
+
+		// Voice Agent Definition Files Section
+		content.createEl("h4", { text: "Voice Agent Definition Files", cls: "setting-item-heading" });
+		content.createEl("p", {
+			text: "Configure the instruction/prompt files for each voice agent. Start typing to see suggestions, or type a path manually.",
+			cls: "vc-status-desc"
+		});
+
+		// Main Vault Assistant file
+		new Setting(content)
+			.setName("Main Vault Assistant")
+			.setDesc("Orchestrator agent that routes requests to specialists")
+			.addText((text) => {
+				text.setPlaceholder("Reference/Agents/main-vault-assistant.voice-agent.md");
+				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.mainAssistant || "");
+				text.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					if (!this.plugin.settings.voice.voiceAgentFiles) {
+						this.plugin.settings.voice.voiceAgentFiles = {};
+					}
+					this.plugin.settings.voice.voiceAgentFiles.mainAssistant = value || undefined;
+					await this.plugin.saveSettings();
+				});
+				// Add file suggester for autocomplete
+				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
+			});
+
+		// Note Manager file
+		new Setting(content)
+			.setName("Note Manager")
+			.setDesc("Specialist for reading, searching, and editing notes")
+			.addText((text) => {
+				text.setPlaceholder("Reference/Agents/note-manager.voice-agent.md");
+				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.noteManager || "");
+				text.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					if (!this.plugin.settings.voice.voiceAgentFiles) {
+						this.plugin.settings.voice.voiceAgentFiles = {};
+					}
+					this.plugin.settings.voice.voiceAgentFiles.noteManager = value || undefined;
+					await this.plugin.saveSettings();
+				});
+				// Add file suggester for autocomplete
+				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
+			});
+
+		// Task Manager file
+		new Setting(content)
+			.setName("Task Manager")
+			.setDesc("Specialist for managing tasks (create, complete, list)")
+			.addText((text) => {
+				text.setPlaceholder("Reference/Agents/task-manager.voice-agent.md");
+				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.taskManager || "");
+				text.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					if (!this.plugin.settings.voice.voiceAgentFiles) {
+						this.plugin.settings.voice.voiceAgentFiles = {};
+					}
+					this.plugin.settings.voice.voiceAgentFiles.taskManager = value || undefined;
+					await this.plugin.saveSettings();
+				});
+				// Add file suggester for autocomplete
+				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
+			});
+
+		// WorkIQ file
+		new Setting(content)
+			.setName("WorkIQ")
+			.setDesc("Microsoft 365 integration agent")
+			.addText((text) => {
+				text.setPlaceholder("Reference/Agents/workiq.voice-agent.md");
+				text.setValue(this.plugin.settings.voice?.voiceAgentFiles?.workiq || "");
+				text.onChange(async (value) => {
+					if (!this.plugin.settings.voice) return;
+					if (!this.plugin.settings.voice.voiceAgentFiles) {
+						this.plugin.settings.voice.voiceAgentFiles = {};
+					}
+					this.plugin.settings.voice.voiceAgentFiles.workiq = value || undefined;
+					await this.plugin.saveSettings();
+				});
+				// Add file suggester for autocomplete
+				new FileSuggest(this.app, text.inputEl, { suffix: ".voice-agent.md" });
+			});
 	}
 
 	private renderDirectoryList(
@@ -3329,6 +3386,11 @@ console.log("Discovering models...");
 		}
 		return undefined;
 	}
+
+	/**
+	 * Restore the settings modal to its default size when leaving this tab.
+	 * @internal
+	 */
 
 	hide(): void {
 		// Validate settings before closing

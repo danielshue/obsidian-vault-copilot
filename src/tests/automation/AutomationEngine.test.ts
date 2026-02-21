@@ -33,6 +33,15 @@ function createEngine(): AutomationEngine {
 
 	const plugin = {
 		registerEvent: vi.fn(),
+		agentCache: {
+			getFullAgent: vi.fn(async () => ({
+				name: "test-agent",
+				description: "A test agent",
+				instructions: "You are a test agent.",
+			})),
+			getAgents: vi.fn(() => [{ name: "test-agent" }]),
+		},
+		getActiveService: vi.fn(() => null),
 	} as any;
 
 	return new AutomationEngine(app, plugin);
@@ -49,7 +58,7 @@ describe("AutomationEngine running-state", () => {
 					{ type: "startup", delay: 40 },
 				],
 				actions: [
-					{ type: "run-command", commandId: "command-palette:open" },
+					{ type: "run-agent", agentId: "test-agent" },
 				],
 			},
 			enabled: false,

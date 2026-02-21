@@ -15,7 +15,7 @@
       "installedVersion": "1.1.1",
       "installationTimestamp": "2026-02-10T17:22:56.286Z",
       "installedFilePaths": [
-        "extensions/agents/daily-journal-agent/daily-journal-agent.agent.md"
+        "Reference/Extensions/Agents/daily-journal-agent/daily-journal-agent.agent.md"
       ],
       "linkedDependencies": []
     },

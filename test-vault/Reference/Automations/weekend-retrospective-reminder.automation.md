@@ -5,6 +5,7 @@ tags: [automation, schedule, retrospective]
 status: complete
 type: reference
 name: Weekend retrospective reminder
+description: Fires every Saturday evening to create a weekly retrospective note that reviews learnings, wins, and areas for improvement using the learning companion agent, encouraging regular reflection.
 enabled: false
 triggers:
   - type: schedule
@@ -12,8 +13,8 @@ triggers:
 actions:
   - type: run-agent
     agentId: learning-companion
-  - type: create-note
-    path: "Daily Notes/{{date:YYYY-MM-DD}}-retrospective.md"
+    input:
+      task: "Create a retrospective note at Daily Notes/{{date:YYYY-MM-DD}}-retrospective.md reviewing this week's learnings"
 ---
 # Weekend retrospective reminder automation
 
