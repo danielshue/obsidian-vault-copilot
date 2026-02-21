@@ -104,7 +104,18 @@ energy: ""
 <!-- Tasks carried forward from previous days -->
 ```tasks
 not done
+created before today
+path includes Daily Notes
+sort by due
+limit 8
 ```
+
+<!-- This query brings forward open tasks from prior daily notes when the page loads. -->
+<!-- Keep task text unchanged and include metadata emojis on task lines: priority, 📅 due, ➕ created, and ✅ completion date for done items. -->
+
+<!-- Example carry-forward items -->
+<!-- - [ ] Finalize Atlas v3.0 GA readiness checklist #work #atlas 🔼 📅 2026-02-22 ➕ 2026-02-20 -->
+<!-- - [x] Send Axiom Health pilot update with milestones #work #customer ⏫ 📅 2026-02-21 ➕ 2026-02-19 ✅ 2026-02-21 -->
 
 ## 🎯 New Tasks
 <!-- Tasks created today -->

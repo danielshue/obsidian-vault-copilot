@@ -1,4 +1,7 @@
 {
   "theme": "system",
-  "showRibbon": false
+  "showRibbon": false,
+  "enabledCssSnippets": [
+    "editor"
+  ]
 }

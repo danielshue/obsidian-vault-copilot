@@ -1,0 +1,3 @@
+/* hide comment markup except for line is selected */
+.cm-line:not(.cm-active) .cm-comment.cm-comment-start, .cm-line:not(.cm-active) .cm-comment.cm-comment-end
+{ display: none; }
