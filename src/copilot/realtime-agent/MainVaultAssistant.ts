@@ -1,12 +1,19 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * MainVaultAssistant - Entry point voice agent for Obsidian vault
- * 
- * This is the primary agent that users interact with. It:
- * - Owns the RealtimeSession
- * - Loads voice agent definitions from markdown files
- * - Uses VoiceAgentRegistry to discover and instantiate specialist agents
- * - Registers and orchestrates handoffs to specialist agents
- * - Provides vault and web tools (excluding task-specific tools)
+ * @module MainVaultAssistant
+ * @description Entry-point realtime voice assistant for the vault.
+ *
+ * The main assistant owns the session lifecycle, loads voice-agent definitions,
+ * instantiates specialist agents from the registry, and coordinates handoffs.
+ *
+ * @see {@link BaseVoiceAgent}
+ * @see {@link VoiceAgentRegistry}
+ * @see {@link CustomizationLoader}
+ * @since 0.0.28
  */
 
 import { App } from "obsidian";
@@ -91,8 +98,16 @@ When you hand off, briefly acknowledge: "Switching to Note Manager" or "Handing 
  * MainVaultAssistant - The primary entry point for voice interactions
  */
 export class MainVaultAssistant extends BaseVoiceAgent {
+	/** Active session owner to prevent concurrent session conflicts. @internal */
 	private static activeSessionOwner: MainVaultAssistant | null = null;
 
+	/**
+	 * Release any existing active session before a new main assistant connects.
+	 *
+	 * @param requester - Requesting assistant instance
+	 * @returns Resolves when active session is released
+	 * @internal
+	 */
 	private static async releaseActiveSession(requester: MainVaultAssistant): Promise<void> {
 		const activeOwner = MainVaultAssistant.activeSessionOwner;
 		if (activeOwner && activeOwner !== requester && activeOwner.isConnected()) {
@@ -101,10 +116,19 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 		}
 	}
 
+	/** Runtime tool configuration snapshot. @internal */
 	private toolConfig: RealtimeToolConfig;
+	/** Loader for voice-agent markdown definitions. @internal */
 	private customizationLoader: CustomizationLoader;
+	/** Main assistant voice definition loaded from vault. @internal */
 	private voiceAgentDefinition: VoiceAgentDefinition | null = null;
 
+	/**
+	 * Create a main vault assistant instance.
+	 *
+	 * @param app - Obsidian app instance
+	 * @param config - Main assistant runtime configuration
+	 */
 	constructor(app: App, config: MainVaultAssistantConfig) {
 		super("Main Vault Assistant", app, config);
 		this.toolConfig = { ...DEFAULT_TOOL_CONFIG, ...config.toolConfig };
@@ -115,6 +139,15 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 	// Abstract Method Implementations
 	// =========================================================================
 
+	/**
+	 * Get active instruction text for this assistant.
+	 *
+	 * @returns Loaded definition instructions, configured instructions, or defaults
+	 * @example
+	 * ```typescript
+	 * const instructions = assistant.getInstructions();
+	 * ```
+	 */
 	getInstructions(): string {
 		// Use loaded markdown instructions if available
 		if (this.voiceAgentDefinition?.instructions) {
@@ -131,11 +164,29 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 		return DEFAULT_INSTRUCTIONS;
 	}
 
+	/**
+	 * Get handoff description for this assistant.
+	 *
+	 * @returns Handoff description text or empty string
+	 * @example
+	 * ```typescript
+	 * const description = assistant.getHandoffDescription();
+	 * ```
+	 */
 	getHandoffDescription(): string {
 		// Main agent doesn't need a handoff description (it's the entry point)
 		return this.voiceAgentDefinition?.handoffDescription || "";
 	}
 
+	/**
+	 * Build the toolset for this assistant.
+	 *
+	 * @returns Realtime SDK tool definitions
+	 * @example
+	 * ```typescript
+	 * const tools = assistant.getTools();
+	 * ```
+	 */
 	getTools(): ReturnType<typeof tool>[] {
 		// Get tool names from definition or use defaults (web tools only - note/task tools handled by specialists)
 		const allowedTools = this.voiceAgentDefinition?.tools || [
@@ -161,7 +212,14 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 	// =========================================================================
 
 	/**
-	 * Update tool configuration at runtime
+	 * Update tool configuration at runtime.
+	 *
+	 * @param config - Partial tool configuration update
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * assistant.updateToolConfig({ webAccess: false });
+	 * ```
 	 */
 	updateToolConfig(config: Partial<RealtimeToolConfig>): void {
 		this.toolConfig = { ...this.toolConfig, ...config };
@@ -173,7 +231,14 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 	// =========================================================================
 
 	/**
-	 * Connect to the realtime session
+	 * Connect to the realtime session.
+	 *
+	 * @returns Resolves when connected
+	 * @throws {Error} If connection fails or state is invalid
+	 * @example
+	 * ```typescript
+	 * await assistant.connect();
+	 * ```
 	 */
 	async connect(): Promise<void> {
 		if (this.state !== "idle") {
@@ -307,7 +372,13 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 	}
 
 	/**
-	 * Disconnect from the session
+	 * Disconnect from the current session and clear runtime state.
+	 *
+	 * @returns Resolves when disconnect flow completes
+	 * @example
+	 * ```typescript
+	 * await assistant.disconnect();
+	 * ```
 	 */
 	async disconnect(): Promise<void> {
 		try {
@@ -350,6 +421,9 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 	/**
 	 * Load voice agent definitions from explicit file paths or directories.
 	 * Explicit file paths (voiceAgentFiles) take precedence over directory scanning.
+	 *
+	 * @returns Resolves when definitions are loaded
+	 * @internal
 	 */
 	private async loadVoiceAgentDefinitions(): Promise<void> {
 		const config = this.config as MainVaultAssistantConfig;
@@ -427,6 +501,9 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 	 * Set up handoff agents based on VoiceAgentRegistry
 	 * Creates instances of all registered agents and registers them for handoffs.
 	 * Also wires up cross-handoffs between specialist agents based on their definitions.
+	 *
+	 * @returns Resolves when handoff wiring is complete
+	 * @internal
 	 */
 	private async setupHandoffAgents(): Promise<void> {
 		const registry = getVoiceAgentRegistry();
@@ -511,6 +588,12 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 	/**
 	 * Register all built-in voice agents with the global registry.
 	 * Call this once during plugin initialization.
+	 *
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * MainVaultAssistant.registerBuiltInAgents();
+	 * ```
 	 */
 	static registerBuiltInAgents(): void {
 		logger.info("[MainVaultAssistant] Registering built-in voice agents");
@@ -528,6 +611,12 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 	/**
 	 * Unregister all built-in voice agents.
 	 * Call this during plugin cleanup.
+	 *
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * MainVaultAssistant.unregisterBuiltInAgents();
+	 * ```
 	 */
 	static unregisterBuiltInAgents(): void {
 		logger.info("[MainVaultAssistant] Unregistering built-in voice agents");
@@ -543,7 +632,13 @@ export class MainVaultAssistant extends BaseVoiceAgent {
 	}
 
 	/**
-	 * Get the voice agent registry for external plugins to register agents
+	 * Get the voice-agent registry for extension registration.
+	 *
+	 * @returns Global voice-agent registry instance
+	 * @example
+	 * ```typescript
+	 * const registry = MainVaultAssistant.getRegistry();
+	 * ```
 	 */
 	static getRegistry(): ReturnType<typeof getVoiceAgentRegistry> {
 		return getVoiceAgentRegistry();

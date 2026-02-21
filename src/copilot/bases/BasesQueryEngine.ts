@@ -1,17 +1,29 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * BasesQueryEngine - Query vault notes matching Base filters
- * 
- * This module scans vault notes and evaluates their frontmatter properties
- * against a Base's filter definitions. Since .base files contain no data,
- * this engine finds the actual "records" (vault notes) that would appear
- * in the rendered Base view.
+ * @module BasesQueryEngine
+ * @description Query engine for resolving Base filters against vault notes.
+ *
+ * Scans vault notes, reads frontmatter, evaluates Base filter expressions,
+ * and returns matching records as tool-friendly query results.
+ *
+ * @see {@link queryBase}
+ * @see {@link parseFilterExpression}
+ * @since 0.0.28
  */
 
 import type { App, TFile } from "obsidian";
 import type { BaseFilterGroup, BaseSchema, ParsedFilterCondition, ParsedFilterFunction, QueryResult } from "./types";
 
 /**
- * Parse frontmatter from markdown content
+ * Parse frontmatter from markdown content.
+ *
+ * @param content - Markdown content
+ * @returns Parsed frontmatter map or `null`
+ * @internal
  */
 function parseFrontmatter(content: string): Record<string, any> | null {
 	const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
@@ -48,6 +60,13 @@ function parseFrontmatter(content: string): Record<string, any> | null {
 	}
 }
 
+/**
+ * Parse a scalar frontmatter value from string representation.
+ *
+ * @param value - Raw value string
+ * @returns Parsed boolean/number/null/string value
+ * @internal
+ */
 function parseValue(value: string): any {
 	if (!value) return null;
 
@@ -78,11 +97,15 @@ function parseValue(value: string): any {
 
 /**
  * Parse a filter expression string into a structured condition or function call.
- * 
+ *
  * Supports:
  *   'status != "archived"'  →  comparison
  *   file.inFolder("Projects")  →  function call
  *   file.hasTag("book")  →  function call
+ *
+ * @param expr - Filter expression string
+ * @returns Parsed condition/function or `null` when unsupported
+ * @internal
  */
 function parseFilterExpression(expr: string): ParsedFilterCondition | ParsedFilterFunction | null {
 	const trimmed = expr.trim();
@@ -126,7 +149,12 @@ function parseFilterExpression(expr: string): ParsedFilterCondition | ParsedFilt
 }
 
 /**
- * Evaluate a parsed filter condition against a note's properties
+ * Evaluate a parsed filter condition against note properties.
+ *
+ * @param condition - Parsed filter condition
+ * @param properties - Note properties
+ * @returns `true` when condition matches
+ * @internal
  */
 function evaluateCondition(condition: ParsedFilterCondition, properties: Record<string, any>): boolean {
 	const value = properties[condition.property];
@@ -150,7 +178,13 @@ function evaluateCondition(condition: ParsedFilterCondition, properties: Record<
 }
 
 /**
- * Evaluate a parsed function filter against a note's properties and path
+ * Evaluate a parsed function filter against note path/properties.
+ *
+ * @param fn - Parsed function filter
+ * @param filePath - Note file path
+ * @param properties - Note properties
+ * @returns `true` when function filter matches
+ * @internal
  */
 function evaluateFunction(fn: ParsedFilterFunction, filePath: string, properties: Record<string, any>): boolean {
 	switch (fn.fn) {
@@ -181,7 +215,13 @@ function evaluateFunction(fn: ParsedFilterFunction, filePath: string, properties
 }
 
 /**
- * Evaluate a single filter expression string
+ * Evaluate one filter expression string.
+ *
+ * @param expr - Filter expression
+ * @param properties - Note properties
+ * @param filePath - Note path
+ * @returns `true` when expression matches
+ * @internal
  */
 function evaluateExpression(expr: string, properties: Record<string, any>, filePath: string): boolean {
 	const parsed = parseFilterExpression(expr);
@@ -194,7 +234,13 @@ function evaluateExpression(expr: string, properties: Record<string, any>, fileP
 }
 
 /**
- * Evaluate a filter group (and/or/not) against a note's properties
+ * Evaluate a boolean filter group (`and`/`or`/`not`).
+ *
+ * @param group - Filter group
+ * @param properties - Note properties
+ * @param filePath - Note path
+ * @returns `true` when group matches
+ * @internal
  */
 function evaluateFilterGroup(
 	group: BaseFilterGroup,
@@ -226,12 +272,17 @@ function evaluateFilterGroup(
 }
 
 /**
- * Query vault notes matching a Base's filters
- * 
+ * Query vault notes matching a Base's filters.
+ *
  * @param app - Obsidian App instance
  * @param schema - Parsed Base schema with filters
  * @param limit - Maximum number of results to return (default: 50)
  * @returns Array of matching notes with their properties
+ *
+ * @example
+ * ```typescript
+ * const rows = await queryBase(app, schema, 100);
+ * ```
  */
 export async function queryBase(
 	app: App,
@@ -293,7 +344,16 @@ export async function queryBase(
 }
 
 /**
- * Format query results as a markdown table
+ * Format query results as a markdown table.
+ *
+ * @param results - Query results
+ * @param schema - Base schema used for column ordering
+ * @returns Markdown table output
+ *
+ * @example
+ * ```typescript
+ * const table = formatQueryResults(results, schema);
+ * ```
  */
 export function formatQueryResults(results: QueryResult[], schema: BaseSchema): string {
 	if (results.length === 0) {

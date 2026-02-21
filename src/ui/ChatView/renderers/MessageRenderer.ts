@@ -62,7 +62,7 @@ export class MessageRenderer {
 	/**
 	 * Create a message element for the chat
 	 */
-	createMessageElement(container: HTMLElement, role: "user" | "assistant", content: string): HTMLElement {
+	createMessageElement(container: HTMLElement, role: "user" | "assistant" | "system", content: string): HTMLElement {
 		const messageEl = container.createDiv({ 
 			cls: `vc-message vc-message-${role}` 
 		});

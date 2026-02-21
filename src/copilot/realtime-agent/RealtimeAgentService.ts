@@ -1,8 +1,18 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * RealtimeAgentService - OpenAI Realtime Voice Agent integration
+ * @module RealtimeAgentService
+ * @description Legacy single-agent realtime voice service built on OpenAI Realtime API.
  *
- * Provides real-time voice conversation capabilities using OpenAI's Realtime API
- * with support for tools, interruptions, and live transcription.
+ * Provides real-time voice conversation with tool execution, interruption handling,
+ * transcript events, and workaround interception for malformed model outputs.
+ *
+ * @see {@link MainVaultAssistant}
+ * @see {@link handlePossibleJsonToolCall}
+ * @since 0.0.28
  */
 
 import { App } from "obsidian";
@@ -24,23 +34,38 @@ import { handlePossibleJsonToolCall, mightBeJsonToolCall } from "./workarounds";
 import { getTracingService } from "../TracingService";
 
 export class RealtimeAgentService {
+	/** Obsidian app instance. @internal */
 	private app: App;
+	/** Runtime service configuration. @internal */
 	private config: RealtimeAgentConfig;
+	/** SDK realtime agent instance. @internal */
 	private agent: RealtimeAgent | null = null;
+	/** SDK realtime session instance. @internal */
 	private session: RealtimeSession | null = null;
+	/** Current connection/speech state. @internal */
 	private state: RealtimeAgentState = "idle";
+	/** Event listener registry by event key. @internal */
 	private listeners: Map<
 		keyof RealtimeAgentEvents,
 		Set<(...args: unknown[]) => void>
 	> = new Map();
+	/** Optional tool execution callback. @internal */
 	private onToolExecution: ToolExecutionCallback | null = null;
+	/** Effective tool config after defaults merge. @internal */
 	private toolConfig: RealtimeToolConfig;
+	/** Active trace identifier for diagnostics. @internal */
 	private currentTraceId: string = "";
 	/** Tools approved for the entire session (user clicked "Allow for session") */
 	private sessionApprovedTools: Set<string> = new Set();
 	/** Counter for generating unique approval request IDs */
 	private approvalRequestCounter: number = 0;
 
+	/**
+	 * Create a realtime agent service instance.
+	 *
+	 * @param app - Obsidian app instance
+	 * @param config - Realtime service configuration
+	 */
 	constructor(app: App, config: RealtimeAgentConfig) {
 		this.app = app;
 		this.config = config;
@@ -48,14 +73,29 @@ export class RealtimeAgentService {
 	}
 
 	/**
-	 * Get current state
+	 * Get current realtime state.
+	 *
+	 * @returns Current agent state
+	 * @example
+	 * ```typescript
+	 * const state = service.getState();
+	 * ```
 	 */
 	getState(): RealtimeAgentState {
 		return this.state;
 	}
 
 	/**
-	 * Subscribe to events
+	 * Subscribe to service events.
+	 *
+	 * @param event - Event name
+	 * @param callback - Event callback
+	 * @returns Unsubscribe function
+	 * @example
+	 * ```typescript
+	 * const off = service.on("transcript", (item) => console.log(item));
+	 * off();
+	 * ```
 	 */
 	on<K extends keyof RealtimeAgentEvents>(
 		event: K,
@@ -73,7 +113,12 @@ export class RealtimeAgentService {
 	}
 
 	/**
-	 * Emit an event
+	 * Emit an internal service event.
+	 *
+	 * @param event - Event name
+	 * @param args - Event arguments
+	 * @returns Nothing
+	 * @internal
 	 */
 	private emit<K extends keyof RealtimeAgentEvents>(
 		event: K,
@@ -92,7 +137,11 @@ export class RealtimeAgentService {
 	}
 
 	/**
-	 * Update state and emit change event
+	 * Update state and emit a change event.
+	 *
+	 * @param newState - Target state
+	 * @returns Nothing
+	 * @internal
 	 */
 	private setState(newState: RealtimeAgentState): void {
 		if (this.state !== newState) {
@@ -103,7 +152,14 @@ export class RealtimeAgentService {
 	}
 
 	/**
-	 * Update tool configuration at runtime
+	 * Update tool configuration at runtime.
+	 *
+	 * @param config - Partial tool config override
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * service.updateToolConfig({ webAccess: false });
+	 * ```
 	 */
 	updateToolConfig(config: Partial<RealtimeToolConfig>): void {
 		this.toolConfig = { ...this.toolConfig, ...config };
@@ -111,7 +167,11 @@ export class RealtimeAgentService {
 	}
 
 	/**
-	 * Generate an ephemeral key for WebRTC connection
+	 * Generate an ephemeral key for WebRTC connection.
+	 *
+	 * @returns Ephemeral API key
+	 * @throws {Error} If key request fails
+	 * @internal
 	 */
 	private async getEphemeralKey(): Promise<string> {
 		const response = await fetch(
@@ -143,7 +203,14 @@ export class RealtimeAgentService {
 	}
 
 	/**
-	 * Connect to the realtime session
+	 * Connect to the realtime session.
+	 *
+	 * @returns Resolves when connection succeeds
+	 * @throws {Error} If state is invalid or connection fails
+	 * @example
+	 * ```typescript
+	 * await service.connect();
+	 * ```
 	 */
 	async connect(): Promise<void> {
 		if (this.state !== "idle") {
@@ -278,7 +345,10 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Set up event handlers for the session
+	 * Set up all realtime session event handlers.
+	 *
+	 * @returns Nothing
+	 * @internal
 	 */
 	private setupEventHandlers(): void {
 		if (!this.session) return;
@@ -623,7 +693,13 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Disconnect from the session
+	 * Disconnect from the current session.
+	 *
+	 * @returns Resolves when cleanup completes
+	 * @example
+	 * ```typescript
+	 * await service.disconnect();
+	 * ```
 	 */
 	async disconnect(): Promise<void> {
 		try {
@@ -649,7 +725,14 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Approve a tool execution request
+	 * Approve a tool execution request.
+	 *
+	 * @param request - Approval request from session
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * service.approveTool(request);
+	 * ```
 	 */
 	approveTool(request: ToolApprovalRequest): void {
 		if (!this.session) {
@@ -662,7 +745,14 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Approve a tool execution and allow it for the rest of the session
+	 * Approve a tool execution and allow it for the rest of the session.
+	 *
+	 * @param request - Approval request from session
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * service.approveToolForSession(request);
+	 * ```
 	 */
 	approveToolForSession(request: ToolApprovalRequest): void {
 		if (!this.session) {
@@ -676,7 +766,14 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Reject a tool execution request
+	 * Reject a tool execution request.
+	 *
+	 * @param request - Approval request from session
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * service.rejectTool(request);
+	 * ```
 	 */
 	rejectTool(request: ToolApprovalRequest): void {
 		if (!this.session) {
@@ -689,14 +786,27 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Check if a tool is approved for the session
+	 * Check if a tool is approved for this session.
+	 *
+	 * @param toolName - Tool identifier
+	 * @returns `true` when tool is session-approved
+	 * @example
+	 * ```typescript
+	 * const approved = service.isToolApprovedForSession("read_note");
+	 * ```
 	 */
 	isToolApprovedForSession(toolName: string): boolean {
 		return this.sessionApprovedTools.has(toolName);
 	}
 
 	/**
-	 * Manually interrupt the agent
+	 * Interrupt agent speech playback.
+	 *
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * service.interrupt();
+	 * ```
 	 */
 	interrupt(): void {
 		if (this.session && this.state === "speaking") {
@@ -705,7 +815,14 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Send a text message to the agent
+	 * Send a text message to the agent.
+	 *
+	 * @param text - User message text
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * service.sendMessage("Summarize this note");
+	 * ```
 	 */
 	sendMessage(text: string): void {
 		if (
@@ -717,7 +834,14 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Send context silently without triggering a response or showing in transcript
+	 * Send internal context silently without speaking.
+	 *
+	 * @param context - Internal context payload
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * service.sendContext("Active note is Projects/Roadmap.md");
+	 * ```
 	 */
 	sendContext(context: string): void {
 		if (
@@ -732,21 +856,37 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Update configuration
+	 * Update runtime configuration.
+	 *
+	 * @param config - Partial configuration update
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * service.updateConfig({ voice: "nova" });
+	 * ```
 	 */
 	updateConfig(config: Partial<RealtimeAgentConfig>): void {
 		this.config = { ...this.config, ...config };
 	}
 
 	/**
-	 * Set tool execution callback
+	 * Set tool execution callback.
+	 *
+	 * @param callback - Tool callback or `null`
+	 * @returns Nothing
 	 */
 	setToolExecutionCallback(callback: ToolExecutionCallback | null): void {
 		this.onToolExecution = callback;
 	}
 
 	/**
-	 * Get current history
+	 * Get current session history.
+	 *
+	 * @returns History items in plugin format
+	 * @example
+	 * ```typescript
+	 * const history = service.getHistory();
+	 * ```
 	 */
 	getHistory(): RealtimeHistoryItem[] {
 		if (!this.session) return [];
@@ -767,14 +907,28 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Check if connected
+	 * Check connection availability.
+	 *
+	 * @returns `true` when state is neither `idle` nor `error`
+	 * @example
+	 * ```typescript
+	 * if (service.isConnected()) {
+	 *   service.sendMessage("hello");
+	 * }
+	 * ```
 	 */
 	isConnected(): boolean {
 		return this.state !== "idle" && this.state !== "error";
 	}
 
 	/**
-	 * Get mute state
+	 * Get mute state.
+	 *
+	 * @returns `true` when input is muted
+	 * @example
+	 * ```typescript
+	 * const muted = service.isMuted();
+	 * ```
 	 */
 	isMuted(): boolean {
 		if (!this.session) return false;
@@ -782,7 +936,13 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Mute the microphone input
+	 * Mute microphone input.
+	 *
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * service.mute();
+	 * ```
 	 */
 	mute(): void {
 		if (!this.session) {
@@ -800,7 +960,13 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Unmute the microphone input
+	 * Unmute microphone input.
+	 *
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * service.unmute();
+	 * ```
 	 */
 	unmute(): void {
 		if (!this.session) {
@@ -818,7 +984,13 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Toggle mute state
+	 * Toggle mute state.
+	 *
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * service.toggleMute();
+	 * ```
 	 */
 	toggleMute(): void {
 		if (this.isMuted()) {
@@ -829,7 +1001,13 @@ Remember: If you find yourself typing out instructions or code instead of callin
 	}
 
 	/**
-	 * Destroy the service
+	 * Destroy this service and remove listeners.
+	 *
+	 * @returns Resolves when teardown completes
+	 * @example
+	 * ```typescript
+	 * await service.destroy();
+	 * ```
 	 */
 	async destroy(): Promise<void> {
 		await this.disconnect();

@@ -1614,3 +1614,89 @@ export async function listTasks(
 		return { success: false, error: `Failed to list tasks: ${error}` };
 	}
 }
+
+// ── Batch Read & AI Summarization ──────────────────────────────────────
+
+/**
+ * Callback that summarizes note content using an AI model.
+ *
+ * The concrete implementation is provider-specific (e.g. Copilot SDK creates
+ * a temporary session). VaultOperations only depends on the callback shape,
+ * keeping it provider-agnostic.
+ *
+ * @param content - Full note content to summarize
+ * @param title - Note title / basename (used as context for the summary)
+ * @param customPrompt - Optional custom summarization prompt
+ * @returns A concise AI-generated summary string
+ */
+export type NoteSummarizer = (
+	content: string,
+	title: string,
+	customPrompt?: string,
+) => Promise<string>;
+
+/**
+ * Result shape returned by {@link batchReadNotes}.
+ */
+export interface BatchReadNotesResult {
+	results: Array<{
+		path: string;
+		success: boolean;
+		content?: string;
+		summary?: string;
+		error?: string;
+	}>;
+}
+
+/**
+ * Read multiple vault notes in parallel, with optional AI summarization.
+ *
+ * When `aiSummarize` is true and a `summarizer` callback is provided, each
+ * note is summarized instead of returning raw content — useful for processing
+ * 10+ files without blowing up the context window.
+ *
+ * @param app - The Obsidian App instance
+ * @param paths - Array of vault-relative note paths to read
+ * @param aiSummarize - When true, return a concise AI summary instead of full content
+ * @param summaryPrompt - Optional custom prompt forwarded to the summarizer
+ * @param summarizer - Provider-specific callback that generates AI summaries
+ * @returns Object with a `results` array — each entry has `path`, `success`, and either `content`/`summary` or `error`
+ *
+ * @example
+ * ```typescript
+ * // Without summarization
+ * const result = await batchReadNotes(app, ['note1.md', 'note2.md']);
+ *
+ * // With summarization (provider passes its own summarizer)
+ * const result = await batchReadNotes(app, paths, true, undefined, mySummarizer);
+ * ```
+ */
+export async function batchReadNotes(
+	app: App,
+	paths: string[],
+	aiSummarize?: boolean,
+	summaryPrompt?: string,
+	summarizer?: NoteSummarizer,
+): Promise<BatchReadNotesResult> {
+	const results = await Promise.all(
+		paths.map(async (path) => {
+			try {
+				const normalizedPath = normalizeVaultPath(path);
+				const file = app.vault.getAbstractFileByPath(normalizedPath);
+				if (!file || !(file instanceof TFile)) {
+					return { path, success: false, error: `Note not found: ${path}` };
+				}
+				const content = await app.vault.read(file);
+
+				if (aiSummarize && summarizer) {
+					const summary = await summarizer(content, file.basename, summaryPrompt);
+					return { path, success: true, summary };
+				}
+				return { path, success: true, content };
+			} catch (error) {
+				return { path, success: false, error: `Failed to read note: ${error}` };
+			}
+		}),
+	);
+	return { results };
+}

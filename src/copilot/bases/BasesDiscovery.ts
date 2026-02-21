@@ -1,8 +1,18 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * BasesDiscovery - Find and catalog .base files in the vault
- * 
- * Scans the vault for .base files and provides Base metadata for
- * discovery, listing, and reference by other tools.
+ * @module BasesDiscovery
+ * @description Discovery helpers for locating and summarizing `.base` files in the vault.
+ *
+ * Scans the vault for `.base` files and provides metadata for listing,
+ * lookup, and display in chat-facing tools.
+ *
+ * @see {@link parseBaseFile}
+ * @see {@link formatBasesList}
+ * @since 0.0.28
  */
 
 import type { App } from "obsidian";
@@ -11,11 +21,16 @@ import { getFilterExpressions } from "./types";
 import { parseBaseFile } from "./BasesParser";
 
 /**
- * Find all .base files in the vault
- * 
+ * Find all `.base` files in the vault.
+ *
  * @param app - Obsidian App instance
  * @param includeSchema - Whether to parse and include schema for each Base (default: false)
  * @returns Array of BaseInfo objects
+ *
+ * @example
+ * ```typescript
+ * const bases = await listBases(app, true);
+ * ```
  */
 export async function listBases(app: App, includeSchema: boolean = false): Promise<BaseInfo[]> {
 	const bases: BaseInfo[] = [];
@@ -48,11 +63,16 @@ export async function listBases(app: App, includeSchema: boolean = false): Promi
 }
 
 /**
- * Find a Base by name (case-insensitive, fuzzy matching)
- * 
+ * Find a Base by name (case-insensitive and fuzzy fallback).
+ *
  * @param app - Obsidian App instance
  * @param name - Base name to search for
  * @returns BaseInfo if found, null otherwise
+ *
+ * @example
+ * ```typescript
+ * const contacts = await findBaseByName(app, "contacts");
+ * ```
  */
 export async function findBaseByName(app: App, name: string): Promise<BaseInfo | null> {
 	const allBases = await listBases(app, false);
@@ -85,11 +105,16 @@ export async function findBaseByName(app: App, name: string): Promise<BaseInfo |
 }
 
 /**
- * Format a list of Bases for display in chat
- * 
+ * Format a list of Bases for chat display.
+ *
  * @param bases - Array of BaseInfo objects
  * @param includeDetails - Whether to include schema details (default: false)
  * @returns Formatted string for chat output
+ *
+ * @example
+ * ```typescript
+ * const output = formatBasesList(bases, true);
+ * ```
  */
 export function formatBasesList(bases: BaseInfo[], includeDetails: boolean = false): string {
 	if (bases.length === 0) {

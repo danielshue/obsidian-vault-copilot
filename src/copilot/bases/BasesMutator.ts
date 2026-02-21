@@ -1,8 +1,17 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * BasesMutator - Batch frontmatter mutation operations with dry-run support
- * 
- * Provides safe bulk update operations on vault notes matching Base filters.
+ * @module BasesMutator
+ * @description Batch note-frontmatter mutation helpers with preview-first safety.
+ *
+ * Provides safe bulk update operations on notes matching Base filters.
  * All mutation operations support dry-run preview before applying changes.
+ *
+ * @see {@link queryBase}
+ * @since 0.0.28
  */
 
 import type { App, TFile } from "obsidian";
@@ -13,13 +22,20 @@ import { queryBase } from "./BasesQueryEngine";
  * Preview of a mutation operation
  */
 export interface MutationPreview {
+	/** Notes that would be affected by the mutation. */
 	affectedNotes: Array<{
+		/** Note path. */
 		path: string;
+		/** Note basename (file name without extension). */
 		basename: string;
+		/** Current note properties before update. */
 		currentProperties: Record<string, any>;
+		/** Proposed property changes. */
 		proposedChanges: Record<string, any>;
 	}>;
+	/** Total notes affected. */
 	totalAffected: number;
+	/** Human-readable summary. */
 	summary: string;
 }
 
@@ -27,20 +43,30 @@ export interface MutationPreview {
  * Result of applying a mutation
  */
 export interface MutationResult {
+	/** Number of notes updated successfully. */
 	successCount: number;
+	/** Number of notes that failed to update. */
 	errorCount: number;
+	/** Successfully updated note paths. */
 	successful: string[];
+	/** Per-note errors encountered during apply. */
 	errors: Array<{ path: string; error: string }>;
+	/** Human-readable summary. */
 	summary: string;
 }
 
 /**
- * Preview what would change if property updates are applied
- * 
+ * Preview what would change if property updates are applied.
+ *
  * @param app - Obsidian App instance
  * @param schema - Base schema with filters
  * @param propertyUpdates - Object mapping property names to new values
  * @returns Preview of changes
+ *
+ * @example
+ * ```typescript
+ * const preview = await previewPropertyUpdates(app, schema, { status: "done" });
+ * ```
  */
 export async function previewPropertyUpdates(
 	app: App,
@@ -72,12 +98,17 @@ export async function previewPropertyUpdates(
 }
 
 /**
- * Apply property updates to notes matching a Base's filters
- * 
+ * Apply property updates to notes matching a Base's filters.
+ *
  * @param app - Obsidian App instance
  * @param schema - Base schema with filters
  * @param propertyUpdates - Object mapping property names to new values
  * @returns Result of the mutation operation
+ *
+ * @example
+ * ```typescript
+ * const result = await applyPropertyUpdates(app, schema, { status: "archived" });
+ * ```
  */
 export async function applyPropertyUpdates(
 	app: App,
@@ -171,7 +202,15 @@ export async function applyPropertyUpdates(
 }
 
 /**
- * Format a mutation preview for display
+ * Format a mutation preview for display.
+ *
+ * @param preview - Mutation preview payload
+ * @returns Formatted markdown-like output
+ *
+ * @example
+ * ```typescript
+ * const text = formatMutationPreview(preview);
+ * ```
  */
 export function formatMutationPreview(preview: MutationPreview): string {
 	const lines: string[] = [];
@@ -204,7 +243,15 @@ export function formatMutationPreview(preview: MutationPreview): string {
 }
 
 /**
- * Format a mutation result for display
+ * Format a mutation result for display.
+ *
+ * @param result - Mutation result payload
+ * @returns Formatted markdown-like output
+ *
+ * @example
+ * ```typescript
+ * const text = formatMutationResult(result);
+ * ```
  */
 export function formatMutationResult(result: MutationResult): string {
 	const lines: string[] = [];

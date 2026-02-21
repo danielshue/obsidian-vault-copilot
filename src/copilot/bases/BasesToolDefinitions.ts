@@ -1,13 +1,24 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * BasesToolDefinitions - Tool schemas for Bases AI operations
- * 
- * Defines the complete set of tools for working with Obsidian Bases (.base files):
- * - create_base: Create new Base from natural language
- * - read_base: Read Base schema or list all Bases
- * - query_base: Query notes matching a Base's filters
- * - add_base_records: Create notes matching a Base's schema
- * - update_base_records: Update frontmatter on notes matching filters
- * - evolve_base_schema: Modify Base schema and optionally backfill
+ * @module BasesToolDefinitions
+ * @description Tool names, descriptions, JSON schemas, and typed parameter contracts
+ * for Bases operations.
+ *
+ * Defines the complete set of tools for working with Obsidian Bases (`.base` files):
+ * - create_base
+ * - read_base
+ * - query_base
+ * - add_base_records
+ * - update_base_records
+ * - evolve_base_schema
+ *
+ * @see {@link handleCreateBase}
+ * @see {@link BASES_TOOL_JSON_SCHEMAS}
+ * @since 0.0.28
  */
 
 import type { JsonSchemaObject } from "../tools/ToolDefinitions";
@@ -233,55 +244,93 @@ export const BASES_TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
  */
 
 export interface CreateBaseParams {
+	/** Optional path for new `.base` file. */
 	path?: string;
+	/** Optional Base display name. */
 	name?: string;
+	/** Optional natural-language Base description. */
 	description?: string;
+	/** Optional explicit properties; when omitted, discovery flow can populate them. */
 	properties?: Array<{
+		/** Property name. */
 		name: string;
+		/** Optional property type. */
 		type?: "text" | "number" | "date" | "checkbox" | "list" | "tags";
+		/** Optional column width. */
 		width?: number;
 	}>;
+	/** Optional structured filters converted to expression syntax by handlers. */
 	filters?: Array<{
+		/** Property name or function key (`file.inFolder`, `file.hasTag`). */
 		property: string;
+		/** Optional comparison operator. */
 		operator?: string;
+		/** Optional comparison value. */
 		value?: string;
 	}>;
+	/** Deprecated legacy flag (ignored by current flow). */
 	create_sample_notes?: boolean;
+	/** Optional explicit confirmation flag for non-interactive flow. */
 	confirmed?: boolean;
 }
 
+/** Parameters for reading a single Base or listing all Bases. */
 export interface ReadBaseParams {
+	/** Optional Base path; when omitted, handler lists all Bases. */
 	base_path?: string;
+	/** Include expanded schema details in output. */
 	include_schema_details?: boolean;
 }
 
+/** Parameters for querying records from a Base. */
 export interface QueryBaseParams {
+	/** Base file path to query. */
 	base_path: string;
+	/** Optional query result limit. */
 	limit?: number;
 }
 
+/** Parameters for adding records (notes) to a Base-defined dataset. */
 export interface AddBaseRecordsParams {
+	/** Base file path whose schema guides note creation. */
 	base_path: string;
+	/** Records to create as notes. */
 	records: Array<{
+		/** Note title / target file name stem. */
 		title: string;
+		/** Frontmatter key-value properties for the note. */
 		properties: Record<string, any>;
+		/** Optional markdown body content. */
 		content?: string;
 	}>;
+	/** Optional output folder override. */
 	folder?: string;
 }
 
+/** Parameters for bulk record property updates. */
 export interface UpdateBaseRecordsParams {
+	/** Base path whose filters select target notes. */
 	base_path: string;
+	/** Property update map to apply to matching notes. */
 	property_updates: Record<string, any>;
+	/** Preview-only mode flag (defaults true in handlers for safety). */
 	preview_only?: boolean;
 }
 
+/** Parameters for schema evolution operations. */
 export interface EvolveBaseSchemaParams {
+	/** Base path to evolve. */
 	base_path: string;
+	/** Evolution operation kind. */
 	operation: "add_property" | "remove_property" | "rename_property";
+	/** Primary property name (or old name for rename). */
 	property_name: string;
+	/** New property name for rename operations. */
 	new_property_name?: string;
+	/** Property type for add operation. */
 	property_type?: "text" | "number" | "date" | "checkbox" | "list" | "tags";
+	/** Optional value to backfill into matching notes. */
 	backfill_value?: string;
+	/** Preview-only mode flag (defaults true in handlers for safety). */
 	preview_only?: boolean;
 }

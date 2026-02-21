@@ -1,6 +1,24 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * PromptCache - Caches custom prompts from configured directories for fast access.
- * Loads prompts on startup and watches for changes to prompt directories.
+ * @module PromptCache
+ * @description Caches custom prompts from configured directories for fast access.
+ *
+ * Loads prompts on startup and watches for changes to prompt directories,
+ * keeping a lightweight metadata index for prompt pickers and slash menus.
+ *
+ * @example
+ * ```typescript
+ * const cache = new PromptCache(app);
+ * await cache.initialize(["Reference/Prompts"]);
+ * const prompts = cache.getPrompts();
+ * ```
+ *
+ * @see {@link CustomizationLoader} for source parsing behavior
+ * @since 0.0.28
  */
 
 import { App, TFile, TAbstractFile, EventRef } from "obsidian";
@@ -54,14 +72,26 @@ export type PromptCacheListener = (event: PromptCacheEvent) => void;
  * It loads prompts on initialization and watches for file changes in prompt directories.
  */
 export class PromptCache {
+	/** Obsidian app instance. @internal */
 	private app: App;
+	/** Loader for parsing prompt files. @internal */
 	private loader: CustomizationLoader;
+	/** Path-indexed cached prompt metadata. @internal */
 	private cachedPrompts: Map<string, CachedPromptInfo> = new Map();
+	/** Directories currently monitored for prompts. @internal */
 	private promptDirectories: string[] = [];
+	/** Cache-change listeners. @internal */
 	private listeners: Set<PromptCacheListener> = new Set();
+	/** Vault modify watcher reference. @internal */
 	private fileWatcherRef: EventRef | null = null;
+	/** Prevents overlapping refresh operations. @internal */
 	private isLoading = false;
 
+	/**
+	 * Create a new prompt cache.
+	 *
+	 * @param app - Obsidian app instance
+	 */
 	constructor(app: App) {
 		this.app = app;
 		this.loader = new CustomizationLoader(app);
@@ -70,6 +100,9 @@ export class PromptCache {
 	/**
 	 * Initialize the cache by loading prompts from the given directories.
 	 * Call this when the plugin loads.
+	 *
+	 * @param directories - Directories to scan for `.prompt.md` files
+	 * @returns Resolves when initial load and watchers are set up
 	 */
 	async initialize(directories: string[]): Promise<void> {
 		this.promptDirectories = directories;
@@ -80,6 +113,9 @@ export class PromptCache {
 	/**
 	 * Update the prompt directories and refresh the cache.
 	 * Call this when the user changes the prompt directory settings.
+	 *
+	 * @param directories - New directories to monitor
+	 * @returns Resolves when update processing finishes
 	 */
 	async updateDirectories(directories: string[]): Promise<void> {
 		// Normalize paths for comparison (trim whitespace, normalize slashes)
@@ -103,6 +139,8 @@ export class PromptCache {
 
 	/**
 	 * Refresh the cache by reloading all prompts from the configured directories.
+	 *
+	 * @returns Resolves when prompt metadata is refreshed
 	 */
 	async refreshCache(): Promise<void> {
 		if (this.isLoading) return;
@@ -134,6 +172,8 @@ export class PromptCache {
 
 	/**
 	 * Get all cached prompts.
+	 *
+	 * @returns Array of cached prompt info
 	 */
 	getPrompts(): CachedPromptInfo[] {
 		return Array.from(this.cachedPrompts.values());
@@ -141,6 +181,9 @@ export class PromptCache {
 
 	/**
 	 * Get a cached prompt by name.
+	 *
+	 * @param name - Prompt name to find
+	 * @returns Matching prompt or `undefined`
 	 */
 	getPromptByName(name: string): CachedPromptInfo | undefined {
 		for (const prompt of this.cachedPrompts.values()) {
@@ -153,6 +196,9 @@ export class PromptCache {
 
 	/**
 	 * Get a cached prompt by path.
+	 *
+	 * @param path - Prompt file path
+	 * @returns Matching prompt or `undefined`
 	 */
 	getPromptByPath(path: string): CachedPromptInfo | undefined {
 		return this.cachedPrompts.get(path);
@@ -160,6 +206,9 @@ export class PromptCache {
 
 	/**
 	 * Load the full prompt details (including content) for a specific prompt.
+	 *
+	 * @param name - Prompt name
+	 * @returns Full prompt object or `undefined`
 	 */
 	async getFullPrompt(name: string): Promise<CustomPrompt | undefined> {
 		return await this.loader.getPrompt(this.promptDirectories, name);
@@ -167,6 +216,8 @@ export class PromptCache {
 
 	/**
 	 * Check if there are any cached prompts.
+	 *
+	 * @returns `true` when at least one prompt is cached
 	 */
 	hasPrompts(): boolean {
 		return this.cachedPrompts.size > 0;
@@ -174,6 +225,8 @@ export class PromptCache {
 
 	/**
 	 * Get the number of cached prompts.
+	 *
+	 * @returns Count of cached prompts
 	 */
 	get count(): number {
 		return this.cachedPrompts.size;
@@ -182,6 +235,9 @@ export class PromptCache {
 	/**
 	 * Subscribe to cache change events.
 	 * Returns an unsubscribe function.
+	 *
+	 * @param listener - Callback invoked on cache changes
+	 * @returns Unsubscribe function
 	 */
 	onCacheChange(listener: PromptCacheListener): () => void {
 		this.listeners.add(listener);
@@ -192,6 +248,8 @@ export class PromptCache {
 
 	/**
 	 * Clean up resources when the plugin unloads.
+	 *
+	 * @returns Nothing
 	 */
 	destroy(): void {
 		if (this.fileWatcherRef) {
@@ -204,6 +262,7 @@ export class PromptCache {
 
 	/**
 	 * Set up file watchers for prompt directories to detect changes.
+	 * @internal
 	 */
 	private setupFileWatcher(): void {
 		// Clean up existing watcher
@@ -232,6 +291,11 @@ export class PromptCache {
 
 	/**
 	 * Handle file change events (create, modify, delete).
+	 *
+	 * @param file - Changed file reference
+	 * @param eventType - Event type
+	 * @returns Resolves when handling is complete
+	 * @internal
 	 */
 	private async handleFileChange(file: TAbstractFile, eventType: 'create' | 'modify' | 'delete'): Promise<void> {
 		if (!(file instanceof TFile)) return;
@@ -267,6 +331,11 @@ export class PromptCache {
 
 	/**
 	 * Handle file rename events.
+	 *
+	 * @param file - Renamed file reference
+	 * @param oldPath - Previous path
+	 * @returns Resolves when rename handling is complete
+	 * @internal
 	 */
 	private async handleFileRename(file: TAbstractFile, oldPath: string): Promise<void> {
 		// Check if the old path was a prompt file
@@ -283,6 +352,10 @@ export class PromptCache {
 
 	/**
 	 * Check if a file path is within one of the prompt directories and is a .prompt.md file.
+	 *
+	 * @param filePath - File path to test
+	 * @returns `true` when file should be treated as a prompt file
+	 * @internal
 	 */
 	private isPromptFile(filePath: string): boolean {
 		if (!filePath.endsWith('.prompt.md')) return false;
@@ -299,6 +372,12 @@ export class PromptCache {
 	 * Parse a prompt file and extract the cached info.
 	 * Reuses the shared parseFrontmatter from CustomizationLoader to avoid
 	 * duplicating YAML parsing logic.
+	 *
+	 * @param path - Prompt file path
+	 * @param basename - Prompt file basename
+	 * @param content - Prompt file content
+	 * @returns Cached prompt info or `null` when parsing fails
+	 * @internal
 	 */
 	private parsePromptFile(path: string, basename: string, content: string): CachedPromptInfo | null {
 		const { frontmatter } = parseFrontmatter(content);
@@ -328,6 +407,10 @@ export class PromptCache {
 
 	/**
 	 * Notify all listeners of a cache change event.
+	 *
+	 * @param event - Prompt cache event payload
+	 * @returns Nothing
+	 * @internal
 	 */
 	private notifyListeners(event: PromptCacheEvent): void {
 		for (const listener of this.listeners) {

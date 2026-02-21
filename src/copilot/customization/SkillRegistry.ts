@@ -1,8 +1,28 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * Skill Registry for Vault Copilot
- * 
+ * @module SkillRegistry
+ * @description Skill registration and execution primitives for Vault Copilot.
+ *
  * Provides a way for third-party plugins to register custom skills/tools
  * that can be invoked by the AI assistant.
+ *
+ * @example
+ * ```typescript
+ * const registry = getSkillRegistry();
+ * registry.registerSkill({
+ *   name: "example.echo",
+ *   description: "Echoes text",
+ *   parameters: { type: "object", properties: { text: { type: "string", description: "Text" } }, required: ["text"] },
+ *   handler: async (args) => ({ success: true, data: args.text }),
+ * });
+ * ```
+ *
+ * @see {@link VaultCopilotSkill}
+ * @since 0.0.28
  */
 
 /**
@@ -66,7 +86,7 @@ export interface VaultCopilotSkill {
 }
 
 /**
- * Information about a registered skill (without the handler for serialization)
+ * Information about a registered skill (without the handler for serialization).
  */
 export interface SkillInfo {
 	name: string;
@@ -81,7 +101,7 @@ export interface SkillInfo {
 }
 
 /**
- * MCP Server configuration
+ * MCP server configuration.
  */
 export interface McpServerConfig {
 	/** Server URL */
@@ -95,7 +115,7 @@ export interface McpServerConfig {
 }
 
 /**
- * Event emitted when skills change
+ * Event emitted when skills change.
  */
 export interface SkillRegistryEvent {
 	type: 'registered' | 'unregistered' | 'updated';
@@ -105,17 +125,27 @@ export interface SkillRegistryEvent {
 
 /**
  * Skill Registry Manager
- * 
+ *
  * Manages the registration, lookup, and execution of skills from third-party plugins.
  */
 export class SkillRegistry {
+	/** Registered skills by name. @internal */
 	private skills: Map<string, VaultCopilotSkill> = new Map();
+	/** Configured MCP servers by id. @internal */
 	private mcpServers: Map<string, McpServerConfig> = new Map();
+	/** Registry event listeners. @internal */
 	private listeners: Set<(event: SkillRegistryEvent) => void> = new Set();
 
 	/**
-	 * Register a new skill
-	 * @throws Error if a skill with the same name is already registered
+	 * Register a new skill.
+	 *
+	 * @param skill - Skill definition to register
+	 * @returns Nothing
+	 * @throws {Error} If a skill with the same name is already registered
+	 * @example
+	 * ```typescript
+	 * registry.registerSkill(skill);
+	 * ```
 	 */
 	registerSkill(skill: VaultCopilotSkill): void {
 		if (this.skills.has(skill.name)) {
@@ -136,8 +166,15 @@ export class SkillRegistry {
 	}
 
 	/**
-	 * Update an existing skill
-	 * @throws Error if the skill is not registered
+	 * Update an existing skill.
+	 *
+	 * @param skill - Skill definition replacement
+	 * @returns Nothing
+	 * @throws {Error} If the skill is not registered
+	 * @example
+	 * ```typescript
+	 * registry.updateSkill(updatedSkill);
+	 * ```
 	 */
 	updateSkill(skill: VaultCopilotSkill): void {
 		if (!this.skills.has(skill.name)) {
@@ -158,8 +195,14 @@ export class SkillRegistry {
 	}
 
 	/**
-	 * Unregister a skill by name
-	 * @returns true if the skill was removed, false if it wasn't registered
+	 * Unregister a skill by name.
+	 *
+	 * @param name - Skill identifier
+	 * @returns `true` if the skill was removed, otherwise `false`
+	 * @example
+	 * ```typescript
+	 * registry.unregisterSkill("example.echo");
+	 * ```
 	 */
 	unregisterSkill(name: string): boolean {
 		const existed = this.skills.delete(name);
@@ -175,7 +218,9 @@ export class SkillRegistry {
 	}
 
 	/**
-	 * Unregister all skills from a specific plugin
+	 * Unregister all skills from a specific plugin.
+	 *
+	 * @param pluginId - Plugin identifier
 	 * @returns Number of skills unregistered
 	 */
 	unregisterPluginSkills(pluginId: string): number {
@@ -194,28 +239,39 @@ export class SkillRegistry {
 	}
 
 	/**
-	 * Get a skill by name
+	 * Get a skill by name.
+	 *
+	 * @param name - Skill identifier
+	 * @returns Matching skill or `undefined`
 	 */
 	getSkill(name: string): VaultCopilotSkill | undefined {
 		return this.skills.get(name);
 	}
 
 	/**
-	 * Check if a skill is registered
+	 * Check if a skill is registered.
+	 *
+	 * @param name - Skill identifier
+	 * @returns `true` when skill is registered
 	 */
 	hasSkill(name: string): boolean {
 		return this.skills.has(name);
 	}
 
 	/**
-	 * List all registered skills (info only, no handlers)
+	 * List all registered skills (info only, no handlers).
+	 *
+	 * @returns Serialized skill list
 	 */
 	listSkills(): SkillInfo[] {
 		return Array.from(this.skills.values()).map(skill => this.toSkillInfo(skill));
 	}
 
 	/**
-	 * List skills by category
+	 * List skills by category.
+	 *
+	 * @param category - Skill category
+	 * @returns Matching skills
 	 */
 	listSkillsByCategory(category: string): SkillInfo[] {
 		return Array.from(this.skills.values())
@@ -224,7 +280,10 @@ export class SkillRegistry {
 	}
 
 	/**
-	 * List skills by plugin
+	 * List skills by plugin.
+	 *
+	 * @param pluginId - Plugin identifier
+	 * @returns Matching skills
 	 */
 	listSkillsByPlugin(pluginId: string): SkillInfo[] {
 		return Array.from(this.skills.values())
@@ -233,7 +292,11 @@ export class SkillRegistry {
 	}
 
 	/**
-	 * Execute a skill by name
+	 * Execute a skill by name.
+	 *
+	 * @param name - Skill identifier
+	 * @param args - Skill arguments
+	 * @returns Skill execution result
 	 */
 	async executeSkill(name: string, args: Record<string, unknown>): Promise<SkillResult> {
 		const skill = this.skills.get(name);
@@ -264,7 +327,11 @@ export class SkillRegistry {
 	}
 
 	/**
-	 * Configure an MCP server
+	 * Configure an MCP server.
+	 *
+	 * @param id - MCP server identifier
+	 * @param config - Server configuration
+	 * @returns Nothing
 	 */
 	configureMcpServer(id: string, config: McpServerConfig): void {
 		this.mcpServers.set(id, {
@@ -274,21 +341,28 @@ export class SkillRegistry {
 	}
 
 	/**
-	 * Remove an MCP server configuration
+	 * Remove an MCP server configuration.
+	 *
+	 * @param id - MCP server identifier
+	 * @returns `true` if removed
 	 */
 	removeMcpServer(id: string): boolean {
 		return this.mcpServers.delete(id);
 	}
 
 	/**
-	 * Get all configured MCP servers
+	 * Get all configured MCP servers.
+	 *
+	 * @returns Copy of MCP server map
 	 */
 	getMcpServers(): Map<string, McpServerConfig> {
 		return new Map(this.mcpServers);
 	}
 
 	/**
-	 * Get enabled MCP servers for use with SDK
+	 * Get enabled MCP servers for use with SDK.
+	 *
+	 * @returns SDK-compatible enabled server record
 	 */
 	getEnabledMcpServers(): Record<string, { url: string; apiKey?: string }> {
 		const result: Record<string, { url: string; apiKey?: string }> = {};
@@ -304,7 +378,10 @@ export class SkillRegistry {
 	}
 
 	/**
-	 * Subscribe to registry changes
+	 * Subscribe to registry changes.
+	 *
+	 * @param listener - Change callback
+	 * @returns Unsubscribe function
 	 */
 	onSkillChange(listener: (event: SkillRegistryEvent) => void): () => void {
 		this.listeners.add(listener);
@@ -312,14 +389,18 @@ export class SkillRegistry {
 	}
 
 	/**
-	 * Get the total number of registered skills
+	 * Get the total number of registered skills.
+	 *
+	 * @returns Registered skill count
 	 */
 	get size(): number {
 		return this.skills.size;
 	}
 
 	/**
-	 * Clear all registered skills
+	 * Clear all registered skills.
+	 *
+	 * @returns Nothing
 	 */
 	clear(): void {
 		const names = Array.from(this.skills.keys());
@@ -333,8 +414,14 @@ export class SkillRegistry {
 		}
 	}
 
-	// ===== Private Helpers =====
-
+	/**
+	 * Validate that a skill has required fields.
+	 *
+	 * @param skill - Skill to validate
+	 * @returns Nothing
+	 * @throws {Error} If the skill definition is invalid
+	 * @internal
+	 */
 	private validateSkill(skill: VaultCopilotSkill): void {
 		if (!skill.name || typeof skill.name !== 'string') {
 			throw new Error('Skill must have a valid name');
@@ -350,11 +437,26 @@ export class SkillRegistry {
 		}
 	}
 
+	/**
+	 * Validate arguments against required skill parameters.
+	 *
+	 * @param skill - Target skill
+	 * @param args - Provided arguments
+	 * @returns Missing required parameter names
+	 * @internal
+	 */
 	private validateArgs(skill: VaultCopilotSkill, args: Record<string, unknown>): string[] {
 		const required = skill.parameters.required || [];
 		return required.filter(param => !(param in args));
 	}
 
+	/**
+	 * Convert a full skill to serializable info.
+	 *
+	 * @param skill - Skill definition
+	 * @returns Serializable skill info
+	 * @internal
+	 */
 	private toSkillInfo(skill: VaultCopilotSkill): SkillInfo {
 		return {
 			name: skill.name,
@@ -369,6 +471,13 @@ export class SkillRegistry {
 		};
 	}
 
+	/**
+	 * Emit a registry event to all listeners.
+	 *
+	 * @param event - Event payload
+	 * @returns Nothing
+	 * @internal
+	 */
 	private emit(event: SkillRegistryEvent): void {
 		for (const listener of this.listeners) {
 			try {
@@ -380,11 +489,17 @@ export class SkillRegistry {
 	}
 }
 
-// Singleton instance
+/** Singleton registry instance. @internal */
 let registryInstance: SkillRegistry | null = null;
 
 /**
- * Get the global skill registry instance
+ * Get the global skill registry instance.
+ *
+ * @returns Shared `SkillRegistry` instance
+ * @example
+ * ```typescript
+ * const registry = getSkillRegistry();
+ * ```
  */
 export function getSkillRegistry(): SkillRegistry {
 	if (!registryInstance) {
@@ -394,7 +509,13 @@ export function getSkillRegistry(): SkillRegistry {
 }
 
 /**
- * Reset the registry (for testing)
+ * Reset the registry (for testing).
+ *
+ * @returns Nothing
+ * @example
+ * ```typescript
+ * resetSkillRegistry();
+ * ```
  */
 export function resetSkillRegistry(): void {
 	if (registryInstance) {

@@ -1,6 +1,24 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * AgentCache - Caches custom agents from configured directories for fast access.
- * Loads agents on startup and watches for changes to agent directories.
+ * @module AgentCache
+ * @description Caches custom agents from configured directories for fast access.
+ *
+ * Loads agents on startup and keeps the cache in sync with vault file changes
+ * for `.agent.md` files.
+ *
+ * @example
+ * ```typescript
+ * const cache = new AgentCache(app);
+ * await cache.initialize(["Reference/Agents", "~/.copilot/agents"]);
+ * const agents = cache.getAgents();
+ * ```
+ *
+ * @see {@link CustomizationLoader} for underlying file parsing
+ * @since 0.0.28
  */
 
 import { App, TFile, TAbstractFile, EventRef } from "obsidian";
@@ -45,16 +63,36 @@ export type AgentCacheListener = (event: AgentCacheEvent) => void;
 /**
  * AgentCache manages a cached list of available agents for quick access.
  * It loads agents on initialization and watches for file changes in agent directories.
+ *
+ * @see {@link PromptCache} for prompt caching counterpart
+ * @see {@link SkillCache} for skill caching counterpart
  */
 export class AgentCache {
+	/** Obsidian app instance. @internal */
 	private app: App;
+	/** Loader for parsing agent files. @internal */
 	private loader: CustomizationLoader;
+	/** Path-indexed cache of lightweight agent metadata. @internal */
 	private cachedAgents: Map<string, CachedAgentInfo> = new Map();
+	/** Configured agent directories to scan. @internal */
 	private agentDirectories: string[] = [];
+	/** Cache-change event listeners. @internal */
 	private listeners: Set<AgentCacheListener> = new Set();
+	/** Vault file watcher reference for modify events. @internal */
 	private fileWatcherRef: EventRef | null = null;
+	/** Guard to prevent overlapping refreshes. @internal */
 	private isLoading = false;
 
+	/**
+	 * Create a new agent cache.
+	 *
+	 * @param app - Obsidian app instance
+	 *
+	 * @example
+	 * ```typescript
+	 * const cache = new AgentCache(app);
+	 * ```
+	 */
 	constructor(app: App) {
 		this.app = app;
 		this.loader = new CustomizationLoader(app);
@@ -63,6 +101,14 @@ export class AgentCache {
 	/**
 	 * Initialize the cache by loading agents from the given directories.
 	 * Call this when the plugin loads.
+	 *
+	 * @param directories - Directory paths to scan for `.agent.md` files
+	 * @returns Resolves when initial cache load and watchers are set up
+	 *
+	 * @example
+	 * ```typescript
+	 * await cache.initialize(["Reference/Agents"]);
+	 * ```
 	 */
 	async initialize(directories: string[]): Promise<void> {
 		this.agentDirectories = directories;
@@ -73,6 +119,9 @@ export class AgentCache {
 	/**
 	 * Update the agent directories and refresh the cache.
 	 * Call this when the user changes the agent directory settings.
+	 *
+	 * @param directories - New directories to monitor for agent files
+	 * @returns Resolves after refresh when directories changed
 	 */
 	async updateDirectories(directories: string[]): Promise<void> {
 		// Normalize paths for comparison (trim whitespace, normalize slashes)
@@ -96,6 +145,8 @@ export class AgentCache {
 
 	/**
 	 * Refresh the cache by reloading all agents from the configured directories.
+	 *
+	 * @returns Resolves when cache refresh completes
 	 */
 	async refreshCache(): Promise<void> {
 		if (this.isLoading) return;
@@ -127,6 +178,8 @@ export class AgentCache {
 
 	/**
 	 * Get all cached agents.
+	 *
+	 * @returns Array of cached agent metadata
 	 */
 	getAgents(): CachedAgentInfo[] {
 		return Array.from(this.cachedAgents.values());
@@ -134,6 +187,9 @@ export class AgentCache {
 
 	/**
 	 * Get a cached agent by name.
+	 *
+	 * @param name - Agent name to find
+	 * @returns Matching cached agent or `undefined`
 	 */
 	getAgentByName(name: string): CachedAgentInfo | undefined {
 		for (const agent of this.cachedAgents.values()) {
@@ -146,6 +202,9 @@ export class AgentCache {
 
 	/**
 	 * Get a cached agent by path.
+	 *
+	 * @param path - Full path to the agent file
+	 * @returns Matching cached agent or `undefined`
 	 */
 	getAgentByPath(path: string): CachedAgentInfo | undefined {
 		return this.cachedAgents.get(path);
@@ -153,6 +212,9 @@ export class AgentCache {
 
 	/**
 	 * Load the full agent details (including instructions) for a specific agent.
+	 *
+	 * @param name - Agent name
+	 * @returns Parsed full agent definition or `undefined`
 	 */
 	async getFullAgent(name: string): Promise<CustomAgent | undefined> {
 		return await this.loader.getAgent(this.agentDirectories, name);
@@ -160,6 +222,8 @@ export class AgentCache {
 
 	/**
 	 * Check if there are any cached agents.
+	 *
+	 * @returns `true` when at least one agent is cached
 	 */
 	hasAgents(): boolean {
 		return this.cachedAgents.size > 0;
@@ -167,6 +231,8 @@ export class AgentCache {
 
 	/**
 	 * Get the number of cached agents.
+	 *
+	 * @returns Number of cached agents
 	 */
 	get count(): number {
 		return this.cachedAgents.size;
@@ -175,6 +241,9 @@ export class AgentCache {
 	/**
 	 * Subscribe to cache change events.
 	 * Returns an unsubscribe function.
+	 *
+	 * @param listener - Callback invoked on cache updates
+	 * @returns Unsubscribe function
 	 */
 	onCacheChange(listener: AgentCacheListener): () => void {
 		this.listeners.add(listener);
@@ -185,6 +254,8 @@ export class AgentCache {
 
 	/**
 	 * Clean up resources when the plugin unloads.
+	 *
+	 * @returns Nothing
 	 */
 	destroy(): void {
 		if (this.fileWatcherRef) {
@@ -197,6 +268,7 @@ export class AgentCache {
 
 	/**
 	 * Set up file watchers for agent directories to detect changes.
+	 * @internal
 	 */
 	private setupFileWatcher(): void {
 		// Clean up existing watcher
@@ -225,6 +297,11 @@ export class AgentCache {
 
 	/**
 	 * Handle file change events (create, modify, delete).
+	 *
+	 * @param file - Changed vault file
+	 * @param eventType - Type of file event
+	 * @returns Resolves when cache update handling completes
+	 * @internal
 	 */
 	private async handleFileChange(file: TAbstractFile, eventType: 'create' | 'modify' | 'delete'): Promise<void> {
 		if (!(file instanceof TFile)) return;
@@ -260,6 +337,11 @@ export class AgentCache {
 
 	/**
 	 * Handle file rename events.
+	 *
+	 * @param file - Renamed file
+	 * @param oldPath - Previous file path
+	 * @returns Resolves when rename handling completes
+	 * @internal
 	 */
 	private async handleFileRename(file: TAbstractFile, oldPath: string): Promise<void> {
 		// Check if the old path was an agent file
@@ -276,6 +358,10 @@ export class AgentCache {
 
 	/**
 	 * Check if a file path is within one of the agent directories and is an .agent.md file.
+	 *
+	 * @param filePath - File path to test
+	 * @returns `true` when file should be handled as an agent definition
+	 * @internal
 	 */
 	private isAgentFile(filePath: string): boolean {
 		if (!filePath.endsWith('.agent.md')) return false;
@@ -291,6 +377,11 @@ export class AgentCache {
 	/**
 	 * Parse an agent file and extract the cached info.
 	 * Uses the shared parseFrontmatter/parseYamlKeyValues for consistency.
+	 *
+	 * @param path - Agent file path
+	 * @param content - Agent file content
+	 * @returns Parsed cached agent info or `null` when required fields are missing
+	 * @internal
 	 */
 	private parseAgentFile(path: string, content: string): CachedAgentInfo | null {
 		const { frontmatter } = parseFrontmatter(content);
@@ -334,6 +425,10 @@ export class AgentCache {
 
 	/**
 	 * Notify all listeners of a cache change event.
+	 *
+	 * @param event - Cache change event payload
+	 * @returns Nothing
+	 * @internal
 	 */
 	private notifyListeners(event: AgentCacheEvent): void {
 		for (const listener of this.listeners) {

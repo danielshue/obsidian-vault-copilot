@@ -1,3 +1,8 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
  * @module AzureOpenAIService
  * @description Azure OpenAI API provider implementation for Vault Copilot.
@@ -32,6 +37,7 @@
  *
  * @see {@link AIProvider} for the base class interface
  * @see {@link AzureOpenAIProviderConfig} for configuration options
+ * @see {@link AIProviderFactory} for provider construction and platform checks
  * @since 0.0.1
  */
 
@@ -40,12 +46,14 @@ import { App } from "obsidian";
 import { ChatMessage } from "./GitHubCopilotCliService";
 import {
 	AIProvider,
-	AIProviderConfig,
 	AzureOpenAIProviderConfig,
 	StreamingCallbacks,
-	ToolDefinition,
 } from "./AIProvider";
 
+/**
+ * Internal OpenAI tool schema shape used for Azure Chat Completions requests.
+ * @internal
+ */
 interface AzureOpenAITool {
 	type: "function";
 	function: {
@@ -55,7 +63,9 @@ interface AzureOpenAITool {
 	};
 }
 
+/** SDK message type alias used for Azure chat requests. @internal */
 type AzureOpenAIMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
+/** SDK tool-call type alias used for function call execution. @internal */
 type AzureOpenAIToolCall = OpenAI.Chat.Completions.ChatCompletionMessageToolCall;
 
 /**
@@ -111,12 +121,44 @@ export class AzureOpenAIService extends AIProvider {
 	/** Azure-specific provider configuration */
 	declare protected config: AzureOpenAIProviderConfig;
 
+	/**
+	 * Create a new Azure OpenAI provider instance.
+	 *
+	 * @param app - Obsidian app instance for vault/tool integration
+	 * @param config - Azure OpenAI provider configuration
+	 *
+	 * @example
+	 * ```typescript
+	 * const service = new AzureOpenAIService(app, {
+	 *   provider: "azure-openai",
+	 *   model: "gpt-4o",
+	 *   streaming: true,
+	 *   endpoint: "https://my-resource.openai.azure.com",
+	 *   deploymentName: "gpt-4o",
+	 *   apiKey: "...",
+	 * });
+	 * ```
+	 */
 	constructor(app: App, config: AzureOpenAIProviderConfig) {
 		super(app, config);
 	}
 
 	/**
-	 * Initialize the Azure OpenAI client
+	 * Initialize the Azure OpenAI client.
+	 *
+	 * Validates API key, endpoint, and deployment name, then creates an
+	 * OpenAI client configured for Azure deployment routing.
+	 *
+	 * @returns Resolves when the provider is ready to handle requests
+	 *
+	 * @throws {Error} If API key is missing
+	 * @throws {Error} If endpoint is missing
+	 * @throws {Error} If deployment name is missing
+	 *
+	 * @example
+	 * ```typescript
+	 * await service.initialize();
+	 * ```
 	 */
 	async initialize(): Promise<void> {
 		if (this.isInitialized && this.client) {
@@ -156,7 +198,23 @@ export class AzureOpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Send a message and wait for complete response
+	 * Send a message and wait for a complete (non-streaming) response.
+	 *
+	 * Supports iterative tool-calling loops: when the model returns function
+	 * calls, the service executes tools, appends tool results, and re-queries
+	 * until a final assistant response is produced.
+	 *
+	 * @param prompt - User prompt text
+	 * @returns Final assistant response text
+	 *
+	 * @throws {Error} Propagates API and tool execution errors
+	 *
+	 * @example
+	 * ```typescript
+	 * const response = await service.sendMessage("Summarize my daily note");
+	 * ```
+	 *
+	 * @see {@link executeToolCalls} for tool call execution
 	 */
 	async sendMessage(prompt: string): Promise<string> {
 		if (!this.client) {
@@ -217,7 +275,26 @@ export class AzureOpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Send a message with streaming response
+	 * Send a message with streaming response.
+	 *
+	 * Streams incremental deltas to `callbacks.onDelta` and handles tool-call
+	 * rounds transparently. If aborted, it returns the accumulated content and
+	 * calls `onComplete` with the partial response.
+	 *
+	 * @param prompt - User prompt text
+	 * @param callbacks - Streaming callbacks (`onDelta`, optional `onComplete`, optional `onError`)
+	 * @returns Resolves when the streaming interaction completes
+	 *
+	 * @throws {Error} Propagates non-abort API and execution errors
+	 *
+	 * @example
+	 * ```typescript
+	 * await service.sendMessageStreaming("Plan my week", {
+	 *   onDelta: (chunk) => appendToUI(chunk),
+	 *   onComplete: (full) => renderMarkdown(full),
+	 *   onError: (err) => console.error(err),
+	 * });
+	 * ```
 	 */
 	async sendMessageStreaming(
 		prompt: string,
@@ -341,7 +418,14 @@ export class AzureOpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Abort the current operation
+	 * Abort the current in-flight streaming operation.
+	 *
+	 * @returns Resolves after the abort signal has been sent
+	 *
+	 * @example
+	 * ```typescript
+	 * await service.abort();
+	 * ```
 	 */
 	async abort(): Promise<void> {
 		if (this.abortController) {
@@ -351,14 +435,30 @@ export class AzureOpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Check if the provider is ready
+	 * Check if the provider is initialized and ready for requests.
+	 *
+	 * @returns `true` when initialized and client is available, otherwise `false`
+	 *
+	 * @example
+	 * ```typescript
+	 * if (!service.isReady()) await service.initialize();
+	 * ```
 	 */
 	isReady(): boolean {
 		return this.isInitialized && this.client !== null;
 	}
 
 	/**
-	 * Clean up resources
+	 * Clean up resources and reset provider state.
+	 *
+	 * Aborts active requests, clears client references, and resets in-memory history.
+	 *
+	 * @returns Resolves when cleanup is complete
+	 *
+	 * @example
+	 * ```typescript
+	 * await service.destroy();
+	 * ```
 	 */
 	async destroy(): Promise<void> {
 		await this.abort();
@@ -368,7 +468,13 @@ export class AzureOpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Build messages array for API call
+	 * Build SDK message array for a chat-completions request.
+	 *
+	 * Includes the configured system prompt (when present) followed by
+	 * the local conversation history in chronological order.
+	 *
+	 * @returns Array of Azure chat completion message objects
+	 * @internal
 	 */
 	private buildMessages(): AzureOpenAIMessage[] {
 		const messages: AzureOpenAIMessage[] = [];
@@ -393,8 +499,13 @@ export class AzureOpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Build tools array for API call
-	 * Includes manually set tools, MCP tools, and ask_question tool
+	 * Build SDK tools array for a chat-completions request.
+	 *
+	 * Includes manually configured tools, MCP-derived tools, and the
+	 * `ask_question` tool when a question callback is registered.
+	 *
+	 * @returns Array of Azure function tool definitions
+	 * @internal
 	 */
 	private buildTools(): AzureOpenAITool[] {
 		// Combine manually set tools with MCP tools
@@ -417,7 +528,11 @@ export class AzureOpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Execute tool calls and return results
+	 * Execute model-requested tool calls and return tool results.
+	 *
+	 * @param toolCalls - Tool calls emitted by Azure chat completion response
+	 * @returns Array mapping tool call IDs to execution results
+	 * @internal
 	 */
 	private async executeToolCalls(
 		toolCalls: AzureOpenAIToolCall[]
@@ -470,7 +585,15 @@ export class AzureOpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Test the connection to Azure OpenAI
+	 * Test connectivity to Azure OpenAI with a minimal request.
+	 *
+	 * @returns Object with `success: true` on success, otherwise `success: false` and `error`
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await service.testConnection();
+	 * if (!result.success) console.error(result.error);
+	 * ```
 	 */
 	async testConnection(): Promise<{ success: boolean; error?: string }> {
 		try {
@@ -498,6 +621,13 @@ export class AzureOpenAIService extends AIProvider {
 	 * List available models from Azure OpenAI for chat (excludes realtime and audio models)
 	 * Note: Azure doesn't provide a models API, so we return common model names
 	 * Based on: https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models
+	 *
+	 * @returns Sorted list of common Azure chat model IDs
+	 *
+	 * @example
+	 * ```typescript
+	 * const models = await service.listModels();
+	 * ```
 	 */
 	async listModels(): Promise<string[]> {
 		// Azure OpenAI doesn't have a dynamic models list API
@@ -520,7 +650,14 @@ export class AzureOpenAIService extends AIProvider {
 	}
 
 	/**
-	 * List available realtime models for voice agent
+	 * List available realtime model IDs for voice agents.
+	 *
+	 * @returns Sorted list of realtime-capable model IDs
+	 *
+	 * @example
+	 * ```typescript
+	 * const realtimeModels = await service.listRealtimeModels();
+	 * ```
 	 */
 	async listRealtimeModels(): Promise<string[]> {
 		return [
@@ -530,7 +667,14 @@ export class AzureOpenAIService extends AIProvider {
 	}
 
 	/**
-	 * List available audio models for voice input
+	 * List available audio model IDs for voice input.
+	 *
+	 * @returns Sorted list of audio-capable model IDs
+	 *
+	 * @example
+	 * ```typescript
+	 * const audioModels = await service.listAudioModels();
+	 * ```
 	 */
 	async listAudioModels(): Promise<string[]> {
 		return [

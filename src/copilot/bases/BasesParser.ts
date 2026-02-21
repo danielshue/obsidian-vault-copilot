@@ -1,15 +1,29 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * BasesParser - Parse .base files into structured BaseSchema objects
- * 
- * A .base file is a YAML file that defines a view (not markdown with frontmatter).
- * It contains NO data - only the view definition (filters, properties, formulas, etc.)
+ * @module BasesParser
+ * @description Parsing and validation helpers for Obsidian `.base` YAML files.
+ *
+ * A `.base` file is YAML view configuration (not markdown frontmatter data).
+ * It contains filters/properties/views but not record values.
+ *
+ * @see {@link parseBaseFile}
+ * @see {@link validateBaseSchema}
+ * @since 0.0.28
  */
 
 import { parseYaml } from "obsidian";
 import type { BaseFilterGroup, BaseSchema } from "./types";
 
 /**
- * Count the number of leaf filters in a filter group
+ * Count the number of leaf filter expressions in a filter group.
+ *
+ * @param group - Filter group
+ * @returns Leaf filter count
+ * @internal
  */
 function countFilters(group: BaseFilterGroup): number {
 	let count = 0;
@@ -31,12 +45,17 @@ function countFilters(group: BaseFilterGroup): number {
 
 /**
  * Parse a .base file's content into a typed BaseSchema object.
- * 
+ *
  * Obsidian .base files are raw YAML (no frontmatter delimiters).
  * This parser also handles legacy files wrapped in --- delimiters for compatibility.
- * 
+ *
  * @param content - The raw content of the .base file
  * @returns Parsed BaseSchema or null if parsing fails
+ *
+ * @example
+ * ```typescript
+ * const schema = parseBaseFile(content);
+ * ```
  */
 export function parseBaseFile(content: string): BaseSchema | null {
 	try {
@@ -69,10 +88,15 @@ export function parseBaseFile(content: string): BaseSchema | null {
 }
 
 /**
- * Validate that a BaseSchema has the expected structure
- * 
+ * Validate that a BaseSchema has expected structural sections.
+ *
  * @param schema - The schema to validate
  * @returns true if valid, false otherwise
+ *
+ * @example
+ * ```typescript
+ * const isValid = validateBaseSchema(schema);
+ * ```
  */
 export function validateBaseSchema(schema: BaseSchema): boolean {
 	if (!schema || typeof schema !== "object") {
@@ -90,10 +114,15 @@ export function validateBaseSchema(schema: BaseSchema): boolean {
 }
 
 /**
- * Get a human-readable summary of a BaseSchema
- * 
+ * Get a human-readable summary of a BaseSchema.
+ *
  * @param schema - The schema to summarize
  * @returns A text summary of the Base's structure
+ *
+ * @example
+ * ```typescript
+ * const summary = summarizeBaseSchema(schema);
+ * ```
  */
 export function summarizeBaseSchema(schema: BaseSchema): string {
 	const parts: string[] = [];

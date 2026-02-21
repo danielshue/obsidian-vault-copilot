@@ -1,9 +1,18 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * BasesToolHandlers - Implementation of Bases AI tool handlers
- * 
- * Provides the handler functions for Bases tools that are registered
- * with AI providers. Handlers receive parsed arguments and delegate
- * to the appropriate Bases service modules.
+ * @module BasesToolHandlers
+ * @description Runtime handlers for Bases tools exposed to AI providers.
+ *
+ * Handlers receive validated tool parameters, resolve Base files/schemas,
+ * and delegate to parser/query/mutation/generator modules.
+ *
+ * @see {@link BASES_TOOL_JSON_SCHEMAS}
+ * @see {@link queryBase}
+ * @since 0.0.28
  */
 
 import type { App, TFile } from "obsidian";
@@ -31,6 +40,7 @@ import type { QuestionHandler } from "../../types/questions";
 
 /**
  * Map of common natural-language operator names to valid Bases expression operators.
+ * @internal
  */
 const OPERATOR_ALIASES: Record<string, string> = {
 	"equals": "==",
@@ -96,7 +106,11 @@ function convertFilterParamToExpression(filter: { property: string; operator?: s
 }
 
 /**
- * Recursively search a filter group for a file.inFolder() expression and extract the folder path
+ * Recursively search a filter group for a `file.inFolder()` expression.
+ *
+ * @param group - Filter group to inspect
+ * @returns Folder path if found
+ * @internal
  */
 function findFolderFromFilters(group: BaseFilterGroup): string | undefined {
 	const items = group.and || group.or;
@@ -123,7 +137,11 @@ function findFolderFromFilters(group: BaseFilterGroup): string | undefined {
 }
 
 /**
- * Normalize a Base file path (similar to normalizeVaultPath but for .base files)
+ * Normalize a Base file path.
+ *
+ * @param path - Input path
+ * @returns Normalized `.base` path
+ * @internal
  */
 function normalizeBasePath(path: string): string {
 	// Replace backslashes with forward slashes
@@ -163,8 +181,17 @@ function deriveBaseFilename(name?: string, description?: string): string {
 
 /**
  * Handler for query_base tool
- * 
+ *
  * Queries vault notes matching a Base's filters and returns formatted results
+ *
+ * @param app - Obsidian app instance
+ * @param params - Query parameters
+ * @returns Human-readable query results or error message
+ *
+ * @example
+ * ```typescript
+ * const result = await handleQueryBase(app, { base_path: "projects.base", limit: 25 });
+ * ```
  */
 export async function handleQueryBase(
 	app: App,
@@ -219,8 +246,20 @@ export async function handleQueryBase(
 
 /**
  * Handler for add_base_records tool
- * 
+ *
  * Creates new vault notes with frontmatter matching a Base's schema
+ *
+ * @param app - Obsidian app instance
+ * @param params - Record creation parameters
+ * @returns Human-readable creation summary or error message
+ *
+ * @example
+ * ```typescript
+ * const result = await handleAddBaseRecords(app, {
+ *   base_path: "contacts.base",
+ *   records: [{ title: "Ada", properties: { status: "active" } }],
+ * });
+ * ```
  */
 export async function handleAddBaseRecords(
 	app: App,
@@ -333,7 +372,7 @@ export async function handleAddBaseRecords(
 
 /**
  * Handler for create_base tool
- * 
+ *
  * Creates a new .base file from a specification.
  * When a questionCallback is provided and confirmed is not set, the handler
  * will scan vault notes, present discovered properties to the user via
@@ -342,6 +381,12 @@ export async function handleAddBaseRecords(
  * @param app - Obsidian App instance
  * @param params - The create base parameters from the AI tool call
  * @param questionCallback - Optional callback to show inline questions to the user
+ * @returns Human-readable creation result, discovery prompt, or error message
+ *
+ * @example
+ * ```typescript
+ * const result = await handleCreateBase(app, { name: "Projects" }, questionCallback);
+ * ```
  */
 export async function handleCreateBase(
 	app: App,
@@ -432,8 +477,11 @@ export async function handleCreateBase(
  * @internal
  */
 interface DiscoveryResult {
+	/** Whether the flow was cancelled. */
 	cancelled: boolean;
+	/** User-facing cancellation/next-step message. */
 	message: string;
+	/** Resolved params from user selections. */
 	resolvedParams: Partial<CreateBaseParams>;
 }
 
@@ -447,6 +495,11 @@ interface DiscoveryResult {
  * @param params - The original create params
  * @param questionCallback - Callback to render inline questions
  * @returns DiscoveryResult with user's selections or cancellation
+ *
+ * @example
+ * ```typescript
+ * const flow = await discoverAndAskProperties(app, "projects.base", params, questionCallback);
+ * ```
  * @internal
  */
 async function discoverAndAskProperties(
@@ -627,11 +680,16 @@ async function discoverAndAskProperties(
 /**
  * Discover frontmatter properties from vault notes near the target Base path.
  * Returns a formatted message for the AI to present to the user for confirmation.
- * 
+ *
  * @param app - Obsidian App instance
  * @param basePath - The intended .base file path
  * @param params - The original create params (may have partial info)
  * @returns A discovery summary message
+ *
+ * @example
+ * ```typescript
+ * const summary = await discoverPropertiesForBase(app, "projects.base", params);
+ * ```
  * @internal
  */
 async function discoverPropertiesForBase(app: App, basePath: string, params: CreateBaseParams): Promise<string> {
@@ -762,8 +820,17 @@ async function discoverPropertiesForBase(app: App, basePath: string, params: Cre
 
 /**
  * Handler for read_base tool
- * 
+ *
  * Reads a Base's schema or lists all Bases in the vault
+ *
+ * @param app - Obsidian app instance
+ * @param params - Read/list parameters
+ * @returns Human-readable schema/list output or error message
+ *
+ * @example
+ * ```typescript
+ * const result = await handleReadBase(app, { base_path: "projects.base" });
+ * ```
  */
 export async function handleReadBase(app: App, params: ReadBaseParams): Promise<string> {
 	try {
@@ -846,8 +913,20 @@ export async function handleReadBase(app: App, params: ReadBaseParams): Promise<
 
 /**
  * Handler for update_base_records tool
- * 
+ *
  * Updates frontmatter properties on notes matching a Base's filters
+ *
+ * @param app - Obsidian app instance
+ * @param params - Update parameters
+ * @returns Preview or apply result string
+ *
+ * @example
+ * ```typescript
+ * const result = await handleUpdateBaseRecords(app, {
+ *   base_path: "projects.base",
+ *   property_updates: { status: "archived" },
+ * });
+ * ```
  */
 export async function handleUpdateBaseRecords(
 	app: App,
@@ -886,8 +965,21 @@ export async function handleUpdateBaseRecords(
 
 /**
  * Handler for evolve_base_schema tool
- * 
+ *
  * Modifies a Base's schema and optionally backfills values
+ *
+ * @param app - Obsidian app instance
+ * @param params - Schema evolution parameters
+ * @returns Preview or apply result string
+ *
+ * @example
+ * ```typescript
+ * const result = await handleEvolveBaseSchema(app, {
+ *   base_path: "projects.base",
+ *   operation: "add_property",
+ *   property_name: "owner",
+ * });
+ * ```
  */
 export async function handleEvolveBaseSchema(
 	app: App,

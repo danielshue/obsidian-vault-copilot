@@ -1,20 +1,27 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
  * @module realtime-agent
- * @description Realtime Agent Service - OpenAI Realtime Voice Agent integration
- * 
+ * @description Realtime voice-agent exports for OpenAI Realtime integrations.
+ *
  * This module provides real-time voice conversation capabilities using OpenAI's Realtime API
  * with support for tools, interruptions, and live transcription.
- * 
+ *
  * ## Submodules
  * - **tools/** - Tool factories (vault, task, web, output, mcp)
  * - **agents/** - Specialist voice agents (task, note, workiq)
- * 
+ *
  * ## Primary Exports
  * - MainVaultAssistant: Entry point voice agent with handoff support
  * - BaseVoiceAgent: Abstract base class for custom voice agents
  * - VoiceAgentRegistry: Central registry for voice agent discovery and registration
- * 
- * @since 0.0.14
+ *
+ * @see {@link MainVaultAssistant}
+ * @see {@link VoiceAgentRegistry}
+ * @since 0.0.28
  */
 
 // Primary voice agents

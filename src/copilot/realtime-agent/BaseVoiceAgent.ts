@@ -1,11 +1,22 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * BaseVoiceAgent - Abstract base class for voice agents
- * 
+ * @module BaseVoiceAgent
+ * @description Abstract realtime voice-agent base class with shared state, tracing,
+ * eventing, handoff orchestration, tool approvals, and mute/session utilities.
+ *
  * Provides shared functionality for:
  * - Tracing and history with agent attribution
  * - Event handling and state management
  * - Handoff registration and coordination
  * - Session lifecycle (connect, disconnect, interrupt)
+ *
+ * @see {@link MainVaultAssistant}
+ * @see {@link BaseVoiceAgentConfig}
+ * @since 0.0.28
  */
 
 import { App, requestUrl } from "obsidian";
@@ -23,9 +34,25 @@ import {
 	logger,
 } from "./types";
 import { getTracingService } from "../TracingService";
+import { getDateTimeContext } from "../../utils/dateTime";
 
 /**
- * Abstract base class for voice agents with shared tracing, history, and handoff support
+ * Abstract base class for voice agents with shared tracing, history, and handoff support.
+ *
+ * Subclasses provide domain-specific instructions and tools while inheriting
+ * common realtime voice behavior, tool approvals, and cross-agent handoffs.
+ *
+ * @example
+ * ```typescript
+ * class ExampleVoiceAgent extends BaseVoiceAgent {
+ *   getInstructions(): string { return "You are helpful."; }
+ *   getHandoffDescription(): string { return "Handles example requests"; }
+ *   getTools() { return []; }
+ * }
+ * ```
+ *
+ * @see {@link getDateTimeContext}
+ * @since 0.0.28
  */
 export abstract class BaseVoiceAgent {
 	/** Agent name for identification in traces and history */
@@ -73,6 +100,13 @@ export abstract class BaseVoiceAgent {
 	/** Counter for approval request IDs */
 	protected approvalRequestCounter: number = 0;
 
+	/**
+	 * Create a new base voice agent.
+	 *
+	 * @param name - Agent display name
+	 * @param app - Obsidian app instance
+	 * @param config - Voice-agent runtime configuration
+	 */
 	constructor(name: string, app: App, config: BaseVoiceAgentConfig) {
 		this.name = name;
 		this.app = app;
@@ -84,7 +118,13 @@ export abstract class BaseVoiceAgent {
 	// =========================================================================
 
 	/**
-	 * Get the instructions for this agent (from markdown or hardcoded)
+	 * Get instructions for this agent.
+	 *
+	 * @returns Agent instruction string
+	 * @example
+	 * ```typescript
+	 * const text = agent.getInstructions();
+	 * ```
 	 */
 	abstract getInstructions(): string;
 
@@ -96,80 +136,48 @@ export abstract class BaseVoiceAgent {
 	 * Get current date/time context to prepend to instructions.
 	 * This ensures the agent always knows the current date and time.
 	 * Uses the configured timezone and week start day from settings.
+	 *
+	 * @returns Formatted date/time context line with trailing newline
+	 * @internal
+	 * @see {@link getDateTimeContext} from utils/dateTime for the shared implementation
 	 */
 	protected getDateTimeContext(): string {
-		const now = new Date();
-		const timezone = this.config.timezone || undefined;
-		const weekStartDay = this.config.weekStartDay || "sunday";
-		
-		try {
-			const options: Intl.DateTimeFormatOptions = {
-				weekday: 'long',
-				year: 'numeric',
-				month: 'long',
-				day: 'numeric',
-				hour: '2-digit',
-				minute: '2-digit',
-				timeZoneName: 'short',
-				...(timezone ? { timeZone: timezone } : {})
-			};
-			const formattedDate = now.toLocaleDateString('en-US', options);
-			
-			// Calculate ISO date in the configured timezone
-			let isoDate: string;
-			if (timezone) {
-				// Format date in the specified timezone using en-CA locale (gives YYYY-MM-DD format directly)
-				const tzOptions: Intl.DateTimeFormatOptions = {
-					year: 'numeric',
-					month: '2-digit',
-					day: '2-digit',
-					timeZone: timezone
-				};
-				// en-CA locale gives YYYY-MM-DD format directly
-				isoDate = new Intl.DateTimeFormat('en-CA', tzOptions).format(now);
-			} else {
-				const isoParts = now.toISOString().split('T');
-				isoDate = isoParts[0] || now.toISOString().substring(0, 10);
-			}
-			
-			// Capitalize week start day
-			const weekStartLabel = weekStartDay.charAt(0).toUpperCase() + weekStartDay.slice(1);
-			
-			return `## Current Date and Time\nToday is ${formattedDate}.\nFor tools and daily notes, use the date format: ${isoDate}\nWeek starts on: ${weekStartLabel}\n\n`;
-		} catch (e) {
-			// Fallback to system default if timezone is invalid
-			const options: Intl.DateTimeFormatOptions = {
-				weekday: 'long',
-				year: 'numeric',
-				month: 'long',
-				day: 'numeric',
-				hour: '2-digit',
-				minute: '2-digit',
-				timeZoneName: 'short'
-			};
-			const formattedDate = now.toLocaleDateString('en-US', options);
-			const isoParts = now.toISOString().split('T');
-			const isoDate = isoParts[0] || now.toISOString().substring(0, 10);
-			
-			return `## Current Date and Time\nToday is ${formattedDate}.\nFor tools and daily notes, use the date format: ${isoDate}\n\n`;
-		}
+		return getDateTimeContext({
+			timezone: this.config.timezone || undefined,
+			weekStartDay: this.config.weekStartDay || "sunday",
+		}) + "\n";
 	}
 
 	/**
 	 * Get instructions with date/time context prepended.
 	 * Use this instead of getInstructions() when building the agent.
+	 *
+	 * @returns Full instruction string including contextual prefix
+	 * @internal
 	 */
 	protected getInstructionsWithContext(): string {
 		return this.getDateTimeContext() + this.getInstructions();
 	}
 
 	/**
-	 * Get the handoff description (when should other agents hand off to this one)
+	 * Get this agent handoff description.
+	 *
+	 * @returns Description used by other agents for handoff routing
+	 * @example
+	 * ```typescript
+	 * const description = agent.getHandoffDescription();
+	 * ```
 	 */
 	abstract getHandoffDescription(): string;
 
 	/**
-	 * Get the tools this agent can use
+	 * Get tools this agent can invoke.
+	 *
+	 * @returns Realtime SDK tool definitions
+	 * @example
+	 * ```typescript
+	 * const tools = agent.getTools();
+	 * ```
 	 */
 	abstract getTools(): ReturnType<typeof tool>[];
 
@@ -178,14 +186,24 @@ export abstract class BaseVoiceAgent {
 	// =========================================================================
 
 	/**
-	 * Get current state
+	 * Get current realtime connection/speaking state.
+	 *
+	 * @returns Current agent state
+	 * @example
+	 * ```typescript
+	 * const state = agent.getState();
+	 * ```
 	 */
 	getState(): RealtimeAgentState {
 		return this.state;
 	}
 
 	/**
-	 * Update state and emit change event
+	 * Update state and emit a `stateChange` event when value changes.
+	 *
+	 * @param newState - Target state
+	 * @returns Nothing
+	 * @internal
 	 */
 	protected setState(newState: RealtimeAgentState): void {
 		if (this.state !== newState) {
@@ -195,7 +213,15 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Check if connected
+	 * Check whether the agent currently has an active session state.
+	 *
+	 * @returns `true` when state is neither `idle` nor `error`
+	 * @example
+	 * ```typescript
+	 * if (agent.isConnected()) {
+	 *   // send context safely
+	 * }
+	 * ```
 	 */
 	isConnected(): boolean {
 		return this.state !== "idle" && this.state !== "error";
@@ -206,7 +232,16 @@ export abstract class BaseVoiceAgent {
 	// =========================================================================
 
 	/**
-	 * Subscribe to events
+	 * Subscribe to realtime agent events.
+	 *
+	 * @param event - Event name
+	 * @param callback - Event callback
+	 * @returns Unsubscribe function
+	 * @example
+	 * ```typescript
+	 * const off = agent.on("stateChange", (state) => console.log(state));
+	 * off();
+	 * ```
 	 */
 	on<K extends keyof RealtimeAgentEvents>(
 		event: K,
@@ -224,7 +259,12 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Emit an event
+	 * Emit an internal agent event.
+	 *
+	 * @param event - Event name
+	 * @param args - Event payload arguments
+	 * @returns Nothing
+	 * @internal
 	 */
 	protected emit<K extends keyof RealtimeAgentEvents>(
 		event: K,
@@ -247,7 +287,14 @@ export abstract class BaseVoiceAgent {
 	// =========================================================================
 
 	/**
-	 * Register an agent as a handoff target
+	 * Register an agent as a handoff target.
+	 *
+	 * @param agent - Target agent
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * agent.registerHandoff(otherAgent);
+	 * ```
 	 */
 	registerHandoff(agent: BaseVoiceAgent): void {
 		this.handoffAgents.set(agent.name, agent);
@@ -256,7 +303,10 @@ export abstract class BaseVoiceAgent {
 
 	/**
 	 * Get SDK RealtimeAgent instances for handoffs array
-	 * @param depth Current nesting depth for recursion control
+	 *
+	 * @param depth - Current recursion depth
+	 * @returns Built handoff agent instances
+	 * @internal
 	 */
 	protected getHandoffAgentInstances(depth: number): RealtimeAgent[] {
 		const agents: RealtimeAgent[] = [];
@@ -270,9 +320,15 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Build the RealtimeAgent instance with handoffs configured
-	 * @param includeHandoffs Whether to include handoff agents (default: true)
-	 * @param depth Current nesting depth for recursion control (default: 0). Agents at depth 2+ don't include further handoffs to prevent infinite recursion.
+	 * Build and cache the underlying `RealtimeAgent` instance.
+	 *
+	 * @param includeHandoffs - Whether to include handoff agents
+	 * @param depth - Recursion depth (depth >= 2 skips additional handoffs)
+	 * @returns SDK `RealtimeAgent` instance
+	 * @example
+	 * ```typescript
+	 * const sdkAgent = agent.buildAgent();
+	 * ```
 	 */
 	buildAgent(includeHandoffs = true, depth = 0): RealtimeAgent {
 		// At depth 2+, return a minimal agent without caching to prevent
@@ -318,7 +374,11 @@ export abstract class BaseVoiceAgent {
 	// =========================================================================
 
 	/**
-	 * Start a trace for this voice session
+	 * Start a trace for this voice session.
+	 *
+	 * @param metadata - Optional trace metadata
+	 * @returns Trace identifier
+	 * @internal
 	 */
 	protected startTrace(metadata?: Record<string, unknown>): string {
 		const tracingService = getTracingService();
@@ -331,7 +391,13 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Add a span to the current trace
+	 * Add a span to the current trace.
+	 *
+	 * @param name - Span name
+	 * @param spanType - Span category/type
+	 * @param data - Optional span metadata
+	 * @returns Span identifier or empty string when trace is unavailable
+	 * @internal
 	 */
 	protected addTraceSpan(
 		name: string,
@@ -347,7 +413,11 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Complete a trace span
+	 * Complete a trace span.
+	 *
+	 * @param spanId - Span identifier to complete
+	 * @returns Nothing
+	 * @internal
 	 */
 	protected completeTraceSpan(spanId: string): void {
 		if (spanId) {
@@ -357,7 +427,10 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * End the current trace
+	 * End the current trace.
+	 *
+	 * @returns Nothing
+	 * @internal
 	 */
 	protected endTrace(): void {
 		if (this.currentTraceId) {
@@ -372,7 +445,10 @@ export abstract class BaseVoiceAgent {
 	// =========================================================================
 
 	/**
-	 * Set up event handlers for the session
+	 * Set up session event handlers for transcript, state, handoff, tools, and errors.
+	 *
+	 * @returns Nothing
+	 * @internal
 	 */
 	protected setupEventHandlers(): void {
 		if (!this.session) return;
@@ -680,6 +756,10 @@ export abstract class BaseVoiceAgent {
 	/**
 	 * Get ephemeral key for WebRTC connection
 	 * Uses Obsidian's requestUrl to bypass CORS restrictions
+	 *
+	 * @returns Ephemeral API key
+	 * @throws {Error} If key generation fails
+	 * @internal
 	 */
 	protected async getEphemeralKey(): Promise<string> {
 		const response = await requestUrl({
@@ -706,7 +786,13 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Manually interrupt the agent
+	 * Interrupt active speech playback.
+	 *
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * agent.interrupt();
+	 * ```
 	 */
 	interrupt(): void {
 		if (this.session && this.state === "speaking") {
@@ -715,7 +801,14 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Send a text message to the agent
+	 * Send a user text message to the realtime session.
+	 *
+	 * @param text - Message text
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * agent.sendMessage("Summarize my latest notes");
+	 * ```
 	 */
 	sendMessage(text: string): void {
 		if (this.session && (this.state === "connected" || this.state === "listening")) {
@@ -724,7 +817,14 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Send context silently without triggering a response
+	 * Send context silently without triggering spoken response.
+	 *
+	 * @param context - Internal context payload
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * agent.sendContext("Current file: Daily/2026-02-21.md");
+	 * ```
 	 */
 	sendContext(context: string): void {
 		if (this.session && (this.state === "connected" || this.state === "listening")) {
@@ -736,21 +836,30 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Set tool execution callback
+	 * Set tool execution callback.
+	 *
+	 * @param callback - Tool callback or `null`
+	 * @returns Nothing
 	 */
 	setToolExecutionCallback(callback: ToolExecutionCallback | null): void {
 		this.onToolExecution = callback;
 	}
 
 	/**
-	 * Set chat output callback
+	 * Set chat-output callback for UI streaming.
+	 *
+	 * @param callback - Chat callback or `null`
+	 * @returns Nothing
 	 */
 	setChatOutputCallback(callback: ChatOutputCallback | null): void {
 		this.onChatOutput = callback;
 	}
 
 	/**
-	 * Set question callback
+	 * Set question callback for interactive tool prompts.
+	 *
+	 * @param callback - Question callback or `null`
+	 * @returns Nothing
 	 */
 	setQuestionCallback(callback: import("./types").QuestionCallback | null): void {
 		this.onQuestion = callback;
@@ -759,6 +868,9 @@ export abstract class BaseVoiceAgent {
 	/**
 	 * Get a chat output callback that emits the chatOutput event
 	 * This is used by tools to output content to the ChatView
+	 *
+	 * @returns Chat callback bridge function
+	 * @internal
 	 */
 	protected getChatOutputCallback(): ChatOutputCallback {
 		return (content: string, sourceAgent: string) => {
@@ -774,13 +886,22 @@ export abstract class BaseVoiceAgent {
 	/**
 	 * Get a question callback
 	 * This is used by tools to ask questions to the user
+	 *
+	 * @returns Active question callback or `null`
+	 * @internal
 	 */
 	protected getQuestionCallback(): import("./types").QuestionCallback | null {
 		return this.onQuestion;
 	}
 
 	/**
-	 * Get current history
+	 * Get current session history mapped to plugin history shape.
+	 *
+	 * @returns Realtime history entries
+	 * @example
+	 * ```typescript
+	 * const history = agent.getHistory();
+	 * ```
 	 */
 	getHistory(): RealtimeHistoryItem[] {
 		if (!this.session) return [];
@@ -806,7 +927,14 @@ export abstract class BaseVoiceAgent {
 	// =========================================================================
 
 	/**
-	 * Approve a tool execution request
+	 * Approve a pending tool execution request.
+	 *
+	 * @param request - Approval request payload
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * agent.approveTool(request);
+	 * ```
 	 */
 	approveTool(request: ToolApprovalRequest): void {
 		if (!this.session) {
@@ -819,7 +947,14 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Approve a tool for the entire session
+	 * Approve a tool and allow repeated use for this session.
+	 *
+	 * @param request - Approval request payload
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * agent.approveToolForSession(request);
+	 * ```
 	 */
 	approveToolForSession(request: ToolApprovalRequest): void {
 		if (!this.session) {
@@ -833,7 +968,14 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Reject a tool execution request
+	 * Reject a pending tool execution request.
+	 *
+	 * @param request - Approval request payload
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * agent.rejectTool(request);
+	 * ```
 	 */
 	rejectTool(request: ToolApprovalRequest): void {
 		if (!this.session) {
@@ -846,7 +988,14 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Check if a tool is approved for the session
+	 * Check if a tool is approved for this session.
+	 *
+	 * @param toolName - Tool name
+	 * @returns `true` when tool is session-approved
+	 * @example
+	 * ```typescript
+	 * const allowed = agent.isToolApprovedForSession("read_note");
+	 * ```
 	 */
 	isToolApprovedForSession(toolName: string): boolean {
 		return this.sessionApprovedTools.has(toolName);
@@ -857,7 +1006,13 @@ export abstract class BaseVoiceAgent {
 	// =========================================================================
 
 	/**
-	 * Get mute state
+	 * Get current mute state.
+	 *
+	 * @returns `true` when microphone input is muted
+	 * @example
+	 * ```typescript
+	 * const muted = agent.isMuted();
+	 * ```
 	 */
 	isMuted(): boolean {
 		if (!this.session) return false;
@@ -865,7 +1020,13 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Mute the microphone input
+	 * Mute microphone input.
+	 *
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * agent.mute();
+	 * ```
 	 */
 	mute(): void {
 		if (!this.session) {
@@ -883,7 +1044,13 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Unmute the microphone input
+	 * Unmute microphone input.
+	 *
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * agent.unmute();
+	 * ```
 	 */
 	unmute(): void {
 		if (!this.session) {
@@ -901,7 +1068,13 @@ export abstract class BaseVoiceAgent {
 	}
 
 	/**
-	 * Toggle mute state
+	 * Toggle mute state.
+	 *
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * agent.toggleMute();
+	 * ```
 	 */
 	toggleMute(): void {
 		if (this.isMuted()) {
@@ -916,14 +1089,27 @@ export abstract class BaseVoiceAgent {
 	// =========================================================================
 
 	/**
-	 * Update configuration
+	 * Merge updated runtime configuration.
+	 *
+	 * @param config - Partial configuration update
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * agent.updateConfig({ voice: "nova" });
+	 * ```
 	 */
 	updateConfig(config: Partial<BaseVoiceAgentConfig>): void {
 		this.config = { ...this.config, ...config };
 	}
 
 	/**
-	 * Destroy the agent and clean up resources
+	 * Destroy the agent and release resources.
+	 *
+	 * @returns Resolves when cleanup completes
+	 * @example
+	 * ```typescript
+	 * await agent.destroy();
+	 * ```
 	 */
 	async destroy(): Promise<void> {
 		this.endTrace();

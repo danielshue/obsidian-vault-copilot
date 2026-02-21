@@ -1,15 +1,25 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * Workaround utilities for handling edge cases in the Realtime API
- * 
- * The realtime model sometimes outputs JSON/code text instead of calling functions.
- * These utilities detect and handle such cases.
+ * @module RealtimeWorkarounds
+ * @description Recovery utilities for malformed Realtime model outputs.
+ *
+ * The realtime model sometimes outputs JSON/code text instead of invoking tools.
+ * This module detects those patterns and applies safe vault updates to preserve UX.
+ *
+ * @see {@link handlePossibleJsonToolCall}
+ * @see {@link mightBeJsonToolCall}
+ * @since 0.0.28
  */
 
 import { App, TFile } from "obsidian";
 import type { RealtimeHistoryItem, ToolExecutionCallback } from "./types";
 import { logger } from "./types";
 
-/** Context passed to individual handlers */
+/** Context passed to individual handlers. @internal */
 interface HandlerContext {
 	app: App;
 	content: string;
@@ -18,14 +28,31 @@ interface HandlerContext {
 }
 
 /**
- * Escape regex special characters in a string
+ * Escape regex special characters in a string.
+ *
+ * @param str - Raw string value
+ * @returns Escaped string safe for regex literal usage
+ * @example
+ * ```typescript
+ * const safe = escapeRegex("a+b");
+ * ```
  */
 export function escapeRegex(str: string): string {
 	return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
- * Execute task completion on a file
+ * Mark tasks as completed in a target file.
+ *
+ * @param app - Obsidian app instance
+ * @param file - Target markdown file
+ * @param tasks - Task text values to check off
+ * @param onToolExecution - Optional callback for telemetry/UI
+ * @returns Resolves when updates complete
+ * @example
+ * ```typescript
+ * await executeTaskCompletion(app, file, ["Review PR"], null);
+ * ```
  */
 export async function executeTaskCompletion(
 	app: App,
@@ -61,7 +88,11 @@ export async function executeTaskCompletion(
 }
 
 /**
- * Handle function-call-like text output (e.g., "update_checklist_item(...)")
+ * Handle function-call-like text output (e.g., `update_checklist_item(...)`).
+ *
+ * @param ctx - Handler context
+ * @returns `true` when workaround applied
+ * @internal
  */
 async function handleFunctionCallSyntax(ctx: HandlerContext): Promise<boolean> {
 	const { content, activeFile, app, onToolExecution } = ctx;
@@ -171,7 +202,14 @@ async function handleFunctionCallSyntax(ctx: HandlerContext): Promise<boolean> {
 }
 
 /**
- * Execute task uncompletion (mark tasks as incomplete)
+ * Mark tasks as incomplete in a target file.
+ *
+ * @param app - Obsidian app instance
+ * @param file - Target markdown file
+ * @param tasks - Task text values to uncheck
+ * @param onToolExecution - Optional callback for telemetry/UI
+ * @returns Resolves when updates complete
+ * @internal
  */
 async function executeTaskUncompletion(
 	app: App,
@@ -210,6 +248,10 @@ async function executeTaskUncompletion(
 /**
  * Handle natural language task completion instructions
  * Detects patterns like "Mark the following tasks as completed in the note..."
+ *
+ * @param ctx - Handler context
+ * @returns `true` when workaround applied
+ * @internal
  */
 async function handleNaturalLanguageTaskCompletion(ctx: HandlerContext): Promise<boolean> {
 	const { content, app, activeFile, onToolExecution } = ctx;
@@ -329,7 +371,11 @@ async function handleNaturalLanguageTaskCompletion(ctx: HandlerContext): Promise
 }
 
 /**
- * Check if content is just a checklist (only task items)
+ * Check whether content only contains checklist lines.
+ *
+ * @param content - Candidate markdown content
+ * @returns `true` when all non-empty lines are checklist items
+ * @internal
  */
 function isChecklistOnly(content: string): boolean {
 	const lines = content.trim().split("\n").filter(line => line.trim());
@@ -341,6 +387,11 @@ function isChecklistOnly(content: string): boolean {
 /**
  * Handle replace_note JSON format: { path: string, content: string }
  * Smart merge: if content is just checklist items, merge them instead of replacing entire note
+ *
+ * @param ctx - Handler context
+ * @param parsed - Parsed JSON payload
+ * @returns `true` when workaround applied
+ * @internal
  */
 async function handleReplaceNoteJson(
 	ctx: HandlerContext,
@@ -422,6 +473,11 @@ async function handleReplaceNoteJson(
 /**
  * Handle updates array JSON format: { path?: string, updates: Array<{pattern, replacement} | {target, content} | {action, content, checked}> }
  * Also supports note_path as alias for path
+ *
+ * @param ctx - Handler context
+ * @param parsed - Parsed JSON payload
+ * @returns `true` when workaround applied
+ * @internal
  */
 async function handleUpdatesArrayJson(
 	ctx: HandlerContext,
@@ -589,7 +645,12 @@ async function handleUpdatesArrayJson(
 }
 
 /**
- * Handle checklist JSON format: { checklist: Array<{task, completed}> }
+ * Handle checklist JSON format: `{ checklist: Array<{task, completed}> }`.
+ *
+ * @param ctx - Handler context
+ * @param parsed - Parsed JSON payload
+ * @returns `true` when workaround applied
+ * @internal
  */
 async function handleChecklistJson(
 	ctx: HandlerContext,
@@ -616,6 +677,11 @@ async function handleChecklistJson(
 /**
  * Handle checklist JSON format: { checklist_name: string, items_to_check: string[] }
  * This is a format the model sometimes outputs for task completion
+ *
+ * @param ctx - Handler context
+ * @param parsed - Parsed JSON payload
+ * @returns `true` when workaround applied
+ * @internal
  */
 async function handleItemsToCheckJson(
 	ctx: HandlerContext,
@@ -672,7 +738,12 @@ async function handleItemsToCheckJson(
 }
 
 /**
- * Handle {"tasks":["task1", "task2"], "status":"completed"} JSON format
+ * Handle `{ "tasks": [...], "status": "completed" }` JSON format.
+ *
+ * @param ctx - Handler context
+ * @param parsed - Parsed JSON payload
+ * @returns `true` when workaround applied
+ * @internal
  */
 async function handleTasksStatusJson(
 	ctx: HandlerContext,
@@ -719,6 +790,15 @@ async function handleTasksStatusJson(
 /**
  * Handle JSON or function-call-like output that looks like a tool call
  * The realtime model sometimes outputs text instead of calling functions
+ *
+ * @param app - Obsidian app instance
+ * @param content - Assistant output text
+ * @param onToolExecution - Optional callback for telemetry/UI
+ * @returns Resolves when handlers have been attempted
+ * @example
+ * ```typescript
+ * await handlePossibleJsonToolCall(app, content, onToolExecution);
+ * ```
  */
 export async function handlePossibleJsonToolCall(
 	app: App,
@@ -767,7 +847,16 @@ export async function handlePossibleJsonToolCall(
 }
 
 /**
- * Check if a history item might contain a JSON tool call that needs handling
+ * Check if a history item may contain a tool-like payload needing workaround handling.
+ *
+ * @param item - Realtime history item
+ * @returns `true` when item resembles malformed tool output
+ * @example
+ * ```typescript
+ * if (mightBeJsonToolCall(item)) {
+ *   // attempt recovery
+ * }
+ * ```
  */
 export function mightBeJsonToolCall(item: RealtimeHistoryItem): boolean {
 	const content = item.content || item.transcript || "";

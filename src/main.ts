@@ -1228,6 +1228,8 @@ export default class CopilotPlugin extends Plugin {
 			agentDirectories: resolvePaths(this.settings.agentDirectories),
 			instructionDirectories: resolvePaths(this.settings.instructionDirectories),
 			promptDirectories: resolvePaths(this.settings.promptDirectories),
+			timezone: this.settings.timezone || undefined,
+			weekStartDay: this.settings.weekStartDay || "sunday",
 		};
 	}
 

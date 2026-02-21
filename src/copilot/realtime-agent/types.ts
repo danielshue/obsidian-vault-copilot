@@ -1,5 +1,7 @@
-// Copyright (c) 2026 Dan Shue. All rights reserved.
-// Licensed under the MIT License.
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 
 /**
  * @module RealtimeAgentTypes
@@ -8,7 +10,9 @@
  * Consolidates realtime voice, tool, and connection state types used across the
  * realtime agent implementation.
  *
- * @since 0.0.14
+ * @see {@link BaseVoiceAgent}
+ * @see {@link MainVaultAssistant}
+ * @since 0.0.28
  */
 
 import { getTracingService } from "../TracingService";
@@ -253,9 +257,10 @@ export const WEB_TOOLS: RealtimeToolName[] = ["fetch_web_page", "web_search"];
 /** Output tools for displaying content in the ChatView */
 export const OUTPUT_TOOLS: RealtimeToolName[] = ["send_to_chat", "ask_question"];
 
-/** Logger configuration */
+/** Logger configuration. @internal */
 let currentLogLevel: LogLevel = "info";
 
+/** Numeric log-level map for threshold comparisons. @internal */
 const LOG_LEVELS: Record<LogLevel, number> = {
 	debug: 0,
 	info: 1,
@@ -265,14 +270,27 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 };
 
 /**
- * Set the log level for realtime agent logging
+ * Set the log level for realtime-agent logging.
+ *
+ * @param level - Target log level
+ * @returns Nothing
+ * @example
+ * ```typescript
+ * setLogLevel("debug");
+ * ```
  */
 export function setLogLevel(level: LogLevel): void {
 	currentLogLevel = level;
 }
 
 /**
- * Get the current log level
+ * Get the current log level.
+ *
+ * @returns Active log level
+ * @example
+ * ```typescript
+ * const level = getLogLevel();
+ * ```
  */
 export function getLogLevel(): LogLevel {
 	return currentLogLevel;

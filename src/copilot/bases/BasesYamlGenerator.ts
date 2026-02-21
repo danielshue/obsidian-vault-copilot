@@ -1,19 +1,33 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * BasesYamlGenerator - Generate valid .base YAML from structured specifications
- * 
- * Creates .base file content from BaseSpec objects. Used by create_base and
- * evolve_base_schema tools to generate syntactically valid Bases YAML that
- * Obsidian can render.
+ * @module BasesYamlGenerator
+ * @description YAML generation and validation helpers for Base specifications.
+ *
+ * Creates `.base` file content from structured specs and supports schema
+ * validation/default generation for create/evolve tool flows.
+ *
+ * @see {@link validateBaseSpec}
+ * @see {@link createDefaultBaseSpec}
+ * @since 0.0.28
  */
 
 import type { BaseSpec, BaseFilterGroup, BaseView, BaseProperty } from "./types";
 import { getFilterExpressions } from "./types";
 
 /**
- * Generate valid .base file content from a BaseSpec
- * 
+ * Generate valid `.base` YAML content from a BaseSpec.
+ *
  * @param spec - The Base specification
  * @returns Valid .base file content (markdown with YAML frontmatter)
+ *
+ * @example
+ * ```typescript
+ * const yaml = generateBaseYaml(spec);
+ * ```
  */
 export function generateBaseYaml(spec: BaseSpec): string {
 	const lines: string[] = [];
@@ -79,7 +93,7 @@ export function generateBaseYaml(spec: BaseSpec): string {
 
 /**
  * Recursively generate YAML lines for a BaseFilterGroup.
- * 
+ *
  * @param lines - Output line array to append to
  * @param group - The filter group
  * @param indent - Current indentation prefix
@@ -113,10 +127,15 @@ function generateFilterGroupLines(lines: string[], group: BaseFilterGroup, inden
 }
 
 /**
- * Validate a BaseSpec before generating YAML
- * 
+ * Validate a BaseSpec before generating YAML.
+ *
  * @param spec - The spec to validate
  * @returns Error message if invalid, null if valid
+ *
+ * @example
+ * ```typescript
+ * const error = validateBaseSpec(spec);
+ * ```
  */
 export function validateBaseSpec(spec: BaseSpec): string | null {
 	if (!spec.name || spec.name.trim() === "") {
@@ -152,12 +171,17 @@ export function validateBaseSpec(spec: BaseSpec): string | null {
 }
 
 /**
- * Create a default BaseSpec for a given name and properties
- * 
+ * Create a default BaseSpec for a given name and property list.
+ *
  * @param name - Base name
  * @param properties - Property definitions
  * @param description - Optional description
  * @returns A valid BaseSpec with defaults
+ *
+ * @example
+ * ```typescript
+ * const spec = createDefaultBaseSpec("Projects", [{ name: "status" }]);
+ * ```
  */
 export function createDefaultBaseSpec(
 	name: string,

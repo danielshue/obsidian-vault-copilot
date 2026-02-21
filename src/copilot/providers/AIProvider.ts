@@ -1,5 +1,7 @@
-// Copyright (c) 2026 Dan Shue. All rights reserved.
-// Licensed under the MIT License.
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 
 /**
  * @module AIProvider
@@ -75,8 +77,18 @@ import type {
 } from "../tools/VaultOperations";
 import type { PeriodicNotesSettings } from "../../ui/settings";
 
+/**
+ * Supported AI provider identifiers.
+ *
+ * - `copilot`: GitHub Copilot CLI SDK provider
+ * - `openai`: OpenAI Chat Completions provider
+ * - `azure-openai`: Azure OpenAI Chat Completions provider
+ */
 export type AIProviderType = "copilot" | "openai" | "azure-openai";
 
+/**
+ * Base configuration shared by all provider implementations.
+ */
 export interface AIProviderConfig {
 	/** Provider type */
 	provider: AIProviderType;
@@ -90,6 +102,9 @@ export interface AIProviderConfig {
 	mcpManager?: McpManager;
 }
 
+/**
+ * Configuration for the OpenAI provider implementation.
+ */
 export interface OpenAIProviderConfig extends AIProviderConfig {
 	provider: "openai";
 	/** OpenAI API key (optional if OPENAI_API_KEY env var is set) */
@@ -104,6 +119,9 @@ export interface OpenAIProviderConfig extends AIProviderConfig {
 	temperature?: number;
 }
 
+/**
+ * Configuration for the GitHub Copilot CLI provider implementation.
+ */
 export interface CopilotProviderConfig extends AIProviderConfig {
 	provider: "copilot";
 	/** Path to Copilot CLI */
@@ -112,6 +130,9 @@ export interface CopilotProviderConfig extends AIProviderConfig {
 	cliUrl?: string;
 }
 
+/**
+ * Configuration for the Azure OpenAI provider implementation.
+ */
 export interface AzureOpenAIProviderConfig extends AIProviderConfig {
 	provider: "azure-openai";
 	/** Azure OpenAI API key */
@@ -230,23 +251,65 @@ export abstract class AIProvider {
 	/** Callback for handling question requests from the AI */
 	protected questionCallback: ((question: QuestionRequest) => Promise<QuestionResponse | null>) | null = null;
 
+	/**
+	 * Create a new abstract provider wrapper.
+	 *
+	 * @param app - Obsidian app instance used by vault operation tools
+	 * @param config - Initial provider configuration
+	 *
+	 * @example
+	 * ```typescript
+	 * const provider = new OpenAIService(app, {
+	 *   provider: "openai",
+	 *   model: "gpt-4o",
+	 *   streaming: true,
+	 * });
+	 * ```
+	 */
 	constructor(app: App, config: AIProviderConfig) {
 		this.app = app;
 		this.config = config;
 	}
 
 	/**
-	 * Initialize the provider
+	 * Initialize the provider connection and any required resources.
+	 *
+	 * @returns Resolves when the provider is ready to send messages
+	 *
+	 * @example
+	 * ```typescript
+	 * await provider.initialize();
+	 * ```
 	 */
 	abstract initialize(): Promise<void>;
 
 	/**
-	 * Send a message and wait for complete response
+	 * Send a message and wait for the complete response.
+	 *
+	 * @param prompt - User prompt text
+	 * @returns Full assistant response text
+	 *
+	 * @example
+	 * ```typescript
+	 * const reply = await provider.sendMessage("Summarize this note");
+	 * ```
 	 */
 	abstract sendMessage(prompt: string): Promise<string>;
 
 	/**
-	 * Send a message with streaming response
+	 * Send a message with a streaming response.
+	 *
+	 * @param prompt - User prompt text
+	 * @param callbacks - Streaming lifecycle callbacks
+	 * @returns Resolves when streaming is complete
+	 *
+	 * @example
+	 * ```typescript
+	 * await provider.sendMessageStreaming("Draft release notes", {
+	 *   onDelta: (chunk) => appendToUI(chunk),
+	 *   onComplete: (full) => renderMarkdown(full),
+	 * });
+	 * ```
 	 */
 	abstract sendMessageStreaming(
 		prompt: string,
@@ -254,29 +317,66 @@ export abstract class AIProvider {
 	): Promise<void>;
 
 	/**
-	 * Abort the current operation
+	 * Abort the current in-flight request.
+	 *
+	 * @returns Resolves when cancellation is requested
+	 *
+	 * @example
+	 * ```typescript
+	 * await provider.abort();
+	 * ```
 	 */
 	abstract abort(): Promise<void>;
 
 	/**
-	 * Check if the provider is connected/ready
+	 * Check whether the provider is connected and ready.
+	 *
+	 * @returns `true` when ready to accept requests, otherwise `false`
+	 *
+	 * @example
+	 * ```typescript
+	 * if (!provider.isReady()) await provider.initialize();
+	 * ```
 	 */
 	abstract isReady(): boolean;
 
 	/**
-	 * Clean up resources
+	 * Destroy provider resources and release connections.
+	 *
+	 * @returns Resolves when cleanup is complete
+	 *
+	 * @example
+	 * ```typescript
+	 * await provider.destroy();
+	 * ```
 	 */
 	abstract destroy(): Promise<void>;
 
 	/**
-	 * Set the system prompt
+	 * Set the system prompt prepended to subsequent conversations.
+	 *
+	 * @param prompt - System instruction text
+	 * @returns Nothing
+	 *
+	 * @example
+	 * ```typescript
+	 * provider.setSystemPrompt("Use concise bullet points.");
+	 * ```
 	 */
 	setSystemPrompt(prompt: string): void {
 		this.systemPrompt = prompt;
 	}
 
 	/**
-	 * Set available tools
+	 * Set the active tool definitions available to the provider.
+	 *
+	 * @param tools - Tool definitions the model may call
+	 * @returns Nothing
+	 *
+	 * @example
+	 * ```typescript
+	 * provider.setTools([readTool, searchTool]);
+	 * ```
 	 */
 	setTools(tools: ToolDefinition[]): void {
 		this.tools = tools;
@@ -287,6 +387,7 @@ export abstract class AIProvider {
 	 * This enables the `ask_question` tool for this provider.
 	 * 
 	 * @param callback - Function that shows a QuestionModal and returns the user's response
+	 * @returns Nothing
 	 * 
 	 * @example
 	 * ```typescript
@@ -309,6 +410,12 @@ export abstract class AIProvider {
 	 * Used by OpenAI and Azure OpenAI providers to include ask_question in their tool set.
 	 * 
 	 * @returns ToolDefinition for ask_question, or null if no question callback is set
+	 *
+	 * @example
+	 * ```typescript
+	 * const askQuestionTool = this.createAskQuestionToolDefinition();
+	 * if (askQuestionTool) this.setTools([...this.tools, askQuestionTool]);
+	 * ```
 	 * @internal
 	 * @since 0.0.17
 	 */
@@ -420,49 +527,109 @@ export abstract class AIProvider {
 	}
 
 	/**
-	 * Get message history
+	 * Get a defensive copy of message history.
+	 *
+	 * @returns Array of recorded chat messages
+	 *
+	 * @example
+	 * ```typescript
+	 * const history = provider.getMessageHistory();
+	 * console.log(history.length);
+	 * ```
 	 */
 	getMessageHistory(): ChatMessage[] {
 		return [...this.messageHistory];
 	}
 
 	/**
-	 * Clear message history
+	 * Clear all in-memory message history.
+	 *
+	 * @returns Nothing
+	 *
+	 * @example
+	 * ```typescript
+	 * provider.clearHistory();
+	 * ```
 	 */
 	clearHistory(): void {
 		this.messageHistory = [];
 	}
 
 	/**
-	 * Update configuration
+	 * Merge and apply partial provider configuration.
+	 *
+	 * @param config - Partial configuration fields to override
+	 * @returns Nothing
+	 *
+	 * @example
+	 * ```typescript
+	 * provider.updateConfig({ streaming: false });
+	 * ```
 	 */
 	updateConfig(config: Partial<AIProviderConfig>): void {
 		this.config = { ...this.config, ...config };
 	}
 
 	/**
-	 * Get the provider type
+	 * Get the current provider type.
+	 *
+	 * @returns Provider type discriminator
+	 *
+	 * @example
+	 * ```typescript
+	 * if (provider.getProviderType() === "openai") {
+	 *   // OpenAI-specific UI behavior
+	 * }
+	 * ```
 	 */
 	getProviderType(): AIProviderType {
 		return this.config.provider;
 	}
 
 	/**
-	 * Get the current model
+	 * Get the currently configured model name.
+	 *
+	 * @returns Model identifier string
+	 *
+	 * @example
+	 * ```typescript
+	 * console.log(provider.getModel());
+	 * ```
 	 */
 	getModel(): string {
 		return this.config.model;
 	}
 
 	/**
-	 * Get MCP manager if configured
+	 * Get the configured MCP manager, if any.
+	 *
+	 * @returns MCP manager instance or `undefined` when not configured
+	 *
+	 * @example
+	 * ```typescript
+	 * const mcp = provider.getMcpManager();
+	 * if (mcp) console.log(mcp.getAllTools().length);
+	 * ```
 	 */
 	getMcpManager(): McpManager | undefined {
 		return this.config.mcpManager;
 	}
 
 	/**
-	 * Convert MCP tools to ToolDefinition format for use with the provider
+	 * Convert MCP tools into provider `ToolDefinition` objects.
+	 *
+	 * Wraps each MCP tool with a uniform async handler that executes
+	 * through the configured {@link McpManager} and normalizes errors.
+	 *
+	 * @returns Tool definitions derived from all registered MCP tools
+	 *
+	 * @example
+	 * ```typescript
+	 * const mcpTools = this.convertMcpToolsToToolDefinitions();
+	 * this.setTools([...this.tools, ...mcpTools]);
+	 * ```
+	 *
+	 * @internal
 	 */
 	protected convertMcpToolsToToolDefinitions(): ToolDefinition[] {
 		if (!this.config.mcpManager) {
@@ -497,6 +664,14 @@ export abstract class AIProvider {
 		return toolDefinitions;
 	}
 
+	/**
+	 * Append a message to in-memory history.
+	 *
+	 * @param role - Message author role
+	 * @param content - Message body text
+	 * @returns Nothing
+	 * @internal
+	 */
 	protected addToHistory(role: "user" | "assistant", content: string): void {
 		this.messageHistory.push({
 			role,
@@ -510,35 +685,56 @@ export abstract class AIProvider {
 	// ===========================================================================
 
 	/**
-	 * Read a note from the vault
+	 * Read a note from the vault.
+	 *
+	 * @param path - Vault-relative note path
+	 * @returns Read operation result from VaultOperations
+	 * @internal
 	 */
 	protected async readNote(path: string): Promise<ReadNoteResult> {
 		return VaultOps.readNote(this.app, path);
 	}
 
 	/**
-	 * Search notes by query
+	 * Search notes by query.
+	 *
+	 * @param query - Search query string
+	 * @param limit - Maximum result count
+	 * @returns Search results from VaultOperations
+	 * @internal
 	 */
 	protected async searchNotes(query: string, limit = 10): Promise<SearchNotesResult> {
 		return VaultOps.searchNotes(this.app, query, limit);
 	}
 
 	/**
-	 * Get the currently active note
+	 * Get the currently active note.
+	 *
+	 * @returns Active note details or error metadata
+	 * @internal
 	 */
 	protected async getActiveNote(): Promise<GetActiveNoteResult> {
 		return VaultOps.getActiveNote(this.app);
 	}
 
 	/**
-	 * Open a note in the editor
+	 * Open a note in the editor.
+	 *
+	 * @param path - Vault-relative note path
+	 * @returns Open operation result
+	 * @internal
 	 */
 	protected async openNote(path: string): Promise<OpenNoteResult> {
 		return VaultOps.openNote(this.app, path);
 	}
 
 	/**
-	 * Open a daily note for a specific date
+	 * Open a daily note for a specific date.
+	 *
+	 * @param dateInput - Date expression (ISO date or natural date string)
+	 * @param createIfMissing - Whether to create the note when missing
+	 * @returns Daily-note open operation result
+	 * @internal
 	 */
 	protected async openDailyNote(
 		dateInput: string,
@@ -548,7 +744,14 @@ export abstract class AIProvider {
 	}
 
 	/**
-	 * Open a periodic note (weekly, monthly, quarterly, yearly)
+	 * Open a periodic note (weekly, monthly, quarterly, yearly).
+	 *
+	 * @param periodExpression - Period expression understood by VaultOperations
+	 * @param granularity - Period granularity (week/month/quarter/year)
+	 * @param settings - Optional periodic notes settings override
+	 * @param createIfMissing - Whether to create the note when missing
+	 * @returns Periodic-note open operation result
+	 * @internal
 	 */
 	protected async openPeriodicNote(
 		periodExpression: string,
@@ -560,70 +763,122 @@ export abstract class AIProvider {
 	}
 
 	/**
-	 * List notes in a folder (non-recursive)
+	 * List notes in a folder (non-recursive).
+	 *
+	 * @param folder - Optional folder path
+	 * @param limit - Maximum number of notes to return
+	 * @returns Folder listing result
+	 * @internal
 	 */
 	protected async listNotes(folder?: string, limit = 100): Promise<ListNotesResult> {
 		return VaultOps.listNotes(this.app, folder, limit);
 	}
 
 	/**
-	 * List notes recursively
+	 * List notes recursively.
+	 *
+	 * @param folder - Optional root folder path
+	 * @param limit - Maximum number of notes to return
+	 * @returns Recursive listing result
+	 * @internal
 	 */
 	protected async listNotesRecursively(folder?: string, limit = 200): Promise<ListNotesRecursivelyResult> {
 		return VaultOps.listNotesRecursively(this.app, folder, limit);
 	}
 
 	/**
-	 * Create a new note
+	 * Create a new note.
+	 *
+	 * @param path - Vault-relative target note path
+	 * @param content - Initial note content
+	 * @returns Write operation result
+	 * @internal
 	 */
 	protected async createNote(path: string, content: string): Promise<WriteResult> {
 		return VaultOps.createNote(this.app, path, content);
 	}
 
 	/**
-	 * Append content to a note
+	 * Append content to an existing note.
+	 *
+	 * @param path - Vault-relative note path
+	 * @param content - Text to append
+	 * @returns Write operation result
+	 * @internal
 	 */
 	protected async appendToNote(path: string, content: string): Promise<WriteResult> {
 		return VaultOps.appendToNote(this.app, path, content);
 	}
 
 	/**
-	 * Update a note with new content (replaces entire content)
+	 * Replace a note's entire content.
+	 *
+	 * @param path - Vault-relative note path
+	 * @param content - New full note content
+	 * @returns Write operation result
+	 * @internal
 	 */
 	protected async updateNote(path: string, content: string): Promise<WriteResult> {
 		return VaultOps.updateNote(this.app, path, content);
 	}
 
 	/**
-	 * Delete a note (moves to trash)
+	 * Delete a note (move to trash).
+	 *
+	 * @param path - Vault-relative note path
+	 * @returns Delete operation result
+	 * @internal
 	 */
 	protected async deleteNote(path: string): Promise<WriteResult> {
 		return VaultOps.deleteNote(this.app, path);
 	}
 
 	/**
-	 * Rename/move a note
+	 * Rename or move a note.
+	 *
+	 * @param oldPath - Existing vault-relative path
+	 * @param newPath - New vault-relative path
+	 * @returns Result with success, newPath, or error
+	 * @internal
 	 */
 	protected async renameNote(oldPath: string, newPath: string): Promise<{ success: boolean; newPath?: string; error?: string }> {
 		return VaultOps.renameNote(this.app, oldPath, newPath);
 	}
 
 	/**
-	 * Find and replace text in a note
+	 * Find and replace text in a note.
+	 *
+	 * @param path - Vault-relative note path
+	 * @param find - Search string or pattern
+	 * @param replace - Replacement string
+	 * @returns Find/replace operation result
+	 * @internal
 	 */
 	protected async findAndReplaceInNote(path: string, find: string, replace: string): Promise<FindReplaceResult> {
 		return VaultOps.findAndReplaceInNote(this.app, path, find, replace);
 	}
 
 	/**
-	 * Get recently changed files
+	 * Get recently changed files.
+	 *
+	 * @param limit - Maximum number of changed files to return
+	 * @returns Recent changes result
+	 * @internal
 	 */
 	protected async getRecentChanges(limit = 10): Promise<RecentChangesResult> {
 		return VaultOps.getRecentChanges(this.app, limit);
 	}
 
 	/**
-	 * Patch a note (insert content at specific location)
+	 * Patch a note using a structured patch operation.
+	 *
+	 * @param path - Vault-relative note path
+	 * @param operation - Patch operation kind
+	 * @param targetType - How the target location is interpreted
+	 * @param target - Target anchor value used by the chosen target type
+	 * @param content - Content to insert/replace
+	 * @returns Patch operation result
+	 * @internal
 	 */
 	protected async patchNote(
 		path: string,
@@ -636,21 +891,34 @@ export abstract class AIProvider {
 	}
 
 	/**
-	 * Get a daily note for a specific date (read-only)
+	 * Get a daily note for a specific date (read-only).
+	 *
+	 * @param date - Optional date string; defaults to current date when omitted
+	 * @returns Daily note retrieval result
+	 * @internal
 	 */
 	protected async getDailyNote(date?: string): Promise<GetDailyNoteResult> {
 		return VaultOps.getDailyNote(this.app, date);
 	}
 
 	/**
-	 * Fetch a web page
+	 * Fetch a web page.
+	 *
+	 * @param url - Absolute URL to fetch
+	 * @returns Web page fetch result
+	 * @internal
 	 */
 	protected async fetchWebPage(url: string): Promise<FetchWebPageResult> {
 		return VaultOps.fetchWebPage(url);
 	}
 
 	/**
-	 * Search the web
+	 * Search the web.
+	 *
+	 * @param query - Search query
+	 * @param limit - Maximum number of search results
+	 * @returns Web search result
+	 * @internal
 	 */
 	protected async webSearch(query: string, limit = 5): Promise<WebSearchResult> {
 		return VaultOps.webSearch(query, limit);
@@ -658,7 +926,9 @@ export abstract class AIProvider {
 }
 
 /**
- * Available OpenAI models
+ * Available OpenAI models for profile setup and model pickers.
+ *
+ * @see {@link OpenAIProviderConfig.model} for where these model IDs are used
  */
 export const OPENAI_MODELS = [
 	// GPT-4 models
@@ -677,9 +947,19 @@ export const OPENAI_MODELS = [
 ];
 
 /**
- * Get API key from config or environment (desktop only)
- * On desktop: checks config, then environment variables
- * On mobile: only checks config (no process.env available)
+ * Resolve the OpenAI API key from explicit config or environment.
+ *
+ * On desktop: checks `configKey`, then `process.env.OPENAI_API_KEY`.
+ * On mobile: only checks `configKey` (no guaranteed `process.env`).
+ *
+ * @param configKey - API key from settings/profile (highest priority)
+ * @returns Resolved API key, or `undefined` when unavailable
+ *
+ * @example
+ * ```typescript
+ * const apiKey = getOpenAIApiKey(profile.apiKey);
+ * if (!apiKey) throw new Error("OpenAI API key is required");
+ * ```
  */
 export function getOpenAIApiKey(configKey?: string): string | undefined {
 	// First check config

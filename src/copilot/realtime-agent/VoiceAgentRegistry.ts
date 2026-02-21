@@ -1,12 +1,18 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * VoiceAgentRegistry - Central registry for voice agent discovery and registration
- * 
- * Allows voice agents to:
- * - Register themselves with the main assistant
- * - Declare their definition file patterns (*.voice-agent.md)
- * - Provide factory functions for instantiation
- * 
- * Third-party plugins can use this to add custom voice agents.
+ * @module VoiceAgentRegistry
+ * @description Central registry for voice-agent discovery, registration, and factory-based instantiation.
+ *
+ * Allows built-in and third-party plugins to register voice agents that can be
+ * loaded by `MainVaultAssistant` and wired into cross-agent handoff flows.
+ *
+ * @see {@link MainVaultAssistant}
+ * @see {@link VoiceAgentDefinition}
+ * @since 0.0.28
  */
 
 import { App } from "obsidian";
@@ -93,10 +99,17 @@ export class VoiceAgentRegistry {
 	/** Event listeners */
 	private listeners: Map<keyof VoiceAgentRegistryEvents, Set<(...args: unknown[]) => void>> = new Map();
 
+	/** @internal */
 	private constructor() {}
 
 	/**
-	 * Get the singleton registry instance
+	 * Get the singleton registry instance.
+	 *
+	 * @returns Shared registry instance
+	 * @example
+	 * ```typescript
+	 * const registry = VoiceAgentRegistry.getInstance();
+	 * ```
 	 */
 	static getInstance(): VoiceAgentRegistry {
 		if (!VoiceAgentRegistry.instance) {
@@ -106,8 +119,14 @@ export class VoiceAgentRegistry {
 	}
 
 	/**
-	 * Register a voice agent
-	 * @param registration The agent registration metadata
+	 * Register or update a voice agent.
+	 *
+	 * @param registration - Agent registration metadata
+	 * @returns Nothing
+	 * @example
+	 * ```typescript
+	 * registry.register(registration);
+	 * ```
 	 */
 	register(registration: VoiceAgentRegistration): void {
 		if (this.registrations.has(registration.id)) {
@@ -125,9 +144,14 @@ export class VoiceAgentRegistry {
 	}
 
 	/**
-	 * Unregister a voice agent by ID
-	 * @param id The agent ID to unregister
-	 * @returns true if the agent was found and unregistered
+	 * Unregister a voice agent by ID.
+	 *
+	 * @param id - Agent ID
+	 * @returns `true` if the agent was removed
+	 * @example
+	 * ```typescript
+	 * registry.unregister("task-manager");
+	 * ```
 	 */
 	unregister(id: string): boolean {
 		const existed = this.registrations.delete(id);
@@ -139,9 +163,10 @@ export class VoiceAgentRegistry {
 	}
 
 	/**
-	 * Unregister all voice agents from a specific plugin
-	 * @param pluginId The plugin ID
-	 * @returns Number of agents unregistered
+	 * Unregister all voice agents from a plugin.
+	 *
+	 * @param pluginId - Plugin identifier
+	 * @returns Number of agents removed
 	 */
 	unregisterByPlugin(pluginId: string): number {
 		let count = 0;
@@ -155,8 +180,9 @@ export class VoiceAgentRegistry {
 	}
 
 	/**
-	 * Get all registered voice agents
-	 * @returns Array of registrations sorted by priority (descending)
+	 * Get all registered voice agents.
+	 *
+	 * @returns Registrations sorted by descending priority
 	 */
 	getAll(): VoiceAgentRegistration[] {
 		return Array.from(this.registrations.values())
@@ -164,16 +190,20 @@ export class VoiceAgentRegistry {
 	}
 
 	/**
-	 * Get a registration by ID
-	 * @param id The agent ID
+	 * Get a registration by ID.
+	 *
+	 * @param id - Agent ID
+	 * @returns Registration or `undefined`
 	 */
 	get(id: string): VoiceAgentRegistration | undefined {
 		return this.registrations.get(id);
 	}
 
 	/**
-	 * Get a registration by definition file name
-	 * @param fileName The definition file name (e.g., "task-manager.voice-agent.md")
+	 * Get a registration by definition file name.
+	 *
+	 * @param fileName - Definition file name
+	 * @returns Registration or `undefined`
 	 */
 	getByDefinitionFileName(fileName: string): VoiceAgentRegistration | undefined {
 		for (const registration of this.registrations.values()) {
@@ -185,8 +215,9 @@ export class VoiceAgentRegistry {
 	}
 
 	/**
-	 * Get all definition file names that should be searched for
-	 * @returns Array of file names to search in voice agent directories
+	 * Get all registered definition file names.
+	 *
+	 * @returns File names to search in voice-agent directories
 	 */
 	getDefinitionFileNames(): string[] {
 		return Array.from(this.registrations.values())
@@ -194,8 +225,10 @@ export class VoiceAgentRegistry {
 	}
 
 	/**
-	 * Check if an agent is registered
-	 * @param id The agent ID
+	 * Check whether an agent is registered.
+	 *
+	 * @param id - Agent ID
+	 * @returns `true` if present
 	 */
 	has(id: string): boolean {
 		return this.registrations.has(id);
@@ -203,11 +236,16 @@ export class VoiceAgentRegistry {
 
 	/**
 	 * Create an agent instance using the registered factory
-	 * @param id The agent ID
-	 * @param app Obsidian App instance
-	 * @param config Agent configuration
-	 * @param definition Optional voice agent definition from markdown
-	 * @returns The created agent instance, or undefined if not found
+	 *
+	 * @param id - Agent ID
+	 * @param app - Obsidian app instance
+	 * @param config - Base voice-agent configuration
+	 * @param definition - Optional markdown voice-agent definition
+	 * @returns Created agent or `undefined`
+	 * @example
+	 * ```typescript
+	 * const agent = registry.create("note-manager", app, config, definition);
+	 * ```
 	 */
 	create(
 		id: string,
@@ -230,7 +268,16 @@ export class VoiceAgentRegistry {
 	}
 
 	/**
-	 * Subscribe to registry events
+	 * Subscribe to registry events.
+	 *
+	 * @param event - Registry event name
+	 * @param callback - Event callback
+	 * @returns Unsubscribe function
+	 * @example
+	 * ```typescript
+	 * const off = registry.on("registered", (registration) => console.log(registration.id));
+	 * off();
+	 * ```
 	 */
 	on<K extends keyof VoiceAgentRegistryEvents>(
 		event: K,
@@ -248,7 +295,12 @@ export class VoiceAgentRegistry {
 	}
 
 	/**
-	 * Emit an event
+	 * Emit an internal registry event.
+	 *
+	 * @param event - Event name
+	 * @param args - Event arguments
+	 * @returns Nothing
+	 * @internal
 	 */
 	private emit<K extends keyof VoiceAgentRegistryEvents>(
 		event: K,
@@ -267,7 +319,9 @@ export class VoiceAgentRegistry {
 	}
 
 	/**
-	 * Clear all registrations (for testing)
+	 * Clear all registrations (primarily for tests).
+	 *
+	 * @returns Nothing
 	 */
 	clear(): void {
 		this.registrations.clear();
@@ -275,7 +329,13 @@ export class VoiceAgentRegistry {
 }
 
 /**
- * Get the global voice agent registry instance
+ * Get the global voice-agent registry instance.
+ *
+ * @returns Shared registry singleton
+ * @example
+ * ```typescript
+ * const registry = getVoiceAgentRegistry();
+ * ```
  */
 export function getVoiceAgentRegistry(): VoiceAgentRegistry {
 	return VoiceAgentRegistry.getInstance();

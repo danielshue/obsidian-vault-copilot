@@ -1,23 +1,33 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
- * CustomizationLoader - Loads and parses custom agents, skills, instructions, and prompts
- * from configured directories in the vault.
- * 
- * File formats:
- * - Agents: *.agent.md with frontmatter (name, description, tools)
- * - Skills: <skill-name>/SKILL.md - each skill is a folder containing a SKILL.md file
- *           The SKILL.md can use either:
- *           1. Standard frontmatter at the top
- *           2. A ```skill code block with frontmatter inside
- *           Alternatively, <skill-name>/skill.json (SDK-native format) is also recognized.
- *           skill.json uses: { name, displayName, description, version, author, prompts[], tools[] }
- * - Instructions: *.instructions.md, copilot-instructions.md, or AGENTS.md with optional frontmatter (applyTo)
- * - Prompts: *.prompt.md with frontmatter (name, description, tools, model)
+ * @module CustomizationLoader
+ * @description Loads and parses custom agents, skills, instructions, prompts, and voice agents
+ * from configured vault and external desktop directories.
  *
- * **Dual-loading note**: When the GitHub Copilot provider is active, skill directories are
- * also passed to the SDK via `createSession({ skillDirectories })`. The SDK loads its own
- * `skill.json` files natively. This loader independently loads both SKILL.md and skill.json
- * files so that non-SDK providers (OpenAI, Azure OpenAI) also benefit from skill discovery.
- * Duplicate skill names from both loaders are deduplicated by SkillCache.
+ * File formats:
+ * - Agents: `*.agent.md` with frontmatter (`name`, `description`, `tools`)
+ * - Skills: `<skill-name>/SKILL.md` or `<skill-name>/skill.json`
+ * - Instructions: `*.instructions.md`, `copilot-instructions.md`, or `AGENTS.md`
+ * - Prompts: `*.prompt.md` with frontmatter (`name`, `description`, `tools`, `model`)
+ * - Voice agents: `*.voice-agent.md`
+ *
+ * Dual-loading note: when the GitHub Copilot provider is active, skill directories are
+ * also passed to the SDK via `createSession({ skillDirectories })`. This loader still parses
+ * skill files to provide a consistent customization surface for non-SDK providers.
+ *
+ * @example
+ * ```typescript
+ * const loader = new CustomizationLoader(app);
+ * const prompts = await loader.loadPrompts(["Reference/Prompts"]);
+ * ```
+ *
+ * @see {@link PromptCache}
+ * @see {@link AgentCache}
+ * @since 0.0.28
  */
 
 import { App, TFile, TFolder, FileSystemAdapter } from "obsidian";
@@ -203,6 +213,12 @@ export interface VoiceAgentDefinition {
  *
  * @param yamlStr - Raw YAML string (without --- delimiters)
  * @returns Parsed key-value record
+ *
+ * @example
+ * ```typescript
+ * const parsed = parseYamlKeyValues("name: demo\ntools:\n  - read_file");
+ * ```
+ *
  * @internal
  */
 export function parseYamlKeyValues(yamlStr: string): Record<string, unknown> {
@@ -350,6 +366,11 @@ function parseScalarValue(raw: string): unknown {
  *
  * @param content - Full markdown content with optional frontmatter
  * @returns Object with parsed frontmatter record and body text
+ *
+ * @example
+ * ```typescript
+ * const { frontmatter, body } = parseFrontmatter(markdownContent);
+ * ```
  */
 export function parseFrontmatter(content: string): { frontmatter: Record<string, unknown>; body: string } {
 	const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
@@ -366,6 +387,11 @@ export function parseFrontmatter(content: string): { frontmatter: Record<string,
 /**
  * Parse content from a code block (e.g., ```skill ... ```)
  * The code block may contain frontmatter inside it.
+ *
+ * @param content - File content to inspect
+ * @param blockType - Code block language tag (for example, `skill`)
+ * @returns Parsed frontmatter/body tuple, or `null` if block is not found
+ * @internal
  */
 function parseCodeBlockContent(content: string, blockType: string): { frontmatter: Record<string, unknown>; body: string } | null {
 	// Match code block with specific type: ```skill\n...\n```
@@ -383,17 +409,40 @@ function parseCodeBlockContent(content: string, blockType: string): { frontmatte
 }
 
 /**
- * Loader class for custom agents, skills, and instructions
+ * Loader class for custom agents, skills, prompts, instructions, and voice agents.
+ *
+ * Responsibilities:
+ * - Resolve vault-relative and external desktop paths
+ * - Parse markdown frontmatter and SDK-native `skill.json` files
+ * - Normalize loaded customization definitions for provider consumption
+ *
+ * @example
+ * ```typescript
+ * const loader = new CustomizationLoader(app);
+ * const agents = await loader.loadAgents(["Reference/Agents"]);
+ * ```
+ *
+ * @see {@link parseFrontmatter}
+ * @since 0.0.28
  */
 export class CustomizationLoader {
+	/** Obsidian app instance used for vault operations. @internal */
 	private app: App;
 
+	/**
+	 * Create a customization loader.
+	 *
+	 * @param app - Obsidian app instance
+	 */
 	constructor(app: App) {
 		this.app = app;
 	}
 
 	/**
 	 * Get the vault base path if available (desktop only)
+	 *
+	 * @returns Normalized vault base path, or `undefined` on non-filesystem adapters
+	 * @internal
 	 */
 	private getVaultBasePath(): string | undefined {
 		const adapter = this.app.vault.adapter;
@@ -404,11 +453,14 @@ export class CustomizationLoader {
 	}
 
 	/**
- * Convert a directory path to a vault-relative path and get the folder
- * Handles absolute paths, vault root (.), and relative paths
- * Cross-platform compatible (Windows, Mac, Linux)
- */
-private getFolderFromPath(dir: string): TFolder | null {
+	 * Convert a directory path to a vault-relative path and resolve a folder.
+	 * Handles absolute paths, vault root (`.`), and relative paths.
+	 *
+	 * @param dir - Directory path from settings
+	 * @returns Matching vault folder, or `null` when not found
+	 * @internal
+	 */
+	private getFolderFromPath(dir: string): TFolder | null {
 	// Expand ~/... to user home directory (cross-platform)
 	dir = expandHomePath(dir);
 
@@ -449,7 +501,7 @@ private getFolderFromPath(dir: string): TFolder | null {
 	
 	console.log(`[VC] Could not find folder: ${dir} (resolved to: ${relativePath})`);
 	return null;
-}
+	}
 
 	/**
 	 * Check if a path is an absolute path outside the vault.
@@ -723,7 +775,15 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
-	 * Load all agents from the configured agent directories
+	 * Load all agents from configured agent directories.
+	 *
+	 * @param directories - Directories to scan for `*.agent.md` files
+	 * @returns Parsed custom agents
+	 *
+	 * @example
+	 * ```typescript
+	 * const agents = await loader.loadAgents(["Reference/Agents"]);
+	 * ```
 	 */
 	async loadAgents(directories: string[]): Promise<CustomAgent[]> {
 		const agents: CustomAgent[] = [];
@@ -799,7 +859,15 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
-	 * Load all skills from the configured skill directories
+	 * Load all skills from configured skill directories.
+	 *
+	 * @param directories - Directories whose subfolders contain `SKILL.md` or `skill.json`
+	 * @returns Parsed custom skills
+	 *
+	 * @example
+	 * ```typescript
+	 * const skills = await loader.loadSkills(["Reference/Skills"]);
+	 * ```
 	 */
 	async loadSkills(directories: string[]): Promise<CustomSkill[]> {
 		const skills: CustomSkill[] = [];
@@ -950,7 +1018,15 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
-	 * Load all instructions from the configured instruction directories
+	 * Load all instructions from configured instruction directories.
+	 *
+	 * @param directories - Directories to scan for instruction markdown files
+	 * @returns Parsed instructions
+	 *
+	 * @example
+	 * ```typescript
+	 * const instructions = await loader.loadInstructions(["Reference/Instructions"]);
+	 * ```
 	 */
 	async loadInstructions(directories: string[]): Promise<CustomInstruction[]> {
 		const instructions: CustomInstruction[] = [];
@@ -997,7 +1073,15 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
-	 * Load all prompts from the configured prompt directories
+	 * Load all prompts from configured prompt directories.
+	 *
+	 * @param directories - Directories to scan for `*.prompt.md` files
+	 * @returns Parsed prompts
+	 *
+	 * @example
+	 * ```typescript
+	 * const prompts = await loader.loadPrompts(["Reference/Prompts"]);
+	 * ```
 	 */
 	async loadPrompts(directories: string[]): Promise<CustomPrompt[]> {
 		const prompts: CustomPrompt[] = [];
@@ -1234,7 +1318,16 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
-	 * Get a single agent by name
+	 * Get a single agent by name.
+	 *
+	 * @param directories - Agent directories to scan
+	 * @param name - Agent name to resolve
+	 * @returns Matching agent, or `undefined`
+	 *
+	 * @example
+	 * ```typescript
+	 * const planner = await loader.getAgent(["Reference/Agents"], "planner");
+	 * ```
 	 */
 	async getAgent(directories: string[], name: string): Promise<CustomAgent | undefined> {
 		const agents = await this.loadAgents(directories);
@@ -1242,7 +1335,16 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
-	 * Get a single prompt by name
+	 * Get a single prompt by name.
+	 *
+	 * @param directories - Prompt directories to scan
+	 * @param name - Prompt name to resolve
+	 * @returns Matching prompt, or `undefined`
+	 *
+	 * @example
+	 * ```typescript
+	 * const prompt = await loader.getPrompt(["Reference/Prompts"], "update-docs");
+	 * ```
 	 */
 	async getPrompt(directories: string[], name: string): Promise<CustomPrompt | undefined> {
 		const prompts = await this.loadPrompts(directories);
@@ -1250,8 +1352,16 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
-	 * Load all voice agents from the configured directories
-	 * Voice agents use the .voice-agent.md extension
+	 * Load all voice agents from configured directories.
+	 * Voice agents use the `.voice-agent.md` extension.
+	 *
+	 * @param directories - Directories to scan for voice agent definitions
+	 * @returns Parsed voice agent definitions
+	 *
+	 * @example
+	 * ```typescript
+	 * const voiceAgents = await loader.loadVoiceAgents(["Reference/Voice Agents"]);
+	 * ```
 	 */
 	async loadVoiceAgents(directories: string[]): Promise<VoiceAgentDefinition[]> {
 		const voiceAgents: VoiceAgentDefinition[] = [];
@@ -1296,7 +1406,16 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
-	 * Get a single voice agent by name
+	 * Get a single voice agent by name.
+	 *
+	 * @param directories - Voice agent directories to scan
+	 * @param name - Voice agent name to resolve
+	 * @returns Matching voice agent, or `undefined`
+	 *
+	 * @example
+	 * ```typescript
+	 * const agent = await loader.getVoiceAgent(["Reference/Voice Agents"], "realtime-planner");
+	 * ```
 	 */
 	async getVoiceAgent(directories: string[], name: string): Promise<VoiceAgentDefinition | undefined> {
 		const voiceAgents = await this.loadVoiceAgents(directories);
@@ -1304,7 +1423,15 @@ private getFolderFromPath(dir: string): TFolder | null {
 	}
 
 	/**
-	 * Load a voice agent definition from a specific file path
+	 * Load a voice agent definition from a specific vault file path.
+	 *
+	 * @param filePath - Vault-relative path to a `.voice-agent.md` file
+	 * @returns Parsed voice agent definition, or `null` when invalid/unreadable
+	 *
+	 * @example
+	 * ```typescript
+	 * const agent = await loader.loadVoiceAgentFromFile("Reference/Voice Agents/planner.voice-agent.md");
+	 * ```
 	 */
 	async loadVoiceAgentFromFile(filePath: string): Promise<VoiceAgentDefinition | null> {
 		try {

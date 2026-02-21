@@ -23,6 +23,7 @@ import { UsedReference } from "../renderers/MessageRenderer";
 import { CachedAgentInfo } from "../../../copilot/customization/AgentCache";
 import { GitHubCopilotCliService } from "../../../copilot/providers/GitHubCopilotCliService";
 import type CopilotPlugin from "../../../main";
+import { formatDateTimeParts } from "../../../utils/dateTime";
 
 /**
  * Parameters for building message context
@@ -326,40 +327,17 @@ export class MessageContextBuilder {
 	private formatDateTimeContext(): string {
 		try {
 			const settings = this.plugin.settings;
-			const timezone = settings.timezone || undefined; // undefined = system default
-			const now = new Date();
-
-			// Full date with day of week: "Monday, February 17, 2026"
-			const fullDate = new Intl.DateTimeFormat('en-US', {
-				timeZone: timezone,
-				weekday: 'long',
-				year: 'numeric',
-				month: 'long',
-				day: 'numeric',
-			}).format(now);
-
-			// Time with timezone abbreviation: "2:30:15 PM PST"
-			const time = new Intl.DateTimeFormat('en-US', {
-				timeZone: timezone,
-				hour: 'numeric',
-				minute: '2-digit',
-				second: '2-digit',
-				hour12: true,
-				timeZoneName: 'short',
-			}).format(now);
-
-			// ISO string for unambiguous machine parsing
-			const isoDate = now.toISOString();
-
-			// Resolve display timezone name
-			const tzDisplay = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+			const parts = formatDateTimeParts({
+				timezone: settings.timezone || undefined,
+				weekStartDay: settings.weekStartDay || "sunday",
+			});
 
 			const lines = [
 				'[Current Date & Time]',
-				`${fullDate}, ${time}`,
-				`ISO: ${isoDate}`,
-				`Timezone: ${tzDisplay}`,
-				`Week starts on: ${settings.weekStartDay.charAt(0).toUpperCase() + settings.weekStartDay.slice(1)}`,
+				parts.formattedDate,
+				`ISO date: ${parts.isoDate}`,
+				`Timezone: ${parts.resolvedTimezone}`,
+				`Week starts on: ${parts.weekStartLabel}`,
 				'[End Date & Time]',
 			];
 

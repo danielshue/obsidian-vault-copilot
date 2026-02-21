@@ -1,3 +1,8 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 /**
  * @module OpenAIService
  * @description OpenAI API provider implementation for Vault Copilot.
@@ -31,6 +36,7 @@
  *
  * @see {@link AIProvider} for the base class interface
  * @see {@link OpenAIProviderConfig} for configuration options
+ * @see {@link AIProviderFactory} for platform-aware provider creation
  * @since 0.0.1
  */
 
@@ -41,9 +47,12 @@ import {
 	AIProvider,
 	OpenAIProviderConfig,
 	StreamingCallbacks,
-	ToolDefinition,
 } from "./AIProvider";
 
+/**
+ * Internal OpenAI function tool schema used for chat completion requests.
+ * @internal
+ */
 interface OpenAITool {
 	type: "function";
 	function: {
@@ -53,24 +62,71 @@ interface OpenAITool {
 	};
 }
 
+/** SDK message type alias used for OpenAI chat requests. @internal */
 type OpenAIMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
+/** SDK tool-call type alias used for function-call execution. @internal */
 type OpenAIToolCall = OpenAI.Chat.Completions.ChatCompletionMessageToolCall;
 
 /**
- * OpenAI provider implementation
+ * OpenAI provider implementation.
+ *
+ * Provides direct OpenAI API integration with support for:
+ * - standard chat completions
+ * - streaming responses
+ * - tool/function calling (vault tools + MCP tools + ask_question)
+ *
+ * @example
+ * ```typescript
+ * const service = new OpenAIService(app, {
+ *   provider: "openai",
+ *   model: "gpt-4o",
+ *   streaming: true,
+ *   apiKey: "sk-...",
+ * });
+ * await service.initialize();
+ * ```
+ *
+ * @see {@link AIProvider} for shared provider behavior
  */
 export class OpenAIService extends AIProvider {
+	/** OpenAI client instance (null until initialized). @internal */
 	private client: OpenAI | null = null;
+	/** Abort controller for active streaming request. @internal */
 	private abortController: AbortController | null = null;
+	/** Initialization state flag. @internal */
 	private isInitialized: boolean = false;
+	/** Strongly-typed provider config for OpenAI. */
 	declare protected config: OpenAIProviderConfig;
 
+	/**
+	 * Create a new OpenAI service instance.
+	 *
+	 * @param app - Obsidian app instance for vault integrations
+	 * @param config - OpenAI provider configuration
+	 *
+	 * @example
+	 * ```typescript
+	 * const service = new OpenAIService(app, config);
+	 * ```
+	 */
 	constructor(app: App, config: OpenAIProviderConfig) {
 		super(app, config);
 	}
 
 	/**
-	 * Initialize the OpenAI client
+	 * Initialize the OpenAI client.
+	 *
+	 * Resolves API key from config/env and builds the SDK client.
+	 * This method is idempotent.
+	 *
+	 * @returns Resolves when client initialization is complete
+	 *
+	 * @throws {Error} If API key is not configured
+	 *
+	 * @example
+	 * ```typescript
+	 * await service.initialize();
+	 * ```
 	 */
 	async initialize(): Promise<void> {
 		if (this.isInitialized && this.client) {
@@ -105,7 +161,23 @@ export class OpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Send a message and wait for complete response
+	 * Send a message and wait for a complete (non-streaming) response.
+	 *
+	 * Handles iterative tool-calling loops by executing tool calls,
+	 * appending tool responses, and re-querying until final assistant text
+	 * is returned.
+	 *
+	 * @param prompt - User prompt text
+	 * @returns Final assistant response text
+	 *
+	 * @throws {Error} Propagates OpenAI API errors and tool execution failures
+	 *
+	 * @example
+	 * ```typescript
+	 * const reply = await service.sendMessage("Summarize my notes");
+	 * ```
+	 *
+	 * @see {@link executeToolCalls} for tool-call execution flow
 	 */
 	async sendMessage(prompt: string): Promise<string> {
 		if (!this.client) {
@@ -166,7 +238,24 @@ export class OpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Send a message with streaming response
+	 * Send a message with streaming response.
+	 *
+	 * Streams token deltas through `callbacks.onDelta`, supports multi-round
+	 * tool calling, and calls `onComplete` with accumulated content.
+	 *
+	 * @param prompt - User prompt text
+	 * @param callbacks - Streaming callbacks (`onDelta`, optional `onComplete`, optional `onError`)
+	 * @returns Resolves when streaming completes
+	 *
+	 * @throws {Error} Propagates non-abort API and tool execution errors
+	 *
+	 * @example
+	 * ```typescript
+	 * await service.sendMessageStreaming("Plan my week", {
+	 *   onDelta: (chunk) => appendToUI(chunk),
+	 *   onComplete: (full) => renderMarkdown(full),
+	 * });
+	 * ```
 	 */
 	async sendMessageStreaming(
 		prompt: string,
@@ -290,7 +379,14 @@ export class OpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Abort the current operation
+	 * Abort the current in-flight request.
+	 *
+	 * @returns Resolves once the abort signal has been sent
+	 *
+	 * @example
+	 * ```typescript
+	 * await service.abort();
+	 * ```
 	 */
 	async abort(): Promise<void> {
 		if (this.abortController) {
@@ -300,14 +396,28 @@ export class OpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Check if the provider is ready
+	 * Check whether the provider is initialized and ready.
+	 *
+	 * @returns `true` when initialized and client exists, otherwise `false`
+	 *
+	 * @example
+	 * ```typescript
+	 * if (!service.isReady()) await service.initialize();
+	 * ```
 	 */
 	isReady(): boolean {
 		return this.isInitialized && this.client !== null;
 	}
 
 	/**
-	 * Clean up resources
+	 * Clean up resources and reset provider state.
+	 *
+	 * @returns Resolves when cleanup is complete
+	 *
+	 * @example
+	 * ```typescript
+	 * await service.destroy();
+	 * ```
 	 */
 	async destroy(): Promise<void> {
 		await this.abort();
@@ -316,6 +426,16 @@ export class OpenAIService extends AIProvider {
 		this.messageHistory = [];
 	}
 
+	/**
+	 * Resolve OpenAI API key from config or environment.
+	 *
+	 * Resolution order:
+	 * 1. `config.apiKey`
+	 * 2. `process.env.OPENAI_API_KEY` (desktop)
+	 *
+	 * @returns API key or `undefined` if unavailable
+	 * @internal
+	 */
 	private resolveApiKey(): string | undefined {
 		if (this.config.apiKey) {
 			return this.config.apiKey;
@@ -327,7 +447,12 @@ export class OpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Build messages array for API call
+	 * Build SDK message array for chat completion calls.
+	 *
+	 * Includes optional system prompt followed by message history.
+	 *
+	 * @returns Ordered OpenAI chat message array
+	 * @internal
 	 */
 	private buildMessages(): OpenAIMessage[] {
 		const messages: OpenAIMessage[] = [];
@@ -352,8 +477,12 @@ export class OpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Build tools array for API call
-	 * Includes manually set tools, MCP tools, and ask_question tool
+	 * Build SDK tools array for chat completion calls.
+	 *
+	 * Includes manually set tools, MCP tools, and optional ask_question tool.
+	 *
+	 * @returns OpenAI function tool definitions
+	 * @internal
 	 */
 	private buildTools(): OpenAITool[] {
 		// Combine manually set tools with MCP tools
@@ -376,7 +505,11 @@ export class OpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Execute tool calls and return results
+	 * Execute model-requested tool calls and return tool results.
+	 *
+	 * @param toolCalls - Tool calls emitted by the model
+	 * @returns Array of tool-call-id/result mappings
+	 * @internal
 	 */
 	private async executeToolCalls(
 		toolCalls: OpenAIToolCall[]
@@ -429,7 +562,15 @@ export class OpenAIService extends AIProvider {
 	}
 
 	/**
-	 * Test the connection to OpenAI
+	 * Test connectivity to OpenAI with a lightweight API request.
+	 *
+	 * @returns Success status with optional error message
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await service.testConnection();
+	 * if (!result.success) console.error(result.error);
+	 * ```
 	 */
 	async testConnection(): Promise<{ success: boolean; error?: string }> {
 		try {
@@ -451,6 +592,13 @@ export class OpenAIService extends AIProvider {
 	/**
 	 * List available models for chat (excludes realtime and audio models)
 	 * Filters to only include models that support chat completions with function calling
+	 *
+	 * @returns Sorted list of supported chat model IDs, or `[]` on error
+	 *
+	 * @example
+	 * ```typescript
+	 * const models = await service.listModels();
+	 * ```
 	 */
 	async listModels(): Promise<string[]> {
 		if (!this.client) {
@@ -489,7 +637,14 @@ export class OpenAIService extends AIProvider {
 	}
 
 	/**
-	 * List available realtime models for voice agent
+	 * List available realtime models for voice agent usage.
+	 *
+	 * @returns Sorted realtime model IDs, or fallback defaults on error
+	 *
+	 * @example
+	 * ```typescript
+	 * const realtime = await service.listRealtimeModels();
+	 * ```
 	 */
 	async listRealtimeModels(): Promise<string[]> {
 		if (!this.client) {
@@ -510,7 +665,14 @@ export class OpenAIService extends AIProvider {
 	}
 
 	/**
-	 * List available audio models for voice input
+	 * List available audio models for voice input usage.
+	 *
+	 * @returns Sorted audio model IDs, or fallback defaults on error
+	 *
+	 * @example
+	 * ```typescript
+	 * const audioModels = await service.listAudioModels();
+	 * ```
 	 */
 	async listAudioModels(): Promise<string[]> {
 		if (!this.client) {
