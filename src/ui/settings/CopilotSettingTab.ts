@@ -53,7 +53,7 @@ import { getModelDisplayName, getAvailableModels } from "./utils";
 import { AIProviderProfileModal, AddHttpMcpServerModal } from "./modals";
 import { AutomationDetailsModal } from "./modals/AutomationDetailsModal";
 import type { TelegramBotStatus } from "../../telegram/types";
-import { DEFAULT_TELEGRAM_SETTINGS, DEFAULT_TELEGRAM_SYSTEM_PROMPT, TELEGRAM_PROMPT_VARIABLES } from "../../telegram/types";
+import { DEFAULT_TELEGRAM_SETTINGS } from "../../telegram/types";
 
 export class CopilotSettingTab extends PluginSettingTab {
 	plugin: CopilotPlugin;
@@ -2844,69 +2844,6 @@ console.log("Discovering models...");
 					}
 				});
 			});
-
-		// System prompt section
-		section.createEl("h4", { text: "System prompt" });
-
-		// Description above the textarea (not inside a Setting row)
-		const promptDesc = section.createDiv({ cls: "setting-item-description" });
-		promptDesc.style.marginBottom = "8px";
-		promptDesc.setText("Instructions sent to the AI for Telegram conversations. Leave blank to use default. Use {{variable}} placeholders for dynamic content.");
-
-		// Full-width textarea (not wrapped in Setting's side-by-side layout)
-		let textAreaEl: HTMLTextAreaElement | null = null;
-		const textAreaWrapper = section.createDiv();
-		const ta = document.createElement("textarea");
-		ta.rows = 14;
-		ta.style.width = "100%";
-		ta.style.fontFamily = "monospace";
-		ta.style.fontSize = "12px";
-		ta.style.resize = "vertical";
-		ta.placeholder = DEFAULT_TELEGRAM_SYSTEM_PROMPT.substring(0, 200) + "…";
-		ta.value = telegram.systemPrompt || "";
-		ta.addEventListener("input", async () => {
-			telegram.systemPrompt = ta.value.trim() || undefined;
-			await this.plugin.saveSettings();
-		});
-		textAreaWrapper.appendChild(ta);
-		textAreaEl = ta;
-
-		// Variable insertion buttons
-		const varContainer = section.createDiv({ cls: "vc-prompt-variables" });
-		varContainer.createEl("small", { text: "Insert variable: " });
-		for (const v of TELEGRAM_PROMPT_VARIABLES) {
-			const btn = varContainer.createEl("button", {
-				text: v.variable,
-				cls: "vc-prompt-var-btn",
-				attr: { title: `${v.label}: ${v.description}` },
-			});
-			btn.style.margin = "2px 4px";
-			btn.style.padding = "2px 8px";
-			btn.style.fontSize = "11px";
-			btn.style.cursor = "pointer";
-			btn.addEventListener("click", () => {
-				if (textAreaEl) {
-					const start = textAreaEl.selectionStart;
-					const end = textAreaEl.selectionEnd;
-					const current = textAreaEl.value;
-					textAreaEl.value = current.substring(0, start) + v.variable + current.substring(end);
-					textAreaEl.selectionStart = textAreaEl.selectionEnd = start + v.variable.length;
-					textAreaEl.focus();
-					textAreaEl.dispatchEvent(new Event("input"));
-				}
-			});
-		}
-
-		const resetBtn = new Setting(section)
-			.setName("Reset to default")
-			.setDesc("Restore the built-in Telegram system prompt.");
-		resetBtn.addButton((btn) =>
-			btn.setButtonText("Reset").onClick(async () => {
-				telegram.systemPrompt = undefined;
-				await this.plugin.saveSettings();
-				this.display();
-			})
-		);
 
 		// Voice section
 		section.createEl("h4", { text: "Voice messages" });

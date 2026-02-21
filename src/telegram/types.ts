@@ -234,59 +234,30 @@ export interface TelegramSettings {
 	ttsModel: "tts-1" | "tts-1-hd";
 	/** Whether to transcribe incoming voice messages */
 	transcribeVoiceMessages: boolean;
-	/** Custom system prompt for Telegram conversations (overrides the default) */
-	systemPrompt?: string;
 }
+
+/**
+ * Short formatting context prepended to user messages when responding via Telegram.
+ *
+ * Rather than maintaining a separate system prompt for Telegram, we inherit the
+ * full system prompt from the shared CLI / provider path and only layer on
+ * Telegram-specific formatting rules as a user-message prefix.
+ *
+ * @since 0.0.35
+ */
+export const TELEGRAM_FORMATTING_CONTEXT = [
+    "[Context: You are responding via Telegram, not Obsidian.]",
+    "- Use Telegram-compatible formatting: *bold*, _italic_, `code`, ```code blocks```.",
+    "- Do NOT use markdown headers (#, ##, ###) — they render as comments in Telegram. Use *bold* for section titles.",
+    "- Do NOT use [[wikilinks]] — they are meaningless outside Obsidian.",
+    "- Keep responses under 4000 characters when possible (Telegram message limit).",
+    "- When tool results are large, summarize key points rather than dumping raw data.",
+    "- Do NOT use the ask_question tool — it cannot render in Telegram. Ask questions inline in your message instead.",
+].join("\n");
 
 /**
  * Default Telegram settings.
  */
-/**
- * Template variables available in the Telegram system prompt.
- *
- * These are resolved at runtime by {@link TelegramMessageHandler.resolveSystemPromptVariables}.
- * Each variable is replaced with a dynamically-generated list of the
- * corresponding items available in the current vault.
- *
- * @example
- * ```
- * "Available tools: {{tools}}"
- * // → "Available tools: read_note, search_notes, create_note, …"
- * ```
- */
-export const TELEGRAM_PROMPT_VARIABLES: { variable: string; label: string; description: string }[] = [
-	{ variable: "{{tools}}", label: "Tools", description: "List of vault tools (read_note, search_notes, etc.)" },
-	{ variable: "{{skills}}", label: "Skills", description: "Available skills from .github/skills/" },
-	{ variable: "{{prompts}}", label: "Prompts", description: "Available prompt templates from .github/prompts/" },
-	{ variable: "{{agents}}", label: "Agents", description: "Available agents from .github/agents/" },
-	{ variable: "{{commands}}", label: "Commands", description: "Telegram slash commands" },
-	{ variable: "{{time}}", label: "Time", description: "Current date/time in configured timezone" },
-];
-
-/**
- * Default Telegram system prompt.
- *
- * Provides formatting guidelines and behavioral rules for the AI when
- * responding via Telegram. Users can customise this from
- * Settings → Telegram → System prompt.
- */
-export const DEFAULT_TELEGRAM_SYSTEM_PROMPT = [
-	"You are Vault Copilot, an AI assistant connected to the user's Obsidian vault, responding via Telegram.",
-	"",
-	"IMPORTANT RULES:",
-	"- You are chatting through Telegram. Keep responses concise and mobile-friendly.",
-	"- Use Telegram-compatible formatting: *bold*, _italic_, `code`, ```code blocks```.",
-	"- Do NOT invent or suggest slash commands beyond the ones listed below.",
-	"- Available Telegram commands: {{commands}}",
-	"- If the user wants to read, search, create, or manage notes, use your tools directly.",
-	"- You have full access to vault tools: {{tools}}",
-	"- When the user asks about their vault, proactively use your tools to look up the answer.",
-	"- You can also search the web with web_search and fetch pages with fetch_web_page.",
-	"- Do NOT use markdown headers (#, ##, ###) — they look like comments in Telegram. Use *bold* for section titles instead.",
-	"- Keep responses under 4000 characters when possible to fit Telegram's message limits.",
-	"- When tool results are large, summarize the key points rather than dumping raw data.",
-].join("\n");
-
 export const DEFAULT_TELEGRAM_SETTINGS: TelegramSettings = {
 	enabled: false,
 	botTokenSecretId: null,
@@ -297,7 +268,6 @@ export const DEFAULT_TELEGRAM_SETTINGS: TelegramSettings = {
 	ttsVoice: "alloy",
 	ttsModel: "tts-1",
 	transcribeVoiceMessages: true,
-	systemPrompt: undefined,
 };
 
 // ============================================================================

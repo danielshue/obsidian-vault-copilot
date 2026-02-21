@@ -41,7 +41,7 @@
 import type { App } from "obsidian";
 import type CopilotPlugin from "../main";
 import type { TelegramMessage } from "./types";
-import { DEFAULT_TELEGRAM_SYSTEM_PROMPT } from "./types";
+import { TELEGRAM_FORMATTING_CONTEXT } from "./types";
 import type { TelegramBotService } from "./TelegramBotService";
 import type { TelegramVoiceHandler } from "./TelegramVoiceHandler";
 import type { CopilotSession } from "../ui/settings/types";
@@ -966,9 +966,6 @@ export class TelegramMessageHandler {
 		await this.saveSession(session, /* skipNotify */ true);
 
 		try {
-			// Build system prompt with agent context
-			const systemPrompt = await this.buildSystemPrompt(chatIdStr);
-
 			// Build context with session history
 			const contextMessages = this.buildContextMessages(session);
 
@@ -1012,8 +1009,6 @@ export class TelegramMessageHandler {
 			if (this.dedicatedService && service === this.dedicatedService) {
 				// Clear previous conversation from the service's internal history
 				this.dedicatedService.clearHistory();
-				// Set system prompt (with agent instructions if active)
-				this.dedicatedService.setSystemPrompt(systemPrompt);
 				// Ensure tools are set (they persist but refresh on provider change)
 				if (!this.cachedTools) {
 					this.cachedTools = buildTelegramToolDefinitions(this.app, this.plugin);
@@ -1028,15 +1023,15 @@ export class TelegramMessageHandler {
 				// systemMessage set at session creation time. Do NOT prepend
 				// the Telegram system prompt here — doing so stores it in the
 				// SDK's messageHistory and it shows up as a user message in
-				// the ChatView. Just send the clean user text.
-				finalPrompt = text;
+				// the ChatView. Just prepend the lightweight formatting context.
+				finalPrompt = `${TELEGRAM_FORMATTING_CONTEXT}\n\n${text}`;
 			} else {
 				// Dedicated service (OpenAI/Azure): needs full context replay
 				// since it starts fresh each call.
 				const fullPrompt = contextMessages
-					? `${contextMessages}\n\nUser: ${text}`
-					: text;
-				finalPrompt = fullPrompt;
+						? `${TELEGRAM_FORMATTING_CONTEXT}\n\n${contextMessages}\n\nUser: ${text}`
+						: `${TELEGRAM_FORMATTING_CONTEXT}\n\n${text}`;
+					finalPrompt = fullPrompt;
 			}
 
 			// Send to AI provider (non-streaming)
@@ -1126,121 +1121,6 @@ export class TelegramMessageHandler {
 		for (const chunk of chunks) {
 			await this.botService.sendMessage(chatId, chunk);
 		}
-	}
-
-	// ========================================================================
-	// System Prompt Building
-	// ========================================================================
-
-	/**
-	 * Build the complete system prompt for a Telegram conversation.
-	 *
-	 * Includes the base Telegram system prompt and, if an agent is active,
-	 * the agent's instructions are prepended.
-	 *
-	 * @param chatIdStr - Chat ID for looking up active agent
-	 * @returns Complete system prompt string
-	 * @internal
-	 */
-	private async buildSystemPrompt(chatIdStr: string): Promise<string> {
-		const parts: string[] = [];
-
-		// Add agent instructions if active
-		const agentName = this.chatAgents.get(chatIdStr);
-		if (agentName) {
-			const agent = await this.plugin.agentCache.getFullAgent(agentName);
-			if (agent?.instructions) {
-				parts.push(`[Agent Instructions for "${agent.name}"]`);
-				parts.push(agent.instructions);
-				parts.push("[End Agent Instructions]");
-				parts.push("");
-			}
-		}
-
-		// Add base Telegram system prompt
-		parts.push(this.getTelegramSystemPrompt());
-
-		return parts.join("\n");
-	}
-
-	/**
-	 * Get the base system prompt for Telegram conversations.
-	 *
-	 * Instructs the AI about Telegram context, available tools and commands,
-	 * and formatting guidelines.
-	 *
-	 * @returns System prompt string
-	 * @internal
-	 */
-	private getTelegramSystemPrompt(): string {
-		const template = this.plugin.settings.telegram?.systemPrompt || DEFAULT_TELEGRAM_SYSTEM_PROMPT;
-		return this.resolveSystemPromptVariables(template);
-	}
-
-	/**
-	 * Resolve template variables (e.g. `{{tools}}`, `{{skills}}`) in the
-	 * system prompt with live data from the vault.
-	 *
-	 * @param template - The raw system prompt possibly containing `{{…}}` placeholders
-	 * @returns The prompt with all recognised variables expanded
-	 * @internal
-	 */
-	private resolveSystemPromptVariables(template: string): string {
-		let result = template;
-
-		// {{tools}} — vault tool names
-		if (result.includes("{{tools}}")) {
-			const tools = this.cachedTools
-				? this.cachedTools.map(t => t.name)
-				: buildTelegramToolDefinitions(this.app, this.plugin).map(t => t.name);
-			result = result.replace(/\{\{tools\}\}/g, tools.join(", "));
-		}
-
-		// {{skills}} — skill names
-		if (result.includes("{{skills}}")) {
-			const fileSkills = this.plugin.skillCache.getSkills().map(s => s.name);
-			const runtimeSkills = this.plugin.skillRegistry.listSkills().map(s => s.name);
-			const allSkills = [...new Set([...fileSkills, ...runtimeSkills])];
-			result = result.replace(/\{\{skills\}\}/g, allSkills.length > 0 ? allSkills.join(", ") : "(none configured)");
-		}
-
-		// {{prompts}} — prompt template names
-		if (result.includes("{{prompts}}")) {
-			const prompts = this.plugin.promptCache.getPrompts().map(p => p.name);
-			result = result.replace(/\{\{prompts\}\}/g, prompts.length > 0 ? prompts.join(", ") : "(none configured)");
-		}
-
-		// {{agents}} — agent names
-		if (result.includes("{{agents}}")) {
-			const agents = this.plugin.agentCache.getAgents().map(a => a.name);
-			result = result.replace(/\{\{agents\}\}/g, agents.length > 0 ? agents.join(", ") : "(none configured)");
-		}
-
-		// {{commands}} — available Telegram slash commands
-		if (result.includes("{{commands}}")) {
-			const commands = ["/start", "/clear", "/status", "/help", "/agent", "/agents",
-				"/prompt", "/prompts", "/skills", "/sessions", "/session", "/new", "/conv", "/join", "/leave"];
-			result = result.replace(/\{\{commands\}\}/g, commands.join(", "));
-		}
-
-		// {{time}} — current date/time in the user's configured timezone
-		if (result.includes("{{time}}")) {
-			const tz = this.plugin.settings.timezone || undefined;
-			const now = new Date();
-			const formatted = now.toLocaleString("en-US", {
-				timeZone: tz,
-				weekday: "long",
-				year: "numeric",
-				month: "long",
-				day: "numeric",
-				hour: "2-digit",
-				minute: "2-digit",
-				timeZoneName: "short",
-			});
-			result = result.replace(/\{\{time\}\}/g, formatted);
-		}
-
-		return result;
 	}
 
 	// ========================================================================
