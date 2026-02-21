@@ -1,0 +1,220 @@
+/* ================================
+   SHARED MODAL STYLES
+   Professional, right-aligned buttons
+   and consistent form layout across
+   all settings modals.
+   ================================ */
+
+/* ── Base modal sizing ── */
+.vc-profile-modal,
+.vc-add-http-mcp-modal {
+	width: 520px;
+	max-width: 90vw;
+}
+
+.vc-profile-modal .modal-content,
+.vc-add-http-mcp-modal .modal-content {
+	padding: 1.5em 1.75em;
+}
+
+/* ── Modal headings ── */
+.vc-profile-modal h2,
+.vc-add-http-mcp-modal h2 {
+	margin: 0 0 1.25em 0;
+	padding-bottom: 0.75em;
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: 1.25em;
+	font-weight: 700;
+	color: var(--text-normal);
+}
+
+/* ── Setting items inside modals — tighter spacing ── */
+.vc-profile-modal .setting-item,
+.vc-add-http-mcp-modal .setting-item {
+	padding: 0.6em 0;
+	border-top: none;
+}
+
+.vc-profile-modal .setting-item:first-child,
+.vc-add-http-mcp-modal .setting-item:first-child {
+	padding-top: 0;
+}
+
+.vc-profile-modal .setting-item-name,
+.vc-add-http-mcp-modal .setting-item-name {
+	font-weight: 600;
+	font-size: 0.9em;
+}
+
+.vc-profile-modal .setting-item-description,
+.vc-add-http-mcp-modal .setting-item-description {
+	font-size: 0.82em;
+}
+
+/* Make text inputs in modals wider */
+.vc-profile-modal .setting-item-control input[type="text"],
+.vc-profile-modal .setting-item-control input[type="password"],
+.vc-add-http-mcp-modal .setting-item-control input[type="text"],
+.vc-add-http-mcp-modal .setting-item-control input[type="password"] {
+	min-width: 220px;
+}
+
+/* Text areas */
+.vc-add-http-mcp-modal .setting-item-control textarea {
+	min-width: 220px;
+	min-height: 60px;
+	resize: vertical;
+}
+
+/* ── Button row — right-aligned with gap ── */
+.vc-modal-footer {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.6em;
+	margin-top: 1.5em;
+	padding-top: 1em;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-modal-footer button {
+	padding: 0.5em 1.25em;
+	border-radius: 6px;
+	font-size: 0.88em;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.12s, border-color 0.12s;
+}
+
+/* Cancel / secondary button */
+.vc-modal-footer button:not(.mod-cta) {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.vc-modal-footer button:not(.mod-cta):hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+}
+
+/* Primary / CTA button */
+.vc-modal-footer button.mod-cta {
+	background: var(--interactive-accent);
+	border: 1px solid transparent;
+	color: var(--text-on-accent);
+}
+
+.vc-modal-footer button.mod-cta:hover {
+	background: var(--interactive-accent-hover);
+}
+
+/* ── Help / info callouts inside modals ── */
+.vc-http-mcp-help {
+	margin-bottom: 1em;
+}
+
+.vc-http-mcp-help p {
+	margin: 0;
+	padding: 0.6em 0.8em;
+	border-radius: 6px;
+	font-size: 0.85em;
+	line-height: 1.45;
+}
+
+.vc-http-mcp-warning {
+	background: color-mix(in srgb, var(--text-error) 10%, transparent);
+	color: var(--text-error);
+}
+
+.vc-http-mcp-info {
+	background: color-mix(in srgb, var(--interactive-accent) 10%, transparent);
+	color: var(--text-muted);
+}
+
+/* ── Validation error ── */
+.vc-validation-error {
+	padding: 0.55em 0.75em;
+	margin-top: 0.75em;
+	background: color-mix(in srgb, var(--text-error) 10%, transparent);
+	border-left: 3px solid var(--text-error);
+	border-radius: 6px;
+	font-size: 0.85em;
+	color: var(--text-error);
+}
+
+.vc-error-text {
+	display: block;
+}
+
+/* ── Tool Picker polish ── */
+.vc-tool-picker-modal {
+	width: 700px;
+	max-width: 92vw;
+}
+
+.vc-tool-picker-modal .modal-title {
+	font-weight: 700;
+}
+
+.vc-tp-search-row {
+	padding: 10px 14px;
+	gap: 10px;
+}
+
+.vc-tp-search-input {
+	font-size: 0.88em;
+	padding: 7px 12px;
+	border-radius: 6px;
+}
+
+.vc-tp-selected-count {
+	padding: 5px 12px;
+	border-radius: 6px;
+	font-size: 0.8em;
+	font-weight: 600;
+}
+
+.vc-tp-ok-btn {
+	padding: 7px 20px;
+	border-radius: 6px;
+	font-size: 0.88em;
+	font-weight: 600;
+}
+
+.vc-tp-description {
+	padding: 10px 14px;
+	font-size: 0.82em;
+	line-height: 1.45;
+}
+
+.vc-tp-tree {
+	max-height: 55vh;
+	padding: 6px 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+	.vc-profile-modal,
+	.vc-add-http-mcp-modal {
+		width: 96vw;
+	}
+
+	.vc-profile-modal .modal-content,
+	.vc-add-http-mcp-modal .modal-content {
+		padding: 1em 1.25em;
+	}
+
+	.vc-profile-modal .setting-item-control input[type="text"],
+	.vc-profile-modal .setting-item-control input[type="password"],
+	.vc-add-http-mcp-modal .setting-item-control input[type="text"],
+	.vc-add-http-mcp-modal .setting-item-control input[type="password"],
+	.vc-add-http-mcp-modal .setting-item-control textarea {
+		min-width: unset;
+		width: 100%;
+	}
+
+	.vc-tool-picker-modal {
+		width: 96vw;
+	}
+}

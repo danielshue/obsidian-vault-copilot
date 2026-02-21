@@ -2,10 +2,7 @@
    TOOL PICKER MODAL (VS Code style)
    ================================ */
 
-.vc-tool-picker-modal {
-	width: 650px;
-	max-width: 90vw;
-}
+/* Modal sizing is in modals.css */
 
 .vc-tool-picker-modal .modal-content {
 	padding: 0;

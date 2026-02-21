@@ -40,7 +40,7 @@
  */
 
 import { App, TFile, TFolder, EventRef } from 'obsidian';
-import CronExpressionParser from 'cron-parser';
+import { CronExpressionParser } from 'cron-parser';
 import type VaultCopilotPlugin from '../main';
 import {
 	AutomationInstance,

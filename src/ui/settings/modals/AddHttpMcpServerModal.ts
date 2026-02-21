@@ -143,13 +143,13 @@ export class AddHttpMcpServerModal extends Modal {
 		this.validationError = contentEl.createDiv({ cls: 'vc-validation-error' });
 		this.validationError.style.display = 'none';
 
-		// Buttons
-		const buttonRow = contentEl.createDiv({ cls: 'vc-modal-buttons' });
+		// Footer buttons — right-aligned
+		const footer = contentEl.createDiv({ cls: 'vc-modal-footer' });
 
-		const cancelBtn = buttonRow.createEl('button', { text: 'Cancel' });
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
 		cancelBtn.addEventListener('click', () => this.close());
 
-		const addBtn = buttonRow.createEl('button', { text: 'Add Server', cls: 'mod-cta' });
+		const addBtn = footer.createEl('button', { text: 'Add Server', cls: 'mod-cta' });
 		addBtn.addEventListener('click', () => this.addServer());
 	}
 

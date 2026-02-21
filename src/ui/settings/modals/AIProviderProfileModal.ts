@@ -155,13 +155,13 @@ export class AIProviderProfileModal extends Modal {
 		this.conditionalContainer = contentEl.createDiv({ cls: 'vc-profile-conditional' });
 		this.renderConditionalFields();
 
-		// Buttons
-		const buttonRow = contentEl.createDiv({ cls: 'vc-profile-buttons' });
+		// Footer buttons — right-aligned
+		const footer = contentEl.createDiv({ cls: 'vc-modal-footer' });
 
-		const cancelBtn = buttonRow.createEl('button', { text: 'Cancel' });
+		const cancelBtn = footer.createEl('button', { text: 'Cancel' });
 		cancelBtn.addEventListener('click', () => this.close());
 
-		const saveBtn = buttonRow.createEl('button', { text: 'Save', cls: 'mod-cta' });
+		const saveBtn = footer.createEl('button', { text: 'Save', cls: 'mod-cta' });
 		saveBtn.addEventListener('click', () => this.saveProfile());
 	}
 

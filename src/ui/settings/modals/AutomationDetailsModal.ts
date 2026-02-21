@@ -29,63 +29,59 @@ export class AutomationDetailsModal extends Modal {
 		const { contentEl } = this;
 		contentEl.addClass('vc-automation-details-modal');
 
-		// Header
-		const header = contentEl.createDiv({ cls: 'vc-modal-header' });
-		header.createEl('h2', { text: this.automation.name });
-		if (this.automation.description) {
-			header.createEl('p', { text: this.automation.description, cls: 'vc-automation-description' });
-		}
-		
-		const statusBadge = header.createEl('span', { 
-			cls: `vc-status-badge ${this.automation.enabled ? 'vc-status-enabled' : 'vc-status-disabled'}`,
-			text: this.automation.enabled ? 'Enabled' : 'Disabled'
+		// Header — vertical layout: status pill, name, description
+		const header = contentEl.createDiv({ cls: 'vc-details-header' });
+
+		const badges = header.createDiv({ cls: 'vc-details-badges' });
+		badges.createEl('span', {
+			cls: `vc-pill ${this.automation.enabled ? 'vc-pill-active' : 'vc-pill-inactive'}`,
+			text: this.automation.enabled ? 'Active' : 'Inactive',
 		});
 		if (this.isRunning) {
-			header.createEl('span', {
-				cls: 'vc-status-badge vc-status-running',
-				text: 'Running',
+			badges.createEl('span', {
+				cls: 'vc-pill vc-pill-running',
+				text: 'Executing',
 			});
 		}
 
-		// Overview section
-		const overview = contentEl.createDiv({ cls: 'vc-automation-section' });
-		overview.createEl('h3', { text: 'Overview' });
-		
-		const overviewGrid = overview.createDiv({ cls: 'vc-automation-grid' });
-		
-		this.addGridItem(overviewGrid, 'ID', this.automation.id);
-		this.addGridItem(overviewGrid, 'Execution Count', String(this.automation.executionCount));
-		if (this.automation.sourcePath) {
-			this.addGridItem(overviewGrid, 'Source', this.automation.sourcePath);
-			const sourceActions = overview.createDiv({ cls: 'vc-automation-source-actions' });
-			const openBtn = sourceActions.createEl('button', {
-				cls: 'mod-cta',
-				text: 'Open source file',
-			});
-			openBtn.onclick = async () => {
-				await this.openSourceFile();
-			};
+		header.createEl('h2', { text: this.automation.name, cls: 'vc-details-title' });
+		if (this.automation.description) {
+			header.createEl('p', { text: this.automation.description, cls: 'vc-details-desc' });
 		}
-		
+
+		// Overview cards
+		const overview = contentEl.createDiv({ cls: 'vc-details-cards' });
+		this.addCard(overview, 'Automation ID', this.automation.id);
+		this.addCard(overview, 'Runs', String(this.automation.executionCount));
+
 		if (this.automation.lastRun) {
-			const date = new Date(this.automation.lastRun);
-			this.addGridItem(overviewGrid, 'Last Run', date.toLocaleString());
+			this.addCard(overview, 'Last run', new Date(this.automation.lastRun).toLocaleString());
 		}
-		
 		if (this.automation.nextRun) {
-			const date = new Date(this.automation.nextRun);
-			this.addGridItem(overviewGrid, 'Next Run', date.toLocaleString());
+			this.addCard(overview, 'Next run', new Date(this.automation.nextRun).toLocaleString());
+		}
+
+		// Source file
+		if (this.automation.sourcePath) {
+			const sourceCard = overview.createDiv({ cls: 'vc-detail-card vc-detail-card-wide' });
+			sourceCard.createDiv({ text: 'Source', cls: 'vc-detail-card-label' });
+			const sourceLink = sourceCard.createEl('a', {
+				text: this.automation.sourcePath,
+				cls: 'vc-detail-card-value vc-detail-source-link',
+				href: '#',
+			});
+			sourceLink.onclick = async (e) => { e.preventDefault(); await this.openSourceFile(); };
 		}
 
 		// Triggers section
-		const triggers = contentEl.createDiv({ cls: 'vc-automation-section' });
-		triggers.createEl('h3', { text: 'Triggers' });
-		
-		const triggersList = triggers.createEl('ul', { cls: 'vc-automation-list' });
+		const triggersSection = contentEl.createDiv({ cls: 'vc-details-section' });
+		triggersSection.createEl('h3', { text: 'Triggers' });
+
 		for (const trigger of this.automation.config.triggers) {
-			const li = triggersList.createEl('li');
-			li.createEl('strong', { text: `${trigger.type}: ` });
-			
+			const item = triggersSection.createDiv({ cls: 'vc-details-item' });
+			const label = item.createEl('span', { cls: 'vc-details-item-type' });
+			label.textContent = trigger.type;
+
 			let details = '';
 			if (trigger.type === 'schedule' && 'schedule' in trigger) {
 				details = trigger.schedule;
@@ -94,25 +90,25 @@ export class AutomationDetailsModal extends Modal {
 			} else if (trigger.type === 'tag-added' && 'tag' in trigger) {
 				details = `Tag: ${trigger.tag}`;
 			}
-			
+
 			if (details) {
-				li.createEl('span', { text: details, cls: 'vc-trigger-details' });
+				item.createEl('code', { text: details, cls: 'vc-details-item-value' });
 			}
-			
+
 			if (trigger.delay && trigger.delay > 0) {
-				li.createEl('span', { text: ` (delay: ${trigger.delay}ms)`, cls: 'vc-text-muted' });
+				item.createEl('span', { text: `${trigger.delay}ms delay`, cls: 'vc-details-item-meta' });
 			}
 		}
 
 		// Actions section
-		const actions = contentEl.createDiv({ cls: 'vc-automation-section' });
-		actions.createEl('h3', { text: 'Actions' });
-		
-		const actionsList = actions.createEl('ul', { cls: 'vc-automation-list' });
+		const actionsSection = contentEl.createDiv({ cls: 'vc-details-section' });
+		actionsSection.createEl('h3', { text: 'Actions' });
+
 		for (const action of this.automation.config.actions) {
-			const li = actionsList.createEl('li');
-			li.createEl('strong', { text: `${action.type}: ` });
-			
+			const item = actionsSection.createDiv({ cls: 'vc-details-item' });
+			const label = item.createEl('span', { cls: 'vc-details-item-type' });
+			label.textContent = action.type;
+
 			let details = '';
 			if (action.type === 'run-agent' && 'agentId' in action) {
 				details = `Agent: ${action.agentId}`;
@@ -121,62 +117,57 @@ export class AutomationDetailsModal extends Modal {
 			} else if (action.type === 'run-skill' && 'skillId' in action) {
 				details = `Skill: ${action.skillId}`;
 			}
-			
+
 			if (details) {
-				li.createEl('span', { text: details, cls: 'vc-action-details' });
+				item.createEl('code', { text: details, cls: 'vc-details-item-value' });
 			}
-			
+
 			if (action.input && Object.keys(action.input).length > 0) {
-				li.createEl('span', { 
-					text: ` (with ${Object.keys(action.input).length} parameter${Object.keys(action.input).length > 1 ? 's' : ''})`, 
-					cls: 'vc-text-muted' 
+				const paramCount = Object.keys(action.input).length;
+				item.createEl('span', {
+					text: `${paramCount} parameter${paramCount > 1 ? 's' : ''}`,
+					cls: 'vc-details-item-meta',
 				});
 			}
 		}
 
-		// Last execution result (if available)
+		// Last execution result
 		if (this.automation.lastResult) {
-			const result = contentEl.createDiv({ cls: 'vc-automation-section' });
-			result.createEl('h3', { text: 'Last Execution Result' });
-			
-			const resultGrid = result.createDiv({ cls: 'vc-automation-grid' });
-			
-			this.addGridItem(resultGrid, 'Success', this.automation.lastResult.success ? 'Yes' : 'No');
-			this.addGridItem(resultGrid, 'Timestamp', new Date(this.automation.lastResult.timestamp).toLocaleString());
-			this.addGridItem(resultGrid, 'Trigger', this.automation.lastResult.trigger.type);
-			
+			const resultSection = contentEl.createDiv({ cls: 'vc-details-section' });
+			resultSection.createEl('h3', { text: 'Last execution' });
+
+			const resultCards = resultSection.createDiv({ cls: 'vc-details-cards' });
+			this.addCard(resultCards, 'Result',
+				this.automation.lastResult.success ? '✓ Success' : '✗ Failed');
+			this.addCard(resultCards, 'Timestamp',
+				new Date(this.automation.lastResult.timestamp).toLocaleString());
+			this.addCard(resultCards, 'Trigger',
+				this.automation.lastResult.trigger.type);
+
 			if (this.automation.lastResult.error) {
-				const errorDiv = result.createDiv({ cls: 'vc-automation-error' });
-				errorDiv.createEl('strong', { text: 'Error: ' });
+				const errorDiv = resultSection.createDiv({ cls: 'vc-details-error' });
 				errorDiv.createEl('span', { text: this.automation.lastResult.error });
 			}
-			
-			// Action results
+
 			if (this.automation.lastResult.actionResults.length > 0) {
-				const actionResults = result.createDiv({ cls: 'vc-automation-action-results' });
-				actionResults.createEl('h4', { text: 'Action Results' });
-				
-				const actionResultsList = actionResults.createEl('ul', { cls: 'vc-automation-list' });
 				for (let i = 0; i < this.automation.lastResult.actionResults.length; i++) {
-					const actionResult = this.automation.lastResult.actionResults[i];
-					if (!actionResult) continue;
-					const li = actionResultsList.createEl('li');
-					
-					const icon = actionResult.success ? '✓' : '✗';
-					const statusClass = actionResult.success ? 'vc-result-success' : 'vc-result-failure';
-					li.createEl('span', { text: `${icon} `, cls: statusClass });
-					li.createEl('span', { text: `Action ${i + 1} (${actionResult.action.type}): ` });
-					
-					if (actionResult.error) {
-						li.createEl('span', { text: actionResult.error, cls: 'vc-text-error' });
+					const ar = this.automation.lastResult.actionResults[i];
+					if (!ar) continue;
+					const item = resultSection.createDiv({ cls: 'vc-details-item' });
+					const icon = ar.success ? '✓' : '✗';
+					const statusCls = ar.success ? 'vc-result-success' : 'vc-result-failure';
+					item.createEl('span', { text: icon, cls: statusCls });
+					item.createEl('span', { text: `Action ${i + 1} (${ar.action.type})` });
+					if (ar.error) {
+						item.createEl('span', { text: ar.error, cls: 'vc-text-error' });
 					} else {
-						li.createEl('span', { text: `Completed in ${actionResult.duration}ms`, cls: 'vc-text-muted' });
+						item.createEl('span', { text: `${ar.duration}ms`, cls: 'vc-details-item-meta' });
 					}
 				}
 			}
 		}
 
-		// Close button
+		// Footer — right-aligned via shared modal style
 		const footer = contentEl.createDiv({ cls: 'vc-modal-footer' });
 		const closeBtn = footer.createEl('button', { text: 'Close', cls: 'mod-cta' });
 		closeBtn.onclick = () => this.close();
@@ -187,10 +178,10 @@ export class AutomationDetailsModal extends Modal {
 		contentEl.empty();
 	}
 
-	private addGridItem(container: HTMLElement, label: string, value: string): void {
-		const item = container.createEl('div', { cls: 'vc-grid-item' });
-		item.createEl('div', { text: label, cls: 'vc-grid-label' });
-		item.createEl('div', { text: value, cls: 'vc-grid-value' });
+	private addCard(container: HTMLElement, label: string, value: string): void {
+		const card = container.createDiv({ cls: 'vc-detail-card' });
+		card.createDiv({ text: label, cls: 'vc-detail-card-label' });
+		card.createDiv({ text: value, cls: 'vc-detail-card-value' });
 	}
 
 	private async openSourceFile(): Promise<void> {
