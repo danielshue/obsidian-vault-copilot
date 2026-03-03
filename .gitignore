@@ -1,0 +1,22 @@
+# Build artifacts
+main.js
+styles.css
+*.map
+
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
