@@ -5,14 +5,16 @@
 
 /**
  * @module BasicToolFactory
- * @description Factory for creating the 5 Basic vault-copilot tools.
+ * @description Factory for creating the 7 Basic vault-copilot tools.
  *
- * Produces `defineTool()` instances for the read-only / web-access tools
+ * Produces `defineTool()` instances for the tools
  * available in the Basic (free) plugin tier:
  *
  * - `get_active_note` — returns metadata + content of the open note
  * - `open_note` — navigate the editor to a note by path
  * - `batch_read_notes` — read multiple notes in one call
+ * - `create_note` — create a new note in the vault
+ * - `update_note` — update/replace the content of an existing note
  * - `fetch_web_page` — fetch and extract text from a URL
  * - `web_search` — search the web via DuckDuckGo
  *
@@ -41,6 +43,8 @@ import {
 import {
 	getActiveNote,
 	openNote,
+	createNote,
+	updateNote,
 	fetchWebPage,
 	webSearch,
 } from "../tools/VaultOperations";
@@ -76,7 +80,7 @@ export type BatchReadNotesFn = (
 // ── Factory ────────────────────────────────────────────────────────────────
 
 /**
- * Create the 5 Basic SDK tool definitions.
+ * Create the 7 Basic SDK tool definitions.
  *
  * This factory returns an array ready to be spread into the SDK
  * `createSession()` tools list. The `batchReadNotes` function is
@@ -84,7 +88,7 @@ export type BatchReadNotesFn = (
  *
  * @param app - The Obsidian `App` instance (for vault/workspace access)
  * @param batchReadNotes - Bound batch-read implementation from the service
- * @returns Array of 5 SDK `defineTool()` results
+ * @returns Array of 7 SDK `defineTool()` results
  *
  * @example
  * ```typescript
@@ -125,6 +129,22 @@ export function createBasicTools(
 					args.aiSummarize,
 					args.summaryPrompt
 				);
+			},
+		}),
+
+		defineTool(TOOL_NAMES.CREATE_NOTE, {
+			description: TOOL_DESCRIPTIONS[TOOL_NAMES.CREATE_NOTE],
+			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.CREATE_NOTE],
+			handler: async (args: { path: string; content: string }) => {
+				return await createNote(app, args.path, args.content);
+			},
+		}),
+
+		defineTool(TOOL_NAMES.UPDATE_NOTE, {
+			description: TOOL_DESCRIPTIONS[TOOL_NAMES.UPDATE_NOTE],
+			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.UPDATE_NOTE],
+			handler: async (args: { path: string; content: string }) => {
+				return await updateNote(app, args.path, args.content);
 			},
 		}),
 

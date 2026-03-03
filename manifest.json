@@ -1,7 +1,7 @@
 {
   "id": "obsidian-vault-copilot",
   "name": "Vault Copilot",
-  "version": "0.1.0",
+  "version": "0.0.40-preview.1",
   "minAppVersion": "0.15.0",
   "description": "AI-powered assistant for Obsidian. Connects to GitHub Copilot for chat, note operations, and session management. Extensible via the Extension API for additional providers, tools, and UI components.",
   "author": "Dan Shue",

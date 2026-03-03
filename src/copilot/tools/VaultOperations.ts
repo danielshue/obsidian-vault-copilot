@@ -6,6 +6,8 @@
  * - `getActiveNote()` - Get currently focused note
  * - `openNote()` - Navigate to a note by path
  * - `batchReadNotes()` - Read multiple notes in parallel
+ * - `createNote()` - Create a new note in the vault
+ * - `updateNote()` - Update/replace note content
  * - `fetchWebPage()` - Fetch and extract web content
  * - `webSearch()` - Search the web via DuckDuckGo
  *
@@ -31,6 +33,17 @@ export function normalizeVaultPath(path: string): string {
 	normalized = normalized.replace(/^\/+/, "");
 	// Ensure .md extension if it looks like a note path
 	if (!normalized.endsWith(".md") && !normalized.includes(".")) {
+		normalized += ".md";
+	}
+	return normalized;
+}
+
+/**
+ * Ensure path has .md extension
+ */
+export function ensureMarkdownExtension(path: string): string {
+	let normalized = path.replace(/\\/g, "/").trim();
+	if (!normalized.endsWith(".md")) {
 		normalized += ".md";
 	}
 	return normalized;
@@ -298,5 +311,78 @@ export async function webSearch(
 		return { success: true, query, results };
 	} catch (error) {
 		return { success: false, results: [], error: `Search failed: ${error}` };
+	}
+}
+
+// ============================================================================
+// Write Operations
+// ============================================================================
+
+export interface WriteResult {
+	success: boolean;
+	path?: string;
+	error?: string;
+}
+
+/**
+ * Create a new note in the vault.
+ *
+ * @param app - The Obsidian App instance
+ * @param path - The path for the new note (e.g., 'folder/note.md')
+ * @param content - The content of the note in Markdown format
+ * @returns WriteResult indicating success or failure
+ */
+export async function createNote(
+	app: App,
+	path: string,
+	content: string
+): Promise<WriteResult> {
+	try {
+		const normalizedPath = ensureMarkdownExtension(path);
+
+		const existing = app.vault.getAbstractFileByPath(normalizedPath);
+		if (existing) {
+			return { success: false, error: `Note already exists: ${normalizedPath}` };
+		}
+
+		// Create parent folders if needed
+		const folderPath = normalizedPath.substring(0, normalizedPath.lastIndexOf("/"));
+		if (folderPath) {
+			const folder = app.vault.getAbstractFileByPath(folderPath);
+			if (!folder) {
+				await app.vault.createFolder(folderPath);
+			}
+		}
+
+		await app.vault.create(normalizedPath, content);
+		return { success: true, path: normalizedPath };
+	} catch (error) {
+		return { success: false, error: `Failed to create note: ${error}` };
+	}
+}
+
+/**
+ * Update/replace the entire content of an existing note.
+ *
+ * @param app - The Obsidian App instance
+ * @param path - The path to the note file
+ * @param content - The new content to replace the existing content
+ * @returns WriteResult indicating success or failure
+ */
+export async function updateNote(
+	app: App,
+	path: string,
+	content: string
+): Promise<WriteResult> {
+	try {
+		const normalizedPath = normalizeVaultPath(path);
+		const file = app.vault.getAbstractFileByPath(normalizedPath);
+		if (!file || !(file instanceof TFile)) {
+			return { success: false, error: `Note not found: ${path}` };
+		}
+		await app.vault.modify(file, content);
+		return { success: true, path: file.path };
+	} catch (error) {
+		return { success: false, error: `Failed to update note: ${error}` };
 	}
 }

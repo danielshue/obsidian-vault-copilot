@@ -10,7 +10,7 @@
  * Produces a concise system prompt that includes only:
  * - Current date/time (via `new Date()` — no `dateTime.ts` dependency)
  * - Vault name (when available via the Obsidian App)
- * - Core behavioral guidelines for a read/navigate assistant
+ * - Core behavioral guidelines for a read/navigate/write assistant
  *
  * Intentionally omits all Pro features: no timezone/weekStartDay context,
  * no slash-command instructions, no Bases syntax hints, no customization
@@ -64,14 +64,23 @@ export function buildBasicSystemPrompt(app: App, model: string): string {
 		`- **get_active_note** — read the currently open note`,
 		`- **open_note** — navigate to a note by path`,
 		`- **batch_read_notes** — read multiple notes at once`,
+		`- **create_note** — create a new note in the vault`,
+		`- **update_note** — replace the content of an existing note`,
 		`- **fetch_web_page** — retrieve content from a URL`,
 		`- **web_search** — search the web for information`,
+		``,
+		`## Write Safety (MANDATORY)`,
+		`Before calling **create_note** or **update_note**, you MUST:`,
+		`1. Tell the user the target path and what you intend to write.`,
+		`2. Show a preview of the full content that will be written.`,
+		`3. Ask the user for explicit confirmation (e.g. "Shall I go ahead?").`,
+		`4. Only call the tool after the user confirms.`,
+		`Never skip the preview or write without confirmation. This ensures the`,
+		`user always sees what will be written and where before any change is made.`,
 		``,
 		`## Guidelines`,
 		`- Be concise and helpful. Focus on the user's vault content and questions.`,
 		`- When referencing notes, use their paths (e.g. \`Folder/Note Name.md\`).`,
-		`- If a user asks about creation, editing, or advanced automation features,`,
-		`  let them know those are available in Vault Copilot Pro.`,
 		`- Do not fabricate note contents — always read from the vault first.`,
 		`- Respect the user's privacy; do not share vault contents unnecessarily.`,
 	].join("\n");
