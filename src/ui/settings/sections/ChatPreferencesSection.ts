@@ -14,11 +14,11 @@
  * @since 0.0.1
  */
 
-import { Setting, DropdownComponent } from "obsidian";
+import { Setting, Menu } from "obsidian";
 import type { SettingsContext } from "./SettingsContext";
 import { GitHubCopilotCliManager, CliStatus } from "../../../copilot/providers/GitHubCopilotCliManager";
 import { ToolCatalog } from "../../../copilot/tools/ToolCatalog";
-import { getModelDisplayName, getAvailableModels } from "../utils";
+import { getModelDisplayName, getAvailableModels, getModelLabel, getModelMultiplier } from "../utils";
 
 /**
  * Renders chat preference controls for Basic plugin.
@@ -70,17 +70,76 @@ export class ChatPreferencesSection {
 		const settingsCard = section.createDiv({ cls: "vc-plugin-inner-settings-card" });
 
 		// Model selection (CLI only in Basic)
-		let modelDropdown: DropdownComponent | null = null;
+		let updateModelButton: (() => void) | null = null;
 		new Setting(settingsCard)
 			.setName("Default Model")
 			.setDesc("Select the AI model for conversations")
-			.addDropdown((dropdown) => {
-				modelDropdown = dropdown;
-				this.populateModelDropdown(dropdown);
-				dropdown.setValue(this.ctx.plugin.settings.model);
-				dropdown.onChange(async (value) => {
-					this.ctx.plugin.settings.model = value;
-					await this.ctx.plugin.saveSettings();
+			.addButton((btn) => {
+				btn.buttonEl.addClass("vc-model-settings-btn");
+				const refresh = () => {
+					const modelId = this.ctx.plugin.settings.model;
+					const multiplier = getModelMultiplier(this.ctx.plugin.settings, modelId);
+					const multStr = multiplier !== undefined ? `  ${multiplier}x` : "";
+					btn.buttonEl.setText(getModelDisplayName(modelId) + multStr);
+				};
+				updateModelButton = refresh;
+				refresh();
+				btn.onClick((e) => {
+					const menu = new Menu();
+					const models = getAvailableModels(this.ctx.plugin.settings);
+					const currentModel = this.ctx.plugin.settings.model;
+
+					// Header row
+					menu.addItem((item) => {
+						item.setTitle("Model").setDisabled(true);
+						const itemEl = (item as unknown as { dom: HTMLElement }).dom;
+						itemEl.classList.add("vc-model-menu-header");
+						const titleEl = itemEl.querySelector(".menu-item-title") as HTMLElement | null;
+						if (titleEl) {
+							titleEl.innerHTML = "";
+							const checkCol = document.createElement("span");
+							checkCol.className = "vc-model-col-check";
+							const nameCol = document.createElement("span");
+							nameCol.className = "vc-model-col-name";
+							nameCol.textContent = "Model";
+							const multCol = document.createElement("span");
+							multCol.className = "vc-model-col-mult";
+							multCol.textContent = "Multiplier";
+							titleEl.append(checkCol, nameCol, multCol);
+						}
+					});
+
+					for (const modelId of models) {
+						menu.addItem((item) => {
+							const isSelected = currentModel === modelId;
+							const multiplier = getModelMultiplier(this.ctx.plugin.settings, modelId);
+							item.setTitle(getModelDisplayName(modelId))
+								.onClick(async () => {
+									this.ctx.plugin.settings.model = modelId;
+									await this.ctx.plugin.saveSettings();
+									refresh();
+								});
+							const itemEl = (item as unknown as { dom: HTMLElement }).dom;
+							const titleEl = itemEl.querySelector(".menu-item-title") as HTMLElement | null;
+							if (titleEl) {
+								titleEl.innerHTML = "";
+								const checkEl = document.createElement("span");
+								checkEl.className = "vc-model-col-check";
+								checkEl.textContent = isSelected ? "✓" : "";
+								const nameEl = document.createElement("span");
+								nameEl.className = "vc-model-col-name";
+								nameEl.textContent = getModelDisplayName(modelId);
+								const multEl = document.createElement("span");
+								multEl.className = "vc-model-col-mult";
+								multEl.textContent = multiplier !== undefined ? `${multiplier}x` : "";
+								titleEl.append(checkEl, nameEl, multEl);
+							}
+						});
+					}
+
+					menu.showAtMouseEvent(e);
+					const menuEl = (menu as unknown as { dom?: HTMLElement }).dom;
+					menuEl?.classList.add("vc-model-menu");
 				});
 			})
 			.addExtraButton((button) => {
@@ -100,12 +159,22 @@ export class ChatPreferencesSection {
 								this.ctx.plugin.settings.model = firstModel;
 							}
 
+							// Also fetch billing multipliers from the connected service
+							const svc = (this.ctx.plugin as unknown as { githubCopilotCliService?: { listModels(): Promise<Array<{ id: string; billingMultiplier?: number }>> } }).githubCopilotCliService;
+							if (svc) {
+								try {
+									const modelInfos = await svc.listModels();
+									const multipliers: Record<string, number> = {};
+									for (const m of modelInfos) {
+										if (m.billingMultiplier !== undefined) multipliers[m.id] = m.billingMultiplier;
+									}
+									this.ctx.plugin.settings.modelMultipliers = multipliers;
+								} catch { /* non-critical */ }
+							}
+
 							await this.ctx.plugin.saveSettings();
 
-							if (modelDropdown) {
-								this.populateModelDropdown(modelDropdown);
-								modelDropdown.setValue(this.ctx.plugin.settings.model);
-							}
+							updateModelButton?.();
 						}
 
 						button.setDisabled(false);
@@ -172,6 +241,21 @@ export class ChatPreferencesSection {
 					});
 			});
 
+		// Ribbon icon toggle
+		new Setting(settingsCard)
+			.setName("Show toolbar icon")
+			.setDesc("Show Vault Copilot icon in the left sidebar ribbon")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.ctx.plugin.settings.showRibbonIcon ?? true)
+					.onChange(async (value) => {
+						this.ctx.plugin.settings.showRibbonIcon = value;
+						await this.ctx.plugin.saveSettings();
+						const plugin = this.ctx.plugin as unknown as { updateRibbonIcon?: () => void };
+						plugin.updateRibbonIcon?.();
+					})
+			);
+
 		// Status bar toggle
 		new Setting(settingsCard)
 			.setName("Status Bar Indicator")
@@ -182,20 +266,13 @@ export class ChatPreferencesSection {
 					.onChange(async (value) => {
 						this.ctx.plugin.settings.showInStatusBar = value;
 						await this.ctx.plugin.saveSettings();
+						const plugin = this.ctx.plugin as unknown as { updateStatusBar?: () => void };
+						plugin.updateStatusBar?.();
 					})
 			);
 	}
 
-	/**
-	 * Populates a model dropdown from available settings state.
-	 */
-	populateModelDropdown(dropdown: DropdownComponent): void {
-		dropdown.selectEl.empty();
-		const models = getAvailableModels(this.ctx.plugin.settings);
-		for (const modelId of models) {
-			dropdown.addOption(modelId, getModelDisplayName(modelId));
-		}
-	}
+
 
 	/**
 	 * Parse and clamp a compaction threshold ratio.

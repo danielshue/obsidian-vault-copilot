@@ -49,6 +49,10 @@ export default class BasicCopilotPlugin extends Plugin {
 	cliManager: GitHubCopilotCliManager | null = null;
 	/** Extension API for plugin registration */
 	extensionAPI!: VaultCopilotExtensionAPIImpl;
+	/** Ribbon icon element for show/hide toggling */
+	private ribbonIconEl: HTMLElement | null = null;
+	/** Status bar item element */
+	private statusBarEl: HTMLElement | null = null;
 	/**
 	 * Optional factory for the GitHub Copilot CLI service.
 	 *
@@ -115,10 +119,14 @@ export default class BasicCopilotPlugin extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new BasicSettingTab(this.app, this, this.extensionAPI.settingsRegistry));
 
-		// Add ribbon icon for chat
-		this.addRibbonIcon("message-circle", "Open Vault Copilot chat", () => {
+		// Add ribbon icon for chat (always register so Obsidian tracks it, then apply visibility)
+		this.ribbonIconEl = this.addRibbonIcon("message-circle", "Open Vault Copilot chat", () => {
 			this.activateChatView();
 		});
+		this.updateRibbonIcon();
+
+		// Add status bar item
+		this.updateStatusBar();
 
 		// Register core commands
 		this.addCommand({
@@ -132,6 +140,18 @@ export default class BasicCopilotPlugin extends Plugin {
 			name: "Connect to Copilot",
 			callback: () => this.connectCopilot(),
 		});
+
+		// Auto-connect on startup if using GitHub Copilot and previously connected.
+		// "Previously connected" is signalled by having stored model multipliers.
+		const hadPriorSession = supportsLocalProcesses()
+			&& this.settings.aiProvider === 'copilot'
+			&& !!this.settings.modelMultipliers
+			&& Object.keys(this.settings.modelMultipliers).length > 0;
+		if (hadPriorSession) {
+			this.app.workspace.onLayoutReady(() => {
+				void this.connectCopilot();
+			});
+		}
 	}
 
 	async onunload(): Promise<void> {
@@ -145,6 +165,53 @@ export default class BasicCopilotPlugin extends Plugin {
 	 */
 	get api(): VaultCopilotExtensionAPIImpl {
 		return this.extensionAPI;
+	}
+
+	/**
+	 * Apply current `showRibbonIcon` setting to the ribbon element.
+	 * Called on load and whenever the setting is toggled.
+	 */
+	updateRibbonIcon(): void {
+		if (!this.ribbonIconEl) return;
+		const show = this.settings.showRibbonIcon ?? true;
+		this.ribbonIconEl.toggleClass('vc-ribbon-hidden', !show);
+	}
+
+	/**
+	 * Refresh the status bar indicator to reflect current connection state.
+	 * Creates the element on first call if `showInStatusBar` is enabled,
+	 * removes it if disabled, and re-renders the connected/disconnected state.
+	 */
+	updateStatusBar(): void {
+		if (!this.statusBarEl) {
+			if (this.settings.showInStatusBar) {
+				this.statusBarEl = this.addStatusBarItem();
+				this.statusBarEl.addEventListener("click", () => {
+					this.toggleChatView();
+				});
+			} else {
+				return;
+			}
+		}
+
+		if (!this.settings.showInStatusBar) {
+			this.statusBarEl.remove();
+			this.statusBarEl = null;
+			return;
+		}
+
+		const isConnected = this.isAnyServiceConnected();
+		this.statusBarEl.empty();
+
+		const statusEl = this.statusBarEl.createSpan({ cls: "vc-status" });
+		statusEl.setAttribute("aria-label", isConnected ? "Toggle Vault Copilot window" : "Connect to Copilot");
+
+		const logoEl = statusEl.createSpan({ cls: "vc-status-logo" });
+		logoEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M7.25 2.5h1.5a4.75 4.75 0 0 1 4.75 4.75v.5a.75.75 0 0 1-.75.75h-.5a.75.75 0 0 1-.75-.75v-.5a3.25 3.25 0 0 0-3.25-3.25h-1.5a3.25 3.25 0 0 0-3.25 3.25v.5a.75.75 0 0 1-.75.75h-.5a.75.75 0 0 1-.75-.75v-.5A4.75 4.75 0 0 1 7.25 2.5zm-3 4.25a1.25 1.25 0 1 1 2.5 0 1.25 1.25 0 0 1-2.5 0zm5.5 0a1.25 1.25 0 1 1 2.5 0 1.25 1.25 0 0 1-2.5 0zM2 11.5c0-.83.67-1.5 1.5-1.5h9c.83 0 1.5.67 1.5 1.5v1c0 .83-.67 1.5-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-1zm1.5-.5a.5.5 0 0 0-.5.5v1c0 .28.22.5.5.5h9a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-9z"/></svg>`;
+
+		statusEl.createSpan({
+			cls: `vc-status-indicator ${isConnected ? "vc-connected" : "vc-disconnected"}`,
+		});
 	}
 
 	/** Load settings from disk with defaults. */
@@ -180,6 +247,30 @@ export default class BasicCopilotPlugin extends Plugin {
 		}
 		if (this.githubCopilotCliService && !this.githubCopilotCliService.isConnected()) {
 			await this.githubCopilotCliService.start();
+			this.updateStatusBar();
+			void this.refreshModelMultipliers();
+		}
+	}
+
+	/**
+	 * Fetch billing multipliers for all models from the CLI service and persist them
+	 * to settings. Called after connecting so that dropdowns and menus show correct
+	 * request costs without requiring a manual refresh.
+	 * @internal
+	 */
+	private async refreshModelMultipliers(): Promise<void> {
+		if (!this.githubCopilotCliService) return;
+		try {
+			const models = await this.githubCopilotCliService.listModels();
+			if (models.length === 0) return;
+			const multipliers: Record<string, number> = {};
+			for (const m of models) {
+				if (m.billingMultiplier !== undefined) multipliers[m.id] = m.billingMultiplier;
+			}
+			this.settings.modelMultipliers = multipliers;
+			await this.saveSettings();
+		} catch {
+			// Non-critical — multipliers are best-effort
 		}
 	}
 
@@ -225,6 +316,7 @@ export default class BasicCopilotPlugin extends Plugin {
 		if (this.githubCopilotCliService) {
 			await this.githubCopilotCliService.stop();
 		}
+		this.updateStatusBar();
 	}
 
 	/** Activate the chat view in the workspace. */
@@ -240,6 +332,17 @@ export default class BasicCopilotPlugin extends Plugin {
 		}
 		if (leaf) {
 			workspace.revealLeaf(leaf);
+		}
+	}
+
+	/** Toggle the chat view open or closed. */
+	toggleChatView(): void {
+		const { workspace } = this.app;
+		const leaves = workspace.getLeavesOfType(COPILOT_VIEW_TYPE);
+		if (leaves.length > 0) {
+			leaves.forEach(leaf => leaf.detach());
+		} else {
+			this.activateChatView();
 		}
 	}
 

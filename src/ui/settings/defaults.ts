@@ -73,6 +73,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	fileLoggingEnabled: true,
 	logFormat: 'both',
 	showInStatusBar: true,
+	showRibbonIcon: true,
 	propertyTypeAssignments: {},
 	displayWelcomeMessage: true,
 	sessions: [],

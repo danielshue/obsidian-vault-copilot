@@ -25,9 +25,9 @@
 
 import { App, Menu } from "obsidian";
 import type { CopilotPluginSettings, CopilotSession } from "../../settings/types";
-import { getAvailableModels, getModelDisplayName } from "../../settings/utils";
+import { getAvailableModels, getModelDisplayName, getModelLabel, getModelMultiplier } from "../../settings/utils";
 import { getProfileById } from "../../settings/profiles";
-import { ToolCatalog } from "../../../copilot/tools/ToolCatalog";
+import { IToolCatalog } from "../../../copilot/tools/ToolCatalog";
 import { ToolPickerModal } from "../modals/ToolPickerModal";
 
 
@@ -89,7 +89,7 @@ export interface BaseToolbarManagerOptions {
 export class BaseToolbarManager {
 	protected readonly plugin: BasePluginLike;
 	protected readonly service: BaseServiceLike;
-	protected readonly toolCatalog: ToolCatalog;
+	protected readonly toolCatalog: IToolCatalog;
 	protected readonly callbacks: BaseToolbarCallbacks;
 
 	protected modelSelectorEl: HTMLButtonElement | null = null;
@@ -108,7 +108,7 @@ export class BaseToolbarManager {
 	constructor(
 		plugin: BasePluginLike,
 		service: BaseServiceLike,
-		toolCatalog: ToolCatalog,
+		toolCatalog: IToolCatalog,
 		callbacks: BaseToolbarCallbacks,
 		options?: BaseToolbarManagerOptions,
 	) {
@@ -386,10 +386,31 @@ export class BaseToolbarManager {
 			const models = getAvailableModels(this.plugin.settings);
 			const currentModel = this.plugin.settings.model;
 
+			// Header row
+			menu.addItem((item) => {
+				item.setTitle("Model").setDisabled(true);
+				const itemEl = (item as unknown as { dom: HTMLElement }).dom;
+				itemEl.classList.add("vc-model-menu-header");
+				const titleEl = itemEl.querySelector(".menu-item-title") as HTMLElement | null;
+				if (titleEl) {
+					titleEl.innerHTML = "";
+					const checkCol = document.createElement("span");
+					checkCol.className = "vc-model-col-check";
+					const nameCol = document.createElement("span");
+					nameCol.className = "vc-model-col-name";
+					nameCol.textContent = "Model";
+					const multCol = document.createElement("span");
+					multCol.className = "vc-model-col-mult";
+					multCol.textContent = "Multiplier";
+					titleEl.append(checkCol, nameCol, multCol);
+				}
+			});
+
 			for (const modelId of models) {
 				menu.addItem((item) => {
 					const provider = this.getModelProvider(modelId);
 					const isSelected = currentModel === modelId;
+					const multiplier = getModelMultiplier(this.plugin.settings, modelId);
 					item.setTitle(getModelDisplayName(modelId))
 						.onClick(async () => {
 							this.plugin.settings.model = modelId;
@@ -401,11 +422,17 @@ export class BaseToolbarManager {
 					const itemEl = (item as unknown as { dom: HTMLElement }).dom;
 					const titleEl = itemEl.querySelector(".menu-item-title") as HTMLElement | null;
 					if (titleEl) {
+						titleEl.innerHTML = "";
 						const checkEl = document.createElement("span");
-						checkEl.className = "vc-model-menu-check";
+						checkEl.className = "vc-model-col-check";
 						checkEl.textContent = isSelected ? "✓" : "";
-						titleEl.insertAdjacentElement("afterbegin", checkEl);
-						checkEl.insertAdjacentHTML("afterend", this.getModelProviderIcon(provider));
+						const nameEl = document.createElement("span");
+						nameEl.className = "vc-model-col-name";
+						nameEl.innerHTML = this.getModelProviderIcon(provider) + getModelDisplayName(modelId);
+						const multEl = document.createElement("span");
+						multEl.className = "vc-model-col-mult";
+						multEl.textContent = multiplier !== undefined ? `${multiplier}x` : "";
+						titleEl.append(checkEl, nameEl, multEl);
 					}
 				});
 			}

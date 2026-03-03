@@ -45,6 +45,35 @@ export function getModelDisplayName(modelId: string): string {
 }
 
 /**
+ * Get the billing multiplier for a model ID from saved settings.
+ *
+ * @param settings - Settings object containing the multiplier map
+ * @param modelId - Model identifier to look up
+ * @returns The multiplier or undefined if not known
+ */
+export function getModelMultiplier(
+	settings: { modelMultipliers?: Record<string, number> },
+	modelId: string,
+): number | undefined {
+	return settings.modelMultipliers?.[modelId];
+}
+
+/**
+ * Format a model label for display in a list, optionally appending the billing multiplier.
+ * Example: `"Claude Sonnet 4.5  1x"` where the model costs 1 request unit.
+ *
+ * @param modelId - The model identifier
+ * @param multiplier - Optional billing multiplier to append
+ * @returns Formatted label string
+ */
+export function getModelLabel(modelId: string, multiplier?: number): string {
+	const name = getModelDisplayName(modelId);
+	if (multiplier === undefined) return name;
+	const formatted = Number.isInteger(multiplier) ? `${multiplier}x` : `${multiplier}x`;
+	return `${name}  ${formatted}`;
+}
+
+/**
  * Get available models from settings or fallback
  */
 export function getAvailableModels(settings: { availableModels?: string[] }): string[] {

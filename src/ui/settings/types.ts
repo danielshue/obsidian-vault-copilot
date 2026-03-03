@@ -230,6 +230,8 @@ export interface CopilotPluginSettings {
 	/** File log output format for diagnostics */
 	logFormat: 'text' | 'json' | 'both';
 	showInStatusBar: boolean;
+	/** Show ribbon icon in the left sidebar */
+	showRibbonIcon: boolean;
 	/** Central property type assignments keyed by property name */
 	propertyTypeAssignments?: Record<string, ManagedPropertyType>;
 	/** Show welcome screen in empty chats and new sessions */
@@ -270,6 +272,8 @@ export interface CopilotPluginSettings {
 	periodicNotes: PeriodicNotesSettings;
 	/** Dynamically discovered available models from CLI */
 	availableModels?: string[];
+	/** Billing multipliers by model ID, fetched from the CLI after connecting */
+	modelMultipliers?: Record<string, number>;
 	/** Whether the CLI status check has run at least once */
 	cliStatusChecked?: boolean;
 	/** Last known CLI status from a successful check */
@@ -307,6 +311,7 @@ export type BasicCopilotPluginSettings = Pick<
 	| 'fileLoggingEnabled'
 	| 'logFormat'
 	| 'showInStatusBar'
+	| 'showRibbonIcon'
 	| 'displayWelcomeMessage'
 	| 'sessions'
 	| 'activeSessionId'
@@ -320,6 +325,7 @@ export type BasicCopilotPluginSettings = Pick<
 	| 'defaultEnabledTools'
 	| 'defaultDisabledTools'
 	| 'availableModels'
+	| 'modelMultipliers'
 	| 'cliStatusChecked'
 	| 'cliLastKnownStatus'
 	| 'periodicNotes'

@@ -420,11 +420,13 @@ export class BaseCopilotChatView extends ItemView {
 	// ─── Extension hooks ─────────────────────────────────────────────────────────
 
 	/**
-	 * Called at the end of `onOpen()`. Pro uses this to wire `PromptPicker`,
+	 * Called at the end of `onOpen()`. Loads CLI MCP server tools into the catalog
+	 * and refreshes the toolbar badge. Pro overrides to also wire `PromptPicker`,
 	 * extend `ContextPicker` with skills, and subscribe to settings/session changes.
 	 */
 	protected async onAfterOpen(): Promise<void> {
-		// Base: no-op
+		this.toolCatalog.loadCliMcpTools();
+		this.toolbarManager.updateToolSelectorText();
 	}
 
 	/**

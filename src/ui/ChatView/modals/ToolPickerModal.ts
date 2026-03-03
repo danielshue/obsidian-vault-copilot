@@ -15,12 +15,12 @@
  */
 
 import { App, Modal, setIcon } from "obsidian";
-import { ToolCatalog, ToolInfo } from "../../../copilot/tools/ToolCatalog";
+import { IToolCatalog, ToolInfo } from "../../../copilot/tools/ToolCatalog";
 import { CopilotPluginSettings, CopilotSession } from "../../../ui/settings";
 
 export interface ToolPickerModalOptions {
 	/** The tool catalog instance */
-	toolCatalog: ToolCatalog;
+	toolCatalog: IToolCatalog;
 	/** Plugin settings */
 	settings: CopilotPluginSettings;
 	/** Current session (if applying to session) */
@@ -72,7 +72,7 @@ const TOOL_ICONS: Record<string, string> = {
  * Modal that lets users enable/disable tools for chat sessions or defaults.
  */
 export class ToolPickerModal extends Modal {
-	private toolCatalog: ToolCatalog;
+	private toolCatalog: IToolCatalog;
 	private settings: CopilotPluginSettings;
 	private session?: CopilotSession;
 	private mode: "session" | "defaults";

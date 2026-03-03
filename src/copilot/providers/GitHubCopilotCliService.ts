@@ -37,8 +37,9 @@
 
 import { CopilotClient, CopilotSession, SessionEvent, approveAll, defineTool } from "@github/copilot-sdk";
 import { App } from "obsidian";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import * as nodePath from "node:path";
+import { homedir } from "node:os";
 
 import * as VaultOps from "../tools/VaultOperations";
 import { getTracingService } from "../TracingService";
@@ -371,6 +372,91 @@ export class GitHubCopilotCliService {
 	}
 
 	/**
+	 * Read CLI-registered MCP server configs to pass as `mcpServers` to the SDK session.
+	 *
+	 * Scans two sources:
+	 * 1. `~/.copilot/mcp-config.json` — user-added servers via `copilot /mcp add`
+	 * 2. `~/.copilot/installed-plugins/<marketplace>/<plugin>/.mcp.json` — plugin MCP configs (e.g. WorkIQ)
+	 *
+	 * Returns an SDK-compatible map of `{ serverName: { type, command/url, args, tools } }`.
+	 * Returns an empty object on any read/parse error (non-fatal).
+	 *
+	 * @returns Record mapping server names to SDK MCP server configs
+	 * @internal
+	 */
+	protected readCliMcpServers(): Record<string, Record<string, unknown>> {
+		const configs: Record<string, Record<string, unknown>> = {};
+		try {
+			const basePath = nodePath.join(homedir(), ".copilot");
+
+			/** Convert a raw CLI MCP entry to the SDK mcpServers format */
+			const toSdkConfig = (entry: {
+				type?: string; command?: string; args?: string[];
+				url?: string; tools?: string[];
+			}): Record<string, unknown> => {
+				const tools = entry.tools ?? ["*"];
+				if (entry.url || entry.type === "http" || entry.type === "sse") {
+					return { type: "http", url: entry.url, tools };
+				}
+				return { type: "local", command: entry.command, args: entry.args ?? [], tools };
+			};
+
+			/** Merge servers from a parsed mcpServers map */
+			const mergeServers = (raw: Record<string, Record<string, unknown>>) => {
+				for (const [name, entry] of Object.entries(raw)) {
+					configs[name] = toSdkConfig(entry as Parameters<typeof toSdkConfig>[0]);
+				}
+			};
+
+			// 1. User-added servers (`copilot /mcp add`)
+			const mcpConfigPath = nodePath.join(basePath, "mcp-config.json");
+			if (existsSync(mcpConfigPath)) {
+				const parsed = JSON.parse(readFileSync(mcpConfigPath, "utf-8")) as
+					{ mcpServers?: Record<string, Record<string, unknown>> };
+				if (parsed?.mcpServers) mergeServers(parsed.mcpServers);
+			}
+
+			// 2. Installed CLI plugin MCP configs (WorkIQ, etc.)
+			const pluginsPath = nodePath.join(basePath, "installed-plugins");
+			if (existsSync(pluginsPath)) {
+				// Optionally filter by enabled state from config.json
+				let enabledSet: Set<string> | null = null;
+				const configPath = nodePath.join(basePath, "config.json");
+				if (existsSync(configPath)) {
+					const cfg = JSON.parse(readFileSync(configPath, "utf-8")) as {
+						installed_plugins?: Array<{ name: string; marketplace: string; enabled?: boolean }>;
+					};
+					if (cfg?.installed_plugins) {
+						enabledSet = new Set(
+							cfg.installed_plugins
+								.filter(p => p.enabled !== false)
+								.map(p => `${p.marketplace}/${p.name}`)
+						);
+					}
+				}
+
+				for (const marketplace of readdirSync(pluginsPath)) {
+					const marketplacePath = nodePath.join(pluginsPath, marketplace);
+					if (!statSync(marketplacePath).isDirectory()) continue;
+					for (const pluginName of readdirSync(marketplacePath)) {
+						const pluginPath = nodePath.join(marketplacePath, pluginName);
+						if (!statSync(pluginPath).isDirectory()) continue;
+						if (enabledSet && !enabledSet.has(`${marketplace}/${pluginName}`)) continue;
+						const mcpJsonPath = nodePath.join(pluginPath, ".mcp.json");
+						if (!existsSync(mcpJsonPath)) continue;
+						const parsed = JSON.parse(readFileSync(mcpJsonPath, "utf-8")) as
+							{ mcpServers?: Record<string, Record<string, unknown>> };
+						if (parsed?.mcpServers) mergeServers(parsed.mcpServers);
+					}
+				}
+			}
+		} catch (error) {
+			console.warn("[Vault Copilot] Failed to read CLI MCP servers:", error);
+		}
+		return configs;
+	}
+
+	/**
 	 * Build the tool allow-list from registered tools.
 	 *
 	 * Base class uses only the dynamic tool names. Pro overrides may also
@@ -641,8 +727,15 @@ export class GitHubCopilotCliService {
 			systemMessage: { content: this.buildSystemPrompt() },
 			infiniteSessions: this.buildInfiniteSessionCompactionConfig(),
 			onPermissionRequest: approveAll,
-			availableTools: this.computeAvailableToolAllowList(tools as Array<{ name?: string }>),
+			// Do not restrict availableTools — allows CLI-native MCP extensions (e.g. WorkIQ)
+			// registered in the Copilot CLI config to be callable alongside plugin tools.
 		};
+
+		const cliMcpServers = this.readCliMcpServers();
+		if (Object.keys(cliMcpServers).length > 0) {
+			sessionConfig.mcpServers = cliMcpServers;
+			console.log("[Vault Copilot] CLI MCP servers:", Object.keys(cliMcpServers));
+		}
 
 		if (sessionId) sessionConfig.sessionId = sessionId;
 
@@ -691,8 +784,14 @@ export class GitHubCopilotCliService {
 		const resumeConfig: Record<string, unknown> = {
 			tools,
 			onPermissionRequest: approveAll,
-			availableTools: this.computeAvailableToolAllowList(tools as Array<{ name?: string }>),
+			// Do not restrict availableTools — allows CLI-native MCP extensions to be callable.
 		};
+
+		const cliMcpServers = this.readCliMcpServers();
+		if (Object.keys(cliMcpServers).length > 0) {
+			resumeConfig.mcpServers = cliMcpServers;
+			console.log("[Vault Copilot] CLI MCP servers (resume):", Object.keys(cliMcpServers));
+		}
 
 		const resumeConfigWithPermissions = this.ensurePermissionRequestHandler(resumeConfig);
 		console.log("[Vault Copilot] Resuming session:", sessionId);
