@@ -2,13 +2,15 @@
  * @module ToolCatalog (Basic)
  * @description Tool discovery and selection management for Basic Vault Copilot.
  *
- * This is a standalone version with the 5 Basic tools plus dynamic MCP server
+ * This is a standalone version with the 7 Basic tools plus dynamic MCP server
  * tools discovered from the Copilot CLI configuration at startup.
  *
  * Built-in tools:
  * - get_active_note
  * - open_note
  * - batch_read_notes
+ * - create_note
+ * - update_note
  * - fetch_web_page
  * - web_search
  *
@@ -84,12 +86,14 @@ function createBuiltinTool(id: ToolName, displayName: string): ToolInfo {
 }
 
 /**
- * Built-in tool catalog for Basic (only 5 tools).
+ * Built-in tool catalog for Basic (7 tools).
  */
 const BASIC_TOOLS: ToolInfo[] = [
 	createBuiltinTool(TOOL_NAMES.GET_ACTIVE_NOTE, "Get Active Note"),
 	createBuiltinTool(TOOL_NAMES.OPEN_NOTE, "Open Note"),
 	createBuiltinTool(TOOL_NAMES.BATCH_READ_NOTES, "Batch Read Notes"),
+	createBuiltinTool(TOOL_NAMES.CREATE_NOTE, "Create Note"),
+	createBuiltinTool(TOOL_NAMES.UPDATE_NOTE, "Update Note"),
 	createBuiltinTool(TOOL_NAMES.FETCH_WEB_PAGE, "Fetch Web Page"),
 	createBuiltinTool(TOOL_NAMES.WEB_SEARCH, "Web Search"),
 ];
@@ -97,7 +101,7 @@ const BASIC_TOOLS: ToolInfo[] = [
 /**
  * ToolCatalog class for managing tool discovery and selection.
  *
- * Basic version supports the 5 builtin tools plus MCP tools discovered from the
+ * Basic version supports the 7 builtin tools plus MCP tools discovered from the
  * Copilot CLI configuration. Call {@link loadCliMcpTools} asynchronously at startup
  * to populate MCP entries. Pro adds SkillRegistry and 35+ additional builtins.
  */
