@@ -85,9 +85,9 @@ const basicStubsPlugin = {
 
 const ctx = await esbuild.context({
 	...sharedOptions,
-	entryPoints: ["src/main.ts", "src/styles/basic/styles.css"],
+	entryPoints: ["src/main.ts", "src/styles/styles.css"],
 	outdir: ".",
-	plugins: [basicStubsPlugin],
+	// No plugins needed for standalone Basic - it has its own implementations
 });
 
 if (prod) {

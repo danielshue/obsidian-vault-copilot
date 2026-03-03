@@ -4,10 +4,88 @@
  *--------------------------------------------------------------------------------------------*/
 
 /**
- * @module providerAvailability
- * @description Shim re-exporting checkAnyProviderAvailable from the shared Pro source.
- * When vault-copilot moves to its own repository this file will be replaced
- * with the actual implementation.
+ * @module providerAvailability (Basic)
+ * @description Simplified provider availability check for Basic plugin.
+ * 
+ * Basic only supports GitHub Copilot CLI, so this module only checks if CLI is installed.
+ * Pro has the full implementation that also checks OpenAI/Azure API keys.
+ * 
+ * @since 0.1.0
  */
 
-export * from "../../../src/utils/providerAvailability";
+import type { App } from "obsidian";
+import type { GitHubCopilotCliManager } from "../copilot/providers/GitHubCopilotCliManager";
+import { isDesktop } from "./platform";
+
+/** Result of provider availability check */
+export interface ProviderAvailabilityStatus {
+	available: boolean;
+	providers: {
+		copilot: {
+			available: boolean;
+			installed: boolean;
+			platformSupported: boolean;
+		};
+		openai: {
+			available: boolean;
+			hasApiKey: boolean;
+			profileCount: number;
+		};
+		azureOpenai: {
+			available: boolean;
+			hasApiKey: boolean;
+			profileCount: number;
+		};
+	};
+}
+
+/**
+ * Check if any AI provider is available.
+ * In Basic, only checks GitHub Copilot CLI status.
+ */
+export async function checkAnyProviderAvailable(
+	_app: App,
+	_settings: unknown,
+	cliManager?: GitHubCopilotCliManager | null
+): Promise<ProviderAvailabilityStatus> {
+	// Check Copilot CLI (desktop only)
+	let copilotInstalled = false;
+	if (isDesktop && cliManager) {
+		try {
+			const status = await cliManager.getStatus();
+			copilotInstalled = status.installed;
+		} catch {
+			copilotInstalled = false;
+		}
+	}
+
+	return {
+		available: isDesktop && copilotInstalled,
+		providers: {
+			copilot: {
+				available: isDesktop && copilotInstalled,
+				installed: copilotInstalled,
+				platformSupported: isDesktop,
+			},
+			// Basic doesn't support OpenAI/Azure
+			openai: {
+				available: false,
+				hasApiKey: false,
+				profileCount: 0,
+			},
+			azureOpenai: {
+				available: false,
+				hasApiKey: false,
+				profileCount: 0,
+			},
+		},
+	};
+}
+
+/**
+ * Synchronous check for provider availability.
+ * In Basic, always returns false (no API key support).
+ */
+export function hasAnyApiKeyConfigured(_app: App, _settings: unknown): boolean {
+	return false;
+}

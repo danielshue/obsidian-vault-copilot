@@ -12,3 +12,4 @@
  */
 
 export { BaseCopilotChatView as CopilotChatView, COPILOT_VIEW_TYPE } from "./BaseCopilotChatView";
+export { ToolPickerModal } from "./modals/ToolPickerModal";
