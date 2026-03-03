@@ -36,7 +36,7 @@ export interface ToolPickerModalOptions {
  */
 const CATEGORY_CONFIG: Record<string, { icon: string; label: string }> = {
 	// Built-in categories
-	"builtin": { icon: "zap", label: "Built-In" },
+	"builtin": { icon: "wrench", label: "Built-In" },
 	"plugin": { icon: "puzzle", label: "Plugin Skills" },
 	// Tool categories within built-in
 	"note": { icon: "file-text", label: "note" },
@@ -141,7 +141,7 @@ export class ToolPickerModal extends Modal {
 
 		// Description text
 		const descEl = contentEl.createDiv({ cls: "vc-tp-description" });
-		descEl.setText("The selected tools will be applied globally for all chat sessions that use the default agent.");
+		descEl.setText("The selected tools will be applied globally for all chat sessions that use the default tool configuration.");
 
 		// Tree container
 		this.treeContainer = contentEl.createDiv({ cls: "vc-tp-tree" });
@@ -366,7 +366,7 @@ export class ToolPickerModal extends Modal {
 		// Name, then description
 		const textEl = itemEl.createDiv({ cls: "vc-tp-item-text" });
 		textEl.createSpan({ text: tool.id, cls: "vc-tp-item-name" });
-		const descEl = textEl.createSpan({ text: tool.description, cls: "vc-tp-item-desc" });
+		const descEl = textEl.createSpan({ text: ` - ${tool.description}`, cls: "vc-tp-item-desc" });
 		descEl.setAttr("title", tool.description);
 
 		// Click anywhere to toggle

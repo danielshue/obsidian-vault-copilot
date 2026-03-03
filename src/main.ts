@@ -153,10 +153,6 @@ export default class BasicCopilotPlugin extends Plugin {
 		this.settings = {
 			...DEFAULT_SETTINGS,
 			...savedData,
-			voice: {
-				...DEFAULT_SETTINGS.voice,
-				...(savedData.voice || {}),
-			},
 		} as CopilotPluginSettings;
 	}
 

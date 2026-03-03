@@ -89,12 +89,6 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	voiceInputProfileId: null,
 	realtimeAgentProfileId: null,
 	realtimeAgentModel: undefined,
-	voice: {
-		voiceInputEnabled: false,
-		backend: 'openai-whisper',
-		whisperServerUrl: 'http://127.0.0.1:8080',
-		language: 'auto',
-	},
 	openai: {
 		enabled: false,
 		apiKeySecretId: undefined,
@@ -112,10 +106,6 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	analyticsEndpoint: 'https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io',
 	githubUsername: '',
 	anonymousId: '',
-	telegram: {},
-	vaults: [],
-	activeVaultId: null,
-	pinnedCommands: [],
 };
 
 // ============================================================================

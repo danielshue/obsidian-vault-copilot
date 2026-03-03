@@ -71,6 +71,17 @@ export interface BaseToolbarCallbacks {
 }
 
 /**
+ * Optional UI behavior flags for the base toolbar.
+ */
+export interface BaseToolbarManagerOptions {
+	/**
+	 * Whether to render the leading assistant icon button in the left toolbar.
+	 * Defaults to `true`.
+	 */
+	showAssistantIcon?: boolean;
+}
+
+/**
  * Base toolbar manager — brain icon, model selector, tool selector, and simplified gear menu.
  *
  * Override the protected hook methods to add Pro-specific behaviour without touching this class.
@@ -85,23 +96,27 @@ export class BaseToolbarManager {
 	protected toolSelectorEl: HTMLButtonElement | null = null;
 	protected toolbarRightEl: HTMLDivElement | null = null;
 	protected sendButton: HTMLButtonElement | null = null;
+	protected readonly showAssistantIcon: boolean;
 
 	/**
 	 * @param plugin - Minimal plugin reference (settings + saveSettings)
 	 * @param service - Minimal service reference (updateConfig + createSession)
 	 * @param toolCatalog - Tool catalog for tool selector state
 	 * @param callbacks - Toolbar action callbacks
+	 * @param options - Optional toolbar UI flags
 	 */
 	constructor(
 		plugin: BasePluginLike,
 		service: BaseServiceLike,
 		toolCatalog: ToolCatalog,
 		callbacks: BaseToolbarCallbacks,
+		options?: BaseToolbarManagerOptions,
 	) {
 		this.plugin = plugin;
 		this.service = service;
 		this.toolCatalog = toolCatalog;
 		this.callbacks = callbacks;
+		this.showAssistantIcon = options?.showAssistantIcon ?? true;
 	}
 
 	/**
@@ -122,12 +137,13 @@ export class BaseToolbarManager {
 	 * @param toolbarLeft - Container element for left-side toolbar buttons
 	 */
 	createToolbarLeft(toolbarLeft: HTMLDivElement): void {
-		// Brain icon
-		const brainIconBtn = toolbarLeft.createEl("button", {
-			cls: "vc-brain-icon-btn",
-			attr: { "aria-label": "AI Assistant" },
-		});
-		brainIconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>`;
+		if (this.showAssistantIcon) {
+			const brainIconBtn = toolbarLeft.createEl("button", {
+				cls: "vc-brain-icon-btn",
+				attr: { "aria-label": "AI Assistant" },
+			});
+			brainIconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>`;
+		}
 
 		// Hook: Pro inserts agent selector between brain icon and model selector
 		this.createAdditionalLeftButtons(toolbarLeft);

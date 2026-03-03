@@ -222,7 +222,9 @@ export class BaseCopilotChatView extends ItemView {
 		toolCatalog: ToolCatalog,
 		callbacks: BaseToolbarCallbacks,
 	): BaseToolbarManager {
-		return new BaseToolbarManager(plugin, service, toolCatalog, callbacks);
+		return new BaseToolbarManager(plugin, service, toolCatalog, callbacks, {
+			showAssistantIcon: false,
+		});
 	}
 
 	/**
@@ -322,7 +324,7 @@ export class BaseCopilotChatView extends ItemView {
 			attr: { "aria-label": "Add context from notes" },
 		});
 		addContextBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg><span>Add Context...</span>`;
-		addContextBtn.addEventListener("click", () => this.inputAreaManager.openNotePicker());
+		addContextBtn.addEventListener("click", () => this.inputAreaManager?.openNotePicker());
 
 		// Main text input
 		this.inputEl = inputWrapper.createDiv({
@@ -559,10 +561,28 @@ export class BaseCopilotChatView extends ItemView {
 		return "obsidian-vault-copilot";
 	}
 
+	/**
+	 * Resolve a CLI manager for provider availability checks.
+	 *
+	 * Supports both plugin shapes:
+	 * - Pro style: `getCliManager()`
+	 * - Basic style: `cliManager` property
+	 *
+	 * @returns CLI manager instance when available, otherwise `null`
+	 */
+	private getCliManagerForAvailability(): unknown {
+		const plugin = this.plugin as {
+			getCliManager?: () => unknown;
+			cliManager?: unknown;
+		};
+
+		return plugin.getCliManager?.() ?? plugin.cliManager ?? null;
+	}
+
 	// ─── Provider availability ────────────────────────────────────────────────────
 
 	private async updateProviderAvailabilityUI(): Promise<void> {
-		const cliManager = (this.plugin as { getCliManager?: () => unknown }).getCliManager?.();
+		const cliManager = this.getCliManagerForAvailability();
 		const status = await checkAnyProviderAvailable(
 			this.app,
 			this.plugin.settings,

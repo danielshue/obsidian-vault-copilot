@@ -8,7 +8,6 @@
  * @since 0.0.1
  */
 
-import type { CopilotPluginSettings } from "./types";
 import { FALLBACK_MODELS } from "./defaults";
 
 // ============================================================================
@@ -48,7 +47,7 @@ export function getModelDisplayName(modelId: string): string {
 /**
  * Get available models from settings or fallback
  */
-export function getAvailableModels(settings: CopilotPluginSettings): string[] {
+export function getAvailableModels(settings: { availableModels?: string[] }): string[] {
 	const discoveredModels = Array.isArray(settings.availableModels)
 		? settings.availableModels.filter((model): model is string => typeof model === "string" && model.length > 0)
 		: [];

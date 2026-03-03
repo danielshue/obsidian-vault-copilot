@@ -203,16 +203,16 @@ export class ContextPicker {
 		const allSkills = this.getSkills();
 		const matchedSkills = allSkills.filter(s =>
 			s.name.toLowerCase().includes(searchTerm) ||
-			s.description.toLowerCase().includes(searchTerm)
+			(s.description?.toLowerCase().includes(searchTerm) ?? false)
 		).slice(0, 5); // Limit to 5 skill results
 		
 		// Convert skills to PickerItems
 		for (const skill of matchedSkills) {
 			this.filteredItems.push({
 				type: 'skill',
-				id: skill.path,
+				id: skill.path ?? skill.name,
 				name: skill.name,
-				secondary: skill.description,
+				secondary: skill.description ?? '',
 				skill,
 			});
 		}

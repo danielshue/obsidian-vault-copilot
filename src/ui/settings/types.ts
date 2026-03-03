@@ -264,8 +264,6 @@ export interface CopilotPluginSettings {
 	realtimeAgentProfileId?: string | null;
 	/** Selected model for Realtime Agent (Pro-only) */
 	realtimeAgentModel?: string;
-	/** Voice chat settings (Pro-only, stub for compat) */
-	voice?: Record<string, unknown>;
 	/** OpenAI settings (Pro-only, stub for compat) */
 	openai: OpenAISettings;
 	/** Periodic notes settings (daily, weekly, monthly, quarterly, yearly) */
@@ -286,14 +284,6 @@ export interface CopilotPluginSettings {
 	githubUsername?: string;
 	/** Generated anonymous ID for users without GitHub username */
 	anonymousId?: string;
-	/** Telegram bot integration settings (Pro-only, stub for compat) */
-	telegram?: Record<string, unknown>;
-	/** List of configured vaults (folder locations) (Pro-only) */
-	vaults?: unknown[];
-	/** ID of the currently active vault (Pro-only) */
-	activeVaultId?: string | null;
-	/** Command IDs pinned to top of command palette (Pro-only) */
-	pinnedCommands?: string[];
 }
 
 /**
