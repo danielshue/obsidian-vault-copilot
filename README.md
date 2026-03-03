@@ -1,14 +1,6 @@
-# Vault Copilot for Obsidian
-
-Vault Copilot is a lightweight, enterprise‑ready chat experience inside Obsidian powered by GitHub Copilot. It brings conversational AI directly into your Markdown workspace and augments it with contextual signals from your notes, the web, and Microsoft 365.
-
-Vault Copilot is designed to be simple, fast, and editor‑first, while remaining extensible for enterprise scenarios.
-
----
-
 ## Overview
 
-Vault Copilot adds a chat panel to Obsidian that lets you interact with your notes using natural language. It is built for interactive use while you write, review, and synthesize information stored as plain Markdown files.
+Vault Copilot adds intelligent context awareness to Obsidian that lets you interact with your notes using natural language. It is built for interactive use while you write, review, and synthesize information stored as plain Markdown files.
 
 In addition to local note context, Vault Copilot can optionally enrich conversations with Microsoft 365 collaboration context and lightweight web grounding to support real‑world, enterprise workflows.
 
@@ -18,10 +10,10 @@ In addition to local note context, Vault Copilot can optionally enrich conversat
 
 ## Features
 
-- Chat interface embedded directly in Obsidian  
+- Chat interface directly in the popular [Obsidian](https://obsidian.md/) note‑taking app.
 - GitHub Copilot–powered conversational responses  
 - Contextual grounding from local notes and the web  
-- Optional integration with Microsoft 365 via Work IQ  
+- Optional integration with Microsoft 365 via Work IQ 
 - Local, file‑based workflow centered on Markdown  
 
 Vault Copilot works alongside your existing notes without changing how they are stored or organized.
@@ -41,13 +33,21 @@ Vault Copilot includes a small set of built‑in tools that help bring the right
 - **batch_read_notes**  
   Reads multiple notes at once to support comparison and synthesis.
 
+- **create_note**  
+  Creates a new note in the vault. Vault Copilot always previews the content and asks for your confirmation before writing.
+
+- **update_note**  
+  Replaces the content of an existing note. As with creation, Vault Copilot shows you exactly what will change and waits for your approval.
+
 - **fetch_web_page**  
   Fetches and extracts content from a specific web page.
 
 - **web_search**  
   Searches the web to bring in up‑to‑date information.
 
-Together, these tools allow Vault Copilot to combine local note context with lightweight web grounding so responses stay aligned with what you are working on.
+Together, these tools allow Vault Copilot to read, create, and update notes while combining local vault context with lightweight web grounding so responses stay aligned with what you are working on.
+
+> **Write Safety:** Before creating or updating any note, Vault Copilot always previews the full content in chat and asks for your explicit confirmation. No changes are made to your vault without your approval.
 
 ---
 
@@ -80,7 +80,7 @@ This makes it easy to try Vault Copilot without changing how you currently acces
 
 ---
 
-## Why Vault Copilot
+## Why Vault Copilot?
 
 Many people want AI assistance close to their notes without introducing a new application or workflow.
 
@@ -93,7 +93,7 @@ This makes it suitable for both individual knowledge management and repeatable e
 
 ---
 
-## How It Works
+## How does it work?
 
 At a high level:
 
@@ -119,8 +119,8 @@ You type a message, Vault Copilot gathers the necessary context, and Copilot res
 
 ### Prerequisites
 
-- Obsidian  
-- GitHub Copilot access  
+- Obsidian installed on your machine
+- GitHub Copilot access and GitHub Copilot CLI installed and configured on your machine
 
 ### Install using BRAT (Recommended)
 
