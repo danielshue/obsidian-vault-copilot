@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------------------------
+﻿/*---------------------------------------------------------------------------------------------
  *  Copyright (c) Dan Shue. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
@@ -36,7 +36,7 @@
  * @since 0.1.0
  */
 
-import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, Notice } from "obsidian";
 import type { CopilotSession } from "../settings/types";
 import { SessionPanel } from "./components/SessionPanel";
 import { ContextPicker } from "./pickers/ContextPicker";
@@ -400,6 +400,10 @@ export class BaseCopilotChatView extends ItemView {
 			this.onInputChange();
 		});
 
+		this.inputEl.addEventListener("paste", (e: ClipboardEvent) => {
+			this.handleImagePaste(e);
+		});
+
 		this.sendButton.addEventListener("click", () => this.handleSendOrCancel());
 
 		// ─── Initial state ────────────────────────────────────────────────────────
@@ -688,7 +692,10 @@ export class BaseCopilotChatView extends ItemView {
 			this.messageRenderer.renderUsedReferences(this.messagesContainer, usedReferences);
 		}
 
+		const attachedImages = this.inputAreaManager.getAttachedImages();
+
 		this.inputAreaManager.clearAttachments();
+		this.inputAreaManager.clearImages();
 
 		try {
 			this.currentStreamingMessageEl = this.messageRenderer.createMessageElement(
@@ -788,12 +795,14 @@ export class BaseCopilotChatView extends ItemView {
 								this.scrollToBottom();
 							});
 						},
+						undefined,
+						attachedImages.length > 0 ? attachedImages : undefined,
 					);
 					await renderChain;
 					this.currentStreamingMessageEl = null;
 				} else {
 					this.hideThinkingIndicator();
-					const response = await this.githubCopilotCliService.sendMessage(fullMessage);
+					const response = await this.githubCopilotCliService.sendMessage(fullMessage, undefined, attachedImages.length > 0 ? attachedImages : undefined);
 					if (this.currentStreamingMessageEl) {
 						await this.messageRenderer.renderMarkdownContent(this.currentStreamingMessageEl, response);
 						this.messageRenderer.addCopyButton(this.currentStreamingMessageEl);
@@ -975,6 +984,30 @@ export class BaseCopilotChatView extends ItemView {
 	private handleSendOrCancel(): void {
 		if (this.isProcessing) void this.cancelRequest();
 		else void this.sendMessage();
+	}
+
+	/**
+	 * Handle a paste event on the input element.
+	 * If the clipboard contains an image, it is captured as an attachment chip
+	 * and the default paste is suppressed. Text pastes proceed normally.
+	 *
+	 * @param e - The ClipboardEvent from the paste listener
+	 */
+	private handleImagePaste(e: ClipboardEvent): void {
+		const items = e.clipboardData?.items;
+		if (!items) return;
+
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
+			if (item && item.type.startsWith("image/")) {
+				e.preventDefault();
+				const blob = item.getAsFile();
+				if (blob) {
+					this.inputAreaManager.attachImageFromBlob(blob);
+				}
+				return;
+			}
+		}
 	}
 
 	private async cancelRequest(): Promise<void> {

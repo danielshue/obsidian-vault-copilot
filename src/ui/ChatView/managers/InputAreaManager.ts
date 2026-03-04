@@ -10,8 +10,12 @@
  * @since 0.0.15
  */
 
-import { Plugin, TFile } from "obsidian";
+import { Plugin, TFile, Notice } from "obsidian";
 import { NoteSuggestModal } from "../modals/NoteSuggestModal";
+import type { ImageAttachment } from "../../../copilot/providers/types";
+
+/** Maximum allowed image size in bytes (20 MB). */
+const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
 
 /**
  * Manages the chat input area and its features
@@ -23,6 +27,10 @@ export class InputAreaManager {
 
 	// Attachment state
 	private attachedNotes: TFile[] = [];
+
+	// Image attachment state
+	private attachedImages: ImageAttachment[] = [];
+	private pasteImageCounter = 0;
 
 	// Input history for up/down arrow navigation
 	private inputHistory: string[] = [];
@@ -47,11 +55,63 @@ export class InputAreaManager {
 	}
 
 	/**
-	 * Clear all attachments
+	 * Clear all note attachments
 	 */
 	clearAttachments(): void {
 		this.attachedNotes = [];
 		this.renderAttachments();
+	}
+
+	/**
+	 * Clear all image attachments and reset the paste counter
+	 */
+	clearImages(): void {
+		this.attachedImages = [];
+		this.pasteImageCounter = 0;
+		this.renderAttachments();
+	}
+
+	/**
+	 * Get the list of currently attached images
+	 */
+	getAttachedImages(): ImageAttachment[] {
+		return this.attachedImages;
+	}
+
+	/**
+	 * Attach an image file from a clipboard paste.
+	 *
+	 * Enforces the 20 MB size limit and generates a sequential name
+	 * ("Pasted Image", "Pasted Image 2", "Pasted Image 3", …).
+	 *
+	 * @param blob - Raw image Blob from the clipboard
+	 */
+	attachImageFromBlob(blob: Blob): void {
+		if (blob.size > MAX_IMAGE_SIZE) {
+			new Notice(`Image too large (${(blob.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is 20 MB.`);
+			return;
+		}
+
+		const name = this.pasteImageCounter === 0
+			? "Pasted Image"
+			: `Pasted Image ${this.pasteImageCounter + 1}`;
+		this.pasteImageCounter++;
+
+		const reader = new FileReader();
+		reader.onload = () => {
+			const dataUrl = reader.result as string;
+			// Strip the data URL prefix to store only the base64 data
+			const base64Data = dataUrl.split(",")[1] ?? "";
+			const img: ImageAttachment = {
+				name,
+				mimeType: blob.type || "image/png",
+				base64Data,
+				sizeBytes: blob.size,
+			};
+			this.attachedImages.push(img);
+			this.renderAttachments();
+		};
+		reader.readAsDataURL(blob);
 	}
 
 	/**
@@ -100,7 +160,7 @@ export class InputAreaManager {
 	}
 
 	/**
-	 * Render attachment chips in the UI
+	 * Render attachment chips (notes and images) in the UI
 	 */
 	renderAttachments(): void {
 		if (!this.attachmentsContainer) return;
@@ -121,6 +181,33 @@ export class InputAreaManager {
 				e.stopPropagation();
 				this.removeAttachment(file);
 			});
+		}
+
+		// Render image attachment chips
+		for (let i = 0; i < this.attachedImages.length; i++) {
+			const imgAttach = this.attachedImages[i];
+			if (!imgAttach) continue;
+			const chip = this.attachmentsContainer.createSpan({ cls: "vc-attachment-chip vc-image-chip" });
+
+			const icon = chip.createSpan({ cls: "vc-attachment-icon" });
+			icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+
+			chip.createSpan({ text: imgAttach.name, cls: "vc-attachment-name" });
+
+			const removeBtn = chip.createSpan({ cls: "vc-attachment-remove" });
+			removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+			const imgIndex = i;
+			removeBtn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				this.attachedImages.splice(imgIndex, 1);
+				this.renderAttachments();
+			});
+
+			// Hover preview popover
+			const popover = chip.createDiv({ cls: "vc-image-preview-popover" });
+			const previewImg = popover.createEl("img");
+			previewImg.src = `data:${imgAttach.mimeType};base64,${imgAttach.base64Data}`;
+			previewImg.alt = imgAttach.name;
 		}
 	}
 

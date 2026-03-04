@@ -37,9 +37,9 @@
 
 import { CopilotClient, CopilotSession, SessionEvent, approveAll, defineTool } from "@github/copilot-sdk";
 import { App } from "obsidian";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, unlinkSync } from "node:fs";
 import * as nodePath from "node:path";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 
 import * as VaultOps from "../tools/VaultOperations";
 import { getTracingService } from "../TracingService";
@@ -53,6 +53,7 @@ import {
 	ModelInfoResult,
 	SessionAgentInfo,
 	SessionCompactionResult,
+	ImageAttachment,
 	DEFAULT_REQUEST_TIMEOUT,
 	DEFAULT_STOP_TIMEOUT,
 	SESSION_STALE_THRESHOLD_MS,
@@ -949,7 +950,42 @@ export class GitHubCopilotCliService {
 	 * const reply = await service.sendMessage('Summarize my meeting notes');
 	 * ```
 	 */
-	async sendMessage(prompt: string, timeout?: number): Promise<string> {
+	/**
+	 * Write base64 image attachments to temp files and return their paths.
+	 * Returns an array of objects with path and name for cleanup.
+	 *
+	 * @param images - Image attachments to write to disk
+	 * @returns Array of { path, name } objects for the written temp files
+	 * @internal
+	 */
+	private writeImageTempFiles(images: ImageAttachment[]): { path: string; name: string }[] {
+		const results: { path: string; name: string }[] = [];
+		for (const img of images) {
+			try {
+				const ext = img.mimeType.split("/")[1] ?? "png";
+				const tempPath = nodePath.join(tmpdir(), `vc-img-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`);
+				writeFileSync(tempPath, Buffer.from(img.base64Data, "base64"));
+				results.push({ path: tempPath, name: img.name });
+			} catch {
+				// Skip images that fail to write
+			}
+		}
+		return results;
+	}
+
+	/**
+	 * Remove temp files written for image attachments.
+	 *
+	 * @param paths - File paths to delete
+	 * @internal
+	 */
+	private cleanupTempFiles(paths: string[]): void {
+		for (const p of paths) {
+			try { unlinkSync(p); } catch { /* ignore */ }
+		}
+	}
+
+	async sendMessage(prompt: string, timeout?: number, images?: ImageAttachment[]): Promise<string> {
 		if (!this.session) await this.createSession();
 		await this.ensureSessionAlive();
 		const session = this.session;
@@ -967,9 +1003,14 @@ export class GitHubCopilotCliService {
 		this.touchActivity();
 
 		const requestTimeout = timeout ?? this.config.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT;
+		const tempFiles = images && images.length > 0 ? this.writeImageTempFiles(images) : [];
+		const attachments = tempFiles.map(f => ({ type: "file" as const, path: f.path, displayName: f.name }));
 
 		try {
-			const response = await session.sendAndWait({ prompt }, requestTimeout);
+			const response = await session.sendAndWait(
+				attachments.length > 0 ? { prompt, attachments } : { prompt },
+				requestTimeout
+			);
 			this.touchActivity();
 
 			const assistantContent = response?.data?.content || "";
@@ -989,6 +1030,8 @@ export class GitHubCopilotCliService {
 				throw new Error(`Request timed out after ${requestTimeout / 1000} seconds`);
 			}
 			throw error;
+		} finally {
+			this.cleanupTempFiles(tempFiles.map(f => f.path));
 		}
 	}
 
@@ -999,6 +1042,7 @@ export class GitHubCopilotCliService {
 	 * @param onDelta - Called for each streamed response chunk
 	 * @param onComplete - Optional callback for the final assembled response
 	 * @param timeout - Optional request timeout in ms (inactivity-based)
+	 * @param images - Optional image attachments to include with the message
 	 *
 	 * @throws {Error} If the session is not available or the request times out
 	 *
@@ -1015,7 +1059,8 @@ export class GitHubCopilotCliService {
 		prompt: string,
 		onDelta: (delta: string) => void,
 		onComplete?: (fullContent: string) => void,
-		timeout?: number
+		timeout?: number,
+		images?: ImageAttachment[]
 	): Promise<void> {
 		if (!this.session) await this.createSession();
 		await this.ensureSessionAlive();
@@ -1036,6 +1081,8 @@ export class GitHubCopilotCliService {
 		let fullContent = "";
 		let finalContent = "";
 		const requestTimeout = timeout ?? this.config.requestTimeout ?? DEFAULT_REQUEST_TIMEOUT;
+		const tempFiles = images && images.length > 0 ? this.writeImageTempFiles(images) : [];
+		const attachments = tempFiles.map(f => ({ type: "file" as const, path: f.path, displayName: f.name }));
 
 		return new Promise<void>((resolve, reject) => {
 			let timeoutId: NodeJS.Timeout | null = null;
@@ -1108,12 +1155,14 @@ export class GitHubCopilotCliService {
 				}
 			});
 
-			session.send({ prompt }).catch((err) => {
+			session.send(attachments.length > 0 ? { prompt, attachments } : { prompt }).catch((err) => {
 				cleanup();
 				unsubscribe();
 				tracingService.addSdkLog("error", `[Send Error] ${err.message || err}`, LOG_SOURCES.COPILOT_ERROR);
 				reject(err);
 			});
+		}).finally(() => {
+			this.cleanupTempFiles(tempFiles.map(f => f.path));
 		});
 	}
 

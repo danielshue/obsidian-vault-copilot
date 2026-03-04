@@ -1,8 +1,12 @@
 ## Overview
 
-Vault Copilot adds intelligent context awareness to Obsidian that lets you interact with your notes using natural language. It is built for interactive use while you write, review, and synthesize information stored as plain Markdown files.
+Vault Copilot is an enterprise‑ready chat experience embedded directly in Obsidian, built on [GitHub Copilot CLI](https://github.com/features/copilot/cli/). It enables users to work with their Markdown notes using natural language while grounding responses in real context from local files, the web, and Microsoft 365.
 
-In addition to local note context, Vault Copilot can optionally enrich conversations with Microsoft 365 collaboration context and lightweight web grounding to support real‑world, enterprise workflows.
+The solution is local‑first and file‑based, allowing knowledge to remain portable, auditable, and under user control. Vault Copilot supports repeatable enterprise workflows such as meeting follow‑ups, research capture, and status rollups by synthesizing information across multiple notes and external sources.
+
+When integrated with [Work IQ](https://learn.microsoft.com/en-us/microsoft-365-copilot/extensibility/workiq-overview), Vault Copilot can enrich conversations with permission‑aware Microsoft 365 context including meetings, emails, tasks, and calendars. This allows collaboration signals to be transformed into structured notes and actionable summaries inside Obsidian.
+
+Vault Copilot uses the [GitHub Copilot CLI SDK](https://github.com/github/copilot-sdk) to build grounded, secure, and reusable AI experiences that fit naturally into existing enterprise knowledge workflows.
 
 ![Vault Copilot screenshot](src/docs/images/vault-copilot-screen-shot.png)
 

@@ -50,6 +50,35 @@ export interface GitHubCopilotCliConfig {
 // ── Message History ────────────────────────────────────────────────────────
 
 /**
+ * An image attached to a chat message, stored as base64-encoded data.
+ *
+ * Used by all providers that support vision inputs (OpenAI, Azure OpenAI,
+ * and GitHub Copilot CLI). The Copilot CLI provider writes images to OS temp
+ * files and passes them as file attachments to the SDK.
+ *
+ * @example
+ * ```typescript
+ * const img: ImageAttachment = {
+ *   name: "Pasted Image",
+ *   mimeType: "image/png",
+ *   base64Data: "iVBORw0KGgo...",
+ *   sizeBytes: 45000,
+ * };
+ * ```
+ * @since 0.2.0
+ */
+export interface ImageAttachment {
+	/** Display name shown in the attachment chip (e.g. 'Pasted Image') */
+	name: string;
+	/** MIME type of the image (e.g. 'image/png', 'image/jpeg', 'image/gif') */
+	mimeType: string;
+	/** Base64-encoded image data without a data URL prefix */
+	base64Data: string;
+	/** Original file size in bytes (used for size validation) */
+	sizeBytes: number;
+}
+
+/**
  * A single chat message in the conversation history.
  *
  * Used across all providers (Copilot, OpenAI, Azure) for a uniform
@@ -66,6 +95,8 @@ export interface ChatMessage {
 	source?: string;
 	/** How the message was input: 'text' (default) or 'voice' */
 	inputType?: "text" | "voice";
+	/** Optional image attachments for vision-capable providers */
+	images?: ImageAttachment[];
 }
 
 // ── Model Information ──────────────────────────────────────────────────────
