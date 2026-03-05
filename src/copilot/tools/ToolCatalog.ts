@@ -133,7 +133,7 @@ export class ToolCatalog {
 	 * ```typescript
 	 * const catalog = new ToolCatalog();
 	 * await catalog.loadCliMcpTools();
-	 * console.log(catalog.getAllTools().length); // 5 + mcp servers
+	 * console.log(catalog.getAllTools().length); // 7 + mcp servers
 	 * ```
 	 */
 	loadCliMcpTools(): number {

@@ -157,7 +157,7 @@ export class GitHubCopilotCliService {
 	/**
 	 * Build the tool list for a new/resumed SDK session.
 	 *
-	 * Base returns 5 Basic tools. The Pro service overrides this to return
+	 * Base returns 7 Basic tools. The Pro service overrides this to return
 	 * all 40+ tools (vault operations, MCP, skill registry, Extension API).
 	 *
 	 * @returns Array of SDK `defineTool()` results
