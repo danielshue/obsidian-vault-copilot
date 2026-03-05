@@ -182,11 +182,13 @@ export class ContextPicker {
 		
 		// Filter files by search term (match on file name or path)
 		// Exclude SKILL.md files as they're shown in the skills section
+		// Limit files when no query so skills above aren't buried by hundreds of file results
+		const fileLimit = searchTerm === '' ? 30 : Infinity;
 		const matchedFiles = allFiles.filter(f => 
 			!f.path.includes('/SKILL.md') &&
 			(f.basename.toLowerCase().includes(searchTerm) ||
 			f.path.toLowerCase().includes(searchTerm))
-		).slice(0, 8); // Limit to 8 file results
+		).slice(0, fileLimit);
 		
 		// Convert files to PickerItems
 		for (const file of matchedFiles) {
@@ -199,12 +201,12 @@ export class ContextPicker {
 			});
 		}
 		
-		// Get skills and filter
+		// Get skills and filter — rendered FIRST so they're always visible
 		const allSkills = this.getSkills();
 		const matchedSkills = allSkills.filter(s =>
 			s.name.toLowerCase().includes(searchTerm) ||
 			(s.description?.toLowerCase().includes(searchTerm) ?? false)
-		).slice(0, 5); // Limit to 5 skill results
+		);
 		
 		// Convert skills to PickerItems
 		for (const skill of matchedSkills) {
@@ -239,11 +241,22 @@ export class ContextPicker {
 			return;
 		}
 		
-		// Group items by type
-		const files = this.filteredItems.filter(i => i.type === 'file');
+		// Group items by type — skills first so they're always visible
 		const skills = this.filteredItems.filter(i => i.type === 'skill');
+		const files = this.filteredItems.filter(i => i.type === 'file');
 		
 		let itemIndex = 0;
+		
+		// Render skills section first
+		if (skills.length > 0) {
+			const headerEl = this.containerEl.createDiv({ cls: "vc-context-picker-header" });
+			headerEl.setText("Skills");
+			
+			for (const item of skills) {
+				this.renderItem(item, itemIndex);
+				itemIndex++;
+			}
+		}
 		
 		// Render files section
 		if (files.length > 0) {
@@ -251,17 +264,6 @@ export class ContextPicker {
 			headerEl.setText("Files");
 			
 			for (const item of files) {
-				this.renderItem(item, itemIndex);
-				itemIndex++;
-			}
-		}
-		
-		// Render skills section
-		if (skills.length > 0) {
-			const headerEl = this.containerEl.createDiv({ cls: "vc-context-picker-header" });
-			headerEl.setText("Skills");
-			
-			for (const item of skills) {
 				this.renderItem(item, itemIndex);
 				itemIndex++;
 			}

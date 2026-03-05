@@ -30,6 +30,20 @@ import { getProfileById } from "../../settings/profiles";
 import { IToolCatalog } from "../../../copilot/tools/ToolCatalog";
 import { ToolPickerModal } from "../modals/ToolPickerModal";
 
+/**
+ * Describes a toolbar item that can be collapsed into the overflow menu.
+ * Lower priority numbers are hidden first when space is constrained.
+ * @internal
+ */
+export interface CollapsibleItem {
+	/** The DOM element to show/hide */
+	el: HTMLElement;
+	/** Collapse priority — lower numbers hide first */
+	priority: number;
+	/** Identifier used to check which items are hidden (e.g. 'model', 'agent', 'tool') */
+	type: string;
+}
+
 
 /**
  * Minimal plugin interface required by BaseToolbarManager.
@@ -98,6 +112,13 @@ export class BaseToolbarManager {
 	protected sendButton: HTMLButtonElement | null = null;
 	protected readonly showAssistantIcon: boolean;
 
+	// Overflow collapse state
+	protected overflowBtn: HTMLButtonElement | null = null;
+	private toolbarLeftEl: HTMLDivElement | null = null;
+	private resizeObserver: ResizeObserver | null = null;
+	private collapsibleItems: CollapsibleItem[] = [];
+	protected hiddenItems: Set<string> = new Set();
+
 	/**
 	 * @param plugin - Minimal plugin reference (settings + saveSettings)
 	 * @param service - Minimal service reference (updateConfig + createSession)
@@ -163,6 +184,23 @@ export class BaseToolbarManager {
 		});
 		this.updateToolSelectorText();
 		this.toolSelectorEl.addEventListener("click", () => this.callbacks.openToolPicker());
+
+		// Overflow "..." button (hidden until items need to collapse)
+		this.overflowBtn = toolbarLeft.createEl("button", {
+			cls: "vc-toolbar-overflow-btn vc-toolbar-btn",
+			attr: { "aria-label": "More options" },
+		});
+		this.overflowBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>`;
+		this.overflowBtn.addEventListener("click", (e) => this.showOverflowMenu(e as MouseEvent));
+
+		// Register collapsible items (lower priority = hidden first)
+		// Collapse order: tools first → model → agent (Pro) last
+		this.registerCollapsibleItem(this.toolSelectorEl, 1, "tool");
+		this.registerCollapsibleItem(this.modelSelectorEl, 2, "model");
+
+		// Start observing toolbar width for overflow
+		this.toolbarLeftEl = toolbarLeft;
+		this.setupToolbarOverflow();
 	}
 
 	/**
@@ -369,7 +407,157 @@ export class BaseToolbarManager {
 	 * Base is a no-op; Pro unsubscribes from `agentCache`.
 	 */
 	destroy(): void {
-		// no-op in base
+		if (this.resizeObserver) {
+			this.resizeObserver.disconnect();
+			this.resizeObserver = null;
+		}
+		this.collapsibleItems = [];
+		this.hiddenItems.clear();
+	}
+
+	// ─── Toolbar overflow ────────────────────────────────────────────────────────
+
+	/**
+	 * Register a toolbar element as collapsible. Lower priority items are
+	 * hidden first when the toolbar is too narrow.
+	 *
+	 * @param el - The DOM element to collapse
+	 * @param priority - Collapse priority (lower = hidden sooner)
+	 * @param type - Identifier string (e.g. 'model', 'agent', 'tool')
+	 */
+	protected registerCollapsibleItem(el: HTMLElement, priority: number, type: string): void {
+		this.collapsibleItems.push({ el, priority, type });
+		this.collapsibleItems.sort((a, b) => a.priority - b.priority);
+	}
+
+	/**
+	 * Set up a ResizeObserver on the toolbar to handle overflow collapse.
+	 * @internal
+	 */
+	private setupToolbarOverflow(): void {
+		if (!this.toolbarLeftEl) return;
+
+		this.resizeObserver = new ResizeObserver(() => {
+			this.updateOverflowState();
+		});
+		this.resizeObserver.observe(this.toolbarLeftEl);
+	}
+
+	/**
+	 * Recalculate which toolbar items fit and hide/show accordingly.
+	 * This runs inside a ResizeObserver callback, so DOM writes here
+	 * are batched before the next paint (no visible flicker).
+	 * @internal
+	 */
+	private updateOverflowState(): void {
+		if (!this.toolbarLeftEl || !this.overflowBtn) return;
+
+		// Phase 1: Show everything to measure natural width
+		for (const item of this.collapsibleItems) {
+			item.el.classList.remove("vc-toolbar-collapsed");
+		}
+		this.overflowBtn.classList.remove("is-visible");
+		this.hiddenItems.clear();
+
+		// If everything fits, we're done
+		if (this.toolbarLeftEl.scrollWidth <= this.toolbarLeftEl.clientWidth) {
+			return;
+		}
+
+		// Phase 2: Show overflow button, then progressively hide items
+		this.overflowBtn.classList.add("is-visible");
+
+		// Items sorted by priority ascending (lowest priority hidden first)
+		for (const item of this.collapsibleItems) {
+			item.el.classList.add("vc-toolbar-collapsed");
+			this.hiddenItems.add(item.type);
+
+			if (this.toolbarLeftEl.scrollWidth <= this.toolbarLeftEl.clientWidth) {
+				break;
+			}
+		}
+	}
+
+	/**
+	 * Show the overflow menu with options for all currently hidden toolbar items.
+	 *
+	 * @param e - The mouse event from the overflow button click
+	 */
+	protected showOverflowMenu(e: MouseEvent): void {
+		const menu = new Menu();
+		this.buildOverflowMenuItems(menu);
+		this.showMenuAnchoredToTrigger(menu, e, this.overflowBtn);
+	}
+
+	/**
+	 * Populate the overflow menu with VS Code-style picker launcher items.
+	 * Pro overrides to add agent-specific items.
+	 *
+	 * @param menu - Obsidian Menu instance to populate
+	 */
+	protected buildOverflowMenuItems(menu: Menu): void {
+		menu.addItem((item) => {
+			item.setTitle("Open Model Picker").setIcon("cpu")
+				.onClick(() => this.openModelPickerMenu());
+		});
+
+		menu.addItem((item) => {
+			item.setTitle("Configure Tools...").setIcon("wrench")
+				.onClick(() => this.callbacks.openToolPicker());
+		});
+	}
+
+	/**
+	 * Programmatically open the model picker menu, anchored to the overflow button.
+	 * Called from the overflow menu item and can be overridden by subclasses.
+	 */
+	protected openModelPickerMenu(): void {
+		const menu = new Menu();
+		const models = getAvailableModels(this.plugin.settings);
+		const currentModel = this.plugin.settings.model;
+
+		menu.addItem((item) => {
+			item.setTitle("Model").setDisabled(true);
+		});
+
+		for (const modelId of models) {
+			menu.addItem((item) => {
+				const provider = this.getModelProvider(modelId);
+				const isSelected = currentModel === modelId;
+				const multiplier = getModelMultiplier(this.plugin.settings, modelId);
+				item.setTitle(getModelDisplayName(modelId))
+					.setChecked(isSelected)
+					.onClick(async () => {
+						this.plugin.settings.model = modelId;
+						await this.callbacks.saveSettings();
+						this.service.updateConfig({ model: modelId });
+						this.updateModelSelectorText();
+					});
+
+				const itemEl = (item as unknown as { dom: HTMLElement }).dom;
+				const titleEl = itemEl.querySelector(".menu-item-title") as HTMLElement | null;
+				if (titleEl) {
+					titleEl.innerHTML = "";
+					const checkEl = document.createElement("span");
+					checkEl.className = "vc-model-col-check";
+					checkEl.textContent = isSelected ? "✓" : "";
+					const nameEl = document.createElement("span");
+					nameEl.className = "vc-model-col-name";
+					nameEl.innerHTML = this.getModelProviderIcon(provider) + getModelDisplayName(modelId);
+					const multEl = document.createElement("span");
+					multEl.className = "vc-model-col-mult";
+					multEl.textContent = multiplier !== undefined ? `${multiplier}x` : "";
+					titleEl.append(checkEl, nameEl, multEl);
+				}
+			});
+		}
+
+		const anchor = this.overflowBtn ?? this.modelSelectorEl;
+		if (anchor) {
+			this.showMenuAnchoredToTrigger(menu, null as unknown as MouseEvent, anchor);
+		}
+		const menuEl = (menu as unknown as { dom?: HTMLElement }).dom;
+		menuEl?.classList.add("vc-model-menu");
 	}
 
 	// ─── Private helpers ─────────────────────────────────────────────────────────
@@ -490,7 +678,7 @@ export class BaseToolbarManager {
 	 * @param event - Triggering mouse event
 	 * @param triggerEl - Element to anchor the menu to
 	 */
-	protected showMenuAnchoredToTrigger(menu: Menu, event: MouseEvent, triggerEl: HTMLElement | null): void {
+	protected showMenuAnchoredToTrigger(menu: Menu, event: MouseEvent | null, triggerEl: HTMLElement | null): void {
 		const menuApi = menu as unknown as {
 			showAtPosition?: (pos: { x: number; y: number }) => void;
 			showAtMouseEvent: (ev: MouseEvent) => void;
@@ -498,14 +686,15 @@ export class BaseToolbarManager {
 		};
 
 		if (!triggerEl || typeof menuApi.showAtPosition !== "function") {
-			menuApi.showAtMouseEvent(event);
+			if (event) menuApi.showAtMouseEvent(event);
 			return;
 		}
 
 		const rect = triggerEl.getBoundingClientRect();
+		// Position above the trigger element
 		menuApi.showAtPosition({
-			x: Math.round(rect.right),
-			y: Math.round(rect.bottom + 4),
+			x: Math.round(rect.left),
+			y: Math.round(rect.top - 4),
 		});
 
 		const menuEl = menuApi.dom;
@@ -517,11 +706,13 @@ export class BaseToolbarManager {
 			const viewportHeight = window.innerHeight;
 			const menuRect = menuEl.getBoundingClientRect();
 
-			let left = rect.right - menuRect.width;
-			let top = rect.bottom + 4;
+			// Anchor above the trigger, left-aligned
+			let left = rect.left;
+			let top = rect.top - menuRect.height - 4;
 
-			if (top + menuRect.height > viewportHeight - margin) {
-				top = viewportHeight - margin - menuRect.height;
+			// Fall back below if not enough room above
+			if (top < margin) {
+				top = rect.bottom + 4;
 			}
 
 			left = Math.min(Math.max(left, margin), Math.max(margin, viewportWidth - margin - menuRect.width));
