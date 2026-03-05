@@ -8,7 +8,10 @@ When integrated with [Work IQ](https://learn.microsoft.com/en-us/microsoft-365-c
 
 Vault Copilot uses the [GitHub Copilot CLI SDK](https://github.com/github/copilot-sdk) to build grounded, secure, and reusable AI experiences that fit naturally into existing enterprise knowledge workflows.
 
-![Vault Copilot screenshot](src/docs/images/vault-copilot-screen-shot.png)
+<video width="640" height="360" controls>
+<source src="./src/docs/videos/Vault-Copilot-Intro.mp4" type="video/mp4" allowfullscreen controls>
+Your browser does not support the video tag
+</video>
 
 ---
 
@@ -21,6 +24,9 @@ Vault Copilot uses the [GitHub Copilot CLI SDK](https://github.com/github/copilo
 - Local, file‑based workflow centered on Markdown  
 
 Vault Copilot works alongside your existing notes without changing how they are stored or organized.
+
+![Vault Copilot screenshot](src/docs/images/vault-copilot-screen-shot.png)
+
 
 ---
 
