@@ -9,7 +9,7 @@ When integrated with [Work IQ](https://learn.microsoft.com/en-us/microsoft-365-c
 Vault Copilot uses the [GitHub Copilot CLI SDK](https://github.com/github/copilot-sdk) to build grounded, secure, and reusable AI experiences that fit naturally into existing enterprise knowledge workflows.
 
 <video width="640" height="360" controls>
-<source src="./src/docs/videos/Vault-Copilot-Intro.mp4" type="video/mp4" allowfullscreen controls>
+<source src="https://cdn.jsdelivr.net/gh/danielshue/obsidian-vault-copilot@main/src/docs/videos/Vault-Copilot-Intro.mp4" type="video/mp4">
 Your browser does not support the video tag
 </video>
 
