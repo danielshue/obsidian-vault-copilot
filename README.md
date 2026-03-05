@@ -10,6 +10,10 @@ Vault Copilot uses the [GitHub Copilot CLI SDK](https://github.com/github/copilo
 
 **[▶ Watch the Introduction Video](https://github.com/danielshue/obsidian-vault-copilot/releases/download/0.0.41/Vault-Copilot-Intro.mp4)**
 
+**Architecture Diagrams:**
+- [📄 Architecture Overview (Markdown)](https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/src/docs/vault-copilot-architecture.md)
+- [🎨 Architecture Diagram (Excalidraw)](https://raw.githubusercontent.com/danielshue/obsidian-vault-copilot/main/src/docs/vault-copilot-architecture.excalidraw)
+
 ---
 
 ## Features
