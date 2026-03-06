@@ -95,6 +95,19 @@ describe("BasicCopilotPlugin", () => {
 		const manifest = makeManifest() as never;
 		plugin = new BasicCopilotPlugin(app, manifest);
 
+		const createMockStatusSpan = () => ({
+			setAttribute: vi.fn(),
+			createSpan: vi.fn(() => createMockStatusSpan()),
+			innerHTML: "",
+		});
+
+		const mockStatusBarItem = {
+			addEventListener: vi.fn(),
+			empty: vi.fn(),
+			createSpan: vi.fn(() => createMockStatusSpan()),
+			remove: vi.fn(),
+		};
+
 		// Mock Plugin base class methods
 		plugin.loadData = vi.fn().mockResolvedValue({});
 		plugin.saveData = vi.fn().mockResolvedValue(undefined);
@@ -102,6 +115,7 @@ describe("BasicCopilotPlugin", () => {
 		plugin.addCommand = vi.fn();
 		plugin.addRibbonIcon = vi.fn();
 		plugin.addSettingTab = vi.fn();
+		plugin.addStatusBarItem = vi.fn().mockReturnValue(mockStatusBarItem as never);
 
 		await plugin.onload();
 	});

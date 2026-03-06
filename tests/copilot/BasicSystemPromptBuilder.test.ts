@@ -66,12 +66,14 @@ describe("buildBasicSystemPrompt", () => {
 		expect(app.vault.getName).toHaveBeenCalledTimes(1);
 	});
 
-	it("includes all 5 Basic tool names in the prompt", () => {
+	it("includes all Basic tool names in the prompt", () => {
 		const app = makeApp();
 		const result = buildBasicSystemPrompt(app, "gpt-4.1");
 		expect(result).toContain("get_active_note");
 		expect(result).toContain("open_note");
 		expect(result).toContain("batch_read_notes");
+		expect(result).toContain("create_note");
+		expect(result).toContain("update_note");
 		expect(result).toContain("fetch_web_page");
 		expect(result).toContain("web_search");
 	});
@@ -79,7 +81,6 @@ describe("buildBasicSystemPrompt", () => {
 	it("does NOT include Pro-only tool names", () => {
 		const app = makeApp();
 		const result = buildBasicSystemPrompt(app, "gpt-4.1");
-		expect(result).not.toContain("create_note");
 		expect(result).not.toContain("delete_note");
 		expect(result).not.toContain("ask_question");
 		expect(result).not.toContain("show_markdown");
@@ -96,10 +97,9 @@ describe("buildBasicSystemPrompt", () => {
 		expect(result).not.toContain("```base");
 	});
 
-	it("mentions that Pro features are available for advanced use", () => {
+	it("does not include Pro-specific upgrade messaging", () => {
 		const app = makeApp();
 		const result = buildBasicSystemPrompt(app, "gpt-4.1");
-		// Should mention Pro upgrade path for features like editing
-		expect(result.toLowerCase()).toContain("pro");
+		expect(result.toLowerCase()).not.toContain("pro features");
 	});
 });
