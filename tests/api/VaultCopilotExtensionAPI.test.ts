@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
 	VaultCopilotExtensionAPIImpl,
 	type VaultCopilotExtensionAPIDelegate,
-} from "../src/api/VaultCopilotExtensionAPI";
+} from "../../src/api/VaultCopilotExtensionAPI";
 import type {
 	ToolProvider,
 	AIProviderRegistration,
@@ -22,7 +22,7 @@ import type {
 	CommandRegistration,
 	RenderExtension,
 	StatusBarRegistration,
-} from "../src/api/types";
+} from "../../src/api/types";
 
 // ── Mock delegate ────────────────────────────────────────────────────────────
 
