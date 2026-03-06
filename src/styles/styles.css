@@ -1,2 +1,23 @@
-/* Vault Copilot Basic */
-.vault-copilot-basic-placeholder { display: none; }
+/* Vault Copilot Basic — CSS entry point (bundled by esbuild) */
+/* Core styles shared with Pro; imports reference the parent repo's src/styles/ */
+
+@import 'highlight.js/styles/github-dark.css';
+/* KaTeX CSS loaded via CDN to avoid bundling ~70 font files into the plugin.
+   Obsidian already provides KaTeX fonts; the CDN is a fallback for standalone. */
+@import url('https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.css');
+@import "../../../src/styles/editor-selection.css";
+@import "../../../src/styles/chat.css";
+@import "../../../src/styles/welcome.css";
+@import "../../../src/styles/messages.css";
+@import "../../../src/styles/activity.css";
+@import "../../../src/styles/references.css";
+@import "../../../src/styles/input.css";
+@import "../../../src/styles/toolbar.css";
+@import "../../../src/styles/statusbar.css";
+@import "../../../src/styles/settings.css";
+@import "../../../src/styles/modals.css";
+@import "../../../src/styles/session-panel.css";
+@import "../../../src/styles/tool-picker.css";
+@import "../../../src/styles/tool-approval.css";
+@import "../../../src/styles/prompt-input.css";
+@import "../../../src/styles/mobile.css";
