@@ -94,19 +94,6 @@ vi.mock("../../src/copilot/logging/LogTaxonomy", () => ({
 	},
 }));
 
-// Mock ToolDefinitions to prevent Pro cross-project path issues
-vi.mock("../../../../src/copilot/tools/ToolDefinitions", () => ({
-	TOOL_NAMES: {
-		GET_ACTIVE_NOTE: "get_active_note",
-		OPEN_NOTE: "open_note",
-		BATCH_READ_NOTES: "batch_read_notes",
-		FETCH_WEB_PAGE: "fetch_web_page",
-		WEB_SEARCH: "web_search",
-	},
-	TOOL_DESCRIPTIONS: new Proxy({}, { get: (_t, name) => String(name) }),
-	TOOL_JSON_SCHEMAS: new Proxy({}, { get: () => ({ type: "object", properties: {} }) }),
-}));
-
 // ── Import under test (after vi.mock declarations) ─────────────────────────
 
 import { GitHubCopilotCliService } from "../../src/copilot/providers/GitHubCopilotCliService";

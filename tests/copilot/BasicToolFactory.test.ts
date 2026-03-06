@@ -21,6 +21,8 @@ const BASIC_TOOL_NAMES = {
 	GET_ACTIVE_NOTE: "get_active_note",
 	OPEN_NOTE: "open_note",
 	BATCH_READ_NOTES: "batch_read_notes",
+	CREATE_NOTE: "create_note",
+	UPDATE_NOTE: "update_note",
 	FETCH_WEB_PAGE: "fetch_web_page",
 	WEB_SEARCH: "web_search",
 } as const;
@@ -31,24 +33,13 @@ vi.mock("@github/copilot-sdk", () => ({
 	defineTool: vi.fn((name: string, _opts: unknown) => ({ toolName: name })),
 }));
 
-vi.mock("../../../../src/copilot/tools/VaultOperations", () => ({
+vi.mock("../../src/copilot/tools/VaultOperations", () => ({
 	getActiveNote: vi.fn().mockResolvedValue({ content: "active note content" }),
 	openNote: vi.fn().mockResolvedValue({ opened: true }),
+	createNote: vi.fn().mockResolvedValue({ created: true }),
+	updateNote: vi.fn().mockResolvedValue({ updated: true }),
 	fetchWebPage: vi.fn().mockResolvedValue({ text: "page text" }),
 	webSearch: vi.fn().mockResolvedValue({ results: [] }),
-}));
-
-// Mock ToolDefinitions so the Pro constants file doesn't need to load transitively
-vi.mock("../../../../src/copilot/tools/ToolDefinitions", () => ({
-	TOOL_NAMES: {
-		GET_ACTIVE_NOTE: "get_active_note",
-		OPEN_NOTE: "open_note",
-		BATCH_READ_NOTES: "batch_read_notes",
-		FETCH_WEB_PAGE: "fetch_web_page",
-		WEB_SEARCH: "web_search",
-	},
-	TOOL_DESCRIPTIONS: new Proxy({}, { get: (_t, name) => String(name) }),
-	TOOL_JSON_SCHEMAS: new Proxy({}, { get: (_t, _name) => ({ type: "object", properties: {} }) }),
 }));
 
 import { defineTool } from "@github/copilot-sdk";
@@ -79,12 +70,12 @@ describe("createBasicTools", () => {
 		vi.clearAllMocks();
 	});
 
-	it("returns exactly 5 tools", () => {
+	it("returns exactly 7 tools", () => {
 		const tools = createBasicTools(app, batchReadNotes);
-		expect(tools).toHaveLength(5);
+		expect(tools).toHaveLength(7);
 	});
 
-	it("returns tools with the 5 Basic tool names", () => {
+	it("returns tools with the 7 Basic tool names", () => {
 		createBasicTools(app, batchReadNotes);
 
 		const calledNames = vi.mocked(defineTool).mock.calls.map((c) => c[0]);
@@ -92,6 +83,8 @@ describe("createBasicTools", () => {
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.GET_ACTIVE_NOTE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.OPEN_NOTE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.BATCH_READ_NOTES);
+		expect(calledNames).toContain(BASIC_TOOL_NAMES.CREATE_NOTE);
+		expect(calledNames).toContain(BASIC_TOOL_NAMES.UPDATE_NOTE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.FETCH_WEB_PAGE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.WEB_SEARCH);
 	});
@@ -102,8 +95,6 @@ describe("createBasicTools", () => {
 		const calledNames = vi.mocked(defineTool).mock.calls.map((c) => c[0]);
 
 		// Pro-only tools must not appear in Basic
-		expect(calledNames).not.toContain("create_note");
-		expect(calledNames).not.toContain("update_note");
 		expect(calledNames).not.toContain("delete_note");
 		expect(calledNames).not.toContain("get_tasks");
 		expect(calledNames).not.toContain("ask_question");
