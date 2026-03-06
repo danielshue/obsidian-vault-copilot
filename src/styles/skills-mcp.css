@@ -1,0 +1,832 @@
+/* ================================
+   SKILLS & MCP TABLE SECTION
+   ================================ */
+
+.vc-skills-section {
+	/* Uses base .vc-settings-section styles */
+}
+
+.vc-skills-container {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.vc-skills-subsection h4 {
+	margin: 0 0 12px 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+/* Empty State */
+.vc-empty-state {
+	padding: 16px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	text-align: center;
+}
+
+.vc-empty-state p {
+	margin: 0;
+}
+
+.vc-empty-state p:first-child {
+	color: var(--text-muted);
+	font-weight: 500;
+	margin-bottom: 4px;
+}
+
+/* Skills Table */
+.vc-skills-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: clamp(12px, 1.5vw, 13px);
+	background: var(--background-primary);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.vc-skills-table--two-col,
+.vc-skills-table--four-col {
+	table-layout: fixed;
+}
+
+.vc-skills-table--two-col th:nth-child(1),
+.vc-skills-table--two-col td:nth-child(1) {
+	width: 30%;
+}
+
+.vc-skills-table--two-col th:nth-child(2),
+.vc-skills-table--two-col td:nth-child(2) {
+	width: 70%;
+}
+
+.vc-skills-table--four-col th:nth-child(1),
+.vc-skills-table--four-col td:nth-child(1) {
+	width: 18%;
+}
+
+.vc-skills-table--four-col th:nth-child(2),
+.vc-skills-table--four-col td:nth-child(2) {
+	width: 52%;
+}
+
+.vc-skills-table--four-col th:nth-child(3),
+.vc-skills-table--four-col td:nth-child(3) {
+	width: 20%;
+}
+
+.vc-skills-table--four-col th:nth-child(4),
+.vc-skills-table--four-col td:nth-child(4) {
+	width: 10%;
+}
+
+.vc-skills-table thead {
+	background: var(--background-modifier-border);
+}
+
+.vc-skills-table th {
+	padding: 10px 12px;
+	text-align: left;
+	font-weight: 600;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-skills-table td {
+	padding: 10px 12px;
+	color: var(--text-normal);
+	border-bottom: 1px solid var(--background-modifier-border);
+	vertical-align: top;
+	overflow-wrap: anywhere;
+}
+
+.vc-skills-table tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.vc-skills-table tbody tr:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Table Cell Variants */
+.vc-skill-name,
+.vc-mcp-name {
+	font-weight: 500;
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 12px;
+}
+
+.vc-skill-name-row {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	max-width: 100%;
+	cursor: help;
+}
+
+.vc-skill-name-text {
+	overflow-wrap: anywhere;
+}
+
+.vc-skills-info-trigger,
+.vc-skills-info-trigger:hover,
+.vc-skills-info-trigger:focus,
+.vc-skills-info-trigger:active {
+	-webkit-appearance: none;
+	appearance: none;
+	border: none;
+	background: transparent !important;
+	background-color: transparent !important;
+	box-shadow: none !important;
+	padding: 0;
+	margin: 0;
+	color: var(--text-muted);
+	cursor: help;
+	line-height: 1;
+	flex-shrink: 0;
+	width: 14px;
+	height: 14px;
+}
+
+.vc-skill-name-row:hover .vc-skills-info-trigger,
+.vc-skills-info-trigger:hover,
+.vc-skills-info-trigger:focus {
+	color: var(--text-normal);
+}
+
+.vc-skills-info-trigger svg {
+	width: 14px;
+	height: 14px;
+	stroke-width: 1.9;
+}
+
+.vc-skills-info-popup {
+	position: fixed;
+	z-index: 10000;
+	width: min(360px, 42vw);
+	max-width: calc(100vw - 24px);
+	padding: 12px;
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+	pointer-events: auto;
+	font-size: 12px;
+}
+
+.vc-skills-info-popup__title {
+	font-weight: 600;
+	color: var(--text-normal);
+	margin-bottom: 8px;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+
+.vc-skills-info-popup__desc {
+	color: var(--text-muted);
+	line-height: 1.4;
+	margin-bottom: 10px;
+	overflow-wrap: anywhere;
+}
+
+.vc-skills-info-popup__meta {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding-top: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-skills-info-popup__meta-row {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-faint);
+	overflow-wrap: anywhere;
+}
+
+.vc-skill-desc {
+	color: var(--text-muted);
+	max-width: none;
+	line-height: 1.4;
+}
+
+.vc-skill-plugin,
+.vc-mcp-type {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.vc-skill-category {
+	font-size: 11px;
+	text-transform: capitalize;
+	color: var(--text-faint);
+}
+
+/* Status Badge */
+.vc-status-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 12px;
+	font-size: 11px;
+	font-weight: 500;
+}
+
+.vc-badge-ok {
+	background: rgba(var(--color-green-rgb), 0.15);
+	color: var(--color-green);
+}
+
+.vc-badge-disabled {
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.vc-badge-warning {
+	background: rgba(var(--color-yellow-rgb), 0.15);
+	color: var(--color-yellow);
+}
+
+.vc-badge-error {
+	background: rgba(var(--color-red-rgb), 0.15);
+	color: var(--color-red);
+}
+
+/* Periodic Notes Settings Section */
+.vc-periodic-note-section {
+	margin-top: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.vc-periodic-note-section summary {
+	cursor: pointer;
+	list-style: none;
+}
+
+.vc-periodic-note-section summary::-webkit-details-marker {
+	display: none;
+}
+
+.vc-periodic-note-header {
+	padding: 10px 14px;
+	background: var(--background-primary);
+}
+
+.vc-periodic-header-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.vc-periodic-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
+}
+
+.vc-periodic-icon svg {
+	width: 20px;
+	height: 20px;
+	color: var(--text-muted);
+	fill: var(--text-muted);
+}
+
+.vc-periodic-label {
+	font-weight: 500;
+	color: var(--text-normal);
+	flex: 1;
+}
+
+.vc-periodic-badge {
+	font-size: 11px;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-weight: 500;
+}
+
+.vc-periodic-content {
+	padding: 12px 14px;
+	background: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-periodic-content .setting-item {
+	padding: 8px 0;
+	border-bottom: none;
+}
+
+.vc-periodic-content .setting-item:first-child {
+	padding-top: 0;
+}
+
+.vc-periodic-content .setting-item:last-child {
+	padding-bottom: 0;
+}
+
+/* Periodic Notes Header Toggle */
+.vc-periodic-toggle-wrapper {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+.vc-periodic-toggle-wrapper .checkbox-container {
+	margin: 0;
+}
+
+/* Disabled message when periodic note type is off */
+.vc-periodic-disabled-msg {
+	color: var(--text-muted);
+	font-size: 13px;
+	font-style: italic;
+	margin: 0;
+	padding: 4px 0;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   MCP Servers section — table layout
+   ──────────────────────────────────────────────────────────────── */
+
+/* Section header row */
+.vc-mcp-settings-section .vc-section-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 6px;
+}
+
+.vc-mcp-settings-section .vc-section-header h3 {
+	margin: 0;
+	font-size: 1em;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-mcp-description {
+	margin: 0 0 14px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+/* Header action buttons */
+.vc-mcp-header-actions {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.vc-mcp-settings-section .vc-mcp-header-actions .vc-mcp-refresh-btn,
+.vc-mcp-settings-section .vc-mcp-header-actions .vc-mcp-refresh-btn:hover,
+.vc-mcp-settings-section .vc-mcp-header-actions .vc-mcp-refresh-btn:focus,
+.vc-mcp-settings-section .vc-mcp-header-actions .vc-mcp-refresh-btn:active {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 30px;
+	height: 30px;
+	padding: 4px;
+	border-radius: 4px;
+	background: transparent !important;
+	background-color: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-muted);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s;
+}
+
+.vc-mcp-settings-section .vc-mcp-header-actions .vc-mcp-refresh-btn:hover,
+.vc-mcp-settings-section .vc-mcp-header-actions .vc-mcp-refresh-btn:focus,
+.vc-mcp-settings-section .vc-mcp-header-actions .vc-mcp-refresh-btn:active {
+	background: transparent !important;
+	background-color: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-normal);
+}
+
+.vc-mcp-settings-section .vc-mcp-header-actions .vc-mcp-refresh-btn:focus-visible {
+	outline: 2px solid rgba(var(--interactive-accent-rgb), 0.35);
+	outline-offset: 1px;
+}
+
+/* ── Source group ── */
+.vc-mcp-source-section {
+	margin-bottom: 20px;
+}
+
+.vc-mcp-source-label {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 2px 6px;
+	font-size: 0.78em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+	border-bottom: 1px solid var(--background-modifier-border);
+	margin-bottom: 0;
+}
+
+.vc-mcp-source-count {
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: 0;
+	opacity: 0.7;
+}
+
+/* ── Table ── */
+.vc-mcp-table {
+	display: table !important; /* Obsidian sets display:block on <table>; restore table layout */
+	width: 100% !important;
+	table-layout: fixed !important;
+	border-collapse: collapse;
+	font-size: 0.88em;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 0 0 8px 8px;
+	overflow: hidden;
+}
+
+.vc-mcp-table thead {
+	background: var(--background-secondary);
+}
+
+.vc-mcp-table th {
+	padding: 8px 12px;
+	text-align: left;
+	font-size: 0.75em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	border-bottom: 1px solid var(--background-modifier-border);
+	white-space: nowrap;
+	position: relative; /* anchor for resize handle */
+}
+
+.vc-mcp-table td {
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	vertical-align: middle;
+}
+
+.vc-mcp-table tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.vc-mcp-table tbody tr:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Fixed column widths (table-layout: fixed) — Server & Tools sized dynamically via JS colgroup */
+.vc-mcp-col-type      { width: 80px;  white-space: nowrap; }
+.vc-mcp-col-autostart { width: 80px;  white-space: nowrap; text-align: center; }
+.vc-mcp-col-control   { width: 60px;  text-align: center; }
+.vc-mcp-col-options   { width: 44px;  text-align: center; }
+
+/* ── Scrollable table wrapper (lets resized columns overflow horizontally) ── */
+.vc-mcp-table-scroll {
+	overflow-x: auto;
+	width: 100%;
+}
+
+/* ── Per-column right-edge drag-resize handle (Grid.js-style) ── */
+.vc-col-resize-handle {
+	position: absolute;
+	top: 0;
+	right: -6px;
+	width: 12px;
+	height: 100%; /* overridden via JS to full table height on mousedown */
+	cursor: col-resize;
+	z-index: 10;
+	user-select: none;
+	background: transparent;
+	border: none;
+	transition: background-color 0.15s;
+}
+
+.vc-col-resize-handle::after {
+	content: '';
+	position: absolute;
+	top: 20%;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 3px;
+	height: 60%;
+	border-radius: 2px;
+	background: transparent;
+	transition: background-color 0.15s;
+}
+
+.vc-col-resize-handle:hover::after,
+.vc-col-resize-handle.is-resizing::after {
+	background: var(--interactive-accent);
+}
+
+/* ── Source group separator rows ── */
+.vc-mcp-group-row td {
+	padding: 0;
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-mcp-group-inner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 5px 12px 4px;
+	font-size: 0.75em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+}
+
+/* Server cell */
+.vc-mcp-server-name {
+	font-weight: 600;
+	color: var(--text-normal);
+	display: block;
+}
+
+.vc-mcp-server-detail {
+	font-size: 0.78em;
+	color: var(--text-muted);
+	font-family: var(--font-monospace);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 100%;
+	margin-top: 2px;
+}
+
+/* Type badge */
+.vc-mcp-type-badge {
+	display: inline-block;
+	padding: 2px 7px;
+	border-radius: 10px;
+	font-size: 0.75em;
+	font-weight: 600;
+	letter-spacing: 0.03em;
+}
+
+.vc-mcp-type-badge[data-transport="stdio"] {
+	background: color-mix(in srgb, #6c5ce7 15%, transparent);
+	color: #6c5ce7;
+}
+
+.vc-mcp-type-badge[data-transport="http"] {
+	background: color-mix(in srgb, #0078d4 15%, transparent);
+	color: #0078d4;
+}
+
+/* Tool chips */
+.vc-mcp-tools-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	max-width: 100%;
+}
+
+.vc-mcp-tool-chip {
+	display: inline-block;
+	padding: 1px 7px;
+	border-radius: 10px;
+	font-size: 0.72em;
+	font-weight: 500;
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+	white-space: nowrap;
+	max-width: 140px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	cursor: default;
+}
+
+.vc-mcp-tool-chip:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.vc-mcp-tools-empty {
+	color: var(--text-faint);
+	font-size: 0.82em;
+}
+
+/* Auto-start toggle — uses Obsidian's native checkbox-container */
+.vc-mcp-col-autostart .checkbox-container {
+	display: inline-block;
+	margin: 0 auto;
+}
+
+/* Shell fallback: Obsidian host styles for .checkbox-container are unavailable,
+   so render MCP auto-start as an explicit toggle track/thumb in shell settings. */
+.vc-shell-settings-layout .vc-mcp-col-autostart .checkbox-container {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: flex-start;
+	width: 36px;
+	height: 20px;
+	border-radius: 999px;
+	background: var(--background-modifier-border);
+	transition: background 0.15s ease;
+	cursor: pointer;
+	vertical-align: middle;
+}
+
+.vc-shell-settings-layout .vc-mcp-col-autostart .checkbox-container::after {
+	content: "";
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: var(--text-on-accent);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+	transition: transform 0.15s ease;
+}
+
+.vc-shell-settings-layout .vc-mcp-col-autostart .checkbox-container.is-enabled {
+	background: var(--interactive-accent) !important;
+}
+
+.vc-shell-settings-layout .vc-mcp-col-autostart .checkbox-container.is-enabled::after {
+	transform: translateX(16px);
+}
+
+/* ── Control: reuse shared dot-btn styles from automations.css ( .vc-status-dot-btn ) ── */
+/* Scope transparent overrides to override Obsidian button defaults inside this section */
+.vc-mcp-settings-section .vc-status-dot-btn,
+.vc-mcp-settings-section .vc-status-dot-btn:hover,
+.vc-mcp-settings-section .vc-status-dot-btn:focus,
+.vc-mcp-settings-section .vc-status-dot-btn:active {
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent;
+	background-color: transparent;
+	box-shadow: none;
+	border: none;
+	outline: none;
+}
+
+.vc-mcp-connecting {
+	font-size: 0.82em;
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+/* ── Kebab menu button ── */
+.vc-mcp-settings-section .vc-mcp-kebab-btn,
+.vc-mcp-settings-section .vc-mcp-kebab-btn:focus,
+.vc-mcp-settings-section .vc-mcp-kebab-btn:active {
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent;
+	background-color: transparent;
+	box-shadow: none;
+	border: none;
+	outline: none;
+	color: var(--text-muted);
+	font-size: 1.2em;
+	line-height: 1;
+	padding: 2px 6px;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+}
+
+.vc-mcp-settings-section .vc-mcp-kebab-btn:hover {
+	background: var(--background-modifier-hover);
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* ── Empty state ── */
+.vc-mcp-empty {
+	padding: 24px 0;
+	text-align: center;
+}
+
+.vc-mcp-empty-title {
+	font-weight: 600;
+	color: var(--text-normal);
+	margin: 0 0 6px;
+}
+
+/* ── Footer summary ── */
+.vc-mcp-summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding-top: 10px;
+	font-size: 0.8em;
+	color: var(--text-muted);
+}
+
+.vc-mcp-summary-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	display: inline-block;
+	flex-shrink: 0;
+}
+
+.vc-mcp-dot-ok  { background: var(--color-green, var(--text-success)); }
+.vc-mcp-dot-off { background: var(--text-faint); }
+
+
+/* Status Item Updates */
+.vc-status-item.vc-status-ok {
+	background: transparent;
+	box-shadow: none;
+}
+
+.vc-status-item.vc-status-error {
+	background: transparent;
+	box-shadow: none;
+}
+
+.vc-status-item .vc-status-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 0;
+	background: transparent !important;
+}
+
+.vc-status-item.vc-status-ok .vc-status-icon {
+	color: var(--color-green, var(--text-success));
+}
+
+.vc-status-item.vc-status-error .vc-status-icon {
+	color: var(--color-red, var(--text-error));
+}
+
+.vc-status-item .vc-status-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.vc-status-item .vc-status-detail {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+/* Auth Note */
+.vc-auth-note {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+}
+
+.vc-auth-note p {
+	margin: 0;
+}
+
+.vc-auth-details {
+	margin-top: 8px;
+}
+
+.vc-auth-details summary {
+	cursor: pointer;
+	font-size: 13px;
+	color: var(--interactive-accent);
+}
+
+.vc-auth-details summary:hover {
+	text-decoration: underline;
+}
+
+/* Status Description */
+.vc-status-desc {
+	font-size: 13px;
+	color: var(--text-muted);
+	margin: 0;
+}
+
+/* Button Sizes */
+.vc-btn-sm {
+	padding: 4px 10px;
+	font-size: 12px;
+}

@@ -1,0 +1,2434 @@
+/* CLI Status Section in Settings */
+.vc-cli-status-section {
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	margin-bottom: 16px;
+}
+
+.vc-status-checking {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.vc-status-row {
+	display: flex;
+	align-items: center;
+	padding: 8px 0;
+}
+
+.vc-status-indicator-wrapper {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-status-dot {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	display: inline-block;
+	flex-shrink: 0;
+}
+
+.vc-status-ok {
+	background: var(--color-green);
+	box-shadow: 0 0 6px var(--color-green);
+}
+
+.vc-status-error {
+	background: var(--color-red);
+	box-shadow: 0 0 6px var(--color-red);
+}
+
+.vc-status-label {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-version {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin-left: 4px;
+}
+
+/* Install Section */
+.vc-install-section {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-warning {
+	color: var(--text-warning);
+	font-weight: 500;
+}
+
+.vc-install-command {
+	margin: 12px 0;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-install-command p {
+	margin: 0 0 8px 0;
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.vc-code-block {
+	display: block;
+	padding: 8px 12px;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	color: var(--text-normal);
+	word-break: break-all;
+	margin-bottom: 8px;
+}
+
+.vc-copy-btn {
+	padding: 4px 12px;
+	font-size: 0.85em;
+	background: var(--background-modifier-border);
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-normal);
+}
+
+.vc-copy-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Auth Section */
+.vc-auth-section {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-pat-info {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	font-size: 0.9em;
+}
+
+.vc-pat-info p {
+	margin: 0 0 8px 0;
+	color: var(--text-muted);
+}
+
+.vc-pat-info ol {
+	margin: 0;
+	padding-left: 20px;
+}
+
+.vc-pat-info li {
+	margin: 4px 0;
+	color: var(--text-normal);
+}
+
+.vc-pat-info code {
+	background: var(--background-secondary);
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 0.9em;
+}
+
+.vc-pat-info a {
+	color: var(--interactive-accent);
+}
+
+/* Help Content */
+.vc-help-content p {
+	margin-bottom: 12px;
+}
+
+.vc-help-content p:last-child {
+	margin-bottom: 0;
+}
+
+/* Help Links */
+.vc-help-links {
+	margin-top: 12px;
+	font-size: 0.9em;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.vc-help-links a {
+	color: var(--interactive-accent);
+	display: block;
+}
+
+.vc-help-links a:hover {
+	text-decoration: underline;
+}
+
+/* Model Banner */
+.vc-model-banner {
+	padding: 8px 16px;
+	background: linear-gradient(135deg, var(--interactive-accent) 0%, var(--interactive-accent-hover) 100%);
+	color: var(--text-on-accent);
+	font-size: 13px;
+}
+
+.vc-banner-content {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-banner-icon {
+	display: flex;
+	align-items: center;
+	opacity: 0.9;
+}
+
+.vc-banner-text {
+	flex: 1;
+	font-weight: 500;
+}
+
+.vc-banner-change-btn {
+	background: rgba(255, 255, 255, 0.2);
+	border: none;
+	padding: 4px 10px;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-on-accent);
+	font-size: 12px;
+	transition: background 0.15s;
+}
+
+.vc-banner-change-btn:hover {
+	background: rgba(255, 255, 255, 0.3);
+}
+
+/* ================================
+   PROFESSIONAL SETTINGS UI
+   ================================ */
+
+/* --- Settings dialog sizing relative to app window --- */
+.modal.mod-settings {
+	width: clamp(700px, 85vw, 1400px) !important;
+	height: clamp(500px, 80vh, 95vh) !important;
+	max-width: 95vw !important;
+	max-height: 95vh !important;
+}
+
+/* Ensure content pane fills the available dialog space */
+.modal.mod-settings .vertical-tab-content-container {
+	flex: 1;
+	min-width: 0;
+	overflow-y: auto;
+}
+
+.modal.mod-settings .vertical-tab-content.vc-settings {
+	width: 100%;
+	max-width: 100%;
+	padding: clamp(8px, 1.5vw, 14px);
+	padding-top: 35px;
+	padding-left: 35px;
+	box-sizing: border-box;
+}
+
+/* Root settings container - responsive to window size */
+.vc-settings {
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.vc-main-settings {
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+/* Settings Header */
+.vc-settings-header {
+	margin-bottom: clamp(16px, 3vw, 24px);
+	padding: clamp(12px, 2vw, 16px);
+	background: var(--background-secondary);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-settings-title-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+}
+
+.vc-settings-logo {
+	width: 36px;
+	height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	margin-top: 2px;
+}
+
+.vc-settings-logo img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.vc-settings-title-text {
+	flex: 1;
+	min-width: 0;
+}
+
+.vc-settings-header h2 {
+	margin: 0 0 4px 0;
+	padding-left: 0;
+	font-size: clamp(16px, 2.5vw, 20px);
+	font-weight: 600;
+	color: var(--text-normal);
+	text-align: left;
+}
+
+.vc-settings-header p {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: 13px;
+	line-height: 1.4;
+	text-align: left;
+}
+
+/* Settings Sections */
+.vc-settings-section {
+	margin-bottom: 10px;
+	padding: clamp(10px, 2vw, 14px);
+	background: var(--background-secondary);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-section-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 6px;
+}
+
+.vc-section-header-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-section-description {
+	margin: 0 0 10px;
+	font-size: 0.9em;
+	line-height: 1.45;
+	color: var(--text-muted);
+}
+
+/* Primary top card in General section */
+.vc-general-primary-card {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px;
+	padding: 0 16px;
+	overflow: hidden;
+}
+
+/* Version/update row inside General top card */
+.vc-version-update-card {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 0;
+	padding: 14px 0;
+	background: var(--background-primary);
+	border: 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-version-update-content {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	min-width: 0;
+}
+
+.vc-version-update-title {
+	font-size: 1.2em;
+	line-height: 1.3;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-version-update-installer,
+.vc-version-update-message {
+	font-size: 0.92em;
+	line-height: 1.35;
+	color: var(--text-muted);
+}
+
+.vc-version-update-link {
+	font-size: 0.92em;
+	line-height: 1.35;
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+.vc-version-update-link:hover {
+	color: var(--text-accent-hover);
+}
+
+.vc-version-update-action {
+	flex-shrink: 0;
+}
+
+.vc-version-update-btn {
+	padding: 9px 16px;
+	font-size: 1em;
+	line-height: 1.2;
+	min-width: 96px;
+}
+
+@media (max-width: 760px) {
+	.vc-version-update-card {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.vc-version-update-btn {
+		width: auto;
+	}
+}
+
+/* Professional spacing / hierarchy for shell subsection blocks */
+.vc-general-section .setting-item {
+	padding: 11px 0;
+}
+
+.vc-general-primary-card .setting-item {
+	padding: 16px 0;
+}
+
+.vc-shell-subsection {
+	margin-top: 16px;
+}
+
+.vc-shell-subsection-no-title {
+	margin-top: 8px;
+}
+
+.vc-shell-subsection-title {
+	margin: 0 0 8px 0;
+	font-size: 1.05em;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-shell-subsection-card {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px;
+	padding: 0 14px;
+}
+
+.vc-shell-subsection-card .setting-item {
+	padding: 14px 0;
+}
+
+.vc-general-section .setting-item-name {
+	font-size: 0.98em;
+}
+
+.vc-general-section .setting-item-description {
+	font-size: 0.88em;
+	line-height: 1.45;
+}
+
+.vc-general-section .vc-account-status {
+	margin-top: 2px;
+}
+
+/* Editor section matches Obsidian-like grouped setting cards */
+.vc-editor-section .vc-shell-subsection {
+	margin-top: 18px;
+}
+
+.vc-editor-section .vc-shell-subsection:first-of-type {
+	margin-top: 8px;
+}
+
+.vc-editor-section .vc-shell-subsection-card {
+	border-radius: 16px;
+	padding: 0 16px;
+}
+
+.vc-editor-section .vc-shell-subsection-card .setting-item {
+	padding: 18px 0;
+}
+
+.vc-editor-section .vc-shell-subsection-card .setting-item-name {
+	font-size: 1em;
+	font-weight: 500;
+}
+
+.vc-editor-section .vc-shell-subsection-card .setting-item-description {
+	font-size: 0.9em;
+	line-height: 1.4;
+}
+
+/* Files & Links section follows the same grouped-card visual language */
+.vc-files-links-section .vc-shell-subsection {
+	margin-top: 18px;
+}
+
+.vc-files-links-primary-card,
+.vc-files-links-section .vc-shell-subsection-card {
+	border-radius: 16px;
+	padding: 0 16px;
+}
+
+.vc-files-links-primary-card .setting-item,
+.vc-files-links-section .vc-shell-subsection-card .setting-item {
+	padding: 18px 0;
+}
+
+.vc-files-links-section .setting-item-name {
+	font-size: 1em;
+	font-weight: 500;
+}
+
+.vc-files-links-section .setting-item-description {
+	font-size: 0.9em;
+	line-height: 1.4;
+}
+
+.vc-setting-warning {
+	color: var(--text-error, #e5534b);
+}
+
+/* Appearance section matches grouped cards and row spacing */
+.vc-appearance-section .vc-shell-subsection {
+	margin-top: 18px;
+}
+
+.vc-appearance-primary-card,
+.vc-appearance-section .vc-shell-subsection-card {
+	border-radius: 16px;
+	padding: 0 16px;
+}
+
+.vc-appearance-primary-card .setting-item,
+.vc-appearance-section .vc-shell-subsection-card .setting-item {
+	padding: 18px 0;
+}
+
+.vc-appearance-section .setting-item-name {
+	font-size: 1em;
+	font-weight: 500;
+}
+
+.vc-appearance-section .setting-item-description {
+	font-size: 0.9em;
+	line-height: 1.4;
+}
+
+.vc-chat-preferences-section .vc-plugin-inner-settings-card,
+.vc-tool-selection-section .vc-plugin-inner-settings-card,
+.vc-voice-input-section .vc-plugin-inner-settings-card,
+.vc-whisper-section .vc-plugin-inner-settings-card,
+.vc-realtime-agent-section .vc-plugin-inner-settings-card,
+.vc-telegram-settings-section .vc-plugin-inner-settings-card {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 16px;
+	padding: 0 16px;
+}
+
+.vc-chat-preferences-section .vc-plugin-inner-settings-card .setting-item,
+.vc-tool-selection-section .vc-plugin-inner-settings-card .setting-item,
+.vc-voice-input-section .vc-plugin-inner-settings-card .setting-item,
+.vc-whisper-section .vc-plugin-inner-settings-card .setting-item,
+.vc-realtime-agent-section .vc-plugin-inner-settings-card .setting-item,
+.vc-telegram-settings-section .vc-plugin-inner-settings-card .setting-item {
+	padding: 18px 0;
+	background: transparent !important;
+	background-color: transparent !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	border-bottom: 1px solid var(--background-modifier-border) !important;
+}
+
+.vc-chat-preferences-section .vc-plugin-inner-settings-card .setting-item:last-child,
+.vc-tool-selection-section .vc-plugin-inner-settings-card .setting-item:last-child,
+.vc-voice-input-section .vc-plugin-inner-settings-card .setting-item:last-child,
+.vc-whisper-section .vc-plugin-inner-settings-card .setting-item:last-child,
+.vc-realtime-agent-section .vc-plugin-inner-settings-card .setting-item:last-child,
+.vc-telegram-settings-section .vc-plugin-inner-settings-card .setting-item:last-child {
+	border-bottom: none !important;
+}
+
+.vc-chat-preferences-compaction-subsection {
+	margin-top: 16px;
+}
+
+.vc-chat-preferences-section .setting-item-name,
+.vc-voice-input-section .setting-item-name,
+.vc-whisper-section .setting-item-name,
+.vc-realtime-agent-section .setting-item-name,
+.vc-telegram-settings-section .setting-item-name {
+	font-size: 1em;
+	font-weight: 500;
+}
+
+.vc-chat-preferences-section .setting-item-description,
+.vc-voice-input-section .setting-item-description,
+.vc-whisper-section .setting-item-description,
+.vc-realtime-agent-section .setting-item-description,
+.vc-telegram-settings-section .setting-item-description {
+	font-size: 0.9em;
+	line-height: 1.4;
+}
+
+.vc-realtime-agent-section .vc-realtime-settings-card {
+	margin-top: 16px;
+}
+
+.vc-realtime-agent-section .vc-realtime-tool-capabilities-section {
+	margin-top: 16px;
+}
+
+.vc-realtime-agent-section .vc-realtime-tool-capabilities-card {
+	border-radius: 16px;
+	padding: 0 16px;
+}
+
+.vc-realtime-agent-section .vc-realtime-tool-capabilities-card .setting-item {
+	padding: 18px 0;
+}
+
+.vc-appearance-section .color-picker {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 42px !important;
+	height: 42px !important;
+	border-radius: 50% !important;
+	overflow: hidden;
+	padding: 0 !important;
+	border: 2px solid var(--background-modifier-border) !important;
+	background: transparent !important;
+}
+
+.vc-appearance-section .color-picker::-webkit-color-swatch-wrapper {
+	padding: 0;
+	border-radius: 50%;
+}
+
+.vc-appearance-section .color-picker::-webkit-color-swatch {
+	border: none;
+	border-radius: 50%;
+}
+
+.vc-appearance-section .color-picker::-moz-color-swatch {
+	border: none;
+	border-radius: 50%;
+}
+
+.vc-appearance-section .vc-accent-reset-btn {
+	width: 30px !important;
+	height: 30px !important;
+	padding: 0 !important;
+	border-radius: 50% !important;
+	border: 1px solid var(--background-modifier-border) !important;
+	background: var(--background-primary) !important;
+	color: var(--text-muted) !important;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.vc-appearance-section .vc-accent-reset-btn:hover {
+	background: var(--background-modifier-hover) !important;
+	border-color: var(--background-modifier-border-hover) !important;
+	color: var(--text-normal) !important;
+}
+
+.vc-markdown-preview-intro {
+	margin: 8px 0 10px;
+	font-size: 0.9em;
+	line-height: 1.45;
+	color: var(--text-muted);
+}
+
+.vc-markdown-preview-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+	align-items: stretch;
+}
+
+.vc-markdown-preview-pane {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	padding: 12px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.vc-markdown-preview-pane.theme-dark {
+	--background-primary: #1e1e1e;
+	--background-secondary: #252526;
+	--background-modifier-border: #3e3e42;
+	--background-modifier-hover: #2a2d2e;
+	--text-normal: #d4d4d4;
+	--text-muted: #9da0a5;
+	--interactive-accent: #4da3ff;
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.vc-markdown-preview-pane-title {
+	margin: 0 0 10px;
+	font-size: 0.9em;
+	font-weight: 600;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.vc-markdown-preview-sample {
+	border-radius: 10px;
+	padding: 12px;
+	background: var(--background-primary);
+	line-height: 1.5;
+	font-family: var(--font-text, var(--font-interface));
+}
+
+.vc-markdown-preview-pane.theme-dark .vc-markdown-preview-sample {
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.vc-markdown-preview-sample h1,
+.vc-markdown-preview-sample h2,
+.vc-markdown-preview-sample h3,
+.vc-markdown-preview-sample h4,
+.vc-markdown-preview-sample h5 {
+	margin: 0 0 10px;
+	line-height: 1.3;
+}
+
+.vc-markdown-preview-sample h1 {
+	font-size: 1.4em;
+}
+
+.vc-markdown-preview-sample h2 {
+	font-size: 1.25em;
+}
+
+.vc-markdown-preview-sample h3 {
+	font-size: 1.12em;
+}
+
+.vc-markdown-preview-sample h4 {
+	font-size: 1em;
+}
+
+.vc-markdown-preview-sample h5 {
+	font-size: 0.9em;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+}
+
+.vc-markdown-preview-sample p {
+	margin: 0 0 10px;
+	font-family: var(--font-text, var(--font-interface));
+}
+
+.vc-markdown-preview-sample blockquote {
+	margin: 0 0 10px;
+	padding-left: 10px;
+	border-left: 3px solid var(--interactive-accent);
+	color: var(--text-muted);
+}
+
+.vc-markdown-preview-sample code,
+.vc-markdown-preview-sample pre {
+	font-family: var(--font-monospace);
+}
+
+.vc-markdown-preview-sample pre {
+	margin: 10px 0 0;
+	padding: 8px;
+	border-radius: 8px;
+	background: var(--background-secondary);
+	overflow-x: auto;
+	white-space: pre;
+}
+
+.vc-markdown-preview-sample .vc-math-block,
+.vc-markdown-preview-sample .vc-mermaid-diagram,
+.vc-markdown-preview-sample .vc-mermaid-error,
+.vc-markdown-preview-sample .vc-math-error {
+	margin: 10px 0;
+}
+
+/* Hotkeys section */
+.vc-hotkeys-section .vc-hotkeys-subsection {
+	margin-top: 14px;
+}
+
+.vc-hotkeys-card {
+	border-radius: 16px;
+	padding: 14px 16px;
+}
+
+.vc-hotkeys-toolbar {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding-bottom: 14px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-hotkeys-title {
+	margin: 0;
+	font-size: 1.02em;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-hotkeys-count {
+	margin: 4px 0 0;
+	font-size: 0.88em;
+	line-height: 1.4;
+	color: var(--text-muted);
+}
+
+.vc-hotkeys-search {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 240px;
+	max-width: 320px;
+	padding: 8px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	background: var(--background-primary);
+}
+
+.vc-hotkeys-search:focus-within {
+	border-color: rgba(var(--interactive-accent-rgb), 0.45);
+	box-shadow: 0 0 0 1px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.vc-hotkeys-search-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	width: 18px;
+	height: 18px;
+	flex-shrink: 0;
+}
+
+.vc-hotkeys-search-input {
+	width: 100%;
+	border: none;
+	background: transparent;
+	outline: none;
+	color: var(--text-normal);
+	font-size: 0.92em;
+}
+
+.vc-hotkeys-list {
+	display: flex;
+	flex-direction: column;
+	padding-top: 4px;
+}
+
+.vc-hotkeys-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+	padding: 15px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-hotkeys-row-info {
+	min-width: 0;
+	flex: 1;
+}
+
+.vc-hotkeys-row-name {
+	font-size: 0.98em;
+	font-weight: 500;
+	color: var(--text-normal);
+	line-height: 1.35;
+}
+
+.vc-hotkeys-row-warning {
+	margin-top: 4px;
+	font-size: 0.82em;
+	line-height: 1.35;
+	color: var(--text-warning);
+}
+
+.vc-hotkeys-row-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	flex-wrap: wrap;
+	flex-shrink: 0;
+}
+
+.vc-hotkeys-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 4px 6px 4px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	background: var(--background-primary);
+	font-size: 0.84em;
+	font-family: var(--font-monospace);
+	color: var(--text-normal);
+}
+
+.vc-hotkeys-chip.is-blank {
+	font-family: var(--font-interface);
+	color: var(--text-muted);
+	background: var(--background-modifier-hover);
+}
+
+.vc-hotkeys-chip-remove,
+.vc-hotkeys-add-btn,
+.vc-hotkeys-reset-btn {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 50%;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.vc-hotkeys-chip-remove {
+	width: 18px;
+	height: 18px;
+	border: none;
+	border-radius: 50%;
+}
+
+.vc-hotkeys-chip-remove:hover,
+.vc-hotkeys-add-btn:hover,
+.vc-hotkeys-reset-btn:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+	color: var(--text-normal);
+}
+
+.vc-hotkeys-empty {
+	padding: 20px 0 10px;
+	text-align: center;
+	font-size: 0.92em;
+	color: var(--text-muted);
+}
+
+.vc-hotkey-capture-modal {
+	min-width: min(520px, 92vw) !important;
+	max-width: min(520px, 92vw) !important;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px !important;
+}
+
+.vc-hotkey-capture-modal .modal-title {
+	padding: 16px 46px 2px 16px !important;
+	font-size: 1.3em;
+	font-weight: 600;
+}
+
+.vc-hotkey-capture-modal .modal-content {
+	padding: 8px 16px 16px !important;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.vc-hotkey-capture-intro {
+	margin: 0;
+	font-size: 0.92em;
+	line-height: 1.45;
+	color: var(--text-muted);
+}
+
+.vc-hotkey-capture-input-wrap {
+	display: flex;
+	align-items: center;
+	padding: 4px 0;
+}
+
+.vc-hotkey-capture-input {
+	width: 100%;
+	min-height: 40px;
+	padding: 8px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 0.95em;
+	outline: none;
+	cursor: text;
+}
+
+.vc-hotkey-capture-input:focus {
+	border-color: rgba(var(--interactive-accent-rgb), 0.45);
+	box-shadow: 0 0 0 1px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.vc-hotkey-capture-hint {
+	margin: 0;
+	font-size: 0.85em;
+	line-height: 1.4;
+	color: var(--text-muted);
+}
+
+.vc-hotkey-capture-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	padding-top: 2px;
+}
+
+/* Keychain section */
+.vc-keychain-section .vc-keychain-subsection {
+	margin-top: 14px;
+}
+
+.vc-keychain-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 10px;
+}
+
+.vc-keychain-header-info {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+}
+
+.vc-keychain-header .vc-shell-subsection-title {
+	margin: 0;
+}
+
+.vc-keychain-subtitle {
+	margin: 0;
+	font-size: 0.9em;
+	line-height: 1.45;
+	color: var(--text-muted);
+}
+
+.vc-keychain-count {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.8em;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--text-muted);
+	background: var(--background-modifier-hover);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 999px;
+	padding: 3px 8px;
+}
+
+.vc-keychain-add-btn {
+	background: var(--interactive-accent);
+	border: 1px solid var(--interactive-accent);
+	color: var(--text-on-accent);
+	min-height: 32px;
+	padding: 0 10px;
+	font-size: 0.88em;
+	font-weight: 500;
+	border-radius: 8px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.vc-keychain-add-btn:hover {
+	background: var(--interactive-accent-hover);
+	border-color: var(--interactive-accent-hover);
+}
+
+.vc-keychain-add-btn:focus-visible {
+	outline: 2px solid rgba(var(--interactive-accent-rgb), 0.35);
+	outline-offset: 1px;
+}
+
+.vc-keychain-add-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.vc-keychain-card {
+	border-radius: 14px;
+	padding: 0 16px;
+}
+
+.vc-keychain-search {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 14px 0 12px;
+	padding: 9px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 9px;
+	background: var(--background-primary);
+}
+
+.vc-keychain-search:focus-within {
+	border-color: rgba(var(--interactive-accent-rgb), 0.45);
+	box-shadow: 0 0 0 1px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.vc-keychain-search-icon {
+	color: var(--text-muted);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	flex-shrink: 0;
+}
+
+.vc-keychain-search-input {
+	border: none;
+	background: transparent;
+	color: var(--text-normal);
+	outline: none;
+	width: 100%;
+	font-size: 0.95em;
+	padding: 2px 0;
+}
+
+.vc-keychain-search-input::placeholder {
+	color: var(--text-faint);
+}
+
+.vc-keychain-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-bottom: 12px;
+}
+
+.vc-keychain-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	background: var(--background-primary);
+}
+
+.vc-keychain-item-id {
+	font-size: 0.95em;
+	font-weight: 500;
+	color: var(--text-normal);
+	line-height: 1.2;
+	word-break: break-all;
+}
+
+.vc-keychain-item-meta {
+	margin-top: 6px;
+	font-size: 0.82em;
+	color: var(--text-muted);
+}
+
+.vc-keychain-item-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+.vc-keychain-item-actions .vc-keychain-icon-btn {
+	background: transparent;
+	border: none;
+	width: 24px;
+	height: 24px;
+	border-radius: 4px;
+	color: var(--text-muted);
+	padding: 0;
+}
+
+.vc-keychain-item-actions .vc-keychain-icon-btn:hover {
+	background: transparent;
+	border-color: transparent;
+	color: var(--text-normal);
+}
+
+.vc-keychain-item-actions .vc-keychain-icon-btn-danger {
+	border: none;
+	color: var(--text-error);
+}
+
+.vc-keychain-item-actions .vc-keychain-icon-btn-danger:hover {
+	background: transparent;
+	border-color: transparent;
+	color: var(--text-error);
+}
+
+.vc-keychain-icon-btn {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	width: 30px;
+	height: 30px;
+	border-radius: 6px;
+	color: var(--text-muted);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.vc-keychain-icon-btn:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+	color: var(--text-normal);
+}
+
+.vc-keychain-icon-btn:focus-visible {
+	outline: 2px solid rgba(var(--interactive-accent-rgb), 0.35);
+	outline-offset: 1px;
+}
+
+.vc-keychain-icon-btn-danger {
+	color: var(--text-error);
+	border-color: color-mix(in srgb, var(--text-error) 40%, var(--background-modifier-border));
+}
+
+.vc-keychain-icon-btn-danger:hover {
+	background: color-mix(in srgb, var(--text-error) 12%, transparent);
+	border-color: var(--text-error);
+	color: var(--text-error);
+}
+
+.vc-keychain-empty {
+	padding: 20px 14px;
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: 10px;
+	background: var(--background-primary);
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	align-items: center;
+	justify-content: center;
+	min-height: 92px;
+
+	color: var(--text-muted);
+	font-size: 0.94em;
+}
+
+.vc-keychain-empty-title {
+	font-size: 0.95em;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-keychain-empty-description {
+	max-width: 420px;
+	line-height: 1.45;
+	color: var(--text-muted);
+	font-size: 0.88em;
+}
+
+/* Keychain add/edit modal */
+.vc-keychain-modal {
+	min-width: min(640px, 92vw) !important;
+	max-width: min(640px, 92vw) !important;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px !important;
+}
+
+.vc-keychain-modal .modal-title {
+	padding: 16px 46px 2px 16px !important;
+	font-size: 1.35em;
+	font-weight: 600;
+}
+
+.vc-keychain-modal .modal-content {
+	padding: 8px 16px 16px !important;
+}
+
+.vc-keychain-modal .setting-item {
+	padding: 12px 0;
+}
+
+.vc-keychain-modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	padding-top: 12px;
+}
+
+/* Shell advanced section */
+.vc-shell-advanced-section .vc-shell-subsection {
+	margin-top: 18px;
+}
+
+.vc-shell-advanced-section .vc-shell-subsection-card {
+	border-radius: 16px;
+	padding: 0 16px;
+}
+
+.vc-shell-advanced-section .vc-shell-subsection-card .setting-item {
+	padding: 18px 0;
+}
+
+.vc-shell-advanced-section .setting-item-name {
+	font-size: 1em;
+	font-weight: 500;
+}
+
+.vc-shell-advanced-section .setting-item-description {
+	font-size: 0.9em;
+	line-height: 1.4;
+	max-width: 860px;
+}
+
+.vc-shell-advanced-row .setting-item-control {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.vc-shell-advanced-icon-btn {
+	width: 34px !important;
+	height: 34px !important;
+	padding: 0 !important;
+	border-radius: 50% !important;
+	border: 1px solid var(--background-modifier-border) !important;
+	background: var(--background-primary) !important;
+	color: var(--text-muted) !important;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.vc-shell-advanced-icon-btn:hover {
+	background: var(--background-modifier-hover) !important;
+	border-color: var(--background-modifier-border-hover) !important;
+	color: var(--text-normal) !important;
+}
+
+.vc-shell-advanced-icon-btn:focus-visible {
+	outline: 2px solid rgba(var(--interactive-accent-rgb), 0.35);
+	outline-offset: 1px;
+}
+
+.vc-shell-advanced-modal {
+	min-width: min(640px, 92vw) !important;
+	max-width: min(640px, 92vw) !important;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px !important;
+}
+
+.vc-shell-advanced-modal .modal-title {
+	padding: 16px 46px 2px 16px !important;
+	font-size: 1.35em;
+	font-weight: 600;
+}
+
+.vc-shell-advanced-modal .modal-content {
+	padding: 8px 16px 16px !important;
+}
+
+.vc-shell-advanced-modal .setting-item {
+	padding: 12px 0;
+}
+
+.vc-shell-advanced-modal-description {
+	margin: 0 0 8px 0;
+	font-size: 0.9em;
+	line-height: 1.45;
+	color: var(--text-muted);
+}
+
+.vc-shell-advanced-modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	padding-top: 12px;
+}
+
+.vc-shell-advanced-hotkey-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 10px 0;
+}
+
+.vc-shell-advanced-hotkey-empty {
+	padding: 12px;
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: 8px;
+	color: var(--text-muted);
+	font-size: 0.9em;
+	text-align: center;
+}
+
+.vc-shell-advanced-hotkey-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	background: var(--background-primary);
+}
+
+.vc-shell-advanced-hotkey-value {
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	color: var(--text-normal);
+	word-break: break-all;
+}
+
+.vc-shell-advanced-hotkey-remove {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 50%;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.vc-shell-advanced-hotkey-remove:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+	color: var(--text-normal);
+}
+
+.vc-shell-advanced-hotkey-add-row {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	margin-bottom: 6px;
+}
+
+.vc-shell-advanced-hotkey-capture-note {
+	font-size: 0.85em;
+	line-height: 1.35;
+	color: var(--text-muted);
+}
+
+.vc-shell-advanced-hotkey-add-btn {
+	flex-shrink: 0;
+}
+
+.vc-section-header h3 {
+	margin: 0;
+	padding-left: 0;
+	font-size: clamp(14px, 2vw, 16px);
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+/* All headings in settings sections */
+.vc-settings-section h3,
+.vc-settings-section h4 {
+	padding-left: 0;
+	text-align: left;
+}
+
+.vc-section-icon {
+	margin-right: 8px;
+	display: inline-block;
+}
+
+/* Status Card */
+.vc-status-card {
+	background: var(--background-primary);
+	border-radius: 6px;
+	padding: 16px;
+}
+
+.vc-status-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+	gap: clamp(10px, 2vw, 16px);
+}
+
+.vc-status-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.vc-status-item .vc-status-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.vc-status-item .vc-status-label {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-status-item .vc-version {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-left: 4px;
+}
+
+.vc-status-loading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 16px;
+	color: var(--text-muted);
+}
+
+/* Spinner Animation */
+.vc-spinner {
+	width: 16px;
+	height: 16px;
+	border: 2px solid var(--background-modifier-border);
+	border-top-color: var(--interactive-accent);
+	border-radius: 50%;
+	animation: vc-spin 0.8s linear infinite;
+}
+
+@keyframes vc-spin {
+	to { transform: rotate(360deg); }
+}
+
+/* Refresh Button */
+.vc-refresh-btn {
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 6px 12px;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	transition: all 0.15s;
+}
+
+.vc-refresh-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border-hover);
+}
+
+.vc-refresh-btn.vc-spinning svg {
+	animation: vc-spin 0.8s linear infinite;
+}
+
+.vc-status-refresh-btn,
+.vc-status-refresh-btn:hover,
+.vc-status-refresh-btn:focus,
+.vc-status-refresh-btn:active {
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent !important;
+	background-color: transparent !important;
+	box-shadow: none !important;
+	border: none !important;
+	outline: none;
+	padding: 0;
+	width: 28px;
+	height: 28px;
+	min-height: 28px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.vc-status-refresh-btn:hover {
+	background: transparent !important;
+	background-color: transparent !important;
+	color: var(--text-normal);
+}
+
+/* Buttons */
+.vc-btn-primary {
+	padding: 8px 16px;
+	background: var(--interactive-accent);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--text-on-accent);
+	font-size: 14px;
+	font-weight: 500;
+	transition: background 0.15s;
+}
+
+.vc-btn-primary:hover {
+	background: var(--interactive-accent-hover);
+}
+
+.vc-btn-secondary {
+	padding: 8px 16px;
+	background: var(--background-modifier-border);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--text-normal);
+	font-size: 14px;
+	font-weight: 500;
+	transition: all 0.15s;
+}
+
+.vc-btn-secondary:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-btn-link {
+	background: transparent;
+	border: none;
+	padding: 0;
+	color: var(--interactive-accent);
+	cursor: pointer;
+	font-size: 14px;
+	text-decoration: underline;
+}
+
+.vc-btn-link:hover {
+	text-decoration: none;
+}
+
+.vc-btn-row {
+	display: flex;
+	gap: 12px;
+	margin-top: 16px;
+}
+
+.vc-index-diagnostics-actions {
+	justify-content: flex-end;
+}
+
+.vc-index-diagnostics-refresh {
+	background: var(--background-modifier-border);
+	border: 1px solid var(--background-modifier-border-hover);
+	color: var(--text-normal);
+}
+
+.vc-index-diagnostics-refresh:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+}
+
+/* Command Groups */
+.vc-cmd-group {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+}
+
+.vc-cmd-group h4 {
+	margin: 0 0 8px 0;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.vc-cmd-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.vc-cmd-row:last-child {
+	margin-bottom: 0;
+}
+
+.vc-cmd-row .vc-code-block {
+	margin: 0;
+	flex: 1;
+}
+
+/* Auth Details */
+.vc-auth-details {
+	margin-top: 12px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	font-size: 14px;
+}
+
+.vc-auth-details p {
+	margin: 0 0 8px 0;
+	color: var(--text-muted);
+}
+
+.vc-auth-details p:last-child {
+	margin-bottom: 0;
+}
+
+.vc-auth-details strong {
+	color: var(--text-normal);
+}
+
+/* PAT Content */
+.vc-pat-content {
+	margin-top: 12px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+}
+
+.vc-pat-content p {
+	margin: 0 0 8px 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.vc-pat-content ol {
+	margin: 0;
+	padding-left: 20px;
+	font-size: 13px;
+}
+
+.vc-pat-content li {
+	margin: 6px 0;
+	color: var(--text-normal);
+}
+
+.vc-pat-content code {
+	background: var(--background-secondary);
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 0.9em;
+}
+
+.vc-pat-content a {
+	color: var(--interactive-accent);
+}
+
+/* Advanced Section Toggle */
+.vc-advanced-content {
+	margin-top: 12px;
+	padding-top: 0;
+	border-top: none;
+}
+
+.vc-settings-advanced .vc-directory-list {
+	margin-top: 14px;
+}
+
+/* Session Section */
+.vc-session-controls {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.vc-session-dropdown {
+	flex: 1;
+	padding: 8px 12px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	color: var(--text-normal);
+	font-size: 14px;
+	cursor: pointer;
+	min-width: 200px;
+}
+
+.vc-session-dropdown:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.vc-no-sessions {
+	padding: 16px;
+	text-align: center;
+	color: var(--text-muted);
+	font-style: italic;
+	background: var(--background-primary);
+	border-radius: 6px;
+}
+
+/* Message placeholder for empty settings */
+.vc-settings-placeholder {
+	padding: 24px 16px;
+	text-align: center;
+	color: var(--text-muted);
+	font-size: 14px;
+}
+
+/* Link styling in settings */
+.vc-settings-section a {
+	color: var(--interactive-accent);
+}
+
+.vc-settings-section a:hover {
+	text-decoration: underline;
+}
+
+/* ── AI Provider Profile modal ── */
+.vc-profile-modal {
+	width: clamp(520px, 65vw, 760px);
+}
+
+.vc-profile-modal .modal-content {
+	padding: 0.9em 1.75em 1.5em;
+}
+
+.vc-profile-modal h2 {
+	margin: 0 0 1em;
+}
+
+.vc-profile-modal .vc-modal-footer {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 10px;
+	margin-top: 16px;
+}
+
+.vc-profile-modal .vc-modal-footer button:not(.mod-cta) {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.vc-profile-modal .vc-modal-footer button:not(.mod-cta):hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+}
+
+/* ── AI Provider Profile card list ── */
+.vc-profile-list {
+	margin-top: 10px;
+}
+
+.vc-profile-card {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 14px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	margin-bottom: 8px;
+	transition: border-color 0.15s;
+}
+
+.vc-profile-card:last-child {
+	margin-bottom: 0;
+}
+
+.vc-profile-card:hover {
+	border-color: var(--background-modifier-border-hover);
+}
+
+.vc-profile-card__icon {
+	width: 42px;
+	height: 42px;
+	border-radius: 10px;
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 13px;
+	font-weight: 700;
+	color: #ffffff;
+	letter-spacing: -0.5px;
+}
+
+.vc-profile-card__icon[data-type="copilot"] {
+	background: linear-gradient(135deg, #24292e 0%, #444d56 100%);
+}
+
+.vc-profile-card__icon[data-type="openai"] {
+	background: linear-gradient(135deg, #10a37f 0%, #1a7f64 100%);
+}
+
+.vc-profile-card__icon[data-type="azure-openai"] {
+	background: linear-gradient(135deg, #0078d4 0%, #1b5eab 100%);
+}
+
+.vc-profile-card__icon[data-type="local"] {
+	background: linear-gradient(135deg, #6c5ce7 0%, #4a3eb1 100%);
+}
+
+.vc-profile-card__body {
+	flex: 1;
+	min-width: 0;
+}
+
+.vc-profile-card__name-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 3px;
+}
+
+.vc-profile-card__name {
+	font-weight: 600;
+	font-size: 0.95em;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vc-profile-card__badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 12px;
+	font-size: 0.72em;
+	font-weight: 600;
+	flex-shrink: 0;
+}
+
+.vc-profile-card__badge[data-type="copilot"] {
+	background: color-mix(in srgb, #444d56 15%, transparent);
+	color: var(--text-normal);
+}
+
+.vc-profile-card__badge[data-type="openai"] {
+	background: color-mix(in srgb, #10a37f 15%, transparent);
+	color: #10a37f;
+}
+
+.vc-profile-card__badge[data-type="azure-openai"] {
+	background: color-mix(in srgb, #0078d4 15%, transparent);
+	color: #0078d4;
+}
+
+.vc-profile-card__badge[data-type="local"] {
+	background: color-mix(in srgb, #6c5ce7 15%, transparent);
+	color: #6c5ce7;
+}
+
+.vc-profile-card__detail {
+	font-size: 0.82em;
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vc-profile-card__actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.vc-profile-card__actions .vc-keychain-icon-btn,
+.vc-profile-card__actions .vc-keychain-icon-btn:hover,
+.vc-profile-card__actions .vc-keychain-icon-btn:focus,
+.vc-profile-card__actions .vc-keychain-icon-btn:active {
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent;
+	background-color: transparent;
+	box-shadow: none;
+	border: none;
+	outline: none;
+	width: 24px;
+	height: 24px;
+	border-radius: 4px;
+	padding: 0;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.vc-profile-card__actions .vc-keychain-icon-btn:hover {
+	color: var(--text-normal);
+}
+
+.vc-profile-card__actions .vc-keychain-icon-btn-danger,
+.vc-profile-card__actions .vc-keychain-icon-btn-danger:hover,
+.vc-profile-card__actions .vc-keychain-icon-btn-danger:focus,
+.vc-profile-card__actions .vc-keychain-icon-btn-danger:active {
+	background: transparent;
+	background-color: transparent;
+	border: none;
+	color: var(--text-error);
+}
+
+/* ── Legacy profile rows (kept for compatibility) ── */
+.vc-profile-rows {
+	margin-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-profile-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+	gap: 12px;
+}
+
+.vc-profile-row-info {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+
+.vc-profile-row-name {
+	font-weight: 600;
+	font-size: 0.95em;
+	color: var(--text-normal);
+}
+
+.vc-profile-row-detail {
+	font-size: 0.82em;
+	color: var(--text-muted);
+}
+
+.vc-profile-row-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+.vc-readonly-badge {
+	display: inline-block;
+	padding: 3px 10px;
+	border-radius: 12px;
+	font-size: 0.72em;
+	font-weight: 600;
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.vc-profile-add-btn {
+	padding: 6px 16px;
+	font-size: 0.88em;
+	font-weight: 600;
+}
+
+.vc-btn-danger {
+	color: var(--text-error) !important;
+	border-color: color-mix(in srgb, var(--text-error) 50%, transparent) !important;
+}
+
+.vc-btn-danger:hover {
+	background: color-mix(in srgb, var(--text-error) 10%, transparent) !important;
+}
+
+/* ================================
+   RESPONSIVE SETTINGS LAYOUT
+   ================================ */
+
+/* Table containers scroll horizontally when window is narrow */
+
+/* Small settings windows (< 480px content width) */
+@media (max-width: 600px) {
+	.modal.mod-settings {
+		width: 98vw !important;
+		height: 95vh !important;
+		max-width: 98vw !important;
+	}
+
+	.modal.mod-settings .vertical-tab-content.vc-settings {
+		padding: 8px;
+	}
+
+	.vc-settings-header {
+		padding: 10px;
+		margin-bottom: 12px;
+	}
+
+	.vc-settings-section {
+		padding: 10px;
+		margin-bottom: 12px;
+	}
+
+	.vc-settings-section .vc-skills-table,
+	.vc-settings-section .vc-mcp-table,
+	.vc-settings-section .vc-automations-table {
+		display: block;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.vc-settings-header h2 {
+		font-size: 16px;
+	}
+
+	.vc-section-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	.vc-status-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.vc-btn-row {
+		flex-direction: column;
+	}
+
+	.vc-cmd-row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.vc-session-controls {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.vc-session-dropdown {
+		min-width: unset;
+		width: 100%;
+	}
+
+	.vc-settings-title-row {
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.vc-settings-logo {
+		width: 28px;
+		height: 28px;
+	}
+
+	.vc-markdown-preview-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Medium settings windows */
+@media (min-width: 601px) and (max-width: 900px) {
+	.modal.mod-settings {
+		width: 92vw !important;
+		height: 85vh !important;
+	}
+
+	.vc-settings-section {
+		padding: 14px;
+		margin-bottom: 18px;
+	}
+
+	.vc-status-grid {
+		grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+	}
+}
+
+/* ================================
+   SETTINGS SUB-NAVIGATION
+   ================================ */
+
+.vc-sub-nav-item {
+	padding-left: 10px !important;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-sub-nav-icon {
+	font-size: 14px;
+	width: 18px;
+	text-align: center;
+	flex-shrink: 0;
+	line-height: 1;
+}
+
+.vc-sub-nav-label {
+	flex: 1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vc-sub-nav-item.vc-sub-active {
+	color: var(--text-accent) !important;
+	background: color-mix(in srgb, var(--interactive-accent) 10%, transparent);
+}
+
+/* ================================
+   SHELL SETTINGS MODAL SIDEBAR
+   Two-column layout: fixed sidebar + scrollable content.
+   Only applies inside the standalone Electron (Shell) app.
+   ================================ */
+
+.vc-shell-settings-layout {
+	display: flex;
+	flex: 1;
+	overflow: hidden;
+	height: 100%;
+}
+
+.vc-shell-settings-nav {
+	width: 200px;
+	flex-shrink: 0;
+	overflow-y: auto;
+	padding: 16px 0 8px 8px;
+	background: var(--background-secondary);
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.vc-shell-settings-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: clamp(16px, 3vw, 32px);
+	box-sizing: border-box;
+}
+
+/* Baseline styles for .vertical-tab-nav-item inside the Shell sidebar.
+   In Obsidian, these come from the host app's CSS. In the Shell they do not
+   exist, so we define them here scoped to the settings nav container. */
+.vc-shell-settings-nav .vertical-tab-nav-item {
+	display: flex;
+	align-items: center;
+	padding: 6px 12px;
+	cursor: pointer;
+	border-radius: 4px;
+	margin: 1px 4px;
+	color: var(--text-muted);
+	font-size: 13px;
+	line-height: 1.4;
+	transition: background 80ms ease, color 80ms ease;
+}
+
+.vc-shell-settings-nav .vertical-tab-nav-item:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.vc-shell-settings-nav .vertical-tab-nav-item.vc-sub-active {
+	color: var(--text-accent) !important;
+	background: color-mix(in srgb, var(--interactive-accent) 10%, transparent);
+}
+
+/* Group label inside the shell sidebar (e.g. "Application", "Vault Copilot") */
+.vc-shell-nav-group-header {
+	padding: 12px 12px 4px 4px;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--text-faint);
+	user-select: none;
+}
+
+/* First group header has no top padding */
+.vc-shell-nav-group-header:first-child {
+	padding-top: 0;
+}
+
+/* Shell section placeholder text */
+.vc-shell-section-placeholder {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	font-style: italic;
+	margin: 0;
+}
+
+/* Account status loading text */
+.vc-account-loading {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	font-style: italic;
+	margin: 0;
+}
+
+/* Destructive (red) button for log out / dangerous actions */
+.vc-btn-destructive,
+.vc-btn-destructive:hover,
+.vc-btn-destructive:focus,
+.vc-btn-destructive:active {
+	color: var(--text-error, #e5534b) !important;
+	background-color: transparent !important;
+	border-color: var(--text-error, #e5534b) !important;
+	box-shadow: none !important;
+}
+.vc-btn-destructive:hover {
+	background-color: rgba(229, 83, 75, 0.1) !important;
+}
+
+.vc-btn-destructive-filled,
+.vc-btn-destructive-filled:hover,
+.vc-btn-destructive-filled:focus,
+.vc-btn-destructive-filled:active {
+	color: #ffffff !important;
+	background-color: var(--text-error, #e5534b) !important;
+	border-color: var(--text-error, #e5534b) !important;
+	box-shadow: none !important;
+}
+
+.vc-btn-destructive-filled:hover {
+	background-color: color-mix(in srgb, var(--text-error, #e5534b) 88%, black) !important;
+}
+
+/* Shell and plugin content panels fill their parent */
+.vc-shell-panel,
+.vc-plugin-panel {
+	width: 100%;
+}
+
+/* ================================
+   SESSION PANEL & TOOLBAR
+   ================================ */
+
+
+/* ================================
+   PLUGINS SECTION TABLE
+   ================================ */
+
+.vc-plugins-table {
+width: 100%;
+border: 1px solid var(--background-modifier-border);
+border-radius: 6px;
+overflow: hidden;
+font-size: 13px;
+}
+
+.vc-plugins-row {
+display: grid;
+grid-template-columns: 2fr 80px 3fr 60px;
+align-items: center;
+border-bottom: 1px solid var(--background-modifier-border);
+min-height: 40px;
+}
+
+.vc-plugins-row:last-child {
+border-bottom: none;
+}
+
+.vc-plugins-head {
+background: var(--background-secondary);
+font-size: 11px;
+font-weight: 600;
+text-transform: uppercase;
+letter-spacing: 0.04em;
+color: var(--text-muted);
+}
+
+.vc-plugins-cell {
+padding: 8px 12px;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+}
+
+.vc-plugins-cell-name {
+display: flex;
+flex-direction: column;
+gap: 2px;
+white-space: normal;
+}
+
+.vc-plugins-cell-desc {
+color: var(--text-muted);
+font-size: 12px;
+white-space: normal;
+}
+
+.vc-plugins-cell-actions {
+display: flex;
+justify-content: center;
+align-items: center;
+}
+
+.vc-plugins-author {
+color: var(--text-muted);
+}
+
+.vc-plugins-settings-btn {
+background: none;
+border: 1px solid var(--background-modifier-border);
+border-radius: 4px;
+cursor: pointer;
+padding: 3px 6px;
+font-size: 14px;
+line-height: 1;
+transition: background 0.15s;
+}
+
+.vc-plugins-settings-btn:hover {
+background: var(--background-modifier-hover);
+}
+
+.vc-plugins-empty {
+color: var(--text-muted);
+font-style: italic;
+padding: 12px 0;
+}
+
+/* ── Plugin settings modal ─────────────────── */
+
+.vc-plugin-settings-meta {
+margin-bottom: 12px;
+font-size: 12px;
+color: var(--text-muted);
+}
+
+.vc-plugin-settings-version {
+font-family: var(--font-monospace);
+}
+
+.vc-plugin-settings-body {
+padding-top: 4px;
+}
+
+/* Model selector button in settings (replaces native <select> for three-column layout) */
+.vc-model-settings-btn {
+width: 100%;
+text-align: left;
+font-size: var(--font-ui-small);
+justify-content: space-between;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+}

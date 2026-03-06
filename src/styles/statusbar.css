@@ -1,0 +1,104 @@
+/* Status Bar */
+.vc-status {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	padding: 2px 6px;
+	border-radius: 4px;
+	transition: background 0.15s;
+}
+
+.vc-status:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-status-logo {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	transition: color 0.15s;
+}
+
+.vc-status:hover .vc-status-logo {
+	color: var(--text-normal);
+}
+
+.vc-status-indicator {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+}
+
+.vc-status-indicator.vc-connected {
+	background: var(--color-green);
+	box-shadow: 0 0 4px var(--color-green);
+}
+
+.vc-status-indicator.vc-disconnected {
+	background: var(--text-muted);
+}
+
+/* Settings Help */
+.vc-settings-help {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+}
+
+.vc-settings-help p {
+	margin: 0;
+}
+
+.vc-settings-help a {
+	color: var(--interactive-accent);
+}
+
+/* Scrollbar Styling */
+.vc-messages::-webkit-scrollbar {
+	width: 8px;
+}
+
+.vc-messages::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.vc-messages::-webkit-scrollbar-thumb {
+	background: var(--background-modifier-border);
+	border-radius: 4px;
+}
+
+.vc-messages::-webkit-scrollbar-thumb:hover {
+	background: var(--background-modifier-border-hover);
+}
+
+/* Typing indicator (optional future enhancement) */
+.vc-typing {
+	display: flex;
+	gap: 4px;
+	padding: 12px 16px;
+}
+
+.vc-typing-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--text-muted);
+	animation: vc-typing-bounce 1.4s ease-in-out infinite;
+}
+
+.vc-typing-dot:nth-child(2) {
+	animation-delay: 0.2s;
+}
+
+.vc-typing-dot:nth-child(3) {
+	animation-delay: 0.4s;
+}
+
+@keyframes vc-typing-bounce {
+	0%, 60%, 100% { transform: translateY(0); }
+	30% { transform: translateY(-8px); }
+}
+

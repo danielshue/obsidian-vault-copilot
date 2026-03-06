@@ -1,0 +1,200 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/**
+ * Date & Time settings section styles
+ */
+
+/* ── Live clock card ─────────────────────────────────────────────────────── */
+
+.vc-datetime-clock-card {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px 20px;
+	margin-bottom: 12px;
+	background: linear-gradient(135deg,
+		color-mix(in srgb, var(--interactive-accent) 18%, var(--background-primary)),
+		var(--background-primary));
+	border: 1px solid color-mix(in srgb, var(--interactive-accent) 25%, var(--background-modifier-border));
+	border-radius: 8px;
+}
+
+.vc-datetime-clock-left {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.vc-datetime-clock-time {
+	font-size: 2em;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-normal);
+	letter-spacing: -0.5px;
+	line-height: 1;
+	font-family: var(--font-monospace);
+}
+
+.vc-datetime-clock-date {
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.vc-datetime-clock-tz {
+	font-family: var(--font-monospace);
+	font-size: 0.78em;
+	font-weight: 600;
+	padding: 3px 10px;
+	border-radius: 12px;
+	background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+	color: var(--interactive-accent);
+	white-space: nowrap;
+	align-self: center;
+}
+
+/* ── Settings rows card ──────────────────────────────────────────────────── */
+
+.vc-datetime-rows-card {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.vc-datetime-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 14px 16px;
+}
+
+.vc-datetime-divider {
+	margin: 0;
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-datetime-row-label {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+
+.vc-datetime-label-text {
+	font-size: 0.9em;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-datetime-label-desc {
+	font-size: 0.78em;
+	color: var(--text-faint);
+}
+
+.vc-datetime-row-control {
+	flex-shrink: 0;
+}
+
+/* ── Timezone dropdown ───────────────────────────────────────────────────── */
+
+.vc-datetime-select {
+	padding: 6px 10px;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: 0.88em;
+	min-width: 220px;
+	cursor: pointer;
+}
+
+.vc-datetime-select:focus {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+	border-color: transparent;
+}
+
+/* ── Week-start segmented control ────────────────────────────────────────── */
+
+.vc-datetime-segmented {
+	display: flex;
+	gap: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.vc-datetime-seg-btn,
+.vc-settings-section .vc-datetime-seg-btn,
+.vc-settings-section .vc-datetime-seg-btn:hover,
+.vc-settings-section .vc-datetime-seg-btn:focus,
+.vc-settings-section .vc-datetime-seg-btn:active {
+	-webkit-appearance: none;
+	appearance: none;
+	padding: 6px 16px;
+	background: transparent;
+	background-color: transparent;
+	border: none;
+	border-right: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: 0.85em;
+	font-weight: 500;
+	cursor: pointer;
+	box-shadow: none;
+	outline: none;
+	transition: background 0.12s, color 0.12s;
+	white-space: nowrap;
+}
+
+.vc-datetime-seg-btn:last-child,
+.vc-settings-section .vc-datetime-seg-btn:last-child,
+.vc-settings-section .vc-datetime-seg-btn:last-child:hover,
+.vc-settings-section .vc-datetime-seg-btn:last-child:focus,
+.vc-settings-section .vc-datetime-seg-btn:last-child:active {
+	border-right: none;
+}
+
+.vc-datetime-seg-btn:hover {
+	background: var(--background-modifier-hover) !important;
+	color: var(--text-normal) !important;
+}
+
+.vc-datetime-seg-btn.vc-datetime-seg-active,
+.vc-settings-section .vc-datetime-seg-btn.vc-datetime-seg-active,
+.vc-settings-section .vc-datetime-seg-btn.vc-datetime-seg-active:hover,
+.vc-settings-section .vc-datetime-seg-btn.vc-datetime-seg-active:focus,
+.vc-settings-section .vc-datetime-seg-btn.vc-datetime-seg-active:active {
+	background: var(--interactive-accent) !important;
+	background-color: var(--interactive-accent) !important;
+	color: var(--text-on-accent) !important;
+	box-shadow: none;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+	.vc-datetime-clock-card {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	.vc-datetime-clock-time {
+		font-size: 1.5em;
+	}
+
+	.vc-datetime-row {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.vc-datetime-select {
+		min-width: 100%;
+		width: 100%;
+	}
+}

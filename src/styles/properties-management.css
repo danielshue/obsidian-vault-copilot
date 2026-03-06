@@ -1,0 +1,148 @@
+.vc-properties-management {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 16px;
+	color: var(--text-normal);
+	height: 100%;
+	overflow: auto;
+}
+
+.vc-properties-management-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.vc-properties-management-title {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 700;
+}
+
+.vc-properties-management-refresh {
+	width: 28px;
+	height: 28px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.vc-properties-management-description {
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.vc-properties-management-rename,
+.vc-properties-management-inventory {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: 12px;
+	background: var(--background-secondary);
+}
+
+.vc-properties-management-section-title {
+	margin: 0 0 10px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.vc-properties-management-rename-controls {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+	margin-bottom: 10px;
+}
+
+.vc-properties-management-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.vc-properties-management-field-label {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.vc-properties-management-input,
+.vc-properties-management-select {
+	width: 100%;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: 6px 8px;
+	color: var(--text-normal);
+}
+
+.vc-properties-management-actions {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.vc-properties-management-btn {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	padding: 6px 10px;
+}
+
+.vc-properties-management-btn.mod-cta {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.vc-properties-management-btn:disabled {
+	opacity: 0.6;
+}
+
+.vc-properties-management-preview {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.vc-properties-management-preview-list {
+	margin: 0;
+	padding-left: 18px;
+	color: var(--text-normal);
+}
+
+.vc-properties-management-preview-errors {
+	color: var(--text-error);
+}
+
+.vc-properties-management-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.vc-properties-management-table th,
+.vc-properties-management-table td {
+	text-align: left;
+	padding: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	vertical-align: middle;
+}
+
+.vc-properties-management-table th {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+.vc-properties-management-table td.is-empty {
+	text-align: center;
+	color: var(--text-muted);
+}

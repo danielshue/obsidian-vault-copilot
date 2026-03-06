@@ -1,0 +1,42 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/*
+ * Image attachment chip styles
+ *
+ * Adds a hover-triggered thumbnail popover to image attachment chips.
+ * Image chips use the same base .vc-attachment-chip styles as note chips
+ * but add a .vc-image-chip modifier class and a .vc-image-preview-popover child.
+ */
+
+.vc-attachment-chip.vc-image-chip {
+	position: relative;
+}
+
+.vc-image-preview-popover {
+	display: none;
+	position: absolute;
+	bottom: calc(100% + 6px);
+	left: 0;
+	z-index: 200;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 4px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+	pointer-events: none;
+}
+
+.vc-image-preview-popover img {
+	display: block;
+	max-width: 220px;
+	max-height: 160px;
+	object-fit: contain;
+	border-radius: 4px;
+}
+
+.vc-attachment-chip.vc-image-chip:hover .vc-image-preview-popover {
+	display: block;
+}

@@ -1,0 +1,171 @@
+/* ================================
+   REALTIME AGENT - Button States
+   ================================ */
+
+/* Agent Button Base */
+.vc-agent-btn {
+	position: relative;
+	transition: color 0.15s, transform 0.1s;
+}
+
+/* Connecting State - Pulsing accent color */
+.vc-agent-btn.vc-agent-connecting {
+	color: var(--interactive-accent) !important;
+	animation: vc-agent-pulse 1s ease-in-out infinite;
+	pointer-events: none;
+}
+
+@keyframes vc-agent-pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+/* Connected/Listening State - Green steady */
+.vc-agent-btn.vc-agent-connected {
+	color: var(--color-green) !important;
+}
+
+.vc-agent-btn.vc-agent-connected::after {
+	content: '';
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	width: 6px;
+	height: 6px;
+	background: var(--color-green);
+	border-radius: 50%;
+	animation: vc-agent-connected-dot 2s ease-in-out infinite;
+}
+
+@keyframes vc-agent-connected-dot {
+	0%, 100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.6;
+		transform: scale(0.8);
+	}
+}
+
+/* Speaking State - Blue with animation */
+.vc-agent-btn.vc-agent-speaking {
+	color: var(--interactive-accent) !important;
+	animation: vc-agent-speaking 0.6s ease-in-out infinite;
+}
+
+@keyframes vc-agent-speaking {
+	0%, 100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.1);
+	}
+}
+
+.vc-agent-btn.vc-agent-speaking::after {
+	content: '';
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	width: 6px;
+	height: 6px;
+	background: var(--interactive-accent);
+	border-radius: 50%;
+}
+
+/* Error State */
+.vc-agent-btn.vc-agent-error {
+	color: var(--color-red) !important;
+}
+
+/* Agent Mute Button */
+.vc-agent-mute-btn {
+	position: relative;
+	transition: color 0.15s, transform 0.1s;
+	color: var(--text-muted);
+}
+
+.vc-agent-mute-btn:hover {
+	color: var(--text-normal);
+}
+
+.vc-agent-mute-btn.vc-agent-muted {
+	color: var(--color-red) !important;
+}
+
+.vc-agent-mute-btn.vc-agent-muted:hover {
+	color: var(--color-red) !important;
+	opacity: 0.8;
+}
+
+/* Transcript Message Styling */
+.vc-message-transcript {
+	border-left: 2px solid var(--interactive-accent);
+	opacity: 0.9;
+}
+
+.vc-transcript-indicator {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: 4px;
+	font-size: 10px;
+	color: var(--text-muted);
+	opacity: 0.7;
+}
+
+.vc-transcript-indicator svg {
+	width: 12px;
+	height: 12px;
+}
+
+/* Task Execution Message Styling - Subagent Activity */
+.vc-task-execution {
+	border-left: 2px solid var(--color-purple);
+	background: var(--background-secondary-alt);
+	font-size: 12px;
+	padding: 6px 10px;
+	margin: 4px 0;
+}
+
+.vc-task-execution .vc-message-content {
+	padding: 0;
+}
+
+.vc-task-text {
+	margin: 0;
+	font-family: var(--font-monospace);
+	white-space: pre-wrap;
+}
+
+.vc-task-started {
+	border-left-color: var(--color-blue);
+}
+
+.vc-task-tool_call {
+	opacity: 0.7;
+	font-size: 11px;
+	border-left-color: var(--color-cyan);
+}
+
+.vc-task-completed {
+	border-left-color: var(--color-green);
+}
+
+.vc-task-error {
+	border-left-color: var(--color-red);
+}
+
+/* Version info in settings */
+.vc-version-info {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin-top: -0.5em;
+	margin-bottom: 1em;
+}
+

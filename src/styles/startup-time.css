@@ -1,0 +1,96 @@
+/* ================================
+   STARTUP TIME MODAL
+   ================================ */
+
+/* System info block */
+.vc-startup-sysinfo {
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+	color: var(--text-muted);
+	white-space: pre-line;
+	line-height: 1.6;
+	margin-bottom: 4px;
+}
+
+/* Separator line */
+.vc-startup-separator {
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+	margin: 12px 0;
+}
+
+/* Phase table */
+.vc-startup-table {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-bottom: 20px;
+}
+
+/* Individual row */
+.vc-startup-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	padding: 4px 0;
+	font-size: 0.9em;
+}
+
+.vc-startup-row-label {
+	flex: 1;
+	color: var(--text-normal);
+}
+
+.vc-startup-row-duration {
+	flex-shrink: 0;
+	font-family: var(--font-monospace);
+	color: var(--text-muted);
+	text-align: right;
+	min-width: 80px;
+}
+
+/* Total row — bold emphasis */
+.vc-startup-row-total {
+	font-weight: 600;
+	margin-bottom: 8px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-startup-row-total .vc-startup-row-duration {
+	color: var(--text-normal);
+	font-weight: 600;
+}
+
+/* Button bar */
+.vc-startup-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-startup-btn {
+	padding: 6px 16px;
+	border-radius: 4px;
+	font-size: 0.9em;
+	cursor: pointer;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+}
+
+.vc-startup-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-startup-btn.mod-cta {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+.vc-startup-btn.mod-cta:hover {
+	background: var(--interactive-accent-hover);
+}

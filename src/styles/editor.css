@@ -1,0 +1,1325 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Editor — Markdown Editor View
+   Styles for the CodeMirror 6-backed tabbed markdown editor.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── View shell ───────────────────────────────────────────────────────────── */
+
+.vc-markdown-editor-view,
+.vc-editor-manager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+/* ── Tab bar ──────────────────────────────────────────────────────────────── */
+
+.vc-editor-tabbar {
+  display: flex;
+  align-items: stretch;
+  background: var(--background-primary);
+  border-bottom: none;
+  flex-shrink: 0;
+  min-height: 36px;
+  overflow: hidden;
+}
+
+/* Scrollable tabs area */
+.vc-editor-tab-scroller {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.vc-editor-tab-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+/* Fixed trailing actions (new-file, mode toggle, more) */
+.vc-editor-tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+  border-left: none;
+}
+
+.vc-editor-tab-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
+}
+
+.vc-editor-tab-action-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.vc-editor-tab-action-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.75;
+}
+
+.vc-editor-tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px 0 14px;
+  border-right: none;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: transparent;
+  transition: background 0.1s, color 0.1s;
+  position: relative;
+  min-width: 80px;
+  max-width: 180px;
+}
+
+.vc-editor-tab:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.vc-editor-tab.is-active {
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-weight: 500;
+}
+
+.vc-editor-tab.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--interactive-accent);
+}
+
+.vc-editor-tab-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vc-editor-tab-close {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.1s, color 0.1s;
+}
+
+.vc-editor-tab:hover .vc-editor-tab-close,
+.vc-editor-tab.is-active .vc-editor-tab-close {
+  opacity: 1;
+}
+
+.vc-editor-tab-close:hover {
+  background: var(--background-modifier-error);
+  color: var(--text-on-accent);
+}
+/* ── Mode dropdown ──────────────────────────────────────────────────────────── */
+
+.vc-editor-mode-dropdown {
+  position: fixed;
+  z-index: 9999;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  padding: 4px;
+  min-width: 160px;
+  animation: vc-dropdown-in 0.1s ease;
+}
+
+@keyframes vc-dropdown-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.vc-editor-mode-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-normal);
+  font-size: 13px;
+  transition: background 0.1s;
+  user-select: none;
+}
+
+.vc-editor-mode-dropdown-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vc-editor-mode-dropdown-item.is-active {
+  color: var(--interactive-accent);
+}
+
+.vc-editor-mode-dropdown-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.vc-editor-mode-dropdown-icon svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.75;
+}
+
+.vc-editor-mode-dropdown-check {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  color: var(--interactive-accent);
+}
+
+.vc-editor-mode-dropdown-check svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.5;
+}
+/* ── Content area ─────────────────────────────────────────────────────────── */
+
+.vc-editor-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── CodeMirror host ──────────────────────────────────────────────────────── */
+
+.vc-editor-cm-host {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.vc-editor-cm-host .cm-editor {
+  height: 100%;
+  outline: none !important;
+}
+
+.vc-editor-cm-host .cm-focused {
+  outline: none !important;
+}
+
+/* ── Live preview decorations ─────────────────────────────────────────────── */
+
+/*
+ * Heading lines — class applied to the entire .cm-line element via
+ * Decoration.line(). Gives headings their visual size while the cursor
+ * is off that line (the '#' markers are hidden separately by the plugin).
+ */
+.cm-line.cm-lp-h1 { font-size: 1.9em;  font-weight: 700; line-height: 1.4; padding: 4px 0 2px; }
+.cm-line.cm-lp-h2 { font-size: 1.55em; font-weight: 700; line-height: 1.4; padding: 3px 0 2px; }
+.cm-line.cm-lp-h3 { font-size: 1.3em;  font-weight: 600; line-height: 1.4; padding: 2px 0; }
+.cm-line.cm-lp-h4 { font-size: 1.15em; font-weight: 600; }
+.cm-line.cm-lp-h5 { font-size: 1.05em; font-weight: 600; color: var(--text-muted); }
+.cm-line.cm-lp-h6 { font-size: 0.95em; font-weight: 600; color: var(--text-faint, var(--text-muted)); }
+
+/* Inline element styles — applied to <span> wrappers inside .cm-line */
+.cm-lp-strong { font-weight: 700; }
+.cm-lp-em     { font-style: italic; }
+.cm-lp-strike { text-decoration: line-through; opacity: 0.75; }
+.cm-lp-code {
+  font-family: var(--font-monospace, "Cascadia Code", "Fira Code", monospace);
+  font-size: 0.87em;
+  background: rgba(127, 127, 127, 0.12);
+  border-radius: 3px;
+  padding: 1px 4px;
+  color: var(--code-normal, var(--text-normal));
+}
+
+/* Highlight ==text== */
+.cm-lp-highlight {
+  background: rgba(255, 208, 0, 0.25);
+  border-radius: 2px;
+  padding: 1px 0;
+  color: inherit;
+}
+[data-theme="light"] .cm-lp-highlight {
+  background: rgba(255, 224, 102, 0.5);
+  color: #1a1a1a;
+}
+
+/* Wikilinks [[link]] */
+.cm-lp-wikilink {
+  color: var(--link-color, var(--interactive-accent));
+  text-decoration: none;
+  cursor: pointer;
+}
+.cm-lp-wikilink:hover {
+  text-decoration: underline;
+}
+
+/* External links */
+.cm-lp-link {
+  color: var(--link-external-color, var(--interactive-accent));
+  text-decoration: none;
+}
+.cm-lp-link:hover {
+  text-decoration: underline;
+}
+
+/* Inline math widget */
+.cm-lp-math-inline {
+  display: inline;
+  cursor: text;
+}
+
+/* Make live preview widgets allow click-through for cursor positioning */
+.cm-lp-math-widget,
+.cm-lp-mermaid-widget,
+.cm-lp-math-inline,
+.cm-lp-wikilink,
+.cm-lp-embed-image,
+.cm-lp-embed-note {
+  cursor: text;
+}
+
+/* Horizontal rule */
+.cm-lp-hr {
+  display: block;
+  margin: 0.5em 0;
+}
+.vc-hr {
+  border: none;
+  border-top: 1px solid var(--background-modifier-border);
+  margin: 1em 0;
+}
+
+/* Task checkbox */
+.cm-lp-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+  cursor: pointer;
+  accent-color: var(--interactive-accent);
+}
+
+/* Live Preview visual parity with reading view (editing still enabled) */
+.vc-editor-manager.is-mode-live-preview .vc-editor-cm-host .cm-editor {
+  font-family: var(--font-text, var(--default-font, sans-serif));
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-normal);
+}
+
+.vc-editor-manager.is-mode-live-preview .vc-editor-cm-host .cm-scroller,
+.vc-editor-manager.is-mode-live-preview .vc-editor-cm-host .cm-content {
+  font-family: var(--font-text, var(--default-font, sans-serif)) !important;
+  line-height: 1.7;
+  color: var(--text-normal);
+}
+
+.vc-editor-manager.is-mode-live-preview .vc-editor-cm-host .cm-line {
+  font-family: var(--font-text, var(--default-font, sans-serif)) !important;
+  color: var(--text-normal);
+}
+
+.vc-editor-manager.is-mode-live-preview .vc-editor-cm-host .cm-content {
+  padding: 32px 48px;
+}
+
+.vc-editor-manager.is-mode-live-preview .vc-editor-cm-host .cm-activeLine,
+.vc-editor-manager.is-mode-live-preview .vc-editor-cm-host .cm-activeLineGutter {
+  background: transparent;
+}
+
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h1,
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h2,
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h3,
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h4,
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h5,
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h6 {
+  color: var(--text-normal);
+  font-family: var(--font-text, var(--default-font, sans-serif)) !important;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h1 *:not(.cm-lp-code),
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h2 *:not(.cm-lp-code),
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h3 *:not(.cm-lp-code),
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h4 *:not(.cm-lp-code),
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h5 *:not(.cm-lp-code),
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h6 *:not(.cm-lp-code) {
+  color: inherit !important;
+  font-family: inherit !important;
+}
+
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h1 { font-size: 2em; }
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h2 { font-size: 1.5em; }
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h3 { font-size: 1.25em; }
+
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h4,
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h5,
+.vc-editor-manager.is-mode-live-preview .cm-line.cm-lp-h6 {
+  font-size: 1em;
+}
+
+.vc-editor-manager.is-mode-live-preview .cm-lp-code {
+  background: var(--code-background, rgba(127,127,127,.15));
+  border-radius: 3px;
+  padding: 0.1em 0.4em;
+  font-family: var(--font-monospace);
+  font-size: 0.875em;
+  color: var(--text-normal);
+}
+
+.vc-editor-manager.is-mode-live-preview .cm-lp-wikilink,
+.vc-editor-manager.is-mode-live-preview .cm-lp-link {
+  color: var(--link-color, var(--interactive-accent));
+}
+
+/* Embed note placeholder */
+.cm-lp-embed-note .vc-embed-note {
+  margin: 0.5em 0;
+}
+
+/* Embed image */
+.cm-lp-embed-image {
+  margin: 0.5em 0;
+}
+.cm-lp-embed-image img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+/* ── External web page embeds (iframes) ──────────────────────────────────────── */
+
+.vc-external-embed {
+  display: block;
+  width: 100%;
+  min-height: 400px;
+  height: 600px;
+  margin: 1em 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+}
+
+/* Make iframes in reading view responsive */
+.markdown-reading-view .vc-external-embed {
+  max-width: 100%;
+}
+
+/* Embed error */
+.cm-lp-embed-error {
+  display: block;
+  margin: 0.5em 0;
+}
+
+/* ── Math rendering (KaTeX) ──────────────────────────────────────────────────── */
+
+/* Display math: $$...$$ rendered as a centered block */
+.vc-math-block {
+  margin: 1.2em 0;
+  padding: 0.5em 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.vc-math-block .katex-display {
+  margin: 0;
+}
+
+/* Inline math: $...$ rendered without line break */
+.vc-math-inline {
+  display: inline;
+}
+
+/* Error display for malformed math */
+.vc-math-error {
+  font-family: var(--font-monospace, monospace);
+  color: var(--text-error, #f38ba8);
+  background: rgba(243, 139, 168, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.88em;
+}
+
+/* ── Mermaid diagrams ─────────────────────────────────────────────────────── */
+
+.vc-mermaid-diagram {
+  margin: 1.5em 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+.vc-mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+}
+
+.vc-mermaid-error {
+  margin: 1em 0;
+  padding: 8px 12px;
+  background: rgba(243, 139, 168, 0.1);
+  border-left: 3px solid var(--text-error, #f38ba8);
+  border-radius: 0 4px 4px 0;
+  color: var(--text-error, #f38ba8);
+  font-family: var(--font-monospace, monospace);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+/* Live Preview block widgets (inside CodeMirror) */
+.cm-lp-math-widget,
+.cm-lp-mermaid-widget {
+  margin: 0.5em 0;
+}
+
+.cm-lp-mermaid-widget {
+  min-height: 56px;
+}
+
+/* Obsidian embed-link look for ![[...]] fallback rendering */
+.internal-embed-link {
+  display: inline-block;
+  margin: 0.2em 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--background-modifier-hover);
+}
+
+.vc-embed-block {
+  margin: 1em 0;
+}
+
+.vc-embed-image-wrap {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.vc-embed-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.vc-embed-note {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  overflow: hidden;
+}
+
+.vc-embed-note-title {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-embed-note-body {
+  padding: 10px 12px;
+}
+
+.vc-embed-error {
+  color: var(--text-error, #f38ba8);
+  font-family: var(--font-monospace, monospace);
+}
+
+/* ── Reading view ─────────────────────────────────────────────────────────── */
+
+.vc-editor-reading-host {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  padding: 32px 48px;
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.vc-editor-manager.is-readable-line-length .vc-editor-reading-host {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.vc-editor-reading-host:focus,
+.vc-editor-reading-host:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.vc-editor-reading-body {
+  line-height: 1.7;
+  font-size: 16px;
+  color: var(--text-normal);
+}
+
+/* Rendered markdown typographic styles */
+.vc-editor-reading-body h1,
+.vc-editor-reading-body h2,
+.vc-editor-reading-body h3,
+.vc-editor-reading-body h4,
+.vc-editor-reading-body h5,
+.vc-editor-reading-body h6 {
+  color: var(--text-normal);
+  margin: 1.5em 0 0.5em;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.vc-editor-reading-body h1 { font-size: 2em; }
+.vc-editor-reading-body h2 { font-size: 1.5em; }
+.vc-editor-reading-body h3 { font-size: 1.25em; }
+
+.vc-editor-reading-body p { margin: 0.75em 0; }
+
+.vc-editor-manager.is-mode-reading.is-strict-line-breaks-disabled .vc-editor-reading-body p {
+  white-space: pre-line;
+}
+
+.vc-editor-reading-body code {
+  background: var(--code-background, rgba(127,127,127,.15));
+  border-radius: 3px;
+  padding: 0.1em 0.4em;
+  font-family: var(--font-monospace);
+  font-size: 0.875em;
+}
+
+.vc-editor-reading-body pre {
+  background: var(--code-background, rgba(127,127,127,.1));
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+.vc-editor-reading-body section.footnotes {
+  margin-top: 2em;
+  padding-top: 0.75em;
+  border-top: 1px solid var(--background-modifier-border);
+  font-size: 0.92em;
+}
+.vc-editor-reading-body [data-footnote-ref] {
+  text-decoration: none;
+}
+.vc-editor-reading-body [data-footnote-backref] {
+  margin-left: 0.35em;
+  text-decoration: none;
+}
+
+.vc-editor-reading-body pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.875em;
+}
+
+.vc-editor-reading-body blockquote {
+  border-left: 3px solid var(--interactive-accent);
+  margin: 1em 0;
+  padding: 0.25em 1em;
+  color: var(--text-muted);
+}
+
+.vc-editor-reading-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.vc-editor-reading-body th,
+.vc-editor-reading-body td {
+  border: 1px solid var(--background-modifier-border);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.vc-editor-reading-body th {
+  background: var(--background-secondary);
+  font-weight: 600;
+}
+
+.vc-editor-reading-body a {
+  color: var(--link-color, var(--interactive-accent));
+  text-decoration: none;
+}
+
+.vc-editor-reading-body a:hover {
+  text-decoration: underline;
+}
+
+.vc-editor-reading-body a.internal-link {
+  color: var(--link-color, var(--interactive-accent));
+}
+
+.vc-editor-reading-body ul,
+.vc-editor-reading-body ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.vc-editor-reading-body li { margin: 0.25em 0; }
+
+hr.vc-editor-reading-body { border-color: var(--background-modifier-border); }
+
+/* ── Frontmatter metadata block ───────────────────────────────────────────── */
+
+.vc-editor-frontmatter-block {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+}
+
+.vc-editor-frontmatter-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.vc-editor-frontmatter-key {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 3px 12px 3px 0;
+  width: 30%;
+  vertical-align: top;
+}
+
+.vc-editor-frontmatter-value {
+  font-size: 13px;
+  color: var(--text-normal);
+  padding: 3px 0;
+}
+
+.vc-editor-frontmatter-source {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+/* ── Properties panel (matches Obsidian native sidebar) ───────────────────── */
+
+.vc-editor-properties-header {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.vc-editor-properties-title {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+  font-size: var(--metadata-label-font-size, 13px);
+  color: var(--text-muted);
+  padding: 6px 4px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+}
+
+.vc-editor-properties-title:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vc-editor-properties-title-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  transition: transform 120ms ease;
+}
+
+.vc-editor-properties-title-chevron .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.vc-editor-properties-title.is-collapsed .vc-editor-properties-title-chevron {
+  transform: rotate(-90deg);
+}
+
+.vc-editor-properties-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.vc-editor-properties-rows.is-collapsed {
+  display: none;
+}
+
+.vc-editor-properties-row,
+.vc-editor-properties-add-row {
+  display: grid;
+  gap: 4px;
+  align-items: center;
+  min-height: 30px;
+  border-radius: 4px;
+}
+
+.vc-editor-properties-row {
+  grid-template-columns: 22px minmax(110px, 170px) 1fr;
+  padding: 1px 4px;
+}
+
+.vc-editor-properties-add-row {
+  grid-template-columns: 22px 1fr;
+  cursor: pointer;
+  padding: 1px 4px;
+}
+
+.vc-editor-properties-row:hover,
+.vc-editor-properties-add-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vc-editor-properties-icon {
+  color: var(--text-faint);
+  text-align: center;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  cursor: default;
+}
+
+.vc-editor-properties-icon .svg-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.vc-editor-properties-key,
+.vc-editor-properties-value {
+  width: 100%;
+  height: 24px;
+  min-height: 24px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-normal);
+  font-size: var(--metadata-input-font-size, 14px);
+  padding: 2px 6px;
+}
+
+.vc-editor-properties-key {
+  color: var(--text-muted);
+  font-size: var(--metadata-label-font-size, 13px);
+}
+
+.vc-editor-properties-key:hover,
+.vc-editor-properties-value:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vc-editor-properties-key:focus,
+.vc-editor-properties-value:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  background: var(--background-primary);
+}
+
+.vc-editor-properties-value::placeholder {
+  color: var(--text-faint);
+  font-style: normal;
+}
+
+/* ── Date / DateTime picker ─────────────────────────── */
+.vc-editor-properties-value[type="date"],
+.vc-editor-properties-value[type="datetime-local"] {
+  cursor: pointer;
+  color-scheme: dark;
+  direction: ltr;
+  text-align: left;
+  padding-right: 0;
+  justify-self: start;
+}
+
+.vc-editor-properties-value[type="date"] {
+  width: 132px;
+}
+
+.vc-editor-properties-value[type="datetime-local"] {
+  width: 196px;
+}
+
+[data-theme="light"] .vc-editor-properties-value[type="date"],
+[data-theme="light"] .vc-editor-properties-value[type="datetime-local"] {
+  color-scheme: light;
+}
+
+.vc-editor-properties-value[type="date"]::-webkit-calendar-picker-indicator,
+.vc-editor-properties-value[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+}
+
+.vc-editor-properties-value[type="date"]::-webkit-clear-button,
+.vc-editor-properties-value[type="datetime-local"]::-webkit-clear-button,
+.vc-editor-properties-value[type="date"]::-webkit-inner-spin-button,
+.vc-editor-properties-value[type="datetime-local"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+}
+
+.vc-editor-properties-value[type="date"]:focus,
+.vc-editor-properties-value[type="datetime-local"]:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  background: var(--background-primary);
+}
+
+.vc-editor-properties-type {
+  width: 100%;
+  height: 28px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.vc-editor-properties-type:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.vc-editor-properties-checkbox {
+  width: 18px;
+  height: 18px;
+  justify-self: start;
+  padding: 0;
+  accent-color: var(--interactive-accent);
+}
+
+/* ── Chip / pill rendering for list and tags values ── */
+.vc-editor-properties-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  padding: 0;
+  min-height: 24px;
+  height: auto;
+}
+
+.vc-editor-properties-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--tag-background, var(--background-modifier-hover));
+  border-radius: 11px;
+  padding: 2px 8px;
+  font-size: 13px;
+  color: var(--tag-color, var(--text-accent));
+  line-height: 1.4;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.vc-editor-properties-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vc-editor-properties-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: none;
+  background: transparent;
+  color: var(--tag-color, var(--text-accent));
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.vc-editor-properties-chip-remove:hover {
+  color: var(--tag-color, var(--text-accent));
+}
+
+.vc-editor-properties-chip-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-normal);
+  min-width: 60px;
+  flex: 1;
+  padding: 2px 0;
+}
+
+.vc-editor-properties-remove,
+.vc-editor-properties-add-btn {
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.vc-editor-properties-remove:hover,
+.vc-editor-properties-add-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+/* ── Add property link styling ── */
+.vc-editor-properties-add-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-faint);
+  font-size: var(--metadata-label-font-size, 13px);
+  cursor: pointer;
+  padding: 2px 0;
+  user-select: none;
+}
+
+.vc-editor-properties-add-link:hover {
+  color: var(--text-muted);
+}
+
+.vc-editor-properties-add-link .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.vc-editor-live-properties-widget {
+  margin-bottom: 12px;
+}
+
+.vc-editor-live-properties-hidden {
+  margin-bottom: 8px;
+}
+
+.vc-editor-properties-header-live-preview {
+  background: transparent;
+  border-radius: 0;
+  padding: 0 4px;
+  margin-bottom: 10px;
+  gap: 0;
+}
+
+.vc-editor-properties-header-live-preview .vc-editor-properties-row {
+  grid-template-columns: 22px minmax(110px, 170px) 1fr;
+  gap: 4px;
+  min-height: 30px;
+}
+
+.vc-editor-properties-header-live-preview .vc-editor-properties-add-row {
+  grid-template-columns: 22px 1fr;
+  gap: 4px;
+  min-height: 28px;
+}
+
+@media (max-width: 900px) {
+  .vc-editor-properties-row {
+    grid-template-columns: 22px minmax(96px, 144px) 1fr;
+  }
+
+  .vc-editor-properties-add-row {
+    grid-template-columns: 22px 1fr;
+  }
+
+  .vc-editor-properties-checkbox {
+    justify-self: start;
+  }
+
+  .vc-editor-properties-header-live-preview .vc-editor-properties-row,
+  .vc-editor-properties-header-live-preview .vc-editor-properties-add-row {
+    grid-template-columns: 22px 1fr;
+  }
+}
+
+/* ── Property suggestion dropdown ── */
+.vc-property-suggest {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.vc-property-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+.vc-property-suggest-item:hover,
+.vc-property-suggest-item.is-selected {
+  background: var(--background-modifier-hover);
+}
+
+.vc-property-suggest-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.vc-property-suggest-icon .svg-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.vc-property-suggest-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────────── */
+
+.vc-editor-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-faint);
+  font-size: 14px;
+  text-align: center;
+  padding: 32px;
+}
+
+/* ── Callout blocks ───────────────────────────────────────────────────────── */
+
+.vc-editor-reading-body blockquote.vc-callout {
+  --callout-color: var(--interactive-accent);
+  border-left: none;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 1em 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--callout-color) 12%, var(--background-primary));
+  border: 1px solid color-mix(in srgb, var(--callout-color) 30%, transparent);
+}
+
+.vc-callout-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--callout-color) 20%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--callout-color) 25%, transparent);
+}
+
+.vc-callout-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--callout-color);
+}
+
+.vc-callout-body {
+  padding: 8px 12px;
+  color: var(--text-normal);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.vc-callout-body p:first-child { margin-top: 0; }
+.vc-callout-body p:last-child  { margin-bottom: 0; }
+
+/* Callout type colors */
+blockquote.vc-callout[data-callout="note"],
+blockquote.vc-callout[data-callout="info"]     { --callout-color: #4dabf7; }
+blockquote.vc-callout[data-callout="tip"],
+blockquote.vc-callout[data-callout="hint"]     { --callout-color: #69db7c; }
+blockquote.vc-callout[data-callout="success"],
+blockquote.vc-callout[data-callout="check"],
+blockquote.vc-callout[data-callout="done"]     { --callout-color: #51cf66; }
+blockquote.vc-callout[data-callout="warning"],
+blockquote.vc-callout[data-callout="caution"],
+blockquote.vc-callout[data-callout="attention"] { --callout-color: #fcc419; }
+blockquote.vc-callout[data-callout="danger"],
+blockquote.vc-callout[data-callout="error"],
+blockquote.vc-callout[data-callout="bug"]      { --callout-color: #ff6b6b; }
+blockquote.vc-callout[data-callout="question"],
+blockquote.vc-callout[data-callout="help"],
+blockquote.vc-callout[data-callout="faq"]      { --callout-color: #cc5de8; }
+blockquote.vc-callout[data-callout="example"]  { --callout-color: #a78bfa; }
+blockquote.vc-callout[data-callout="quote"],
+blockquote.vc-callout[data-callout="cite"]     { --callout-color: #94a3b8; }
+blockquote.vc-callout[data-callout="abstract"],
+blockquote.vc-callout[data-callout="summary"],
+blockquote.vc-callout[data-callout="tldr"]     { --callout-color: #38bdf8; }
+blockquote.vc-callout[data-callout="todo"]     { --callout-color: #60a5fa; }
+
+/* ── Light-mode syntax highlighting override ──────────────────────────────── */
+/*
+ * github-dark.css is loaded unconditionally. In light mode the dark token
+ * colours clash with the light background. The block below replaces every
+ * relevant hljs token with the GitHub Light palette so code blocks are
+ * readable in both themes.
+ */
+[data-theme="light"] .hljs {
+  color: #24292e;
+  background: var(--code-background);
+}
+
+/* Keywords: if/else/return/function/class … */
+[data-theme="light"] .hljs-keyword,
+[data-theme="light"] .hljs-selector-tag,
+[data-theme="light"] .hljs-literal,
+[data-theme="light"] .hljs-doctag,
+[data-theme="light"] .hljs-strong {
+  color: #d73a49;
+}
+
+/* Identifiers: function names, class names, type names */
+[data-theme="light"] .hljs-title,
+[data-theme="light"] .hljs-title.class_,
+[data-theme="light"] .hljs-title.class_.inherited__,
+[data-theme="light"] .hljs-title.function_,
+[data-theme="light"] .hljs-section {
+  color: #6f42c1;
+}
+
+/* Numbers, constants, operators, attributes */
+[data-theme="light"] .hljs-number,
+[data-theme="light"] .hljs-variable,
+[data-theme="light"] .hljs-variable.language_,
+[data-theme="light"] .hljs-property,
+[data-theme="light"] .hljs-operator,
+[data-theme="light"] .hljs-params,
+[data-theme="light"] .hljs-attr {
+  color: #005cc5;
+}
+
+/* Strings and template literals */
+[data-theme="light"] .hljs-string,
+[data-theme="light"] .hljs-template-variable,
+[data-theme="light"] .hljs-template-tag,
+[data-theme="light"] .hljs-regexp {
+  color: #032f62;
+}
+
+/* Built-ins, symbols, types */
+[data-theme="light"] .hljs-built_in,
+[data-theme="light"] .hljs-symbol,
+[data-theme="light"] .hljs-bullet,
+[data-theme="light"] .hljs-code,
+[data-theme="light"] .hljs-addition {
+  color: #e36209;
+}
+
+/* Tag names, HTML/XML elements */
+[data-theme="light"] .hljs-tag,
+[data-theme="light"] .hljs-name,
+[data-theme="light"] .hljs-quote {
+  color: #22863a;
+}
+
+/* Comments */
+[data-theme="light"] .hljs-comment,
+[data-theme="light"] .hljs-meta {
+  color: #6a737d;
+  font-style: italic;
+}
+
+/* Emphasis / italic */
+[data-theme="light"] .hljs-emphasis {
+  color: #24292e;
+  font-style: italic;
+}
+
+/* Deletions (diff) */
+[data-theme="light"] .hljs-deletion {
+  color: #b31d28;
+  background: #ffeef0;
+}
+
+/* Additions (diff) */
+[data-theme="light"] .hljs-addition {
+  color: #22863a;
+  background: #f0fff4;
+}
+
+/* Selection highlight stays readable */
+[data-theme="light"] .hljs ::selection,
+[data-theme="light"] .hljs::selection {
+  background: rgba(0, 92, 197, 0.15);
+}

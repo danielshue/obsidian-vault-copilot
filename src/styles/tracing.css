@@ -1,0 +1,791 @@
+/* ============================================
+   TRACING MODAL STYLES
+   ============================================ */
+
+.vc-tracing-modal {
+	width: 100%;
+	max-width: none;
+	height: 100%;
+	max-height: none;
+}
+
+.vc-tracing-modal .modal-content {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 16px;
+	min-height: 0;
+}
+
+/* Stretch tracing view when used in a workspace leaf (desktop pop-out) */
+.workspace-leaf-content .vc-tracing-modal {
+	padding: 0;
+}
+
+.workspace-leaf-content .vc-tracing-modal .modal-content {
+	padding: 16px;
+}
+
+.vc-tracing-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 16px;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.vc-tracing-header h2 {
+	margin: 0;
+}
+
+.vc-tracing-controls {
+	display: flex;
+	gap: 8px;
+}
+
+.vc-tracing-select-group {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.vc-tracing-select-label {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.vc-tracing-select {
+	height: 32px;
+	padding: 4px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 13px;
+}
+
+.vc-tracing-btn {
+	padding: 6px 10px;
+	border-radius: 4px;
+	background: var(--background-modifier-hover);
+	border: 1px solid var(--background-modifier-border);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.vc-tracing-btn:hover {
+	background: var(--background-modifier-border);
+}
+
+.vc-tracing-btn.vc-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.vc-tracing-status {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.vc-tracing-status .vc-status-ok {
+	color: var(--color-green);
+}
+
+.vc-tracing-status .vc-status-disabled {
+	color: var(--text-muted);
+}
+
+.vc-tracing-content {
+	flex: 1;
+	overflow: hidden;
+	min-height: 0;
+}
+
+.vc-tracing-empty {
+	text-align: center;
+	padding: 40px;
+	color: var(--text-muted);
+}
+
+.vc-tracing-hint {
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.vc-tracing-layout {
+	display: grid;
+	grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+	gap: 16px;
+	height: 100%;
+	min-height: 0;
+}
+
+.vc-tracing-list {
+	min-width: 260px;
+	max-width: 420px;
+	overflow-y: auto;
+	border-right: 1px solid var(--background-modifier-border);
+	padding-right: 16px;
+	height: 100%;
+	min-height: 0;
+}
+
+.vc-tracing-list-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px;
+	border-radius: 6px;
+	cursor: pointer;
+	margin-bottom: 4px;
+}
+
+.vc-tracing-list-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-tracing-list-item.vc-selected {
+	background: var(--background-modifier-border);
+}
+
+.vc-tracing-item-icon {
+	flex-shrink: 0;
+	width: 20px;
+	height: 20px;
+}
+
+.vc-tracing-item-icon.vc-ok {
+	color: var(--color-green);
+}
+
+.vc-tracing-item-icon.vc-error {
+	color: var(--color-red);
+}
+
+.vc-tracing-item-icon.vc-spinning svg {
+	animation: spin 1s linear infinite;
+}
+
+.vc-tracing-item-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.vc-tracing-item-name {
+	display: block;
+	font-weight: 500;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vc-tracing-item-meta {
+	display: flex;
+	gap: 8px;
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-top: 4px;
+	flex-wrap: wrap;
+}
+
+.vc-tracing-detail {
+	flex: 1;
+	overflow-y: auto;
+	min-width: 0;
+	min-height: 0;
+	height: 100%;
+}
+
+.vc-tracing-detail-header {
+	margin-bottom: 16px;
+}
+
+.vc-tracing-detail-header h3 {
+	margin: 0 0 8px 0;
+}
+
+.vc-tracing-detail-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.vc-tracing-spans h4 {
+	margin: 0 0 12px 0;
+	font-size: 14px;
+}
+
+.vc-tracing-span-tree {
+	font-size: 13px;
+}
+
+.vc-tracing-span-node {
+	margin-bottom: 4px;
+}
+
+.vc-tracing-span-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.vc-tracing-span-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-tracing-span-toggle {
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+}
+
+.vc-tracing-span-toggle.vc-empty {
+	visibility: hidden;
+}
+
+.vc-tracing-span-type {
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 10px;
+	font-weight: 600;
+	text-transform: uppercase;
+	background: var(--background-modifier-border);
+}
+
+.vc-tracing-span-type.vc-type-agent {
+	background: var(--color-purple);
+	color: white;
+}
+
+.vc-tracing-span-type.vc-type-generation {
+	background: var(--color-blue);
+	color: white;
+}
+
+.vc-tracing-span-type.vc-type-function {
+	background: var(--color-cyan);
+	color: white;
+}
+
+.vc-tracing-span-type.vc-type-guardrail {
+	background: var(--color-orange);
+	color: white;
+}
+
+.vc-tracing-span-type.vc-type-handoff {
+	background: var(--color-yellow);
+	color: black;
+}
+
+.vc-tracing-span-name {
+	flex: 1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-family: var(--font-monospace);
+}
+
+.vc-tracing-span-duration {
+	color: var(--text-muted);
+	font-size: 12px;
+	flex-shrink: 0;
+}
+
+.vc-tracing-span-duration.vc-running {
+	color: var(--color-blue);
+}
+
+.vc-tracing-span-error {
+	color: var(--color-red);
+	flex-shrink: 0;
+}
+
+.vc-tracing-span-detail {
+	padding: 8px 8px 8px 32px;
+	font-size: 12px;
+}
+
+.vc-tracing-span-detail.vc-collapsed {
+	display: none;
+}
+
+.vc-tracing-span-data {
+	margin-top: 8px;
+}
+
+.vc-tracing-span-data pre {
+	margin: 4px 0 0 0;
+	padding: 8px;
+	background: var(--background-primary);
+	border-radius: 4px;
+	overflow-x: auto;
+	max-height: 200px;
+}
+
+.vc-tracing-span-data code {
+	font-size: 11px;
+}
+
+.vc-tracing-span-error-detail {
+	margin-top: 8px;
+	color: var(--color-red);
+}
+
+.vc-tracing-span-children {
+	margin-top: 4px;
+}
+
+/* Tracing Modal Tabs */
+.vc-tracing-tabs {
+	display: flex;
+	gap: 4px;
+	margin-bottom: 16px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding-bottom: 8px;
+}
+
+.vc-tracing-tab {
+	padding: 8px 16px;
+	border-radius: 4px 4px 0 0;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	font-size: 13px;
+	color: var(--text-muted);
+	transition: all 0.15s ease;
+}
+
+.vc-tracing-tab:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.vc-tracing-tab.vc-active {
+	background: var(--background-modifier-border);
+	color: var(--text-normal);
+	font-weight: 500;
+}
+
+/* SDK Logs Styles */
+.vc-sdk-logs-grid {
+	display: grid;
+	grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+	gap: 12px;
+	height: 100%;
+	min-height: 0;
+	align-items: stretch;
+}
+
+.vc-sdk-logs-rail {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	position: sticky;
+	top: 0;
+	align-self: start;
+	max-height: 100%;
+	min-width: 240px;
+	max-width: 420px;
+	height: 100%;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.vc-sdk-logs-rail-section {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.vc-rail-title {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+	font-weight: 700;
+}
+
+.vc-filter-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.vc-filter-pill {
+	min-width: 0;
+	text-transform: capitalize;
+}
+
+.vc-rail-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-sdk-log-search {
+	width: 100%;
+	padding: 6px 8px;
+	font-size: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+}
+
+.vc-sdk-log-search:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.vc-rail-reset {
+	align-self: flex-start;
+}
+
+@media (max-width: 960px) {
+	.vc-sdk-logs-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.vc-sdk-logs-rail {
+		position: static;
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.vc-sdk-logs-rail-section {
+		min-width: 220px;
+	}
+}
+
+.vc-sdk-logs-main {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	height: 100%;
+	gap: 8px;
+	min-height: 0;
+}
+
+.vc-sdk-logs-container {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.vc-sdk-logs-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 12px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	position: sticky;
+	top: 0;
+	background: var(--background-primary);
+	z-index: 1;
+}
+
+.vc-sdk-logs-list {
+	flex: 1;
+	overflow-y: auto;
+	font-family: var(--font-monospace);
+	font-size: 12px;
+	padding-right: 4px;
+}
+
+.vc-sdk-log-entry {
+	display: flex;
+	gap: 8px;
+	padding: 4px 8px;
+	border-radius: 2px;
+	align-items: flex-start;
+}
+
+.vc-sdk-log-entry:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-sdk-log-time {
+	color: var(--text-muted);
+	flex: 0 0 110px;
+	font-size: 11px;
+	text-align: left;
+}
+
+.vc-sdk-log-source {
+	padding: 1px 4px;
+	border-radius: 3px;
+	font-size: 10px;
+	font-weight: 500;
+	flex: 0 0 56px;
+	text-align: center;
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.vc-sdk-log-level {
+	padding: 1px 4px;
+	border-radius: 3px;
+	font-size: 10px;
+	font-weight: 600;
+	flex: 0 0 64px;
+	text-align: center;
+}
+
+.vc-level-debug {
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.vc-level-info {
+	background: var(--color-blue);
+	color: white;
+}
+
+.vc-level-warn,
+.vc-level-warning {
+	background: var(--color-yellow);
+	color: black;
+}
+
+.vc-level-error {
+	background: var(--color-red);
+	color: white;
+}
+
+.vc-sdk-log-message {
+	flex: 1;
+	word-break: break-word;
+}
+
+/* Expandable log messages */
+.vc-sdk-log-message-container {
+	flex: 1;
+	word-break: break-word;
+	min-width: 0;
+}
+
+.vc-log-expandable {
+	cursor: pointer;
+	overflow: hidden;
+}
+
+.vc-log-expandable:hover {
+	background: var(--background-secondary);
+}
+
+.vc-log-expandable.vc-log-collapsed .vc-sdk-log-message-full {
+	display: none;
+}
+
+.vc-log-expandable:not(.vc-log-collapsed) .vc-sdk-log-message-truncated {
+	display: none;
+}
+
+/* Keep a single-line row until expanded; allow wrapping only after toggle */
+.vc-log-expandable .vc-sdk-log-message-container {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.vc-log-expandable:not(.vc-log-collapsed) .vc-sdk-log-message-container {
+	white-space: normal;
+	overflow: visible;
+}
+
+.vc-sdk-log-message-truncated {
+	color: var(--text-muted);
+}
+
+.vc-sdk-log-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
+	color: var(--text-muted);
+	opacity: 0.6;
+	margin-left: 6px;
+}
+
+.vc-log-expandable:hover .vc-sdk-log-toggle {
+	opacity: 1;
+}
+
+.vc-sdk-log-toggle svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Search input in SDK logs */
+.vc-search-input {
+	flex: 1;
+	min-width: 150px;
+	max-width: 250px;
+	padding: 4px 8px;
+	font-size: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.vc-search-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.vc-search-input::placeholder {
+	color: var(--text-faint);
+}
+
+/* SDK Logs Filters */
+.vc-sdk-logs-filters {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+	flex-wrap: wrap;
+	margin-bottom: 12px;
+	padding: 8px 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-sort-btn {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+}
+
+.vc-sort-btn svg {
+	width: 14px;
+	height: 14px;
+}
+
+.vc-filter-group {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.vc-filter-label {
+	font-size: 12px;
+	color: var(--text-muted);
+	font-weight: 500;
+}
+
+.vc-filter-btn {
+	padding: 3px 8px;
+	border-radius: 4px;
+	font-size: 11px;
+	background: var(--background-modifier-hover);
+	border: 1px solid var(--background-modifier-border);
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: all 0.15s ease;
+}
+
+.vc-filter-btn:hover {
+	background: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.vc-filter-btn.vc-active {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.vc-filter-btn.vc-level-debug.vc-active {
+	background: var(--text-muted);
+	border-color: var(--text-muted);
+}
+
+.vc-filter-btn.vc-level-info.vc-active {
+	background: var(--color-blue);
+	border-color: var(--color-blue);
+}
+
+.vc-filter-btn.vc-level-warning.vc-active {
+	background: var(--color-yellow);
+	border-color: var(--color-yellow);
+	color: black;
+}
+
+.vc-filter-btn.vc-level-error.vc-active {
+	background: var(--color-red);
+	border-color: var(--color-red);
+}
+
+/* Agent filter buttons */
+.vc-filter-btn.vc-agent-filter {
+	max-width: 140px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vc-filter-btn.vc-agent-filter.vc-active {
+	background: var(--color-purple);
+	border-color: var(--color-purple);
+}
+
+/* Stale trace/span styles */
+.vc-tracing-item-icon.vc-stale {
+	color: var(--text-muted);
+	opacity: 0.6;
+}
+
+.vc-stale-label {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.vc-tracing-span-duration.vc-stale {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+/* Trace count badge on Voice Traces tab */
+.vc-tracing-tab-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-trace-count-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 3px 10px;
+	background: var(--color-green);
+	color: white;
+	border-radius: 12px;
+	font-size: 12px;
+	font-weight: 500;
+}
+

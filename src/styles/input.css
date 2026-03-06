@@ -1,0 +1,342 @@
+/* Input Area */
+.vc-input-area {
+	padding: 8px 12px 12px 12px;
+	border-top: none;
+	background: var(--background-secondary);
+	flex-shrink: 0;
+	min-width: 0;
+}
+
+.vc-input-wrapper {
+	display: flex;
+	flex-direction: column;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px;
+	padding: 0;
+	transition: border-color 0.15s;
+	position: relative;
+	min-width: 0;
+	container-type: inline-size;
+}
+
+.vc-input-wrapper:focus-within {
+	border-color: var(--background-modifier-border);
+}
+
+/* Add Context icon button inside input wrapper */
+.vc-add-context {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	-webkit-appearance: none;
+	appearance: none;
+	box-sizing: border-box;
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	outline: none !important;
+	color: var(--text-muted) !important;
+	-webkit-text-fill-color: var(--text-muted) !important;
+	width: 24px;
+	height: 24px;
+	min-height: 24px;
+	cursor: pointer;
+	padding: 0 !important;
+	border-radius: 4px !important;
+	transition: color 0.15s;
+}
+
+.vc-add-context:hover {
+	color: var(--text-normal) !important;
+	-webkit-text-fill-color: var(--text-normal) !important;
+	background: transparent !important;
+}
+
+.vc-add-context:focus,
+.vc-add-context:active {
+	color: var(--text-normal) !important;
+	-webkit-text-fill-color: var(--text-normal) !important;
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-add-context svg {
+	display: block;
+	flex-shrink: 0;
+	color: currentColor;
+	width: 16px;
+	height: 16px;
+}
+
+/* Context Row - icon and chips in a row */
+.vc-context-row {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	position: absolute;
+	top: 6px;
+	right: 8px;
+	padding: 0;
+	z-index: 2;
+	min-height: 24px;
+	min-width: 0;
+	pointer-events: none;
+}
+
+.vc-context-row .vc-add-context {
+	pointer-events: auto;
+}
+
+/* Attachments Container - inline with Add Context button */
+.vc-attachments {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	flex: 1;
+	min-width: 0;
+}
+
+.vc-attachments-toolbar {
+	padding: 6px 8px 0 8px;
+}
+
+.vc-attachment-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 6px 2px 8px;
+	background: var(--interactive-accent);
+	border: none;
+	border-radius: 12px;
+	font-size: 12px;
+	color: var(--text-on-accent);
+	white-space: nowrap;
+}
+
+.vc-attachment-icon {
+	display: flex;
+	align-items: center;
+	color: var(--text-on-accent);
+}
+
+.vc-attachment-name {
+	max-width: 150px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vc-attachment-remove {
+	display: flex;
+	align-items: center;
+	padding: 2px;
+	border-radius: 50%;
+	cursor: pointer;
+	color: var(--text-on-accent);
+	opacity: 0.8;
+	transition: opacity 0.15s, background 0.15s;
+}
+
+.vc-attachment-remove:hover {
+	opacity: 1;
+	background: rgba(255, 255, 255, 0.2);
+}
+
+/* Context Picker (for # trigger) - VS Code style */
+.vc-context-picker {
+	position: absolute;
+	bottom: 100%;
+	left: 0;
+	right: 0;
+	max-height: 320px;
+	overflow-y: auto;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	margin-bottom: 4px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	z-index: 100;
+	font-size: 13px;
+}
+
+.vc-context-picker-empty {
+	padding: 8px 12px;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.vc-context-picker-header {
+	padding: 6px 10px 4px;
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-context-picker-header:not(:first-child) {
+	border-top: 1px solid var(--background-modifier-border);
+	margin-top: 2px;
+}
+
+.vc-context-picker-item {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 4px 10px;
+	cursor: pointer;
+	min-height: 22px;
+}
+
+.vc-context-picker-item:hover,
+.vc-context-picker-item.vc-selected {
+	background: var(--background-modifier-hover);
+}
+
+.vc-context-picker-icon {
+	flex-shrink: 0;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	width: 16px;
+}
+
+.vc-context-picker-name {
+	flex-shrink: 0;
+	color: var(--text-normal);
+	font-size: 13px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 45%;
+}
+
+.vc-context-picker-path {
+	flex: 1;
+	font-size: 12px;
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-align: right;
+}
+
+/* Inline chip style (inside contenteditable) */
+.vc-inline-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 6px 2px 8px;
+	background: var(--interactive-accent);
+	border: none;
+	border-radius: 12px;
+	font-size: 12px;
+	color: var(--text-on-accent);
+	white-space: nowrap;
+	vertical-align: middle;
+	margin: 0 2px;
+	user-select: none;
+}
+
+/* Tool chip variant - slightly different color */
+.vc-inline-tool-chip {
+	background: var(--color-orange);
+}
+
+/* Prompt chip variant */
+.vc-inline-prompt-chip {
+	background: var(--color-cyan);
+}
+
+/* Skill chip variant */
+.vc-inline-skill-chip {
+	background: var(--color-yellow);
+}
+
+.vc-inline-chip .vc-attachment-icon {
+	color: var(--text-on-accent);
+	display: inline-flex;
+	align-items: center;
+}
+
+.vc-inline-chip .vc-attachment-remove {
+	color: var(--text-on-accent);
+	opacity: 0.8;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+}
+
+.vc-inline-chip .vc-attachment-remove:hover {
+	opacity: 1;
+	background: rgba(255, 255, 255, 0.2);
+	border-radius: 50%;
+}
+
+/* Contenteditable input */
+.vc-input {
+	flex: 1 1 auto;
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	min-width: 0;
+	background: transparent;
+	border: none;
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--text-normal);
+	min-height: 48px;
+	max-height: 200px;
+	outline: none;
+	padding: 8px 32px 8px 8px;
+	overflow-y: auto;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	cursor: text;
+}
+
+.vc-input:focus {
+	outline: none;
+	border: none;
+	box-shadow: none;
+}
+
+/* Placeholder for contenteditable */
+/* :empty handles programmatic clear (innerHTML=""); is-empty handles browser-inserted <br> after typing+deleting */
+.vc-input:empty::before,
+.vc-input.is-empty::before {
+	content: attr(data-placeholder);
+	display: block;
+	color: var(--text-muted);
+	pointer-events: none;
+}
+
+.vc-input:focus:empty::before,
+.vc-input.is-empty:focus::before {
+	content: attr(data-placeholder);
+}
+
+/* Argument hint for slash commands (shown after the /command text) */
+.vc-input[data-argument-hint]::after {
+	content: attr(data-argument-hint);
+	color: var(--text-muted);
+	pointer-events: none;
+	font-style: italic;
+}
+
+/* Keep compact input height in narrow sidebars */
+@media (max-width: 900px) {
+	.vc-input {
+		padding: 8px 32px 8px 8px;
+		min-height: 48px;
+	}
+}
+

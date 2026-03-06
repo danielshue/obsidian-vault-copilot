@@ -1,0 +1,257 @@
+/* ================================
+   MCP APPS - Inline App Rendering
+   ================================ */
+
+/* MCP App Container */
+.vc-mcp-app {
+	margin: 12px 0;
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-mcp-app.vc-mcp-app-loading {
+	padding: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	color: var(--text-muted);
+}
+
+.vc-mcp-app.vc-mcp-app-error {
+	padding: 16px;
+	background: rgba(var(--color-red-rgb), 0.1);
+	border-color: var(--text-error);
+}
+
+.vc-mcp-app-error-content {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+}
+
+.vc-mcp-app-error-icon {
+	color: var(--text-error);
+	flex-shrink: 0;
+}
+
+.vc-mcp-app-error-message {
+	flex: 1;
+}
+
+.vc-mcp-app-error-title {
+	font-weight: 500;
+	color: var(--text-error);
+	margin-bottom: 4px;
+}
+
+.vc-mcp-app-error-detail {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+/* MCP App Header */
+.vc-mcp-app-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	background: var(--background-modifier-border);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-mcp-app-header-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-mcp-app-header-icon {
+	color: var(--text-muted);
+}
+
+.vc-mcp-app-header-title {
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-mcp-app-header-server {
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.vc-mcp-app-header-actions {
+	display: flex;
+	gap: 4px;
+}
+
+.vc-mcp-app-action-btn {
+	background: transparent !important;
+	border: none !important;
+	padding: 4px;
+	border-radius: 4px !important;
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s, background 0.15s;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-mcp-app-action-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover) !important;
+}
+
+/* MCP App Iframe */
+.vc-mcp-app-iframe {
+	display: block;
+	width: 100%;
+	min-height: 200px;
+	border: none;
+	background: var(--background-primary);
+}
+
+/* MCP App Fullscreen */
+.vc-mcp-app-fullscreen {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 1000;
+	background: var(--background-primary);
+}
+
+.vc-mcp-app-fullscreen .vc-mcp-app-iframe {
+	height: calc(100vh - 44px);
+	max-height: none;
+}
+
+/* Tool Execution Indicator */
+.vc-tool-execution {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	margin: 8px 0;
+	background: var(--background-secondary);
+	border-radius: 6px;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.vc-tool-execution-icon {
+	color: var(--interactive-accent);
+}
+
+.vc-tool-execution.vc-tool-execution-running .vc-tool-execution-icon {
+	animation: vc-spin 1s linear infinite;
+}
+
+.vc-tool-execution-name {
+	font-weight: 500;
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 12px;
+}
+
+.vc-tool-execution-status {
+	margin-left: auto;
+	font-size: 11px;
+}
+
+.vc-tool-execution.vc-tool-execution-complete .vc-tool-execution-icon {
+	color: var(--color-green);
+}
+
+.vc-tool-execution.vc-tool-execution-error .vc-tool-execution-icon {
+	color: var(--color-red);
+}
+
+/* MCP App Result with UI */
+.vc-mcp-app-result {
+	margin: 12px 0;
+}
+
+.vc-mcp-app-result-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	background: var(--background-secondary);
+	border-radius: 6px 6px 0 0;
+	border: 1px solid var(--background-modifier-border);
+	border-bottom: none;
+}
+
+.vc-mcp-app-result-header-icon {
+	color: var(--color-green);
+}
+
+.vc-mcp-app-result-header-text {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.vc-mcp-app-result-header-tool {
+	font-weight: 500;
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+}
+
+.vc-mcp-app-result .vc-mcp-app {
+	border-radius: 0 0 6px 6px;
+	margin: 0;
+}
+
+/* Collapsible Tool Details */
+.vc-tool-details {
+	margin-top: 8px;
+}
+
+.vc-tool-details-toggle {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 8px;
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-muted);
+	font-size: 11px;
+	transition: color 0.15s, background 0.15s;
+}
+
+.vc-tool-details-toggle:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.vc-tool-details-content {
+	margin-top: 8px;
+	padding: 8px 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	overflow-x: auto;
+	display: none;
+}
+
+.vc-tool-details.vc-expanded .vc-tool-details-content {
+	display: block;
+}
+
+.vc-tool-details-content pre {
+	margin: 0;
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+

@@ -1,0 +1,185 @@
+/* Activity panel — always visible, full-width */
+
+/* Wrapper: always-visible section for all tool/agent activity */
+.vc-activity-wrapper {
+	margin: 4px 0;
+	border-radius: 6px;
+	width: 100%;
+}
+
+/* Header row: summary + spinner */
+.vc-activity-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	user-select: none;
+	font-size: 13px;
+	color: var(--text-muted);
+	border-radius: 6px;
+}
+
+/* Summary text */
+.vc-activity-summary-text {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+/* Wall-clock duration badge (shown after all activity completes) */
+.vc-activity-header-duration {
+	color: var(--text-faint);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	background: var(--background-modifier-hover);
+	padding: 1px 6px;
+	border-radius: 8px;
+	margin-left: 2px;
+}
+
+/* Spinner shown while running */
+.vc-activity-header-spinner {
+	display: flex;
+	align-items: center;
+	margin-left: 4px;
+}
+
+.vc-activity-header-spinner svg {
+	animation: vc-activity-spin 1s linear infinite;
+	color: var(--text-accent);
+}
+
+/* Body: always visible */
+.vc-activity-body {
+	display: block;
+	padding: 0 4px 4px;
+}
+
+/* Each activity item is a row inside the body */
+.vc-activity-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 12px;
+	margin: 1px 0;
+	font-size: 12px;
+	color: var(--text-muted);
+	border-radius: 4px;
+	position: relative;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.vc-activity-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-activity-item-clickable {
+	cursor: pointer;
+}
+
+/* Status icon container */
+.vc-activity-item-icon {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	width: 16px;
+	height: 16px;
+	justify-content: center;
+}
+
+/* Running state — spin the icon */
+.vc-activity-item-running svg {
+	animation: vc-activity-spin 1s linear infinite;
+	color: var(--text-accent);
+}
+
+.vc-activity-item-running {
+	color: var(--text-accent);
+}
+
+@keyframes vc-activity-spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+/* Success state */
+.vc-activity-item-success {
+	color: var(--color-green, #4ade80);
+}
+
+/* Error state */
+.vc-activity-item-error {
+	color: var(--color-red, #f87171);
+}
+
+/* Tool/agent name */
+.vc-activity-item-name {
+	color: var(--text-normal);
+	font-size: 13px;
+	font-weight: 500;
+}
+
+/* Sub-agent name gets accent color */
+.vc-activity-item-subagent .vc-activity-item-name {
+	color: var(--text-accent);
+}
+
+/* Truncated args preview */
+.vc-activity-item-args {
+	color: var(--text-faint);
+	font-size: 11px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: var(--font-monospace);
+	flex: 1;
+	min-width: 0;
+}
+
+/* Elapsed duration badge */
+.vc-activity-item-duration {
+	color: var(--text-faint);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* When duration is present, args should not push to the right */
+.vc-activity-item-duration + .vc-activity-item-args {
+	margin-left: 0;
+}
+
+/* Hide args preview when expanded (detail area is shown instead) */
+.vc-activity-item-expanded .vc-activity-item-args {
+	display: none;
+}
+
+/* Expandable detail area (collapsed by default) */
+.vc-activity-item-detail {
+	display: none;
+	width: 100%;
+	margin-top: 4px;
+	padding: 6px 8px;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-muted);
+	overflow-x: auto;
+}
+
+.vc-activity-item-detail pre {
+	margin: 0;
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+/* Show detail when expanded */
+.vc-activity-item-expanded {
+	flex-wrap: wrap;
+}
+
+.vc-activity-item-expanded .vc-activity-item-detail {
+	display: block;
+}

@@ -1,0 +1,193 @@
+
+/* Directory List UI */
+.vc-directory-list {
+	margin-top: 16px;
+}
+
+.vc-voice-agent-files {
+	margin-top: 16px;
+}
+
+.vc-directory-card {
+	padding: 12px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px;
+}
+
+.vc-directory-header {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-bottom: 8px;
+}
+
+.vc-directory-title {
+	font-weight: 500;
+	font-size: 14px;
+}
+
+.vc-directory-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.vc-directory-desc-in-card {
+	margin: 0 0 10px;
+	line-height: 1.4;
+}
+
+.vc-directory-items {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+
+.vc-directory-empty {
+	font-size: 13px;
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.vc-directory-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	background: inherit;
+	background-color: inherit;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-directory-path {
+	flex: 1;
+	font-size: 13px;
+	font-family: var(--font-monospace);
+	word-break: break-all;
+	background: transparent !important;
+	background-color: transparent !important;
+	padding: 0;
+}
+
+.vc-btn-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	background: transparent !important;
+	background-color: transparent !important;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: background 0.15s, color 0.15s;
+}
+
+.vc-btn-icon:hover {
+	background: transparent !important;
+	background-color: transparent !important;
+	color: var(--text-normal);
+}
+
+.vc-btn-icon:focus,
+.vc-btn-icon:active {
+	background: transparent !important;
+	background-color: transparent !important;
+}
+
+.vc-btn-remove:hover {
+	color: var(--text-error);
+}
+
+.vc-directory-item .vc-btn-remove,
+.vc-directory-item .vc-btn-remove:hover,
+.vc-directory-item .vc-btn-remove:focus,
+.vc-directory-item .vc-btn-remove:active {
+	color: var(--text-error) !important;
+}
+
+.vc-directory-add {
+	display: flex;
+	gap: 8px;
+}
+
+.vc-directory-input {
+	flex: 1;
+	padding: 6px 10px;
+	font-size: 13px;
+	font-family: var(--font-monospace);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-primary) !important;
+	background-color: var(--background-primary) !important;
+}
+
+.vc-directory-card .setting-item input[type="text"],
+.vc-directory-card .setting-item input[type="password"],
+.vc-directory-card .setting-item input[type="number"],
+.vc-directory-card .setting-item textarea,
+.vc-directory-card .text-input,
+.vc-directory-card .textarea-input,
+.vc-directory-card .vc-directory-item {
+	background: var(--background-primary) !important;
+	background-color: var(--background-primary) !important;
+}
+
+.vc-directory-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.vc-directory-add .vc-btn-secondary,
+.vc-directory-add .vc-btn-secondary:hover,
+.vc-directory-add .vc-btn-secondary:focus,
+.vc-directory-add .vc-btn-secondary:active {
+	background: var(--interactive-accent) !important;
+	background-color: var(--interactive-accent) !important;
+	color: var(--text-on-accent) !important;
+	border: 1px solid var(--interactive-accent) !important;
+	box-shadow: none !important;
+}
+
+.vc-directory-add .vc-btn-secondary:hover,
+.vc-directory-add .vc-btn-secondary:focus,
+.vc-directory-add .vc-btn-secondary:active {
+	background: var(--interactive-accent-hover) !important;
+	background-color: var(--interactive-accent-hover) !important;
+	border-color: var(--interactive-accent-hover) !important;
+}
+
+.vc-shell-settings-layout .vc-directory-item .vc-btn-remove,
+.vc-shell-settings-layout .vc-directory-item .vc-btn-remove:hover,
+.vc-shell-settings-layout .vc-directory-item .vc-btn-remove:focus,
+.vc-shell-settings-layout .vc-directory-item .vc-btn-remove:active {
+	color: var(--text-error) !important;
+}
+
+.vc-shell-settings-layout .vc-directory-add .vc-btn-secondary,
+.vc-shell-settings-layout .vc-directory-add .vc-btn-secondary:hover,
+.vc-shell-settings-layout .vc-directory-add .vc-btn-secondary:focus,
+.vc-shell-settings-layout .vc-directory-add .vc-btn-secondary:active {
+	background: var(--interactive-accent) !important;
+	background-color: var(--interactive-accent) !important;
+	color: var(--text-on-accent) !important;
+	border: 1px solid var(--interactive-accent) !important;
+	box-shadow: none !important;
+}
+
+.vc-shell-settings-layout .vc-directory-add .vc-btn-secondary:hover,
+.vc-shell-settings-layout .vc-directory-add .vc-btn-secondary:focus,
+.vc-shell-settings-layout .vc-directory-add .vc-btn-secondary:active {
+	background: var(--interactive-accent-hover) !important;
+	background-color: var(--interactive-accent-hover) !important;
+	border-color: var(--interactive-accent-hover) !important;
+}
+
+.vc-voice-agent-card .setting-item {
+	padding: 16px 0;
+}
+

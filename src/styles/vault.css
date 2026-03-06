@@ -1,0 +1,226 @@
+/* ============================================================================
+   Manage Vaults Modal
+   ============================================================================ */
+
+.vc-vault-modal .modal-content {
+	padding: 0;
+	overflow: hidden;
+}
+
+.vc-vault-modal-content {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 0;
+}
+
+/* Title row */
+.vc-vault-modal-title-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 20px 24px 16px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-vault-modal-title-icon {
+	display: flex;
+	align-items: center;
+	color: var(--text-muted);
+}
+
+.vc-vault-modal-title-icon svg {
+	width: 20px;
+	height: 20px;
+}
+
+.vc-vault-modal-title {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 700;
+	color: var(--text-normal);
+}
+
+/* Body — two columns */
+.vc-vault-modal-body {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	gap: 0;
+}
+
+/* Left column — vault list */
+.vc-vault-modal-left {
+	flex: 0 0 340px;
+	display: flex;
+	flex-direction: column;
+	border-right: 1px solid var(--background-modifier-border);
+	overflow: hidden;
+}
+
+.vc-vault-list {
+	flex: 1;
+	overflow-y: auto;
+	padding: 8px 0;
+}
+
+.vc-vault-list-empty {
+	padding: 24px 16px;
+	text-align: center;
+	color: var(--text-muted);
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+/* Individual vault row */
+.vc-vault-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	cursor: pointer;
+	border-left: 3px solid transparent;
+	transition: background 0.12s, border-color 0.12s;
+	position: relative;
+}
+
+.vc-vault-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-vault-row.is-active {
+	background: var(--background-modifier-hover);
+	border-left-color: var(--interactive-accent);
+}
+
+/* Active indicator (checkmark dot) */
+.vc-vault-row-dot {
+	flex-shrink: 0;
+	width: 18px;
+	height: 18px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--interactive-accent);
+}
+
+.vc-vault-row-dot svg {
+	width: 14px;
+	height: 14px;
+}
+
+.vc-vault-row:not(.is-active) .vc-vault-row-dot {
+	opacity: 0;
+}
+
+/* Vault info */
+.vc-vault-row-info {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.vc-vault-row-name {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vc-vault-row-path {
+	font-size: 11px;
+	color: var(--text-muted);
+	font-family: var(--font-monospace);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Three-dot menu button (hidden until hover) */
+.vc-vault-row-menu-btn {
+	flex-shrink: 0;
+	background: none !important;
+	border: none !important;
+	box-shadow: none !important;
+	padding: 3px;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	opacity: 0;
+	transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+
+.vc-vault-row:hover .vc-vault-row-menu-btn {
+	opacity: 1;
+}
+
+.vc-vault-row-menu-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover) !important;
+}
+
+.vc-vault-row-menu-btn svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Right column — actions */
+.vc-vault-modal-right {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	padding: 20px 24px;
+	gap: 0;
+	overflow-y: auto;
+}
+
+.vc-vault-action-card {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 8px;
+}
+
+.vc-vault-action-heading {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-vault-action-desc {
+	font-size: 13px;
+	color: var(--text-muted);
+	line-height: 1.5;
+}
+
+.vc-vault-action-btn {
+	align-self: flex-start;
+	padding: 7px 18px;
+	border-radius: var(--radius-s);
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+	border: none;
+	transition: filter 0.15s;
+}
+
+.vc-vault-action-btn.mod-cta {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.vc-vault-action-btn.mod-cta:hover {
+	filter: brightness(1.1);
+}
+
+.vc-vault-action-divider {
+	height: 1px;
+	background: var(--background-modifier-border);
+	margin: 16px 0;
+}

@@ -1,0 +1,419 @@
+/* Input Toolbar */
+.vc-input-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 0;
+	padding: 4px 8px 0 8px;
+	background: transparent;
+	min-width: 0;
+	container-type: inline-size;
+}
+
+/* Override all button styles inside input toolbar */
+.vc-input-toolbar button,
+.vc-input-toolbar select {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	outline: none !important;
+	border-radius: 0 !important;
+}
+
+.vc-input-toolbar button:hover,
+.vc-input-toolbar button:focus,
+.vc-input-toolbar button:active,
+.vc-input-toolbar select:hover,
+.vc-input-toolbar select:focus,
+.vc-input-toolbar select:active {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.vc-toolbar-left {
+	display: flex;
+	align-items: center;
+	flex: 1;
+	flex-wrap: nowrap;
+	gap: 2px;
+	padding: 0;
+	overflow: hidden;
+	min-width: 0;
+}
+
+/* Overflow collapse: hidden items */
+.vc-toolbar-collapsed {
+	display: none !important;
+}
+
+/* Overflow "..." button — hidden until items overflow */
+.vc-toolbar-overflow-btn {
+	display: none;
+	flex-shrink: 0;
+}
+
+.vc-toolbar-overflow-btn.is-visible {
+	display: inline-flex;
+}
+
+.vc-toolbar-controls {
+	border-top: 1px solid var(--background-modifier-border);
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	min-width: 0;
+}
+
+.vc-toolbar-right {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	flex-wrap: nowrap;
+	width: 100%;
+	min-height: 28px;
+	gap: 4px;
+	padding: 4px 8px 6px 8px;
+	min-width: 0;
+}
+
+.vc-toolbar-btn {
+	width: 20px;
+	height: 20px;
+	border: none !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	color: var(--text-muted);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s;
+	padding: 0;
+	outline: none !important;
+	box-shadow: none !important;
+}
+
+.vc-toolbar-btn:hover {
+	color: var(--text-normal);
+	background: transparent !important;
+}
+
+.vc-toolbar-btn:focus,
+.vc-toolbar-btn:active {
+	outline: none !important;
+	border: none !important;
+	box-shadow: none !important;
+	background: transparent !important;
+}
+
+/* Model Selector */
+.vc-model-selector {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 14px 2px 4px;
+	background-color: transparent;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-muted);
+	font-size: 12px;
+	cursor: pointer;
+	outline: none;
+	transition: color 0.15s;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	white-space: nowrap;
+}
+
+.vc-model-provider-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	opacity: 0.9;
+}
+
+.vc-model-provider-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.vc-model-selector-text {
+	display: inline-block;
+	white-space: nowrap;
+}
+
+.menu.vc-model-menu .menu-item-icon:empty {
+	display: none;
+	width: 0;
+}
+
+.menu.vc-model-menu .menu-item.is-checked::before,
+.menu.vc-model-menu .menu-item.is-checked::after {
+	content: none !important;
+}
+
+/* Three-column grid applied to every row's title element */
+.menu.vc-model-menu .menu-item-title {
+	display: grid;
+	grid-template-columns: 16px 1fr auto;
+	align-items: center;
+	gap: 0 8px;
+	width: 100%;
+}
+
+.menu.vc-model-menu .menu-item {
+	padding: 5px 10px 5px 6px;
+}
+
+/* Header row */
+.menu.vc-model-menu .vc-model-menu-header {
+	cursor: default;
+	pointer-events: none;
+	opacity: 1;
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	margin-bottom: 2px;
+}
+
+.menu.vc-model-menu .vc-model-menu-header .menu-item-title {
+	font-size: 0.7em;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+	font-weight: 600;
+}
+
+/* Column: checkmark */
+.menu.vc-model-menu .vc-model-col-check {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-accent);
+	font-size: 0.9em;
+}
+
+/* Column: provider icon + model name */
+.menu.vc-model-menu .vc-model-col-name {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	white-space: nowrap;
+}
+
+/* Column: multiplier */
+.menu.vc-model-menu .vc-model-col-mult {
+	text-align: right;
+	color: var(--text-muted);
+	font-size: 0.8em;
+	white-space: nowrap;
+}
+
+.menu.vc-model-menu .vc-model-provider-icon {
+	margin-right: 0;
+	display: flex;
+	align-items: center;
+}
+
+.vc-model-selector::after {
+	content: '';
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	margin-left: 4px;
+	vertical-align: middle;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
+}
+
+.vc-model-selector:hover {
+	color: var(--text-normal);
+}
+
+.vc-model-selector:focus {
+	color: var(--text-normal);
+}
+
+/* Brain Icon Button */
+.vc-brain-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	background: transparent;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-muted);
+	cursor: pointer;
+	outline: none;
+	transition: color 0.15s;
+	border-radius: 4px;
+}
+
+.vc-brain-icon-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.vc-brain-icon-btn svg {
+	width: 16px;
+	height: 16px;
+}
+
+/* Agent Selector */
+.vc-agent-selector {
+	padding: 2px 4px 2px 4px;
+	background-color: transparent;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-muted);
+	font-size: 12px;
+	cursor: pointer;
+	outline: none;
+	transition: color 0.15s;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	white-space: nowrap;
+}
+
+.vc-agent-selector::after {
+	content: '';
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	margin-left: 4px;
+	vertical-align: middle;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
+}
+
+.vc-agent-selector:hover {
+	color: var(--text-normal);
+}
+
+.vc-agent-selector:focus {
+	color: var(--text-normal);
+}
+
+.vc-agent-selector.vc-agent-selected {
+	color: var(--interactive-accent);
+}
+
+.vc-agent-selector.vc-agent-selected:hover {
+	color: var(--interactive-accent-hover);
+}
+
+/* Tool Selector */
+.vc-tool-selector {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	background: transparent;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-muted);
+	cursor: pointer;
+	outline: none;
+	transition: color 0.15s;
+	border-radius: 4px;
+}
+
+.vc-tool-selector:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.vc-tool-selector:focus {
+	color: var(--text-normal);
+}
+
+.vc-tool-selector.vc-tools-filtered {
+	color: var(--interactive-accent);
+}
+
+.vc-tool-selector.vc-tools-filtered:hover {
+	color: var(--interactive-accent-hover);
+}
+
+.vc-tool-selector svg {
+	width: 16px;
+	height: 16px;
+}
+
+.vc-model-rate {
+	margin-left: auto;
+	padding-left: 16px;
+	color: var(--text-muted);
+	font-size: 11px;
+	float: right;
+}
+
+.vc-send-btn {
+	flex-shrink: 0;
+	margin-left: auto;
+	width: 24px;
+	height: 24px;
+	border: none !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	color: var(--text-normal);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s;
+	padding: 0;
+	outline: none !important;
+	box-shadow: none !important;
+}
+
+.vc-toolbar-right > .vc-send-btn {
+	display: inline-flex !important;
+	visibility: visible;
+	opacity: 1;
+}
+
+.vc-send-btn svg {
+	display: block;
+}
+
+.vc-send-btn:hover:not(:disabled) {
+	color: var(--text-normal);
+	background: transparent !important;
+}
+
+.vc-send-btn:focus,
+.vc-send-btn:active {
+	outline: none !important;
+	border: none !important;
+	box-shadow: none !important;
+	background: transparent !important;
+}
+
+.vc-send-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.vc-send-btn.vc-loading {
+	animation: vc-pulse 1s ease-in-out infinite;
+}
+
+@keyframes vc-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.5; }
+}
+

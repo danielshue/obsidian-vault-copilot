@@ -1,0 +1,71 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/**
+ * Editor Selection Preservation
+ * 
+ * Preserves visual highlighting of text selections in the Obsidian editor
+ * even when focus moves to other elements (e.g., chat input).
+ * 
+ * This improves UX by:
+ * - Showing users what text will be included as context
+ * - Making implicit context augmentation more transparent
+ * - Maintaining visual feedback across focus changes
+ * 
+ * Key approach: JavaScript creates overlay divs that mirror the selection
+ * position, since CodeMirror 6 clears its selection layer on focus loss.
+ */
+
+/*
+ * Selection highlight overlay container
+ * Created programmatically by CopilotChatView.preserveEditorSelection()
+ */
+.vc-selection-highlight-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	pointer-events: none;
+	z-index: 10;
+}
+
+/*
+ * Individual selection highlight rectangles
+ * One is created for each line of the selection
+ */
+.vc-selection-highlight {
+	position: absolute;
+	background-color: var(--text-selection, rgba(0, 122, 255, 0.15));
+	pointer-events: none;
+	border-radius: 2px;
+	transition: opacity 0.15s ease;
+}
+
+/* 
+ * CSS fallbacks for native selection styling (used as backup)
+ * Uses ::selection pseudo-element to style text selection appearance
+ */
+.workspace-leaf-content ::selection {
+	background: var(--text-selection, rgba(0, 122, 255, 0.2));
+	color: inherit;
+}
+
+/* 
+ * CodeMirror 6 selection preservation (backup for native selection)
+ */
+.cm-editor .cm-content ::selection,
+.cm-editor .cm-line ::selection {
+	background: var(--text-selection, rgba(0, 122, 255, 0.2));
+}
+
+/*
+ * Preserve selection in Legacy editor (for older Obsidian versions)
+ * Uses contenteditable-based editor
+ */
+.markdown-source-view.is-readable-line-width ::selection,
+.markdown-source-view ::selection {
+	background: var(--text-selection, rgba(0, 122, 255, 0.2));
+}

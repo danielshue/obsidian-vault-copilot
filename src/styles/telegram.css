@@ -1,0 +1,225 @@
+/* Telegram integration styles */
+
+/* ── Session panel: Telegram source icon ── */
+.vc-session-source-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-accent);
+	flex-shrink: 0;
+}
+
+.vc-session-source-icon svg {
+	fill: #2AABEE;
+}
+
+/* ── Message: Telegram badge ── */
+.vc-message-telegram {
+	position: relative;
+}
+
+.vc-message-source-badge {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: var(--background-modifier-hover);
+	opacity: 0.6;
+	transition: opacity 150ms ease;
+	z-index: 1;
+}
+
+.vc-message-telegram:hover .vc-message-source-badge {
+	opacity: 1;
+}
+
+.vc-message-source-badge svg {
+	fill: #2AABEE;
+}
+
+/* ── Message: Voice input badge ── */
+.vc-message-voice-badge {
+	position: absolute;
+	top: 4px;
+	right: 28px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: var(--background-modifier-hover);
+	opacity: 0.6;
+	transition: opacity 150ms ease;
+	z-index: 1;
+}
+
+.vc-message:hover .vc-message-voice-badge {
+	opacity: 1;
+}
+
+.vc-message-voice-badge svg {
+	stroke: var(--text-accent);
+}
+
+/* ── Settings: Telegram section ── */
+.vc-telegram-settings-section > .vc-status-desc {
+	margin-bottom: 16px;
+}
+
+.vc-telegram-settings-section > .vc-status-desc + .setting-item {
+	margin-top: 8px;
+}
+
+/* When section headers/descriptions are lifted out of the card, target wrapper layout */
+#vc-section-telegram > .vc-section-description {
+	margin-bottom: 12px;
+}
+
+#vc-section-telegram > .vc-section-description + .vc-settings-section.vc-telegram-settings-section {
+	margin-top: 0;
+}
+
+.vc-telegram-subsection {
+	margin-top: 18px;
+}
+
+.vc-telegram-subsection-title {
+	margin: 0 0 10px;
+	font-size: 1.02em;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+/* Keep Telegram cards visually aligned with shell (white cards/rows) */
+.vc-telegram-settings-section .vc-plugin-inner-settings-card,
+.vc-telegram-settings-section .vc-telegram-subsection-card {
+	background: var(--background-primary) !important;
+	overflow: hidden;
+}
+
+.vc-telegram-settings-section .vc-plugin-inner-settings-card .setting-item,
+.vc-telegram-settings-section .vc-plugin-inner-settings-card .setting-item:hover,
+.vc-telegram-settings-section .vc-plugin-inner-settings-card .setting-item:focus,
+.vc-telegram-settings-section .vc-plugin-inner-settings-card .setting-item:active,
+.vc-telegram-settings-section .vc-telegram-subsection-card .setting-item,
+.vc-telegram-settings-section .vc-telegram-subsection-card .setting-item:hover,
+.vc-telegram-settings-section .vc-telegram-subsection-card .setting-item:focus,
+.vc-telegram-settings-section .vc-telegram-subsection-card .setting-item:active {
+	background: transparent !important;
+	background-color: transparent !important;
+	border: 0 !important;
+	border-bottom: 1px solid var(--background-modifier-border) !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+}
+
+.vc-telegram-settings-section .vc-plugin-inner-settings-card .setting-item:last-child,
+.vc-telegram-settings-section .vc-telegram-subsection-card .setting-item:last-child {
+	border-bottom: none !important;
+}
+
+.vc-telegram-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 0;
+	margin-bottom: 12px;
+	padding: 12px 14px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	background: var(--background-primary);
+	font-size: var(--font-ui-small);
+}
+
+.vc-telegram-status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.vc-telegram-status-dot.is-connected {
+	background: var(--color-green);
+}
+
+.vc-telegram-status-dot.is-disconnected {
+	background: var(--color-red);
+}
+
+.vc-telegram-status-dot.is-polling {
+	background: var(--color-yellow);
+	animation: vc-telegram-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes vc-telegram-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.4; }
+}
+
+.vc-telegram-chat-ids {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+}
+
+.vc-telegram-test-btn {
+	margin-top: 8px;
+}
+
+.vc-telegram-controls-row {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	padding-top: 2px;
+}
+
+.vc-telegram-bot-controls-card {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding-top: 20px;
+	padding-bottom: 20px;
+	min-height: 64px;
+}
+
+.vc-telegram-bot-controls-card .vc-telegram-status {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+}
+
+.vc-telegram-bot-controls-card .vc-telegram-controls-row {
+	align-items: center;
+	margin-left: auto;
+	padding-top: 0;
+	padding-bottom: 0;
+	gap: 10px;
+}
+
+.vc-telegram-controls-row button {
+	min-width: 132px;
+}
+
+.vc-telegram-bot-controls-card .vc-telegram-controls-row button {
+	min-width: 150px;
+	width: 150px;
+	flex: 0 0 150px;
+	padding: 6px 14px;
+}
+
+.vc-secret-modal .vc-secret-modal-button-row {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 16px;
+}

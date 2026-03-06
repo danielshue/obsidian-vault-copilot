@@ -1,0 +1,264 @@
+/* ================================
+   TOOL PICKER MODAL (VS Code style)
+   ================================ */
+
+/* Modal sizing is in modals.css */
+
+.vc-tool-picker-modal .modal-content {
+	padding: 0;
+}
+
+/* Force primary background so the modal matches in both Obsidian and Shell */
+.vc-tool-picker-modal {
+	background: var(--background-primary);
+}
+
+.vc-tool-picker-content {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+
+/* Search row with badge and OK button */
+.vc-tp-search-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+}
+
+.vc-tp-search-input {
+	flex: 1;
+	height: 30px;
+	padding: 0 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 13px;
+}
+
+.vc-tp-search-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
+}
+
+.vc-tp-search-input::placeholder {
+	color: var(--text-faint);
+}
+
+.vc-tp-selected-count {
+	padding: 0 10px;
+	height: 28px;
+	display: inline-flex;
+	align-items: center;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	font-size: 12px;
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+.vc-tool-picker-modal button.vc-tp-ok-btn,
+.vc-tool-picker-modal button.vc-tp-ok-btn:hover,
+.vc-tool-picker-modal button.vc-tp-ok-btn:focus,
+.vc-tool-picker-modal button.vc-tp-ok-btn:focus-visible,
+.vc-tool-picker-modal button.vc-tp-ok-btn:active {
+	-webkit-appearance: none;
+	appearance: none;
+	padding: 0 14px;
+	height: 28px;
+	background: var(--interactive-accent);
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	-webkit-text-fill-color: var(--text-on-accent);
+	border: none;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+
+.vc-tool-picker-modal button.vc-tp-ok-btn:hover,
+.vc-tool-picker-modal button.vc-tp-ok-btn:focus,
+.vc-tool-picker-modal button.vc-tp-ok-btn:focus-visible,
+.vc-tool-picker-modal button.vc-tp-ok-btn:active {
+	background: var(--interactive-accent-hover);
+	background-color: var(--interactive-accent-hover);
+}
+
+/* Description text */
+.vc-tp-description {
+	padding: 10px 12px;
+	font-size: 12px;
+	color: var(--text-muted);
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+}
+
+/* Tree container */
+.vc-tp-tree {
+	flex: 1;
+	overflow-y: auto;
+	max-height: 450px;
+	padding: 6px 0;
+}
+
+/* Group (top-level: Built-In, Plugin, MCP servers) */
+.vc-tp-group {
+	/* No additional styling needed */
+}
+
+.vc-tp-group-header {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 5px 10px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.vc-tp-group-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-tp-chevron {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.vc-tp-checkbox {
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	cursor: pointer;
+	accent-color: var(--interactive-accent);
+}
+
+.vc-tp-group-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-tp-icon {
+	width: 16px;
+	height: 16px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.vc-tp-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Children container */
+.vc-tp-children {
+	margin-left: 22px;
+}
+
+/* Category (subcategory within Built-In) */
+.vc-tp-category {
+	/* No additional styling needed */
+}
+
+.vc-tp-category-header {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 8px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.vc-tp-category-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-tp-category-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	color: var(--text-normal);
+}
+
+.vc-tp-category-tools {
+	margin-left: 20px;
+}
+
+/* Tool item */
+.vc-tp-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 10px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.vc-tp-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-tp-item.vc-tp-depth-1 {
+	padding-left: 14px;
+}
+
+.vc-tp-item-text {
+	display: flex;
+	align-items: baseline;
+	gap: 12px;
+	flex: 1;
+	min-width: 0;
+}
+
+.vc-tp-item-name {
+	font-size: 13px;
+	font-weight: 400;
+	color: var(--text-normal);
+	flex: 0 0 auto;
+	max-width: 360px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vc-tp-item-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-left: 0;
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Tool Summary (Settings Tab) */
+.vc-tool-summary {
+	padding: 8px 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	margin-bottom: 12px;
+}
+

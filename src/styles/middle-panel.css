@@ -1,0 +1,81 @@
+/* ─── Middle Panel ─────────────────────────────────────────────────────────── */
+
+.vc-middle-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+
+/* Header bar — mirrors the Extensions panel header style */
+.vc-middle-panel-header {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	padding: 0 8px;
+	height: 35px;
+	flex-shrink: 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.vc-middle-panel-title {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	flex: 1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vc-middle-panel-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+/* Icon buttons in the middle panel header */
+.vc-middle-panel-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 4px;
+	border-radius: 4px;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	transition: background 0.15s, color 0.15s;
+}
+
+.vc-middle-panel-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* Scrollable content area */
+.vc-middle-panel-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+/* Placeholder text */
+.vc-middle-panel-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	color: var(--text-faint);
+	font-size: 13px;
+	text-align: center;
+	padding: 24px;
+}

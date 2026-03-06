@@ -3,6 +3,7 @@ import process from "process";
 import path from "node:path";
 import { builtinModules } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { existsSync, mkdirSync, copyFileSync, readdirSync } from 'node:fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,82 +19,104 @@ const prod = args.includes("production");
 
 // Include both 'module' and 'node:module' format for Node.js built-ins
 const nodeBuiltins = [
-	...builtinModules,
-	...builtinModules.map(m => `node:${m}`)
+...builtinModules,
+...builtinModules.map(m => `node:${m}`)
 ];
 
+// ---------------------------------------------------------------------------
+// Pre-build: sync shared CSS component files from the parent repo (Pro tree).
+// When the parent src/styles/ exists (e.g. inside the Pro monorepo), we copy
+// all .css files into vault-copilot/src/styles/ so the Basic CSS entry point
+// can import them with simple relative paths like "./chat.css".
+// When building standalone (no parent), these files are expected to already
+// be present from a prior sync or committed to the repo.
+// ---------------------------------------------------------------------------
+const parentStylesDir = path.resolve(__dirname, '../src/styles');
+const localStylesDir = path.resolve(__dirname, 'src/styles');
+
+if (existsSync(parentStylesDir)) {
+mkdirSync(localStylesDir, { recursive: true });
+const cssFiles = readdirSync(parentStylesDir).filter(
+f => f.endsWith('.css') && f !== 'styles.css'
+);
+for (const file of cssFiles) {
+copyFileSync(path.join(parentStylesDir, file), path.join(localStylesDir, file));
+}
+console.log(`Synced ${cssFiles.length} CSS component files from parent repo`);
+}
+
 const sharedOptions = {
-	banner: { js: banner },
-	alias: { shell: "obsidian" },
-	bundle: true,
-	external: [
-		"obsidian",
-		"electron",
-		"@codemirror/autocomplete",
-		"@codemirror/collab",
-		"@codemirror/commands",
-		"@codemirror/language",
-		"@codemirror/lint",
-		"@codemirror/search",
-		"@codemirror/state",
-		"@codemirror/view",
-		"@lezer/common",
-		"@lezer/highlight",
-		"@lezer/lr",
-		...nodeBuiltins],
-	format: "cjs",
-	target: "es2018",
-	logLevel: "info",
-	sourcemap: prod ? false : "inline",
-	treeShaking: true,
-	loader: {
-		'.woff': 'empty',
-		'.woff2': 'empty',
-		'.ttf': 'empty',
-		'.eot': 'empty',
-	},
-	entryNames: "[name]",
-	minify: prod,
-	keepNames: true,
-	platform: "node",
+banner: { js: banner },
+alias: { shell: "obsidian" },
+bundle: true,
+external: [
+"obsidian",
+"electron",
+"@codemirror/autocomplete",
+"@codemirror/collab",
+"@codemirror/commands",
+"@codemirror/language",
+"@codemirror/lint",
+"@codemirror/search",
+"@codemirror/state",
+"@codemirror/view",
+"@lezer/common",
+"@lezer/highlight",
+"@lezer/lr",
+...nodeBuiltins],
+format: "cjs",
+target: "es2018",
+logLevel: "info",
+sourcemap: prod ? false : "inline",
+treeShaking: true,
+loader: {
+'.woff': 'empty',
+'.woff2': 'empty',
+'.ttf': 'empty',
+'.eot': 'empty',
+},
+entryNames: "[name]",
+minify: prod,
+keepNames: true,
+platform: "node",
 };
 
 // ---------------------------------------------------------------------------
 // Stubs plugin: replaces Pro-only modules (kept in the Pro tree) with no-ops
 // ---------------------------------------------------------------------------
 const basicStubsPlugin = {
-	name: 'basic-stubs',
-	setup(build) {
-		// Stubs live in the Pro tree at ../src/basic/stubs/
-		const stubDir = path.resolve(__dirname, '../src/basic/stubs');
-		const redirects = [
-			{ filter: /\/managers\/VoiceManager$/, stub: 'VoiceManager.ts' },
-			{ filter: /\/managers\/RealtimeAgentManager$/, stub: 'RealtimeAgentManager.ts' },
-			{ filter: /\/voice-chat(?:\/index)?$/, stub: 'voice-chat.ts' },
-			{ filter: /\/utils\/AppLogger$/, stub: 'AppLogger.ts' },
-			{ filter: /\/bases\/BasesToolHandlers$/, stub: 'BasesToolHandlers.ts' },
-			{ filter: /\/providers\/AzureOpenAIService$/, stub: 'AzureOpenAIService.ts' },
-			{ filter: /\/providers\/OpenAIService$/, stub: 'OpenAIService.ts' },
-		];
-		for (const { filter, stub } of redirects) {
-			build.onResolve({ filter }, () => ({
-				path: path.join(stubDir, stub),
-			}));
-		}
-	},
+name: 'basic-stubs',
+setup(build) {
+// Stubs live in the Pro tree at ../src/basic/stubs/
+const stubDir = path.resolve(__dirname, '../src/basic/stubs');
+const redirects = [
+{ filter: /\/managers\/VoiceManager$/, stub: 'VoiceManager.ts' },
+{ filter: /\/managers\/RealtimeAgentManager$/, stub: 'RealtimeAgentManager.ts' },
+{ filter: /\/voice-chat(?:\/index)?$/, stub: 'voice-chat.ts' },
+{ filter: /\/utils\/AppLogger$/, stub: 'AppLogger.ts' },
+{ filter: /\/bases\/BasesToolHandlers$/, stub: 'BasesToolHandlers.ts' },
+{ filter: /\/providers\/AzureOpenAIService$/, stub: 'AzureOpenAIService.ts' },
+{ filter: /\/providers\/OpenAIService$/, stub: 'OpenAIService.ts' },
+];
+for (const { filter, stub } of redirects) {
+build.onResolve({ filter }, () => ({
+path: path.join(stubDir, stub),
+}));
+}
+},
 };
 
 const ctx = await esbuild.context({
-	...sharedOptions,
-	entryPoints: ["src/main.ts", "src/styles/styles.css"],
-	outdir: ".",
-	// No plugins needed for standalone Basic - it has its own implementations
+...sharedOptions,
+entryPoints: ["src/main.ts", "src/styles/styles.css"],
+outdir: ".",
+// No plugins needed for standalone Basic - it has its own implementations
 });
 
 if (prod) {
-	await ctx.rebuild();
-	await ctx.dispose();
-	process.exit(0);
+await ctx.rebuild();
+await ctx.dispose();
+process.exit(0);
 } else {
-	await ctx.watch();
+await ctx.watch();
 }

@@ -1,0 +1,134 @@
+/* ================================
+   PROMPT PICKER
+   ================================ */
+
+.vc-prompt-picker {
+	position: absolute;
+	bottom: 100%;
+	left: 0;
+	right: 0;
+	margin-bottom: 4px;
+	max-height: 320px;
+	overflow-y: auto;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	z-index: 100;
+	font-size: 13px;
+}
+
+.vc-prompt-picker-empty {
+	padding: 8px 12px;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.vc-prompt-picker-item {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 10px;
+	cursor: pointer;
+	min-height: 22px;
+}
+
+.vc-prompt-picker-item:hover,
+.vc-prompt-picker-item.vc-selected {
+	background: var(--background-modifier-hover);
+}
+
+/* Left column: name + badge grouped together for consistent alignment */
+.vc-prompt-picker-left {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 1;
+	min-width: 0;
+}
+
+.vc-prompt-picker-name {
+	flex: 1;
+	color: var(--text-normal);
+	font-size: 13px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ---- Type badges ---- */
+
+.vc-prompt-picker-badge {
+	flex-shrink: 0;
+	font-size: 10px;
+	line-height: 1;
+	padding: 2px 6px;
+	border-radius: 8px;
+	text-transform: uppercase;
+	font-weight: 500;
+	letter-spacing: 0.03em;
+	white-space: nowrap;
+}
+
+.vc-badge-command {
+	background: var(--background-modifier-border, #404040);
+	color: var(--text-muted, #999);
+}
+
+.vc-badge-prompt {
+	background: var(--color-accent, #7c5cbf);
+	color: var(--text-on-accent, #fff);
+	opacity: 0.85;
+}
+
+.vc-badge-agent {
+	background: #e07832;
+	color: #fff;
+	opacity: 0.85;
+}
+
+.vc-badge-skill {
+	background: #48b34e;
+	color: #fff;
+	opacity: 0.85;
+}
+
+/* ---- Group headers (grouped display mode) ---- */
+
+.vc-prompt-picker-group-header {
+	padding: 6px 10px 2px;
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-faint);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	pointer-events: none;
+	cursor: default;
+	user-select: none;
+}
+
+.vc-prompt-picker-group-header:not(:first-child) {
+	border-top: 1px solid var(--background-modifier-border);
+	margin-top: 2px;
+	padding-top: 6px;
+}
+
+/* Scrollbar styling for prompt picker */
+.vc-prompt-picker::-webkit-scrollbar {
+	width: 6px;
+}
+
+.vc-prompt-picker::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.vc-prompt-picker::-webkit-scrollbar-thumb {
+	background: var(--background-modifier-border);
+	border-radius: 3px;
+}
+
+.vc-prompt-picker::-webkit-scrollbar-thumb:hover {
+	background: var(--background-modifier-border-hover);
+}
+
