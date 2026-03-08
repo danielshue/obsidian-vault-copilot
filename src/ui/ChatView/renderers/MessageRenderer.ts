@@ -167,40 +167,39 @@ export class MessageRenderer {
 	}
 
 	/**
-	 * Register click handlers for internal and external links
+	 * Register click handlers for internal and external links using event delegation.
+	 * Uses a single listener on the container rather than per-link listeners
+	 * to prevent listener accumulation across re-renders.
 	 */
 	registerInternalLinks(container: HTMLElement): void {
-		// Handle internal links (data-href attribute set by MarkdownRenderer)
-		const internalLinks = container.querySelectorAll("a.internal-link");
-		internalLinks.forEach((link) => {
-			link.addEventListener("click", (e) => {
+		container.addEventListener("click", (e) => {
+			const target = (e.target as HTMLElement).closest("a");
+			if (!target) return;
+
+			if (target.classList.contains("internal-link")) {
 				e.preventDefault();
-				const href = link.getAttribute("data-href") || link.getAttribute("href");
+				const href = target.getAttribute("data-href") || target.getAttribute("href");
 				if (href) {
 					void this.openInternalLinkInPane(href, this.getDefaultLinkPane());
 				}
-			});
-
-			link.addEventListener("contextmenu", (e: MouseEvent) => {
+			} else if (target.classList.contains("external-link") || target.getAttribute("href")?.startsWith("http")) {
 				e.preventDefault();
-				e.stopPropagation();
-				const href = link.getAttribute("data-href") || link.getAttribute("href");
-				if (href) {
-					this.showInternalLinkPaneMenu(e, href);
-				}
-			});
-		});
-
-		// Handle external links
-		const externalLinks = container.querySelectorAll("a.external-link, a[href^='http']");
-		externalLinks.forEach((link) => {
-			link.addEventListener("click", (e) => {
-				e.preventDefault();
-				const href = link.getAttribute("href");
+				const href = target.getAttribute("href");
 				if (href) {
 					window.open(href, "_blank");
 				}
-			});
+			}
+		});
+
+		container.addEventListener("contextmenu", (e: MouseEvent) => {
+			const target = (e.target as HTMLElement).closest("a.internal-link");
+			if (!target) return;
+			e.preventDefault();
+			e.stopPropagation();
+			const href = target.getAttribute("data-href") || target.getAttribute("href");
+			if (href) {
+				this.showInternalLinkPaneMenu(e, href);
+			}
 		});
 	}
 
