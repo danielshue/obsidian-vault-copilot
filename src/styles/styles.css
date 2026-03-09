@@ -5,7 +5,7 @@
 
 @import 'highlight.js/styles/github-dark.css';
 /* KaTeX CSS loaded via CDN to avoid bundling font files into the plugin. */
-@import url('https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.css');
+/* KaTeX: Obsidian provides KaTeX CSS natively. */
 @import "./editor-selection.css";
 @import "./chat.css";
 @import "./welcome.css";
