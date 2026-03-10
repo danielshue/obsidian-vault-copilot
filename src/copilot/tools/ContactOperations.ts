@@ -461,9 +461,11 @@ export async function updateContact(
 			}
 		}
 
-		// Replace body if notes is provided
+		// Replace body if notes is provided.
+		// Start the search at offset 4 ("---\n".length) to skip the opening
+		// delimiter and only match the *closing* "\n---\n" of the frontmatter block.
 		if (notes !== undefined) {
-			const fmEnd = content.indexOf("\n---\n", 4); // skip opening ---
+			const fmEnd = content.indexOf("\n---\n", "---\n".length);
 			if (fmEnd !== -1) {
 				const fmSection = content.slice(0, fmEnd + 5); // include closing ---\n
 				content = `${fmSection}${notes}\n`;
