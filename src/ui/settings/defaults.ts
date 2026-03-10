@@ -11,46 +11,11 @@
 
 import type {
 	CopilotPluginSettings,
-	PeriodicNotesSettings,
 } from "./types";
 
 // ============================================================================
 // Periodic Notes Defaults
 // ============================================================================
-
-/** Default periodic notes settings */
-export const DEFAULT_PERIODIC_NOTES: PeriodicNotesSettings = {
-	daily: {
-		enabled: true,
-		format: 'YYYY-MM-DD',
-		folder: 'Daily Notes',
-		templatePath: undefined,
-	},
-	weekly: {
-		enabled: false,
-		format: 'gggg-[W]ww',
-		folder: 'Weekly Notes',
-		templatePath: undefined,
-	},
-	monthly: {
-		enabled: false,
-		format: 'YYYY-MM',
-		folder: 'Monthly Notes',
-		templatePath: undefined,
-	},
-	quarterly: {
-		enabled: false,
-		format: 'YYYY-[Q]Q',
-		folder: 'Quarterly Notes',
-		templatePath: undefined,
-	},
-	yearly: {
-		enabled: false,
-		format: 'YYYY',
-		folder: 'Yearly Notes',
-		templatePath: undefined,
-	},
-};
 
 // ============================================================================
 // Main Settings Defaults (Basic)
@@ -99,7 +64,6 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 		maxTokens: 4096,
 		temperature: 0.7,
 	},
-	periodicNotes: { ...DEFAULT_PERIODIC_NOTES },
 	cliStatusChecked: false,
 	cliLastKnownStatus: null,
 	extensionCatalogUrl: "https://danielshue.github.io/vault-copilot-extensions/catalog/catalog.json",

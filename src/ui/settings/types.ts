@@ -268,8 +268,8 @@ export interface CopilotPluginSettings {
 	realtimeAgentModel?: string;
 	/** OpenAI settings (Pro-only, stub for compat) */
 	openai: OpenAISettings;
-	/** Periodic notes settings (daily, weekly, monthly, quarterly, yearly) */
-	periodicNotes: PeriodicNotesSettings;
+	/** Periodic notes settings (Pro-only; optional in Basic) */
+	periodicNotes?: PeriodicNotesSettings;
 	/** Dynamically discovered available models from CLI */
 	availableModels?: string[];
 	/** Billing multipliers by model ID, fetched from the CLI after connecting */
