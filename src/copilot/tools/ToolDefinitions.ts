@@ -2,8 +2,9 @@
  * @module ToolDefinitions
  * @description Basic Tool Definitions Registry for Vault Copilot.
  *
- * This module contains ONLY the 7 Basic-tier tool definitions:
+ * This module contains ONLY the Basic-tier tool definitions:
  *
+ * **Vault note tools (7):**
  * - `get_active_note` — returns metadata + content of the open note
  * - `open_note` — navigate the editor to a note by path
  * - `batch_read_notes` — read multiple notes in one call
@@ -11,6 +12,12 @@
  * - `update_note` — update/replace the content of an existing note
  * - `fetch_web_page` — fetch and extract text from a URL
  * - `web_search` — search the web
+ *
+ * **Contact tools (4):**
+ * - `list_contacts` — list all contact notes in the contacts folder
+ * - `get_contact` — read a contact note by name or path
+ * - `create_contact` — create a new contact note with structured frontmatter
+ * - `update_contact` — patch specific fields of an existing contact note
  *
  * Pro-only tools (tasks, periodic notes, introspection, mermaid, etc.)
  * are defined in the Pro `src/copilot/tools/ToolDefinitions.ts` which
@@ -21,7 +28,7 @@
  * ```
  * vault-copilot/ToolDefinitions.ts (this file — Basic)
  *        │
- *        ├── TOOL_NAMES ─────────► 7 Basic tool identifiers
+ *        ├── TOOL_NAMES ─────────► 11 Basic tool identifiers
  *        ├── TOOL_DESCRIPTIONS ──► Descriptions for Basic tools
  *        ├── TOOL_JSON_SCHEMAS ──► JSON Schemas for Basic tools
  *        ├── Parameter Interfaces ► TypeScript types for Basic handlers
@@ -53,7 +60,7 @@
  */
 
 // ============================================================================
-// Tool Names - Basic tier only (7 tools)
+// Tool Names - Basic tier (11 tools: 7 vault + 4 contact)
 // ============================================================================
 
 export const TOOL_NAMES = {
@@ -71,6 +78,12 @@ export const TOOL_NAMES = {
 	// Web operations
 	FETCH_WEB_PAGE: "fetch_web_page",
 	WEB_SEARCH: "web_search",
+
+	// Contact operations
+	LIST_CONTACTS: "list_contacts",
+	GET_CONTACT: "get_contact",
+	CREATE_CONTACT: "create_contact",
+	UPDATE_CONTACT: "update_contact",
 } as const;
 
 export type ToolName = typeof TOOL_NAMES[keyof typeof TOOL_NAMES];
@@ -87,6 +100,11 @@ export const TOOL_DESCRIPTIONS = {
 	[TOOL_NAMES.OPEN_NOTE]: "Open a note in the editor by its path. Use this when the user wants to navigate to or view a specific note.",
 	[TOOL_NAMES.FETCH_WEB_PAGE]: "Fetch and extract content from a web page URL",
 	[TOOL_NAMES.WEB_SEARCH]: "Search the web for information",
+	// Contact tools
+	[TOOL_NAMES.LIST_CONTACTS]: "List all contact notes stored in the vault contacts folder",
+	[TOOL_NAMES.GET_CONTACT]: "Read a contact note by display name or vault path",
+	[TOOL_NAMES.CREATE_CONTACT]: "Create a new contact note with structured frontmatter (name, email, phone, company, role)",
+	[TOOL_NAMES.UPDATE_CONTACT]: "Update specific fields of an existing contact note",
 } as const;
 
 // ============================================================================
@@ -131,6 +149,58 @@ export interface WebSearchParams {
 	query: string;
 	/** Maximum number of results (default: 5) */
 	limit?: number;
+}
+
+/** Parameters for list_contacts */
+export interface ListContactsParams {
+	/** Vault-relative folder to scan (default: "Contacts") */
+	folder?: string;
+	/** Maximum number of contacts to return (default: 50) */
+	limit?: number;
+}
+
+/** Parameters for get_contact */
+export interface GetContactParams {
+	/** Display name (e.g. "Jane Doe") or vault path (e.g. "Contacts/Jane Doe.md") */
+	pathOrName: string;
+	/** Fallback folder when resolving by name (default: "Contacts") */
+	folder?: string;
+}
+
+/** Parameters for create_contact */
+export interface CreateContactParams {
+	/** Full display name of the contact (required) */
+	name: string;
+	/** Email address */
+	email?: string;
+	/** Phone number */
+	phone?: string;
+	/** Company or organisation name */
+	company?: string;
+	/** Job title or role */
+	role?: string;
+	/** Freeform notes to place in the note body */
+	notes?: string;
+	/** Target folder (default: "Contacts") */
+	folder?: string;
+}
+
+/** Parameters for update_contact */
+export interface UpdateContactParams {
+	/** Display name or vault path of the contact to update */
+	pathOrName: string;
+	/** New email address */
+	email?: string;
+	/** New phone number */
+	phone?: string;
+	/** New company name */
+	company?: string;
+	/** New job title / role */
+	role?: string;
+	/** Replace the entire freeform notes body */
+	notes?: string;
+	/** Fallback folder used when resolving by name (default: "Contacts") */
+	folder?: string;
 }
 
 // ============================================================================
@@ -226,6 +296,52 @@ export const TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
 		},
 		required: ["query"]
 	},
+
+	[TOOL_NAMES.LIST_CONTACTS]: {
+		type: "object",
+		properties: {
+			folder: { type: "string", description: "Vault-relative folder to scan (default: \"Contacts\")" },
+			limit: { type: "number", description: "Maximum number of contacts to return (default: 50)" }
+		},
+		required: []
+	},
+
+	[TOOL_NAMES.GET_CONTACT]: {
+		type: "object",
+		properties: {
+			pathOrName: { type: "string", description: "Display name (e.g. \"Jane Doe\") or vault path (e.g. \"Contacts/Jane Doe.md\")" },
+			folder: { type: "string", description: "Fallback folder used when resolving by name (default: \"Contacts\")" }
+		},
+		required: ["pathOrName"]
+	},
+
+	[TOOL_NAMES.CREATE_CONTACT]: {
+		type: "object",
+		properties: {
+			name: { type: "string", description: "Full display name of the contact" },
+			email: { type: "string", description: "Email address" },
+			phone: { type: "string", description: "Phone number" },
+			company: { type: "string", description: "Company or organisation name" },
+			role: { type: "string", description: "Job title or role" },
+			notes: { type: "string", description: "Freeform notes to place in the note body" },
+			folder: { type: "string", description: "Target folder (default: \"Contacts\")" }
+		},
+		required: ["name"]
+	},
+
+	[TOOL_NAMES.UPDATE_CONTACT]: {
+		type: "object",
+		properties: {
+			pathOrName: { type: "string", description: "Display name or vault path of the contact to update" },
+			email: { type: "string", description: "New email address" },
+			phone: { type: "string", description: "New phone number" },
+			company: { type: "string", description: "New company name" },
+			role: { type: "string", description: "New job title / role" },
+			notes: { type: "string", description: "Replace the entire freeform notes body" },
+			folder: { type: "string", description: "Fallback folder used when resolving by name (default: \"Contacts\")" }
+		},
+		required: ["pathOrName"]
+	},
 };
 
 // ============================================================================
@@ -299,6 +415,12 @@ export const TOOL_CATEGORIES = {
 	WEB: [
 		TOOL_NAMES.FETCH_WEB_PAGE,
 		TOOL_NAMES.WEB_SEARCH,
+	],
+	CONTACTS: [
+		TOOL_NAMES.LIST_CONTACTS,
+		TOOL_NAMES.GET_CONTACT,
+		TOOL_NAMES.CREATE_CONTACT,
+		TOOL_NAMES.UPDATE_CONTACT,
 	],
 } as const;
 

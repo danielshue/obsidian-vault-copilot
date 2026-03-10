@@ -5,11 +5,12 @@
 
 /**
  * @module BasicToolFactory
- * @description Factory for creating the 7 Basic vault-copilot tools.
+ * @description Factory for creating the Basic vault-copilot tools.
  *
  * Produces `defineTool()` instances for the tools
  * available in the Basic (free) plugin tier:
  *
+ * **Vault note tools (7):**
  * - `get_active_note` — returns metadata + content of the open note
  * - `open_note` — navigate the editor to a note by path
  * - `batch_read_notes` — read multiple notes in one call
@@ -17,6 +18,12 @@
  * - `update_note` — update/replace the content of an existing note
  * - `fetch_web_page` — fetch and extract text from a URL
  * - `web_search` — search the web via DuckDuckGo
+ *
+ * **Contact tools (4):**
+ * - `list_contacts` — list all contact notes in the contacts folder
+ * - `get_contact` — read a contact note by name or path
+ * - `create_contact` — create a new contact note with structured frontmatter
+ * - `update_contact` — patch specific fields of an existing contact note
  *
  * All Pro-only imports (`customization/`, `mcp/`, `bases/`, callbacks, etc.)
  * are intentionally absent from this module.
@@ -48,6 +55,12 @@ import {
 	fetchWebPage,
 	webSearch,
 } from "../tools/VaultOperations";
+import {
+	listContacts,
+	getContact,
+	createContact,
+	updateContact,
+} from "../tools/ContactOperations";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -80,7 +93,7 @@ export type BatchReadNotesFn = (
 // ── Factory ────────────────────────────────────────────────────────────────
 
 /**
- * Create the 7 Basic SDK tool definitions.
+ * Create the Basic SDK tool definitions (7 vault tools + 4 contact tools).
  *
  * This factory returns an array ready to be spread into the SDK
  * `createSession()` tools list. The `batchReadNotes` function is
@@ -88,7 +101,7 @@ export type BatchReadNotesFn = (
  *
  * @param app - The Obsidian `App` instance (for vault/workspace access)
  * @param batchReadNotes - Bound batch-read implementation from the service
- * @returns Array of 7 SDK `defineTool()` results
+ * @returns Array of 11 SDK `defineTool()` results
  *
  * @example
  * ```typescript
@@ -161,6 +174,54 @@ export function createBasicTools(
 			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.WEB_SEARCH],
 			handler: async (args: { query: string; limit?: number }) => {
 				return await webSearch(args.query, args.limit ?? 5);
+			},
+		}),
+
+		defineTool(TOOL_NAMES.LIST_CONTACTS, {
+			description: TOOL_DESCRIPTIONS[TOOL_NAMES.LIST_CONTACTS],
+			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.LIST_CONTACTS],
+			handler: async (args: { folder?: string; limit?: number }) => {
+				return await listContacts(app, args.folder, args.limit);
+			},
+		}),
+
+		defineTool(TOOL_NAMES.GET_CONTACT, {
+			description: TOOL_DESCRIPTIONS[TOOL_NAMES.GET_CONTACT],
+			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.GET_CONTACT],
+			handler: async (args: { pathOrName: string; folder?: string }) => {
+				return await getContact(app, args.pathOrName, args.folder);
+			},
+		}),
+
+		defineTool(TOOL_NAMES.CREATE_CONTACT, {
+			description: TOOL_DESCRIPTIONS[TOOL_NAMES.CREATE_CONTACT],
+			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.CREATE_CONTACT],
+			handler: async (args: {
+				name: string;
+				email?: string;
+				phone?: string;
+				company?: string;
+				role?: string;
+				notes?: string;
+				folder?: string;
+			}) => {
+				return await createContact(app, args);
+			},
+		}),
+
+		defineTool(TOOL_NAMES.UPDATE_CONTACT, {
+			description: TOOL_DESCRIPTIONS[TOOL_NAMES.UPDATE_CONTACT],
+			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.UPDATE_CONTACT],
+			handler: async (args: {
+				pathOrName: string;
+				email?: string;
+				phone?: string;
+				company?: string;
+				role?: string;
+				notes?: string;
+				folder?: string;
+			}) => {
+				return await updateContact(app, args);
 			},
 		}),
 	];

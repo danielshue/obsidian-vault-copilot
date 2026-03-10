@@ -7,8 +7,9 @@
  * @module tests/copilot/BasicToolFactory
  * @description Unit tests for the Basic vault-copilot tool factory.
  *
- * Validates that `createBasicTools()` returns exactly the 5 read-only/web tools
- * defined for the Basic tier, with correct tool names and handler wiring.
+ * Validates that `createBasicTools()` returns exactly the 11 tools
+ * defined for the Basic tier (7 vault tools + 4 contact tools),
+ * with correct tool names and handler wiring.
  *
  * @see {@link BasicToolFactory}
  */
@@ -16,7 +17,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createBasicTools, type BatchReadNotesFn } from "../../src/copilot/providers/BasicToolFactory";
 
-// Inline the 5 Basic tool name strings to avoid cross-project relative path issues
+// Inline the Basic tool name strings to avoid cross-project relative path issues
 const BASIC_TOOL_NAMES = {
 	GET_ACTIVE_NOTE: "get_active_note",
 	OPEN_NOTE: "open_note",
@@ -25,6 +26,10 @@ const BASIC_TOOL_NAMES = {
 	UPDATE_NOTE: "update_note",
 	FETCH_WEB_PAGE: "fetch_web_page",
 	WEB_SEARCH: "web_search",
+	LIST_CONTACTS: "list_contacts",
+	GET_CONTACT: "get_contact",
+	CREATE_CONTACT: "create_contact",
+	UPDATE_CONTACT: "update_contact",
 } as const;
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -40,6 +45,13 @@ vi.mock("../../src/copilot/tools/VaultOperations", () => ({
 	updateNote: vi.fn().mockResolvedValue({ updated: true }),
 	fetchWebPage: vi.fn().mockResolvedValue({ text: "page text" }),
 	webSearch: vi.fn().mockResolvedValue({ results: [] }),
+}));
+
+vi.mock("../../src/copilot/tools/ContactOperations", () => ({
+	listContacts: vi.fn().mockResolvedValue({ contacts: [], total: 0 }),
+	getContact: vi.fn().mockResolvedValue({ success: true }),
+	createContact: vi.fn().mockResolvedValue({ success: true }),
+	updateContact: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 import { defineTool } from "@github/copilot-sdk";
@@ -70,12 +82,12 @@ describe("createBasicTools", () => {
 		vi.clearAllMocks();
 	});
 
-	it("returns exactly 7 tools", () => {
+	it("returns exactly 11 tools (7 vault + 4 contact)", () => {
 		const tools = createBasicTools(app, batchReadNotes);
-		expect(tools).toHaveLength(7);
+		expect(tools).toHaveLength(11);
 	});
 
-	it("returns tools with the 7 Basic tool names", () => {
+	it("returns tools with all Basic tool names", () => {
 		createBasicTools(app, batchReadNotes);
 
 		const calledNames = vi.mocked(defineTool).mock.calls.map((c) => c[0]);
@@ -87,6 +99,11 @@ describe("createBasicTools", () => {
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.UPDATE_NOTE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.FETCH_WEB_PAGE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.WEB_SEARCH);
+		// Contact tools
+		expect(calledNames).toContain(BASIC_TOOL_NAMES.LIST_CONTACTS);
+		expect(calledNames).toContain(BASIC_TOOL_NAMES.GET_CONTACT);
+		expect(calledNames).toContain(BASIC_TOOL_NAMES.CREATE_CONTACT);
+		expect(calledNames).toContain(BASIC_TOOL_NAMES.UPDATE_CONTACT);
 	});
 
 	it("does NOT include Pro-only tool names", () => {

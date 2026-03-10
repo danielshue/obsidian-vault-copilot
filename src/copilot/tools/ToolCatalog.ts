@@ -86,7 +86,7 @@ function createBuiltinTool(id: ToolName, displayName: string): ToolInfo {
 }
 
 /**
- * Built-in tool catalog for Basic (7 tools).
+ * Built-in tool catalog for Basic (11 tools: 7 vault + 4 contact).
  */
 const BASIC_TOOLS: ToolInfo[] = [
 	createBuiltinTool(TOOL_NAMES.GET_ACTIVE_NOTE, "Get Active Note"),
@@ -96,6 +96,10 @@ const BASIC_TOOLS: ToolInfo[] = [
 	createBuiltinTool(TOOL_NAMES.UPDATE_NOTE, "Update Note"),
 	createBuiltinTool(TOOL_NAMES.FETCH_WEB_PAGE, "Fetch Web Page"),
 	createBuiltinTool(TOOL_NAMES.WEB_SEARCH, "Web Search"),
+	createBuiltinTool(TOOL_NAMES.LIST_CONTACTS, "List Contacts"),
+	createBuiltinTool(TOOL_NAMES.GET_CONTACT, "Get Contact"),
+	createBuiltinTool(TOOL_NAMES.CREATE_CONTACT, "Create Contact"),
+	createBuiltinTool(TOOL_NAMES.UPDATE_CONTACT, "Update Contact"),
 ];
 
 /**
