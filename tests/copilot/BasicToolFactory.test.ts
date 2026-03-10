@@ -16,11 +16,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createBasicTools, type BatchReadNotesFn } from "../../src/copilot/providers/BasicToolFactory";
 
-// Inline the 5 Basic tool name strings to avoid cross-project relative path issues
+// Inline the 8 Basic tool name strings to avoid cross-project relative path issues
 const BASIC_TOOL_NAMES = {
 	GET_ACTIVE_NOTE: "get_active_note",
 	OPEN_NOTE: "open_note",
 	BATCH_READ_NOTES: "batch_read_notes",
+	LIST_NOTES: "list_notes",
 	CREATE_NOTE: "create_note",
 	UPDATE_NOTE: "update_note",
 	FETCH_WEB_PAGE: "fetch_web_page",
@@ -36,6 +37,7 @@ vi.mock("@github/copilot-sdk", () => ({
 vi.mock("../../src/copilot/tools/VaultOperations", () => ({
 	getActiveNote: vi.fn().mockResolvedValue({ content: "active note content" }),
 	openNote: vi.fn().mockResolvedValue({ opened: true }),
+	listNotes: vi.fn().mockResolvedValue({ success: true, notes: [], count: 0 }),
 	createNote: vi.fn().mockResolvedValue({ created: true }),
 	updateNote: vi.fn().mockResolvedValue({ updated: true }),
 	fetchWebPage: vi.fn().mockResolvedValue({ text: "page text" }),
@@ -70,12 +72,12 @@ describe("createBasicTools", () => {
 		vi.clearAllMocks();
 	});
 
-	it("returns exactly 7 tools", () => {
+	it("returns exactly 8 tools", () => {
 		const tools = createBasicTools(app, batchReadNotes);
-		expect(tools).toHaveLength(7);
+		expect(tools).toHaveLength(8);
 	});
 
-	it("returns tools with the 7 Basic tool names", () => {
+	it("returns tools with the 8 Basic tool names", () => {
 		createBasicTools(app, batchReadNotes);
 
 		const calledNames = vi.mocked(defineTool).mock.calls.map((c) => c[0]);
@@ -83,6 +85,7 @@ describe("createBasicTools", () => {
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.GET_ACTIVE_NOTE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.OPEN_NOTE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.BATCH_READ_NOTES);
+		expect(calledNames).toContain(BASIC_TOOL_NAMES.LIST_NOTES);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.CREATE_NOTE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.UPDATE_NOTE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.FETCH_WEB_PAGE);
@@ -121,5 +124,26 @@ describe("createBasicTools", () => {
 		await handler!({ paths: ["note.md"], aiSummarize: false });
 
 		expect(batchReadNotes).toHaveBeenCalledWith(["note.md"], false, undefined);
+	});
+
+	it("wires listNotes into the list_notes handler with correct arguments", async () => {
+		const { listNotes } = await import("../../src/copilot/tools/VaultOperations");
+
+		const capturedHandlers = new Map<string, (args: unknown) => Promise<unknown>>();
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		vi.mocked(defineTool).mockImplementation((name: string, opts: any) => {
+			capturedHandlers.set(name, opts.handler);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			return { name, handler: opts.handler } as any;
+		});
+
+		createBasicTools(app, batchReadNotes);
+
+		const handler = capturedHandlers.get(BASIC_TOOL_NAMES.LIST_NOTES);
+		expect(handler).toBeDefined();
+
+		await handler!({ folder: "contacts", recursive: true, pattern: "smith" });
+
+		expect(listNotes).toHaveBeenCalledWith(app, "contacts", true, "smith");
 	});
 });

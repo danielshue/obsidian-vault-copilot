@@ -6,6 +6,7 @@
  * - `getActiveNote()` - Get currently focused note
  * - `openNote()` - Navigate to a note by path
  * - `batchReadNotes()` - Read multiple notes in parallel
+ * - `listNotes()` - List notes in a folder (with optional recursive/pattern filtering)
  * - `createNote()` - Create a new note in the vault
  * - `updateNote()` - Update/replace note content
  * - `fetchWebPage()` - Fetch and extract web content
@@ -17,7 +18,7 @@
  * @since 0.1.0
  */
 
-import { App, TFile } from "obsidian";
+import { App, TFile, TFolder } from "obsidian";
 
 // ============================================================================
 // Path Utilities
@@ -176,6 +177,105 @@ export async function batchReadNotes(
 		}),
 	);
 	return { results };
+}
+
+// ============================================================================
+// List Notes
+// ============================================================================
+
+export interface NoteInfo {
+	/** Vault-relative path to the note */
+	path: string;
+	/** Filename without extension */
+	name: string;
+	/** Last modified timestamp (ms since epoch) */
+	modified: number;
+	/** File size in bytes */
+	size: number;
+}
+
+export interface ListNotesResult {
+	success: boolean;
+	folder?: string;
+	notes?: NoteInfo[];
+	count?: number;
+	error?: string;
+}
+
+/**
+ * List notes in a vault folder, with optional recursive traversal and glob-style
+ * pattern matching on the filename.
+ *
+ * Useful for discovering contacts stored as notes (e.g. listing all files in
+ * `contacts/` or `roster/`), or for enumerating any structured vault folder.
+ *
+ * @param app - The Obsidian App instance
+ * @param folder - Vault-relative folder path to list (defaults to vault root `""`)
+ * @param recursive - When true, descend into subfolders (default: false)
+ * @param pattern - Optional case-insensitive substring filter applied to the filename
+ * @returns ListNotesResult with the matching notes or an error description
+ *
+ * @example
+ * ```typescript
+ * // List all notes in the contacts folder
+ * const result = await listNotes(app, "contacts", true);
+ *
+ * // Find all player profiles that match a name fragment
+ * const result = await listNotes(app, "roster", false, "ruark");
+ * ```
+ */
+export async function listNotes(
+	app: App,
+	folder = "",
+	recursive = false,
+	pattern?: string,
+): Promise<ListNotesResult> {
+	try {
+		const normalizedFolder = folder.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+		const root = normalizedFolder
+			? app.vault.getAbstractFileByPath(normalizedFolder)
+			: app.vault.getRoot();
+
+		if (!root) {
+			return { success: false, error: `Folder not found: ${folder}` };
+		}
+		if (!(root instanceof TFolder)) {
+			return { success: false, error: `Path is not a folder: ${folder}` };
+		}
+
+		const lowerPattern = pattern ? pattern.toLowerCase() : undefined;
+
+		const collect = (tFolder: TFolder): NoteInfo[] => {
+			const results: NoteInfo[] = [];
+			for (const child of tFolder.children) {
+				if (child instanceof TFile && child.extension === "md") {
+					if (!lowerPattern || child.basename.toLowerCase().includes(lowerPattern)) {
+						results.push({
+							path: child.path,
+							name: child.basename,
+							modified: child.stat.mtime,
+							size: child.stat.size,
+						});
+					}
+				} else if (recursive && child instanceof TFolder) {
+					results.push(...collect(child));
+				}
+			}
+			return results;
+		};
+
+		const notes = collect(root);
+		notes.sort((a, b) => a.path.localeCompare(b.path));
+
+		return {
+			success: true,
+			folder: normalizedFolder || "/",
+			notes,
+			count: notes.length,
+		};
+	} catch (error) {
+		return { success: false, error: `Failed to list notes: ${error}` };
+	}
 }
 
 // ============================================================================

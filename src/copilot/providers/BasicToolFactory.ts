@@ -5,7 +5,7 @@
 
 /**
  * @module BasicToolFactory
- * @description Factory for creating the 7 Basic vault-copilot tools.
+ * @description Factory for creating the 8 Basic vault-copilot tools.
  *
  * Produces `defineTool()` instances for the tools
  * available in the Basic (free) plugin tier:
@@ -13,6 +13,7 @@
  * - `get_active_note` — returns metadata + content of the open note
  * - `open_note` — navigate the editor to a note by path
  * - `batch_read_notes` — read multiple notes in one call
+ * - `list_notes` — list notes in a folder with optional recursive/pattern filtering
  * - `create_note` — create a new note in the vault
  * - `update_note` — update/replace the content of an existing note
  * - `fetch_web_page` — fetch and extract text from a URL
@@ -43,6 +44,7 @@ import {
 import {
 	getActiveNote,
 	openNote,
+	listNotes,
 	createNote,
 	updateNote,
 	fetchWebPage,
@@ -80,7 +82,7 @@ export type BatchReadNotesFn = (
 // ── Factory ────────────────────────────────────────────────────────────────
 
 /**
- * Create the 7 Basic SDK tool definitions.
+ * Create the 8 Basic SDK tool definitions.
  *
  * This factory returns an array ready to be spread into the SDK
  * `createSession()` tools list. The `batchReadNotes` function is
@@ -88,7 +90,7 @@ export type BatchReadNotesFn = (
  *
  * @param app - The Obsidian `App` instance (for vault/workspace access)
  * @param batchReadNotes - Bound batch-read implementation from the service
- * @returns Array of 7 SDK `defineTool()` results
+ * @returns Array of 8 SDK `defineTool()` results
  *
  * @example
  * ```typescript
@@ -129,6 +131,18 @@ export function createBasicTools(
 					args.aiSummarize,
 					args.summaryPrompt
 				);
+			},
+		}),
+
+		defineTool(TOOL_NAMES.LIST_NOTES, {
+			description: TOOL_DESCRIPTIONS[TOOL_NAMES.LIST_NOTES],
+			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.LIST_NOTES],
+			handler: async (args: {
+				folder?: string;
+				recursive?: boolean;
+				pattern?: string;
+			}) => {
+				return await listNotes(app, args.folder, args.recursive, args.pattern);
 			},
 		}),
 

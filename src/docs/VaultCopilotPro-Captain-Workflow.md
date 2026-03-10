@@ -171,8 +171,10 @@ tags: [roster, player]
 **Identity:** The agent writes as "Dan" in first person — emails, messages, and communications use the captain's voice directly.
 
 **Tools spanning three layers:**
-- **Vault tools**: `read_note`, `create_note`, `update_note`, `search_notes`, `list_notes_recursively`, etc.
-- **Outlook MCP tools**: `mcp_outlook_assistant_list-emails`, `mcp_outlook_assistant_send-email`, `mcp_outlook_assistant_search-emails`, etc.
+- **Vault tools**: `get_active_note`, `batch_read_notes`, `list_notes`, `create_note`, `update_note`, `open_note`, `fetch_web_page`, `web_search`, etc.
+- **Outlook MCP tools**:
+  - *Email*: `mcp_outlook_assistant_list-emails`, `mcp_outlook_assistant_send-email`, `mcp_outlook_assistant_search-emails`, `mcp_outlook_assistant_reply-email`, `mcp_outlook_assistant_move-email`
+  - *Contacts*: `mcp_outlook_assistant_list-contacts`, `mcp_outlook_assistant_get-contact`, `mcp_outlook_assistant_create-contact`, `mcp_outlook_assistant_update-contact`, `mcp_outlook_assistant_delete-contact`, `mcp_outlook_assistant_search-contacts`
 - **WorkIQ MCP tool**: `mcp_workiq3_ask_work_iq` — checks captain's work calendar for scheduling conflicts
 - **Orchestration tools**: `run_pipeline`, `group_discussion`, `create_plan`, `run_parallel_agents`, `handoff_to_agent`
 - **Session tools**: `save_memory`, `recall_memory`, `ask_question`
@@ -504,7 +506,7 @@ Each prompt defines the workflow steps, expected inputs, vault paths to read/wri
 | `player-onboarding` | New player intake process, profile creation |
 | `recruiting-pipeline` | Prospect tracking, outreach, follow-up cadence |
 | `practice-organization` | Court booking, drill planning, attendance tracking |
-| `outlook-integration` | Email filtering rules, Outlook MCP tool usage patterns |
+| `outlook-integration` | Email and contacts management via Outlook MCP: filtering rules, token refresh strategy, read/write/list capabilities for both emails and contacts |
 | `team-communications` | Template library, tone guidelines, distribution patterns |
 | `season-analytics` | Win/loss tracking, player stats, partnership analysis |
 | `stats-backfill` | Retroactive match history entry from TennisLink |
@@ -527,7 +529,12 @@ A single match week uses scheduled triggers, event-driven email processing, sequ
 
 ### 4. Outlook MCP for real communication
 
-Email is how captains actually coordinate with opponents and teams. The agent reads incoming email, drafts outgoing email, and the captain approves before sending. Communication is a first-class operation, not an afterthought.
+Email and contacts are how captains actually coordinate with opponents and teams. The Outlook MCP integration provides full read/write/list capabilities for both:
+
+- **Email**: read inbox, search for specific senders, reply, move, and send new messages
+- **Contacts**: list all contacts, search by name, create new contacts, update existing contact details, and delete stale entries
+
+The agent reads incoming email, looks up opponent captain contact details, drafts outgoing messages, and the captain approves before sending. Communication is a first-class operation, not an afterthought.
 
 ### 5. Identity and voice
 

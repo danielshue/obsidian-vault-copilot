@@ -2,11 +2,12 @@
  * @module ToolDefinitions
  * @description Basic Tool Definitions Registry for Vault Copilot.
  *
- * This module contains ONLY the 7 Basic-tier tool definitions:
+ * This module contains ONLY the 8 Basic-tier tool definitions:
  *
  * - `get_active_note` — returns metadata + content of the open note
  * - `open_note` — navigate the editor to a note by path
  * - `batch_read_notes` — read multiple notes in one call
+ * - `list_notes` — list notes in a folder with optional recursive/pattern filtering
  * - `create_note` — create a new note in the vault
  * - `update_note` — update/replace the content of an existing note
  * - `fetch_web_page` — fetch and extract text from a URL
@@ -21,7 +22,7 @@
  * ```
  * vault-copilot/ToolDefinitions.ts (this file — Basic)
  *        │
- *        ├── TOOL_NAMES ─────────► 7 Basic tool identifiers
+ *        ├── TOOL_NAMES ─────────► 8 Basic tool identifiers
  *        ├── TOOL_DESCRIPTIONS ──► Descriptions for Basic tools
  *        ├── TOOL_JSON_SCHEMAS ──► JSON Schemas for Basic tools
  *        ├── Parameter Interfaces ► TypeScript types for Basic handlers
@@ -60,6 +61,7 @@ export const TOOL_NAMES = {
 	// Vault read operations
 	GET_ACTIVE_NOTE: "get_active_note",
 	BATCH_READ_NOTES: "batch_read_notes",
+	LIST_NOTES: "list_notes",
 
 	// Vault write operations
 	CREATE_NOTE: "create_note",
@@ -82,6 +84,7 @@ export type ToolName = typeof TOOL_NAMES[keyof typeof TOOL_NAMES];
 export const TOOL_DESCRIPTIONS = {
 	[TOOL_NAMES.GET_ACTIVE_NOTE]: "Get information about the currently active note in Obsidian",
 	[TOOL_NAMES.BATCH_READ_NOTES]: "Read multiple notes at once. Use aiSummarize=true for many files (10+) to get AI-generated summaries.",
+	[TOOL_NAMES.LIST_NOTES]: "List notes in a vault folder. Supports recursive traversal and optional filename filtering. Useful for discovering contacts, roster entries, or any structured set of notes.",
 	[TOOL_NAMES.CREATE_NOTE]: "Create a new note in the Obsidian vault",
 	[TOOL_NAMES.UPDATE_NOTE]: "Update/replace the entire content of an existing note",
 	[TOOL_NAMES.OPEN_NOTE]: "Open a note in the editor by its path. Use this when the user wants to navigate to or view a specific note.",
@@ -101,6 +104,16 @@ export interface BatchReadNotesParams {
 	aiSummarize?: boolean;
 	/** Optional custom prompt for AI summarization */
 	summaryPrompt?: string;
+}
+
+/** Parameters for list_notes */
+export interface ListNotesParams {
+	/** Vault-relative folder path to list (defaults to root) */
+	folder?: string;
+	/** When true, descend into subfolders (default: false) */
+	recursive?: boolean;
+	/** Optional case-insensitive substring filter applied to filenames */
+	pattern?: string;
 }
 
 /** Parameters for create_note */
@@ -182,6 +195,25 @@ export const TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
 			}
 		},
 		required: ["paths"]
+	},
+
+	[TOOL_NAMES.LIST_NOTES]: {
+		type: "object",
+		properties: {
+			folder: {
+				type: "string",
+				description: "Vault-relative folder path to list (e.g. 'contacts' or 'roster'). Defaults to vault root."
+			},
+			recursive: {
+				type: "boolean",
+				description: "When true, descend into subfolders (default: false)"
+			},
+			pattern: {
+				type: "string",
+				description: "Optional case-insensitive substring filter applied to note filenames"
+			}
+		},
+		required: []
 	},
 
 	[TOOL_NAMES.CREATE_NOTE]: {
@@ -288,6 +320,7 @@ export const TOOL_CATEGORIES = {
 	READ: [
 		TOOL_NAMES.GET_ACTIVE_NOTE,
 		TOOL_NAMES.BATCH_READ_NOTES,
+		TOOL_NAMES.LIST_NOTES,
 	],
 	WRITE: [
 		TOOL_NAMES.CREATE_NOTE,
