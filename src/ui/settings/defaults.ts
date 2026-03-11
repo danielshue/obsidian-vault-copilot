@@ -71,6 +71,9 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	analyticsEndpoint: 'https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io',
 	githubUsername: '',
 	anonymousId: '',
+	maxExtensionZipSizeMb: 10,
+	extensionSubmissionRateLimit: 5,
+	extensionSubmissionHistory: [],
 };
 
 // ============================================================================
