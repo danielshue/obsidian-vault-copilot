@@ -419,5 +419,62 @@ describe("VaultCopilotExtensionAPIImpl", () => {
 			expect(api.renderRegistry.getAll()).toHaveLength(0);
 		});
 	});
+
+	// ─── Notifications ───────────────────────────────────────────────────────
+
+	describe("notifications (Pro/Shell API)", () => {
+		it("addNotification returns a string id", () => {
+			const id = api.addNotification({ title: "Hello", type: "info" });
+			expect(typeof id).toBe("string");
+			expect(id).toMatch(/^notif-/);
+		});
+
+		it("added notification is stored in the notificationService", () => {
+			api.addNotification({ title: "Test", body: "detail", source: "agent" });
+			const all = api.notificationService.getAll();
+			expect(all).toHaveLength(1);
+			expect(all[0].title).toBe("Test");
+			expect(all[0].body).toBe("detail");
+			expect(all[0].source).toBe("agent");
+		});
+
+		it("clearNotifications empties the store", () => {
+			api.addNotification({ title: "A" });
+			api.addNotification({ title: "B" });
+			api.clearNotifications();
+			expect(api.notificationService.getAll()).toHaveLength(0);
+		});
+
+		it("onNotification listener receives new notification events", () => {
+			const listener = vi.fn();
+			const unsub = api.onNotification(listener);
+			api.addNotification({ title: "Ping", type: "warning", source: "bot" });
+			expect(listener).toHaveBeenCalledOnce();
+			const event = listener.mock.calls[0][0];
+			expect(event.title).toBe("Ping");
+			expect(event.type).toBe("warning");
+			expect(event.source).toBe("bot");
+			expect(typeof event.id).toBe("string");
+			unsub();
+		});
+
+		it("onNotification unsubscribe stops future calls", () => {
+			const listener = vi.fn();
+			const unsub = api.onNotification(listener);
+			unsub();
+			api.addNotification({ title: "Ignored" });
+			expect(listener).not.toHaveBeenCalled();
+		});
+
+		it("destroy clears the notification service", () => {
+			api.addNotification({ title: "Pre-destroy" });
+			const listener = vi.fn();
+			api.notificationService.onChange(listener);
+			api.destroy();
+			// After destroy, listeners are cleared — adding more won't fire them
+			api.notificationService.add({ title: "Post-destroy" });
+			expect(listener).not.toHaveBeenCalled();
+		});
+	});
 });
 

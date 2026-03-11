@@ -1,0 +1,370 @@
+/* =========================================
+   Notification Panel & Toast Styles
+   =========================================
+   Modelled after the VSCode notification system.
+   Panel: floating dropdown anchored below the bell icon.
+   Toast: brief auto-dismissing pop-up at the bottom-right.
+   Mobile: full-width panel pinned to the bottom.
+   ========================================= */
+
+/* ── Bell icon button ── */
+.vc-bell-btn {
+	position: relative;
+}
+
+/* Unread badge on the bell button */
+.vc-bell-badge {
+	position: absolute;
+	top: -3px;
+	right: -3px;
+	min-width: 14px;
+	height: 14px;
+	padding: 0 3px;
+	border-radius: 7px;
+	background: var(--color-accent);
+	color: var(--text-on-accent);
+	font-size: 9px;
+	font-weight: 600;
+	line-height: 14px;
+	text-align: center;
+	pointer-events: none;
+}
+
+/* ── Floating notification panel ── */
+.vc-notification-panel {
+	position: absolute;
+	z-index: 1000;
+	width: 360px;
+	max-height: 480px;
+	display: flex;
+	flex-direction: column;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	box-shadow: var(--shadow-l);
+	overflow: hidden;
+	animation: vc-notif-panel-in 0.15s ease-out;
+}
+
+@keyframes vc-notif-panel-in {
+	from {
+		opacity: 0;
+		transform: translateY(-6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* ── Panel header ── */
+.vc-notification-panel-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.vc-notification-panel-title {
+	font-size: var(--font-ui-smaller);
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+	text-transform: uppercase;
+}
+
+.vc-notification-panel-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.vc-notification-action-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border: none !important;
+	background: transparent !important;
+	color: var(--text-muted);
+	cursor: pointer;
+	border-radius: var(--radius-s);
+	padding: 0;
+}
+
+.vc-notification-action-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover) !important;
+}
+
+/* ── Notification list (scrollable) ── */
+.vc-notification-list {
+	overflow-y: auto;
+	flex: 1;
+	min-height: 0;
+}
+
+/* ── Empty state ── */
+.vc-notification-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 32px 16px;
+	color: var(--text-faint);
+}
+
+.vc-notification-empty-icon {
+	opacity: 0.4;
+}
+
+.vc-notification-empty-text {
+	font-size: var(--font-ui-smaller);
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+/* ── Individual notification item ── */
+.vc-notification-item {
+	position: relative;
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	transition: background 0.1s ease;
+}
+
+.vc-notification-item:last-child {
+	border-bottom: none;
+}
+
+.vc-notification-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* ── Type accent colours (left border) ── */
+.vc-notification-info {
+	border-left: 3px solid var(--color-blue);
+}
+
+.vc-notification-warning {
+	border-left: 3px solid var(--color-yellow);
+}
+
+.vc-notification-error {
+	border-left: 3px solid var(--color-red);
+}
+
+/* ── Notification icon ── */
+.vc-notification-icon {
+	flex-shrink: 0;
+	margin-top: 1px;
+	color: var(--text-muted);
+}
+
+.vc-notif-info .vc-notification-icon {
+	color: var(--color-blue);
+}
+
+.vc-notif-warning .vc-notification-icon {
+	color: var(--color-yellow);
+}
+
+.vc-notif-error .vc-notification-icon {
+	color: var(--color-red);
+}
+
+/* ── Notification content ── */
+.vc-notification-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.vc-notification-title {
+	font-size: var(--font-ui-small);
+	font-weight: 500;
+	color: var(--text-normal);
+	word-break: break-word;
+}
+
+.vc-notification-body {
+	margin-top: 2px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	word-break: break-word;
+	white-space: pre-wrap;
+}
+
+.vc-notification-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.vc-notification-source {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-accent);
+	font-weight: 500;
+}
+
+.vc-notification-time {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+/* ── Dismiss button ── */
+.vc-notification-dismiss-btn {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	border: none !important;
+	background: transparent !important;
+	color: var(--text-faint);
+	cursor: pointer;
+	border-radius: var(--radius-s);
+	padding: 0;
+	opacity: 0;
+	transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.vc-notification-item:hover .vc-notification-dismiss-btn {
+	opacity: 1;
+}
+
+.vc-notification-dismiss-btn:hover {
+	color: var(--text-normal) !important;
+	background: var(--background-modifier-hover) !important;
+}
+
+/* ── Toast notification (auto-dismiss) ── */
+.vc-notification-toast {
+	position: fixed;
+	bottom: 48px;
+	right: 16px;
+	z-index: 2000;
+	width: 320px;
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px 12px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	box-shadow: var(--shadow-l);
+	pointer-events: auto;
+	animation: vc-toast-in 0.2s ease-out;
+}
+
+@keyframes vc-toast-in {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.vc-notification-toast.vc-toast-hiding {
+	animation: vc-toast-out 0.2s ease-in forwards;
+}
+
+@keyframes vc-toast-out {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+}
+
+.vc-toast-icon {
+	flex-shrink: 0;
+	margin-top: 1px;
+}
+
+.vc-toast-info .vc-toast-icon { color: var(--color-blue); }
+.vc-toast-warning .vc-toast-icon { color: var(--color-yellow); }
+.vc-toast-error .vc-toast-icon { color: var(--color-red); }
+
+.vc-toast-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.vc-toast-title {
+	font-size: var(--font-ui-small);
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-toast-body {
+	margin-top: 2px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	word-break: break-word;
+}
+
+.vc-toast-dismiss {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	border: none !important;
+	background: transparent !important;
+	color: var(--text-faint);
+	cursor: pointer;
+	padding: 0;
+}
+
+.vc-toast-dismiss:hover {
+	color: var(--text-normal) !important;
+}
+
+/* ── Mobile overrides ── */
+/* On mobile, the notification panel is full-width and pinned to the bottom */
+.is-mobile .vc-notification-panel {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	top: auto;
+	width: 100%;
+	max-height: 60vh;
+	border-radius: var(--radius-m) var(--radius-m) 0 0;
+	border-bottom: none;
+	animation: vc-notif-panel-in-mobile 0.2s ease-out;
+}
+
+@keyframes vc-notif-panel-in-mobile {
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.is-mobile .vc-notification-toast {
+	left: 16px;
+	right: 16px;
+	width: auto;
+	bottom: calc(env(safe-area-inset-bottom) + 64px);
+}

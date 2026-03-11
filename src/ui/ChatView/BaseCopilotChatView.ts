@@ -53,6 +53,9 @@ import { isDesktop } from "../../utils/platform";
 import { ToolCatalog } from "../../copilot/tools/ToolCatalog";
 import { BaseToolbarManager, type BasePluginLike, type BaseToolbarCallbacks } from "./managers/BaseToolbarManager";
 import { GitHubCopilotCliService } from "../../copilot/providers/GitHubCopilotCliService";
+import { NotificationService } from "../notifications/NotificationService";
+import { NotificationPanel } from "../notifications/NotificationPanel";
+import type { VaultCopilotExtensionAPIImpl } from "../../api/VaultCopilotExtensionAPI";
 
 export const COPILOT_VIEW_TYPE = "copilot-chat-view";
 
@@ -124,6 +127,13 @@ export class BaseCopilotChatView extends ItemView {
 	// ─── Toolbar
 	protected toolbarManager: BaseToolbarManager;
 
+	// ─── Notifications
+	protected notificationService: NotificationService;
+	private notificationPanel: NotificationPanel | null = null;
+	private bellBtnEl: HTMLButtonElement | null = null;
+	private bellBadgeEl: HTMLElement | null = null;
+	private notifUnsubscribes: Array<() => void> = [];
+
 	// ─── Misc state
 	protected thinkingIndicatorEl: HTMLElement | null = null;
 	private noProviderPlaceholder: NoProviderPlaceholder | null = null;
@@ -138,6 +148,11 @@ export class BaseCopilotChatView extends ItemView {
 		super(leaf);
 		this.plugin = plugin;
 		this.githubCopilotCliService = service as GitHubCopilotCliService;
+
+		// Use the notification service from the Extension API (shared with Pro/Shell)
+		// so that agents can push notifications via api.addNotification().
+		const extensionAPI = (plugin as { extensionAPI?: VaultCopilotExtensionAPIImpl }).extensionAPI;
+		this.notificationService = extensionAPI?.notificationService ?? new NotificationService();
 
 		// Tool catalog — no skill registry or MCP manager in Base
 		this.toolCatalog = new ToolCatalog();
@@ -293,6 +308,16 @@ export class BaseCopilotChatView extends ItemView {
 		setIcon(this.sessionToggleBtnEl, "panel-right");
 		this.sessionToggleBtnEl.addEventListener("click", () => this.toggleSessionPanel());
 
+		// ─── Bell / notification button ───────────────────────────────────────────
+		this.bellBtnEl = headerActions.createEl("button", {
+			cls: "vc-header-btn vc-bell-btn",
+			attr: { "aria-label": "Notifications" },
+		});
+		setIcon(this.bellBtnEl, "bell");
+		this.bellBadgeEl = this.bellBtnEl.createSpan({ cls: "vc-bell-badge" });
+		this.bellBadgeEl.style.display = "none";
+		this.bellBtnEl.addEventListener("click", () => this.toggleNotificationPanel());
+
 		headerActions.createSpan({ cls: "vc-header-divider" });
 
 		this.expandBtnEl = headerActions.createEl("button", {
@@ -425,6 +450,9 @@ export class BaseCopilotChatView extends ItemView {
 
 		// Hook: Pro wires PromptPicker and extends ContextPicker with skills
 		await this.onAfterOpen();
+
+		// ─── Notification panel setup ────────────────────────────────────────────
+		this.setupNotifications();
 	}
 
 	// ─── Extension hooks ─────────────────────────────────────────────────────────
@@ -437,6 +465,115 @@ export class BaseCopilotChatView extends ItemView {
 	protected async onAfterOpen(): Promise<void> {
 		this.toolCatalog.loadCliMcpTools();
 		this.toolbarManager.updateToolSelectorText();
+	}
+
+	// ─── Notification helpers ─────────────────────────────────────────────────────
+
+	/**
+	 * Wire up the notification service to the bell icon and toast display.
+	 * Called once at the end of `onOpen()`.
+	 * @internal
+	 */
+	private setupNotifications(): void {
+		if (!this.mainViewEl) return;
+
+		// Build the notification panel (lazy — only renders when toggled)
+		this.notificationPanel = new NotificationPanel(
+			this.notificationService,
+			this.mainViewEl,
+			() => this.openPluginSettingsTab(),
+		);
+
+		// Update the badge whenever the list changes
+		const unsubChange = this.notificationService.onChange(() => {
+			this.updateBellBadge();
+			this.notificationPanel?.refresh();
+		});
+		this.notifUnsubscribes.push(unsubChange);
+
+		// Show a brief toast for each incoming notification
+		const unsubAdd = this.notificationService.onAdd((notif) => {
+			this.showNotificationToast(notif.title, notif.body, notif.type);
+		});
+		this.notifUnsubscribes.push(unsubAdd);
+
+		// Render initial badge state
+		this.updateBellBadge();
+	}
+
+	/**
+	 * Toggle the notification panel open or closed.
+	 * @internal
+	 */
+	private toggleNotificationPanel(): void {
+		if (!this.bellBtnEl || !this.notificationPanel) return;
+		this.notificationPanel.toggle(this.bellBtnEl);
+		// After toggling open, badge should clear (markAllRead is called inside panel.show)
+		this.updateBellBadge();
+	}
+
+	/**
+	 * Refresh the unread badge on the bell button.
+	 * @internal
+	 */
+	private updateBellBadge(): void {
+		if (!this.bellBadgeEl) return;
+		const count = this.notificationService.getUnreadCount();
+		if (count === 0) {
+			this.bellBadgeEl.style.display = "none";
+		} else {
+			this.bellBadgeEl.style.display = "";
+			this.bellBadgeEl.setText(count > 99 ? "99+" : String(count));
+		}
+	}
+
+	/**
+	 * Show a brief auto-dismissing toast notification at the bottom-right.
+	 *
+	 * @param title - Notification summary
+	 * @param body - Optional detail text
+	 * @param type - Severity level
+	 * @internal
+	 */
+	private showNotificationToast(
+		title: string,
+		body?: string,
+		type: "info" | "warning" | "error" = "info",
+	): void {
+		const typeIcon: Record<string, string> = {
+			info: "info",
+			warning: "alert-triangle",
+			error: "alert-circle",
+		};
+
+		const toast = document.body.createDiv({
+			cls: `vc-notification-toast vc-toast-${type}`,
+		});
+
+		const iconEl = toast.createDiv({ cls: "vc-toast-icon" });
+		setIcon(iconEl, typeIcon[type] ?? "info");
+
+		const contentEl = toast.createDiv({ cls: "vc-toast-content" });
+		contentEl.createDiv({ cls: "vc-toast-title", text: title });
+		if (body) {
+			contentEl.createDiv({ cls: "vc-toast-body", text: body });
+		}
+
+		const dismissBtn = toast.createEl("button", {
+			cls: "vc-toast-dismiss",
+			attr: { "aria-label": "Dismiss" },
+		});
+		setIcon(dismissBtn, "x");
+
+		const removeToast = () => {
+			toast.addClass("vc-toast-hiding");
+			setTimeout(() => toast.remove(), 200);
+		};
+		dismissBtn.addEventListener("click", removeToast);
+
+		// Auto-dismiss after 4 seconds
+		const timer = setTimeout(removeToast, 4000);
+		toast.addEventListener("mouseenter", () => clearTimeout(timer));
 	}
 
 	/**
@@ -901,6 +1038,11 @@ export class BaseCopilotChatView extends ItemView {
 			this.noProviderPlaceholder.destroy();
 			this.noProviderPlaceholder = null;
 		}
+		// Clean up notification resources
+		this.notificationPanel?.destroy();
+		this.notificationPanel = null;
+		for (const unsub of this.notifUnsubscribes) unsub();
+		this.notifUnsubscribes = [];
 		// Pro cleans up additional resources in its onClose override
 		await this.onAfterClose();
 	}

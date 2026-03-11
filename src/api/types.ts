@@ -25,6 +25,10 @@
  */
 
 import type { App, WorkspaceLeaf } from "obsidian";
+import type { NotificationType } from "../ui/notifications/NotificationService";
+
+// Re-export notification types so Extension API consumers don't need to reach into internal paths.
+export type { NotificationType };
 
 // ---------------------------------------------------------------------------
 // Core primitives
@@ -265,6 +269,27 @@ export interface StatusBarRegistration {
 }
 
 // ---------------------------------------------------------------------------
+// Notifications  (Pro / Shell only — exposed via the Extension API)
+// ---------------------------------------------------------------------------
+
+/**
+ * Options for pushing a notification via the Extension API.
+ *
+ * > **Pro / Shell only.** Basic plugins cannot push agent notifications; use the
+ * > Extension API from a Pro or Shell plugin.
+ */
+export interface PushNotificationOptions {
+	/** Short summary shown as the primary label. */
+	title: string;
+	/** Optional detail text shown below the title. */
+	body?: string;
+	/** Severity level. Defaults to `"info"`. */
+	type?: NotificationType;
+	/** Optional source label displayed in the panel (e.g. `"My Agent"`). */
+	source?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Event types
 // ---------------------------------------------------------------------------
 
@@ -385,4 +410,42 @@ export interface VaultCopilotExtensionAPI {
 	getSettings(): Record<string, unknown>;
 	/** Update settings (partial merge) */
 	updateSettings(partial: Record<string, unknown>): Promise<void>;
+
+	// ===== Notifications (Pro / Shell only) =====
+
+	/**
+	 * Push a notification into the Vault Copilot notification panel.
+	 *
+	 * The notification also briefly toasts at the bottom-right of the window.
+	 * Only available from Pro and Shell plugins — Basic does not call this.
+	 *
+	 * @param options - Notification content and metadata
+	 * @returns The unique ID of the created notification
+	 *
+	 * @example
+	 * ```typescript
+	 * api.addNotification({ title: "Agent finished", type: "info", source: "My Agent" });
+	 * ```
+	 */
+	addNotification(options: PushNotificationOptions): string;
+
+	/**
+	 * Remove all notifications from the panel.
+	 *
+	 * Only available from Pro and Shell plugins.
+	 */
+	clearNotifications(): void;
+
+	/**
+	 * Subscribe to new notifications pushed via {@link addNotification}.
+	 *
+	 * @param listener - Callback invoked with the notification title and type
+	 * @returns Unsubscribe function
+	 *
+	 * @example
+	 * ```typescript
+	 * const unsub = api.onNotification(({ title, type }) => console.log(title));
+	 * ```
+	 */
+	onNotification(listener: (event: { id: string; title: string; type: NotificationType; source?: string }) => void): Unsubscribe;
 }

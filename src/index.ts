@@ -88,6 +88,16 @@ export type { GitHubCopilotCliConfig as CliConfig } from "./copilot/providers/ty
 
 export { LOG_SOURCES } from "./copilot/logging/LogTaxonomy";
 
+// ── Notification service ──────────────────────────────────────────────────
+
+export { NotificationService } from "./ui/notifications/NotificationService";
+export type {
+	CopilotNotification,
+	AddNotificationOptions,
+	NotificationType,
+	NotificationUnsubscribe,
+} from "./ui/notifications/NotificationService";
+
 // ── Platform utilities ────────────────────────────────────────────────────
 
 export { isMobile, isDesktop, supportsLocalProcesses } from "./utils/platform";

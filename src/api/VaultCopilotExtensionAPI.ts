@@ -29,6 +29,8 @@ import type {
 	MessageEvent,
 	ProviderChangeEvent,
 	Unsubscribe,
+	PushNotificationOptions,
+	NotificationType,
 } from "./types";
 
 import {
@@ -40,6 +42,8 @@ import {
 	CommandRegistry,
 	ContextRegistry,
 } from "./registries";
+
+import { NotificationService } from "../ui/notifications/NotificationService";
 
 /**
  * Options for creating the Extension API implementation.
@@ -123,6 +127,9 @@ export class VaultCopilotExtensionAPIImpl implements VaultCopilotExtensionAPI {
 	readonly sessionEvents = new EventBus<SessionChangeEvent>();
 	readonly messageEvents = new EventBus<MessageEvent>();
 	readonly providerEvents = new EventBus<ProviderChangeEvent>();
+
+	/** Notification service — shared with the chat view for UI rendering. */
+	readonly notificationService = new NotificationService();
 
 	// Status bar items
 	private statusBarItems = new Map<string, StatusBarRegistration>();
@@ -221,6 +228,41 @@ export class VaultCopilotExtensionAPIImpl implements VaultCopilotExtensionAPI {
 		return this.delegate.updateSettings(partial);
 	}
 
+	// ===== Notifications (Pro / Shell only) =====
+
+	/**
+	 * Push a notification into the Vault Copilot notification panel and show a
+	 * brief toast. Intended for Pro and Shell plugins — not called by Basic.
+	 *
+	 * @param options - Notification content and metadata
+	 * @returns The unique ID of the created notification
+	 */
+	addNotification(options: PushNotificationOptions): string {
+		const notif = this.notificationService.add(options);
+		return notif.id;
+	}
+
+	/**
+	 * Remove all notifications from the panel.
+	 */
+	clearNotifications(): void {
+		this.notificationService.clearAll();
+	}
+
+	/**
+	 * Subscribe to new notifications pushed via {@link addNotification}.
+	 *
+	 * @param listener - Callback invoked with the notification event
+	 * @returns Unsubscribe function
+	 */
+	onNotification(
+		listener: (event: { id: string; title: string; type: NotificationType; source?: string }) => void,
+	): Unsubscribe {
+		return this.notificationService.onAdd((n) => {
+			listener({ id: n.id, title: n.title, type: n.type, source: n.source });
+		});
+	}
+
 	// ===== Lifecycle =====
 
 	/**
@@ -240,5 +282,6 @@ export class VaultCopilotExtensionAPIImpl implements VaultCopilotExtensionAPI {
 		this.sessionEvents.clear();
 		this.messageEvents.clear();
 		this.providerEvents.clear();
+		this.notificationService.destroy();
 	}
 }
