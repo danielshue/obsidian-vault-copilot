@@ -49,6 +49,7 @@ export const LOG_SOURCES = {
 	COPILOT_ERROR: "copilot-error",
 	COPILOT_EVENT: "copilot-event",
 	TOOL_CONTEXT: "tool-context",
+	NOTIFICATION: "notification",
 } as const;
 
 /** Canonical source union type. */
