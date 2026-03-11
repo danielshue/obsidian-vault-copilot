@@ -11,7 +11,6 @@
 import type { ChatMessage } from "../../copilot/providers/GitHubCopilotCliService";
 import type { AIProviderType } from "../../copilot/providers/AIProvider";
 import type { CliStatus } from "../../copilot/providers/GitHubCopilotCliManager";
-import type { ExtensionSubmissionRecord } from "../../extensions/types";
 
 // ============================================================================
 // Session Types
@@ -289,23 +288,6 @@ export interface CopilotPluginSettings {
 	githubUsername?: string;
 	/** Generated anonymous ID for users without GitHub username */
 	anonymousId?: string;
-	/**
-	 * Maximum allowed size of a submitted extension zip package in megabytes.
-	 * Configurable via the Extension Admin settings section.
-	 * @default 10
-	 */
-	maxExtensionZipSizeMb?: number;
-	/**
-	 * Maximum number of extension submissions a single user may make per calendar day.
-	 * Configurable via the Extension Admin settings section.
-	 * @default 5
-	 */
-	extensionSubmissionRateLimit?: number;
-	/**
-	 * Historical log of accepted extension submissions, used for rate-limit tracking.
-	 * Records older than 7 days are pruned automatically.
-	 */
-	extensionSubmissionHistory?: ExtensionSubmissionRecord[];
 }
 
 /**
@@ -347,7 +329,4 @@ export type BasicCopilotPluginSettings = Pick<
 	| 'cliStatusChecked'
 	| 'cliLastKnownStatus'
 	| 'periodicNotes'
-	| 'maxExtensionZipSizeMb'
-	| 'extensionSubmissionRateLimit'
-	| 'extensionSubmissionHistory'
 >;

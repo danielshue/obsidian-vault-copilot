@@ -91,20 +91,3 @@ export { LOG_SOURCES } from "./copilot/logging/LogTaxonomy";
 // ── Platform utilities ────────────────────────────────────────────────────
 
 export { isMobile, isDesktop, supportsLocalProcesses } from "./utils/platform";
-
-// ── Extension package system ──────────────────────────────────────────────
-
-export type {
-	ExtensionFileType,
-	ExtensionFileEntry,
-	ExtensionPackageManifest,
-	ExtensionPackageValidationResult,
-	ExtensionSubmissionRecord,
-	ExtensionSubmissionConfig,
-	ExtensionRateLimitResult,
-} from "./extensions/types";
-
-export { ExtensionPackageValidator } from "./extensions/ExtensionPackageValidator";
-export type { ExtensionPackageValidatorOptions } from "./extensions/ExtensionPackageValidator";
-
-export { ExtensionSubmissionService } from "./extensions/ExtensionSubmissionService";
