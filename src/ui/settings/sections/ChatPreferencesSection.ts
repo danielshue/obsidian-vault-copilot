@@ -270,6 +270,18 @@ export class ChatPreferencesSection {
 						plugin.updateStatusBar?.();
 					})
 			);
+
+		new Setting(settingsCard)
+			.setName("Show welcome message")
+			.setDesc("Display the welcome message when starting a new chat session")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.ctx.plugin.settings.displayWelcomeMessage)
+					.onChange(async (value) => {
+						this.ctx.plugin.settings.displayWelcomeMessage = value;
+						await this.ctx.plugin.saveSettings();
+					})
+			);
 	}
 
 
