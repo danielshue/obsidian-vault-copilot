@@ -1,6 +1,6 @@
 {
   "name": "obsidian-vault-copilot",
-  "version": "0.0.43",
+  "version": "0.0.44",
   "description": "Vault Copilot — AI-powered assistant for Obsidian. Minimal plugin with GitHub Copilot CLI integration, extensible via the Extension API.",
   "main": "main.js",
   "type": "module",
