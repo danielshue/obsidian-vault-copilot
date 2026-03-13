@@ -476,6 +476,12 @@ export class SessionEventTracer {
 				message = `[Subagent Selected] ${d.agentDisplayName || d.agentName || "unknown"} (${toolCount} tools)`;
 				break;
 			}
+			case "subagent.deselected": {
+				level = "info";
+				source = LOG_SOURCES.SUBAGENT_EVENT;
+				message = "[Subagent Deselected] Returning to parent agent";
+				break;
+			}
 
 			// ── Abort ──────────────────────────────────────────────────
 			case "abort": {
