@@ -68,7 +68,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	cliLastKnownStatus: null,
 	extensionCatalogUrl: "https://danielshue.github.io/vault-copilot-extensions/catalog/catalog.json",
 	enableAnalytics: true,
-	analyticsEndpoint: 'https://vault-copilot-api.purpleocean-69a206db.eastus.azurecontainerapps.io',
+	analyticsEndpoint: '',
 	githubUsername: '',
 	anonymousId: '',
 };
