@@ -37,6 +37,8 @@ export class SessionManager {
 	private githubCopilotCliService: GitHubCopilotCliService;
 	private saveSettings: () => Promise<void>;
 	private callbacks: SessionManagerCallbacks;
+	/** Per-view active session ID — isolates multi-view instances from shared settings */
+	private localActiveSessionId: string | null;
 
 	constructor(
 		settings: BasicCopilotPluginSettings,
@@ -48,13 +50,21 @@ export class SessionManager {
 		this.githubCopilotCliService = githubCopilotCliService;
 		this.saveSettings = saveSettings;
 		this.callbacks = callbacks;
+		this.localActiveSessionId = settings.activeSessionId;
+	}
+
+	/**
+	 * Get the per-view active session ID.
+	 */
+	getActiveSessionId(): string | null {
+		return this.localActiveSessionId;
 	}
 
 	/**
 	 * Get the current session object
 	 */
 	getCurrentSession(): CopilotSession | undefined {
-		const activeSessionId = this.settings.activeSessionId;
+		const activeSessionId = this.localActiveSessionId;
 		if (activeSessionId) {
 			return this.settings.sessions.find((s: CopilotSession) => s.id === activeSessionId);
 		}
@@ -105,6 +115,7 @@ export class SessionManager {
 		};
 
 		this.settings.sessions.push(newSession);
+		this.localActiveSessionId = newSession.id;
 		this.settings.activeSessionId = newSession.id;
 		await this.saveSettings();
 		
@@ -127,6 +138,7 @@ export class SessionManager {
 		await this.saveCurrentSession();
 
 		// Update active session
+		this.localActiveSessionId = session.id;
 		this.settings.activeSessionId = session.id;
 		session.lastUsedAt = Date.now();
 		await this.saveSettings();
@@ -179,7 +191,7 @@ export class SessionManager {
 	 * Save the current session's messages and backfill conversationId if needed.
 	 */
 	async saveCurrentSession(): Promise<void> {
-		const activeSessionId = this.settings.activeSessionId;
+		const activeSessionId = this.localActiveSessionId;
 		if (activeSessionId) {
 			const session = this.settings.sessions.find((s: CopilotSession) => s.id === activeSessionId);
 			if (session) {
@@ -204,9 +216,9 @@ export class SessionManager {
 	 */
 	async ensureSessionExists(): Promise<void> {
 		// If there's already an active session, we're good
-		if (this.settings.activeSessionId) {
+		if (this.localActiveSessionId) {
 			const existingSession = this.settings.sessions.find(
-				s => s.id === this.settings.activeSessionId
+				s => s.id === this.localActiveSessionId
 			);
 			if (existingSession) {
 				// Backfill conversationId if session pre-dates this field
@@ -238,6 +250,7 @@ export class SessionManager {
 		};
 
 		this.settings.sessions.push(newSession);
+		this.localActiveSessionId = newSession.id;
 		this.settings.activeSessionId = newSession.id;
 		await this.saveSettings();
 		
@@ -250,7 +263,7 @@ export class SessionManager {
 	 */
 	async autoRenameSessionFromFirstMessage(firstMessage: string, sessionPanelRender?: () => void): Promise<void> {
 		const currentSession = this.settings.sessions.find(
-			(s: CopilotSession) => s.id === this.settings.activeSessionId
+			(s: CopilotSession) => s.id === this.localActiveSessionId
 		);
 		
 		if (!currentSession) {
