@@ -421,7 +421,7 @@ export class BaseCopilotChatView extends ItemView {
 
 		this.startService();
 		this.registerKeyboardShortcuts();
-		await this.updateProviderAvailabilityUI();
+		// Provider check runs only on settings changes — not on initial open.
 
 		// Hook: Pro wires PromptPicker and extends ContextPicker with skills
 		await this.onAfterOpen();
@@ -592,37 +592,6 @@ export class BaseCopilotChatView extends ItemView {
 	}
 
 	// ─── Provider availability ────────────────────────────────────────────────────
-
-	private async updateProviderAvailabilityUI(): Promise<void> {
-		const cliManager = this.getCliManagerForAvailability();
-		const status = await checkAnyProviderAvailable(
-			this.app,
-			this.plugin.settings,
-			cliManager as never,
-		);
-
-		if (status.available) {
-			if (this.inputArea) this.inputArea.style.display = "";
-			if (this.noProviderPlaceholder) this.noProviderPlaceholder.hide();
-		} else {
-			if (this.inputArea) this.inputArea.style.display = "none";
-
-			if (!this.noProviderPlaceholder && this.mainViewEl) {
-				this.noProviderPlaceholder = new NoProviderPlaceholder(
-					this.mainViewEl,
-					this.app,
-					{
-						onOpenSettings: () => this.openPluginSettingsTab(),
-						onInstallCli: isDesktop ? () => {
-							window.open("https://docs.github.com/en/copilot/how-tos/copilot-cli/install-copilot-cli", "_blank");
-						} : undefined,
-					},
-				);
-			} else if (this.noProviderPlaceholder) {
-				this.noProviderPlaceholder.show();
-			}
-		}
-	}
 
 	protected openPluginSettingsTab(): void {
 		const appWithSettings = this.app as unknown as AppWithSettingsApi;
@@ -900,6 +869,10 @@ export class BaseCopilotChatView extends ItemView {
 		if (this.noProviderPlaceholder) {
 			this.noProviderPlaceholder.destroy();
 			this.noProviderPlaceholder = null;
+		}
+		// Cleanup per-view AI service (stop SDK session, unsubscribe events)
+		if (this.githubCopilotCliService) {
+			void this.githubCopilotCliService.stop().catch(() => { /* best-effort */ });
 		}
 		// Pro cleans up additional resources in its onClose override
 		await this.onAfterClose();

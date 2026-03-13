@@ -85,10 +85,10 @@ export default class BasicCopilotPlugin extends Plugin {
 			);
 		}
 
-		// Register core chat view
+		// Register core chat view — each tab gets its own service for session isolation
 		this.registerView(
 			COPILOT_VIEW_TYPE,
-			(leaf: WorkspaceLeaf) => new CopilotChatView(leaf, this, this.githubCopilotCliService),
+			(leaf: WorkspaceLeaf) => new CopilotChatView(leaf, this, this.createViewService()),
 		);
 
 		// Wire tool registry into the CLI service so registered tools appear on next session
@@ -357,6 +357,17 @@ export default class BasicCopilotPlugin extends Plugin {
 			await this.saveSettings();
 			this.activateChatView();
 		}
+	}
+
+	/**
+	 * Create a fresh CLI service instance for a chat view.
+	 * Each view gets its own service for session isolation.
+	 * Returns null on mobile (no local process support).
+	 * @internal
+	 */
+	createViewService(): GitHubCopilotCliService | null {
+		if (!supportsLocalProcesses()) return null;
+		return this.createCliService();
 	}
 
 	/**

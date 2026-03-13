@@ -52,7 +52,8 @@ export async function checkAnyProviderAvailable(
 	let copilotInstalled = false;
 	if (isDesktop && cliManager) {
 		try {
-			const status = await cliManager.getStatus();
+			// Force-refresh to avoid stale cached status from early plugin init
+			const status = await cliManager.getStatus(true);
 			copilotInstalled = status.installed;
 		} catch {
 			copilotInstalled = false;
