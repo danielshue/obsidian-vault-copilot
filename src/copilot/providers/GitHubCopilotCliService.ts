@@ -615,6 +615,9 @@ export class GitHubCopilotCliService {
 			interceptConsoleLogs();
 		}
 
+		// Allow subclasses to augment client options (e.g., BYOK onListModels)
+		this.augmentClientOptions(clientOptions);
+
 		this.client = new CopilotClient(clientOptions);
 		this.installPermissionHandlerSafetyNet(this.client);
 
@@ -658,6 +661,22 @@ export class GitHubCopilotCliService {
 
 	/**
 	 * Stop the Copilot CLI client and clean up resources.
+	 *
+	/**
+	 * Hook for subclasses to augment CopilotClient options before instantiation.
+	 *
+	 * Override in Pro to add `onListModels` for BYOK providers.
+	 * The base implementation is a no-op.
+	 *
+	 * @param _clientOptions - Mutable client options object
+	 * @internal
+	 */
+	protected augmentClientOptions(_clientOptions: Record<string, unknown>): void {
+		// No-op in Basic; overridden in Pro for BYOK model listing
+	}
+
+	/**
+	 * Stop the CLI client and clean up resources.
 	 *
 	 * Subclasses should call `super.stop()` if they override this method.
 	 *
@@ -732,6 +751,12 @@ export class GitHubCopilotCliService {
 			// registered in the Copilot CLI config to be callable alongside plugin tools.
 		};
 
+		// BYOK: pass provider config when using a non-Copilot provider
+		if (this.config.sdkProvider) {
+			sessionConfig.provider = this.config.sdkProvider;
+		}
+
+		// CLI-registered MCP servers (e.g. WorkIQ, user-added via `copilot /mcp add`)
 		const cliMcpServers = this.readCliMcpServers();
 		if (Object.keys(cliMcpServers).length > 0) {
 			sessionConfig.mcpServers = cliMcpServers;

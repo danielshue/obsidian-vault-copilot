@@ -22,9 +22,30 @@
  * Contains the minimal fields needed for the Basic plugin's chat-only mode.
  * Pro extends this with `GitHubCopilotCliProConfig` (adds tools, MCP, customization).
  */
+/**
+ * SDK provider configuration for BYOK (Bring Your Own Key) sessions.
+ *
+ * When set, the Copilot SDK routes requests through the specified provider
+ * instead of the default GitHub Copilot backend.
+ *
+ * @see https://github.com/github/copilot-sdk/blob/main/nodejs/README.md#bring-your-own-key-byok
+ */
+export interface SdkProviderConfig {
+	/** Provider type — must match the endpoint type exactly (e.g. 'azure' for Azure endpoints, not 'openai') */
+	type: string;
+	/** Base URL for the provider API (e.g. 'https://api.openai.com/v1') */
+	baseUrl?: string;
+	/** API key for providers that use key-based auth */
+	apiKey?: string;
+	/** Bearer token for providers that use token-based auth */
+	bearerToken?: string;
+}
+
 export interface GitHubCopilotCliConfig {
 	/** The AI model identifier to use for sessions (e.g. 'gpt-4.1', 'claude-sonnet-4') */
 	model: string;
+	/** BYOK provider configuration — when set, routes through the specified provider instead of Copilot */
+	sdkProvider?: SdkProviderConfig;
 	/** Optional explicit path to the Copilot CLI binary. Resolved automatically if omitted. */
 	cliPath?: string;
 	/** Optional URL for the CLI server when using a remote Copilot instance */
