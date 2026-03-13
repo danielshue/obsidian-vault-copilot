@@ -37,9 +37,24 @@ export type LogFormat = "text" | "json" | "both";
 /** Custom Winston levels matching {@link SDKLogEntry.level}. */
 const SDK_LOG_LEVELS = { error: 0, warning: 1, info: 2, debug: 3 };
 
+/**
+ * Numeric hierarchy for log-level gating.
+ * Maps both SDK levels (`warning`) and settings levels (`warn`) to priority numbers.
+ * Lower number = higher severity.
+ */
+const LEVEL_PRIORITY: Record<string, number> = { error: 0, warning: 1, warn: 1, info: 2, debug: 3 };
+
+/** Resolve priority for a level string, defaulting to info (2). @internal */
+function levelPriority(level: string): number {
+	return LEVEL_PRIORITY[level] ?? 2;
+}
+
 /** Unified singleton logger for bootstrap + SDK + tracing file output. */
 export class AppLogger {
 	private static instance: AppLogger | null = null;
+
+	/** Minimum log level for console output. File logging always writes all levels. */
+	private minConsoleLevel = 2; // info
 
 	/** Return the existing singleton instance if initialized, otherwise null. */
 	static getInstanceOrNull(): AppLogger | null {
@@ -57,6 +72,65 @@ export class AppLogger {
 			AppLogger.instance = new AppLogger(logDir, format);
 		}
 		return AppLogger.instance;
+	}
+
+	// ── Static convenience methods ─────────────────────────────────────
+	// These are the primary API for all modules. They are null-safe: if
+	// the singleton hasn't been initialized yet, they fall back to the
+	// appropriate console.* method so early-bootstrap logging still works.
+
+	/** Log at **debug** level. Suppressed unless logLevel is `debug`. */
+	static debug(tag: string, msg: string, ...args: unknown[]): void {
+		const inst = AppLogger.instance;
+		const message = args.length ? `${msg} ${args.map(serializeArg).join(" ")}` : msg;
+		if (inst) {
+			if (levelPriority("debug") <= inst.minConsoleLevel) {
+				console.debug(`[${tag}] ${message}`);
+			}
+			inst.logSimple("debug", `[${tag}] ${message}`, tag);
+		} else {
+			console.debug(`[${tag}] ${message}`);
+		}
+	}
+
+	/** Log at **info** level. Shown when logLevel is `info` or `debug`. */
+	static info(tag: string, msg: string, ...args: unknown[]): void {
+		const inst = AppLogger.instance;
+		const message = args.length ? `${msg} ${args.map(serializeArg).join(" ")}` : msg;
+		if (inst) {
+			if (levelPriority("info") <= inst.minConsoleLevel) {
+				console.log(`[${tag}] ${message}`);
+			}
+			inst.logSimple("info", `[${tag}] ${message}`, tag);
+		} else {
+			console.log(`[${tag}] ${message}`);
+		}
+	}
+
+	/** Log at **warning** level. Shown unless logLevel is `error`. */
+	static warn(tag: string, msg: string, ...args: unknown[]): void {
+		const inst = AppLogger.instance;
+		const message = args.length ? `${msg} ${args.map(serializeArg).join(" ")}` : msg;
+		if (inst) {
+			if (levelPriority("warning") <= inst.minConsoleLevel) {
+				console.warn(`[${tag}] ${message}`);
+			}
+			inst.logSimple("warning", `[${tag}] ${message}`, tag);
+		} else {
+			console.warn(`[${tag}] ${message}`);
+		}
+	}
+
+	/** Log at **error** level. Always shown regardless of logLevel. */
+	static error(tag: string, msg: string, ...args: unknown[]): void {
+		const inst = AppLogger.instance;
+		const message = args.length ? `${msg} ${args.map(serializeArg).join(" ")}` : msg;
+		if (inst) {
+			console.error(`[${tag}] ${message}`);
+			inst.logSimple("error", `[${tag}] ${message}`, tag);
+		} else {
+			console.error(`[${tag}] ${message}`);
+		}
 	}
 
 	private logger: Logger;
@@ -121,6 +195,15 @@ export class AppLogger {
 		}
 	}
 
+	/**
+	 * Set the minimum log level for console output.
+	 * Accepts both SDK levels (`warning`) and settings levels (`warn`).
+	 * File logging is unaffected — it always writes all levels.
+	 */
+	setLogLevel(level: string): void {
+		this.minConsoleLevel = levelPriority(level);
+	}
+
 	/** Build Winston logger and transports for the requested format. @internal */
 	private createLoggerForFormat(formatName: LogFormat): Logger {
 		const transports: transport[] = [];
@@ -178,4 +261,14 @@ export class AppLogger {
 			}),
 		});
 	}
+}
+
+/** Serialize a single argument for log output. @internal */
+function serializeArg(v: unknown): string {
+	if (v === null || v === undefined) return String(v);
+	if (v instanceof Error) return v.stack ?? v.message;
+	if (typeof v === "object") {
+		try { return JSON.stringify(v); } catch { return String(v); }
+	}
+	return String(v);
 }

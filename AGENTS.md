@@ -163,6 +163,7 @@ The API is accessed via `app.plugins.getPlugin("obsidian-vault-copilot")?.api`.
 - Split large files at ~200–300 lines
 - Bundle everything into `main.js` (no unbundled runtime deps)
 - Use `async/await` over promise chains
+- Use `AppLogger.debug/info/warn/error(tag, msg, ...args)` instead of raw `console.log`
 - Use `LOG_SOURCES` from `LogTaxonomy.ts` for logging — avoid raw string literals
 - All source files must include the copyright header comment
 - All exported functions require JSDoc with `@param`, `@returns`, `@example`
