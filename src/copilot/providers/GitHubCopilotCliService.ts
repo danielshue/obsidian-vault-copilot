@@ -985,7 +985,7 @@ export class GitHubCopilotCliService {
 		}
 	}
 
-	async sendMessage(prompt: string, timeout?: number, images?: ImageAttachment[]): Promise<string> {
+	async sendMessage(prompt: string, timeout?: number, images?: ImageAttachment[], mode?: 'enqueue' | 'immediate'): Promise<string> {
 		if (!this.session) await this.createSession();
 		await this.ensureSessionAlive();
 		const session = this.session;
@@ -1008,7 +1008,7 @@ export class GitHubCopilotCliService {
 
 		try {
 			const response = await session.sendAndWait(
-				attachments.length > 0 ? { prompt, attachments } : { prompt },
+				attachments.length > 0 ? { prompt, attachments, mode } : { prompt, mode },
 				requestTimeout
 			);
 			this.touchActivity();
@@ -1060,7 +1060,8 @@ export class GitHubCopilotCliService {
 		onDelta: (delta: string) => void,
 		onComplete?: (fullContent: string) => void,
 		timeout?: number,
-		images?: ImageAttachment[]
+		images?: ImageAttachment[],
+		mode?: 'enqueue' | 'immediate'
 	): Promise<void> {
 		if (!this.session) await this.createSession();
 		await this.ensureSessionAlive();
@@ -1155,7 +1156,7 @@ export class GitHubCopilotCliService {
 				}
 			});
 
-			session.send(attachments.length > 0 ? { prompt, attachments } : { prompt }).catch((err) => {
+			session.send(attachments.length > 0 ? { prompt, attachments, mode } : { prompt, mode }).catch((err) => {
 				cleanup();
 				unsubscribe();
 				tracingService.addSdkLog("error", `[Send Error] ${err.message || err}`, LOG_SOURCES.COPILOT_ERROR);
