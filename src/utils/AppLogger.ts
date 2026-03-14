@@ -59,6 +59,65 @@ export class AppLogger {
 		return AppLogger.instance;
 	}
 
+	/**
+	 * Static convenience: log a debug-level message.
+	 * Falls back to console.debug if the singleton is not yet initialized.
+	 * @param source - Source tag (e.g., `ActionExecutors`, `McpManager`)
+	 * @param message - Message to log
+	 * @param args - Additional values to append to the message
+	 */
+	static debug(source: string, message: string, ...args: unknown[]): void {
+		const full = args.length ? `${message} ${args.map(a => (typeof a === "string" ? a : JSON.stringify(a))).join(" ")}` : message;
+		const inst = AppLogger.instance;
+		if (inst) {
+			inst.logSimple("debug", full, source);
+		} else {
+			console.debug(`[${source}]`, full);
+		}
+	}
+
+	/**
+	 * Static convenience: log an info-level message.
+	 * Falls back to console.info if the singleton is not yet initialized.
+	 */
+	static info(source: string, message: string, ...args: unknown[]): void {
+		const full = args.length ? `${message} ${args.map(a => (typeof a === "string" ? a : JSON.stringify(a))).join(" ")}` : message;
+		const inst = AppLogger.instance;
+		if (inst) {
+			inst.logSimple("info", full, source);
+		} else {
+			console.info(`[${source}]`, full);
+		}
+	}
+
+	/**
+	 * Static convenience: log a warning-level message.
+	 * Falls back to console.warn if the singleton is not yet initialized.
+	 */
+	static warn(source: string, message: string, ...args: unknown[]): void {
+		const full = args.length ? `${message} ${args.map(a => (typeof a === "string" ? a : JSON.stringify(a))).join(" ")}` : message;
+		const inst = AppLogger.instance;
+		if (inst) {
+			inst.logSimple("warning", full, source);
+		} else {
+			console.warn(`[${source}]`, full);
+		}
+	}
+
+	/**
+	 * Static convenience: log an error-level message.
+	 * Falls back to console.error if the singleton is not yet initialized.
+	 */
+	static error(source: string, message: string, ...args: unknown[]): void {
+		const full = args.length ? `${message} ${args.map(a => (typeof a === "string" ? a : JSON.stringify(a))).join(" ")}` : message;
+		const inst = AppLogger.instance;
+		if (inst) {
+			inst.logSimple("error", full, source);
+		} else {
+			console.error(`[${source}]`, full);
+		}
+	}
+
 	private logger: Logger;
 	private readonly logDir: string;
 	private currentFormat: LogFormat;
@@ -111,6 +170,14 @@ export class AppLogger {
 		this.logger.close();
 		this.currentFormat = format;
 		this.logger = this.createLoggerForFormat(format);
+	}
+
+	/**
+	 * Set the minimum log level for all transports.
+	 * @param level - The minimum level to log (e.g., 'debug', 'info', 'warning', 'error')
+	 */
+	setLogLevel(level: string): void {
+		this.logger.level = level;
 	}
 
 	/** Close logger transports and clear the singleton reference. */

@@ -106,6 +106,17 @@ export class GitHubCopilotCliService {
 	protected config: GitHubCopilotCliConfig;
 	/** Chronological conversation history for the active session */
 	protected messageHistory: ChatMessage[] = [];
+
+	/**
+	 * Template hook for subclasses to augment CopilotClient options before session creation.
+	 * Override in Pro to add BYOK model listing or other client-level customizations.
+	 * @param clientOptions - Mutable options object to augment
+	 * @internal
+	 */
+	protected augmentClientOptions(_clientOptions: Record<string, unknown>): void {
+		// No-op in Basic — overridden in Pro
+	}
+
 	/** Registered external event handlers notified on every SDK SessionEvent */
 	private eventHandlers: ((event: SessionEvent) => void)[] = [];
 	/**
@@ -1060,7 +1071,8 @@ export class GitHubCopilotCliService {
 		onDelta: (delta: string) => void,
 		onComplete?: (fullContent: string) => void,
 		timeout?: number,
-		images?: ImageAttachment[]
+		images?: ImageAttachment[],
+		mode?: string
 	): Promise<void> {
 		if (!this.session) await this.createSession();
 		await this.ensureSessionAlive();

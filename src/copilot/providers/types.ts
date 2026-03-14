@@ -192,3 +192,23 @@ export const SDK_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
  * stale and recreates it proactively (set 5 min before the actual timeout).
  */
 export const SESSION_STALE_THRESHOLD_MS = 25 * 60 * 1000;
+
+/**
+ * Configuration for a Bring-Your-Own-Key (BYOK) SDK provider.
+ * Used to route requests through a custom model endpoint.
+ * @since 0.0.44
+ */
+export interface SdkProviderConfig {
+	/** Provider type identifier (e.g., 'openai', 'azure-openai') */
+	type: string;
+	/** Display name for the provider */
+	name?: string;
+	/** API key or credential for the provider */
+	apiKey?: string;
+	/** Bearer token for authentication (alternative to apiKey) */
+	bearerToken?: string;
+	/** Base URL for the provider's API endpoint */
+	baseUrl?: string;
+	/** Model identifier to use */
+	model?: string;
+}

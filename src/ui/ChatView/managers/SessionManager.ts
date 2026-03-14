@@ -51,6 +51,14 @@ export class SessionManager {
 	}
 
 	/**
+	 * Get the active session ID.
+	 * @returns The active session ID or undefined if no session is active
+	 */
+	getActiveSessionId(): string | undefined {
+		return this.settings.activeSessionId ?? undefined;
+	}
+
+	/**
 	 * Get the current session object
 	 */
 	getCurrentSession(): CopilotSession | undefined {
