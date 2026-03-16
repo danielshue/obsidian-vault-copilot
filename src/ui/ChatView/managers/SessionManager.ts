@@ -151,6 +151,17 @@ export class SessionManager {
 					session.conversationId = freshConvId;
 					await this.saveSettings();
 				}
+				// Restore local history so the model has context on the next send
+				if (session.messages?.length) {
+					const serviceWithHistory = this.githubCopilotCliService as unknown as {
+						messageHistory: ChatMessage[];
+						sessionRecreated: boolean;
+					};
+					serviceWithHistory.messageHistory = session.messages.map((msg: ChatMessage) => ({
+						...msg, timestamp: new Date(msg.timestamp),
+					}));
+					serviceWithHistory.sessionRecreated = true;
+				}
 			}
 		} else {
 			// No conversation yet — create one and link it
@@ -163,10 +174,12 @@ export class SessionManager {
 				// Restore local message history for display
 				const serviceWithHistory = this.githubCopilotCliService as unknown as {
 					messageHistory: ChatMessage[];
+					sessionRecreated: boolean;
 				};
 				serviceWithHistory.messageHistory = session.messages.map((msg: ChatMessage) => ({
 					...msg, timestamp: new Date(msg.timestamp),
 				}));
+				serviceWithHistory.sessionRecreated = true;
 			}
 		}
 

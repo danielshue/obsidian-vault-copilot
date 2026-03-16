@@ -57,6 +57,7 @@ import {
 	DEFAULT_REQUEST_TIMEOUT,
 	DEFAULT_STOP_TIMEOUT,
 	SESSION_STALE_THRESHOLD_MS,
+	StreamingTimeoutError,
 } from "./types";
 import { createBasicTools, type BatchReadNotesFn } from "./BasicToolFactory";
 import { buildBasicSystemPrompt } from "./BasicSystemPromptBuilder";
@@ -70,7 +71,7 @@ export type {
 	SessionCompactionResult,
 	SessionAgentInfo,
 } from "./types";
-export { DEFAULT_REQUEST_TIMEOUT, DEFAULT_STOP_TIMEOUT } from "./types";
+export { DEFAULT_REQUEST_TIMEOUT, DEFAULT_STOP_TIMEOUT, StreamingTimeoutError } from "./types";
 
 // ── Class ──────────────────────────────────────────────────────────────────
 
@@ -106,6 +107,8 @@ export class GitHubCopilotCliService {
 	protected config: GitHubCopilotCliConfig;
 	/** Chronological conversation history for the active session */
 	protected messageHistory: ChatMessage[] = [];
+	/** `true` when the session was just recreated and the next send should replay history as context. @internal */
+	protected sessionRecreated = false;
 
 	/**
 	 * Template hook for subclasses to augment CopilotClient options before session creation.
@@ -573,6 +576,7 @@ export class GitHubCopilotCliService {
 		try {
 			await this.createSession(currentSessionId);
 			this.messageHistory = savedHistory;
+			this.sessionRecreated = savedHistory.length > 0;
 			this.touchActivity();
 			if (this.onSessionReconnect) this.onSessionReconnect();
 			return true;
@@ -763,6 +767,7 @@ export class GitHubCopilotCliService {
 		);
 		this.session.on((event: SessionEvent) => this.handleSessionEvent(event));
 		this.messageHistory = [];
+		this.sessionRecreated = false;
 		this.touchActivity();
 
 		const actualSessionId = this.session.sessionId;
@@ -1038,7 +1043,7 @@ export class GitHubCopilotCliService {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			tracingService.addSdkLog("error", `[Request Error] ${errorMessage}`, LOG_SOURCES.COPILOT_ERROR);
 			if (errorMessage.toLowerCase().includes("timeout")) {
-				throw new Error(`Request timed out after ${requestTimeout / 1000} seconds`);
+				throw new StreamingTimeoutError(requestTimeout / 1000);
 			}
 			throw error;
 		} finally {
@@ -1079,6 +1084,19 @@ export class GitHubCopilotCliService {
 		const session = this.session;
 		if (!session) throw new Error("Session not initialized");
 
+		// Ensure the model has conversation context for the next send.
+		// The Copilot SDK server may compact or drop tool-call results between
+		// turns, causing the model to lose context from complex agentic responses.
+		// Always anchor the last assistant response so the model knows what was
+		// discussed, regardless of message length.
+		let effectivePrompt = prompt;
+		if (this.sessionRecreated && this.messageHistory.length > 0) {
+			effectivePrompt = this.buildContextRestorationPrompt(prompt);
+			this.sessionRecreated = false;
+		} else if (this.messageHistory.length >= 2) {
+			effectivePrompt = this.buildFollowUpContextPrompt(prompt);
+		}
+
 		const tracingService = getTracingService();
 		tracingService.addSdkLog("info", `[User Prompt (Streaming)]\n${prompt}`, LOG_SOURCES.COPILOT_PROMPT);
 
@@ -1113,8 +1131,8 @@ export class GitHubCopilotCliService {
 						cleanup();
 						unsubscribe();
 						try { await this.session?.abort(); } catch {}
-						tracingService.addSdkLog("error", `[Streaming Timeout] ${requestTimeout / 1000}s of inactivity`, LOG_SOURCES.COPILOT_ERROR);
-						reject(new Error(`Streaming request timed out after ${requestTimeout / 1000} seconds of inactivity`));
+						tracingService.addSdkLog("warning", `[Streaming Timeout] ${requestTimeout / 1000}s of inactivity — session can be resumed`, LOG_SOURCES.COPILOT_ERROR);
+						reject(new StreamingTimeoutError(requestTimeout / 1000));
 					}
 				}, requestTimeout);
 			};
@@ -1167,7 +1185,7 @@ export class GitHubCopilotCliService {
 				}
 			});
 
-			session.send(attachments.length > 0 ? { prompt, attachments } : { prompt }).catch((err) => {
+			session.send(attachments.length > 0 ? { prompt: effectivePrompt, attachments } : { prompt: effectivePrompt }).catch((err) => {
 				cleanup();
 				unsubscribe();
 				tracingService.addSdkLog("error", `[Send Error] ${err.message || err}`, LOG_SOURCES.COPILOT_ERROR);
@@ -1176,6 +1194,104 @@ export class GitHubCopilotCliService {
 		}).finally(() => {
 			this.cleanupTempFiles(tempFiles.map(f => f.path));
 		});
+	}
+
+	/**
+	 * Build a prompt that includes prior conversation turns so the model
+	 * retains context after the SDK session was recreated.
+	 *
+	 * Limits the replay to the most recent turns to stay within token
+	 * budget, and formats them as a quoted conversation block.
+	 *
+	 * @param currentPrompt - The user's new message
+	 * @returns A prompt prefixed with conversation context
+	 * @internal
+	 */
+	protected buildContextRestorationPrompt(currentPrompt: string): string {
+		const MAX_HISTORY_CHARS = 8000;
+		const MAX_TURNS = 20;
+
+		// Take the most recent turns, trimmed to char budget
+		const recent = this.messageHistory.slice(-MAX_TURNS);
+		let totalChars = 0;
+		const turns: string[] = [];
+		for (let i = recent.length - 1; i >= 0; i--) {
+			const m = recent[i]!;
+			const line = `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`;
+			if (totalChars + line.length > MAX_HISTORY_CHARS) break;
+			turns.unshift(line);
+			totalChars += line.length;
+		}
+
+		if (turns.length === 0) return currentPrompt;
+
+		return (
+			"[The session was reconnected. Here is the prior conversation for context — do NOT repeat it, just use it to understand what was discussed.]\n\n" +
+			turns.join("\n\n") +
+			"\n\n---\n\n" +
+			currentPrompt
+		);
+	}
+
+	/**
+	 * Detect whether a user message is short/ambiguous and likely refers to a
+	 * prior assistant offer (e.g. "yes", "ok", "do it", "go ahead", "sure").
+	 *
+	 * @param prompt - The user's raw message
+	 * @returns `true` if context anchoring is needed
+	 * @internal
+	 */
+	protected isAmbiguousFollowUp(prompt: string): boolean {
+		const trimmed = prompt.trim().toLowerCase().replace(/[.!?,;:]+$/g, "");
+		// Single-word or very short affirmations / references
+		if (trimmed.length <= 40) {
+			const ambiguous = [
+				"yes", "yep", "yeah", "yup", "ya", "y",
+				"ok", "okay", "k", "sure", "absolutely", "definitely",
+				"do it", "go ahead", "go for it", "please", "please do",
+				"sounds good", "let's do it", "let's go", "proceed",
+				"that one", "the first one", "the second one", "both",
+				"all of them", "all", "no", "nope", "nah", "skip",
+			];
+			if (ambiguous.includes(trimmed)) return true;
+		}
+		// Messages under 10 chars are almost always follow-ups
+		return trimmed.length < 10 && this.messageHistory.length >= 2;
+	}
+
+	/**
+	 * Build a prompt that anchors a short follow-up to the last exchange,
+	 * so the model knows what the user is responding to even if the server
+	 * compacted tool-heavy intermediate turns.
+	 *
+	 * @param currentPrompt - The user's new message
+	 * @returns A prompt with the last assistant response as context
+	 * @internal
+	 */
+	protected buildFollowUpContextPrompt(currentPrompt: string): string {
+		// Find the last assistant message
+		let lastAssistant = "";
+		for (let i = this.messageHistory.length - 1; i >= 0; i--) {
+			const m = this.messageHistory[i]!;
+			if (m.role === "assistant") {
+				lastAssistant = m.content;
+				break;
+			}
+		}
+		if (!lastAssistant) return currentPrompt;
+
+		// Truncate if very long (keep end which typically has the question/offer)
+		const MAX_CONTEXT = 3000;
+		const contextSnippet = lastAssistant.length > MAX_CONTEXT
+			? "..." + lastAssistant.slice(-MAX_CONTEXT)
+			: lastAssistant;
+
+		return (
+			"[For context, here is your most recent response to the user — they are replying to this. Do NOT repeat it, just use it to understand what they are referring to.]\n\n" +
+			"Assistant: " + contextSnippet +
+			"\n\n---\n\n" +
+			currentPrompt
+		);
 	}
 
 	/**
@@ -1229,11 +1345,20 @@ export class GitHubCopilotCliService {
 
 		try {
 			await this.resumeSession(sessionId);
+			// If the server returned fewer messages than what we had saved,
+			// the server likely compacted or dropped the conversation.
+			// Mark the session as recreated so the next send replays context.
+			if (messages && messages.length > 0 && this.messageHistory.length < messages.length) {
+				console.warn(`[Vault Copilot] Server resumed with ${this.messageHistory.length} messages but saved session had ${messages.length} — replaying context on next send`);
+				this.messageHistory = messages.map(msg => ({ ...msg, timestamp: new Date(msg.timestamp) }));
+				this.sessionRecreated = true;
+			}
 		} catch (error) {
 			console.warn("[Vault Copilot] Could not resume session, creating fresh SDK session:", error);
 			await this.createSession();
-			if (messages) {
+			if (messages && messages.length > 0) {
 				this.messageHistory = messages.map(msg => ({ ...msg, timestamp: new Date(msg.timestamp) }));
+				this.sessionRecreated = true;
 			}
 		}
 	}

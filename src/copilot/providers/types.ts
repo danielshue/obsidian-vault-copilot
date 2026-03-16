@@ -172,6 +172,21 @@ export interface SessionCompactionResult {
 	messagesRemoved: number;
 }
 
+// ── Errors ─────────────────────────────────────────────────────────────────
+
+/**
+ * Thrown when a streaming request times out due to inactivity.
+ * This is a recoverable error — the session can be resumed when the user sends a new message.
+ *
+ * @since 0.3.0
+ */
+export class StreamingTimeoutError extends Error {
+	constructor(timeoutSeconds: number) {
+		super(`Streaming request timed out after ${timeoutSeconds} seconds of inactivity`);
+		this.name = "StreamingTimeoutError";
+	}
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────
 
 /** Default timeout in milliseconds for AI requests (45 minutes / 2700 seconds) */
