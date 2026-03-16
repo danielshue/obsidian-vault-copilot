@@ -499,9 +499,10 @@ export class GitHubCopilotCliService {
 		const messages: ChatMessage[] = [];
 		for (const event of events) {
 			if (event.type === "user.message") {
+				const raw = (event.data as { content?: string })?.content || "";
 				messages.push({
 					role: "user",
-					content: (event.data as { content?: string })?.content || "",
+					content: this.stripContextPrefix(raw),
 					timestamp: new Date(),
 				});
 			} else if (event.type === "assistant.message") {
@@ -513,6 +514,32 @@ export class GitHubCopilotCliService {
 			}
 		}
 		return messages;
+	}
+
+	/**
+	 * Strip the injected context-restoration or follow-up-context prefixes
+	 * from a user message, returning only the original human input.
+	 *
+	 * These prefixes are added by {@link buildFollowUpContextPrompt} and
+	 * {@link buildContextRestorationPrompt} before sending to the SDK, but
+	 * should never appear in the user-facing message history.
+	 *
+	 * @param text - Raw user message content (may include prefix)
+	 * @returns The original user prompt without injected context
+	 * @internal
+	 */
+	protected stripContextPrefix(text: string): string {
+		// Both prefixes use "---\n\n" as the separator before the actual user prompt
+		const separatorPatterns = [
+			/^\[For context, here is your most recent response.*?\n\n---\n\n/s,
+			/^\[The session was reconnected\..*?\n\n---\n\n/s,
+		];
+		for (const pattern of separatorPatterns) {
+			if (pattern.test(text)) {
+				return text.replace(pattern, "");
+			}
+		}
+		return text;
 	}
 
 	/**
@@ -1323,7 +1350,22 @@ export class GitHubCopilotCliService {
 	 */
 	async clearHistory(): Promise<void> {
 		this.messageHistory = [];
-		await this.createSession();
+		this.sessionRecreated = false;
+		try {
+			await this.createSession();
+		} catch (error) {
+			// Connection may have been disposed (CLI process died) — restart
+			const msg = error instanceof Error ? error.message : String(error);
+			if (msg.includes("disposed") || msg.includes("EPIPE") || msg.includes("not initialized")) {
+				console.warn("[Vault Copilot] Connection disposed during clearHistory — restarting client");
+				this.client = null;
+				this.session = null;
+				await this.start();
+				await this.createSession();
+			} else {
+				throw error;
+			}
+		}
 	}
 
 	/**
