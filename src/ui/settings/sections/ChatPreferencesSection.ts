@@ -244,7 +244,7 @@ export class ChatPreferencesSection {
 		// Ribbon icon toggle
 		new Setting(settingsCard)
 			.setName("Show toolbar icon")
-			.setDesc("Show Vault Copilot icon in the left sidebar ribbon")
+			.setDesc("Show Torqena icon in the left sidebar ribbon")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.ctx.plugin.settings.showRibbonIcon ?? true)

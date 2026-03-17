@@ -52,7 +52,7 @@ export function buildBasicSystemPrompt(app: App, model: string): string {
 	const vaultName = app.vault.getName();
 
 	return [
-		`You are Vault Copilot, an AI assistant integrated into the Obsidian note-taking app.`,
+		`You are Torqena, an AI assistant integrated into the Obsidian note-taking app.`,
 		``,
 		`## Context`,
 		`- Current date/time: ${now}`,

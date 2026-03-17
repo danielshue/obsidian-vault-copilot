@@ -62,7 +62,7 @@ export function interceptConsoleLogs(): void {
 	const tracingService = getTracingService();
 
 	// Log that we're setting up interception
-	console.log("[Vault Copilot] Setting up CLI log interception...");
+	console.log("[Torqena] Setting up CLI log interception...");
 	tracingService.addSdkLog("info", "CLI log interception initialized", LOG_SOURCES.COPILOT_SDK);
 
 	// Intercept process.stderr.write to capture CLI subprocess logs
@@ -74,7 +74,7 @@ export function interceptConsoleLogs(): void {
 
 		// Debug: Log all stderr writes to see what we're getting
 		if (message.trim()) {
-			console.log("[Vault Copilot DEBUG] stderr:", message.substring(0, 200));
+			console.log("[Torqena DEBUG] stderr:", message.substring(0, 200));
 		}
 
 		// Capture all CLI subprocess logs (they have the [CLI subprocess] prefix)
@@ -101,7 +101,7 @@ export function interceptConsoleLogs(): void {
 		}
 		return originalStderrWrite(chunk, encoding, callback);
 	};
-	console.log("[Vault Copilot] stderr.write intercepted successfully");
+	console.log("[Torqena] stderr.write intercepted successfully");
 
 	// Store original console methods
 	const originalLog = console.log.bind(console);
@@ -114,7 +114,7 @@ export function interceptConsoleLogs(): void {
 		const message = flattenLogArgs(args);
 
 		// Only capture copilot-related logs
-		if (message.includes("[Copilot") || message.includes("copilot") || message.includes("[Vault Copilot]")) {
+		if (message.includes("[Copilot") || message.includes("copilot") || message.includes("[Torqena]")) {
 			tracingService.addSdkLog("info", message, LOG_SOURCES.COPILOT_SDK);
 		}
 	};
@@ -124,7 +124,7 @@ export function interceptConsoleLogs(): void {
 		originalWarn(...args);
 		const message = flattenLogArgs(args);
 
-		if (message.includes("[Copilot") || message.includes("copilot") || message.includes("[Vault Copilot]")) {
+		if (message.includes("[Copilot") || message.includes("copilot") || message.includes("[Torqena]")) {
 			tracingService.addSdkLog("warning", message, LOG_SOURCES.COPILOT_SDK);
 		}
 	};
@@ -134,7 +134,7 @@ export function interceptConsoleLogs(): void {
 		originalError(...args);
 		const message = flattenLogArgs(args);
 
-		if (message.includes("[Copilot") || message.includes("copilot") || message.includes("[Vault Copilot]")) {
+		if (message.includes("[Copilot") || message.includes("copilot") || message.includes("[Torqena]")) {
 			tracingService.addSdkLog("error", message, LOG_SOURCES.COPILOT_SDK);
 		}
 	};

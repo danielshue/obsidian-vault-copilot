@@ -5,7 +5,7 @@
 
 /**
  * @module VaultCopilotCoreAPI
- * @description Public API surface for the Vault Copilot Basic package.
+ * @description Public API surface for the Torqena Basic package.
  *
  * This is the canonical entry point that Pro (and third-party plugins) import from
  * when Basic is consumed as an npm package (`@vault-copilot/core`).

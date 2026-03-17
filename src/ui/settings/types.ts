@@ -1,6 +1,6 @@
 /**
  * @module settings/types (Basic)
- * @description Type definitions and interfaces for Basic Vault Copilot settings.
+ * @description Type definitions and interfaces for Basic Torqena settings.
  *
  * This is a standalone version with only the types needed for Basic functionality.
  * Pro extends these types with additional fields for voice, telegram, MCP, etc.
@@ -45,6 +45,8 @@ export interface CopilotSession {
 	};
 	/** SDK conversation ID backing this session (server-assigned by Copilot CLI) */
 	conversationId?: string;
+	/** ID of the vault this session belongs to (for multi-vault isolation) */
+	vaultId?: string;
 	/** Origin of this session: 'obsidian' (default) or 'telegram' (Pro) */
 	source?: "obsidian" | "telegram";
 	/** Telegram chat ID linked to this session (Pro only) */
@@ -200,7 +202,7 @@ export type ManagedPropertyType =
 	| 'tags';
 
 /**
- * Main plugin settings interface for Basic Vault Copilot.
+ * Main plugin settings interface for Basic Torqena.
  *
  * Pro extends this with additional fields for voice, MCP, telegram, etc.
  */

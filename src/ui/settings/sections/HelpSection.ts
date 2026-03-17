@@ -5,7 +5,7 @@
 
 /**
  * @module HelpSection
- * @description Renders the About/help content for Vault Copilot settings.
+ * @description Renders the About/help content for Torqena settings.
  *
  * @see {@link SettingsContext}
  * @since 0.0.1
@@ -40,20 +40,17 @@ export class HelpSection {
 		heading.createSpan({ text: "About" });
 
 		section.createEl("p", {
-			text: "Find documentation, requirements, and support resources for Vault Copilot.",
+			text: "Find documentation, requirements, and support resources for Torqena.",
 			cls: "vc-section-description"
 		});
 
 		const helpContent = section.createDiv({ cls: "vc-help-content" });
 
 		helpContent.createEl("p", {
-			text: "Vault Copilot brings AI assistance to Obsidian by connecting your vault with GitHub Copilot, Azure OpenAI, or OpenAI. It supports agents, skills, prompts, MCP tools, and plugin-defined tools for powerful in-vault workflows."
+			text: "Torqena brings AI assistance to Obsidian by connecting your vault with GitHub Copilot, Azure OpenAI, or OpenAI. It supports agents, skills, prompts, MCP tools, and plugin-defined tools for powerful in-vault workflows."
 		});
 		helpContent.createEl("p", {
-			text: "Vault Copilot is designed to be extensible. You can add your own skills, enable MCP integrations, or install plugins that register additional capabilities. The assistant automatically discovers these tools and uses them when they are relevant."
-		});
-		helpContent.createEl("p", {
-			text: "Vault Copilot is written by Dan Shue and welcomes community contributions. It is not affiliated with, sponsored by, or endorsed by Microsoft, GitHub, or OpenAI."
+			text: "Torqena is designed to be extensible. You can add your own skills, enable MCP integrations, or install plugins that register additional capabilities. The assistant automatically discovers these tools and uses them when they are relevant."
 		});
 
 		const reqDiv = helpContent.createDiv({ cls: "vc-requirements" });

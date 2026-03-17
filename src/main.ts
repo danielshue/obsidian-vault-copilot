@@ -5,7 +5,7 @@
 
 /**
  * @module BasicPlugin
- * @description Vault Copilot Basic — the core plugin providing GitHub Copilot integration,
+ * @description Torqena Basic — the core plugin providing GitHub Copilot integration,
  * chat UI, session management, and the Extension API.
  *
  * This is the minimal entry point that:
@@ -35,7 +35,7 @@ import { expandHomePath } from "./utils/pathUtils";
 export { COPILOT_VIEW_TYPE };
 
 /**
- * Vault Copilot Basic plugin.
+ * Torqena Basic plugin.
  *
  * Provides core AI chat functionality via the GitHub Copilot CLI SDK
  * and the Extension API for Pro/third-party plugin registration.
@@ -120,7 +120,7 @@ export default class BasicCopilotPlugin extends Plugin {
 		this.addSettingTab(new BasicSettingTab(this.app, this, this.extensionAPI.settingsRegistry));
 
 		// Add ribbon icon for chat (always register so Obsidian tracks it, then apply visibility)
-		this.ribbonIconEl = this.addRibbonIcon("message-circle", "Open Vault Copilot chat", () => {
+		this.ribbonIconEl = this.addRibbonIcon("message-circle", "Open Torqena chat", () => {
 			this.activateChatView();
 		});
 		this.updateRibbonIcon();
@@ -204,7 +204,7 @@ export default class BasicCopilotPlugin extends Plugin {
 		this.statusBarEl.empty();
 
 		const statusEl = this.statusBarEl.createSpan({ cls: "vc-status" });
-		statusEl.setAttribute("aria-label", isConnected ? "Toggle Vault Copilot window" : "Connect to Copilot");
+		statusEl.setAttribute("aria-label", isConnected ? "Toggle Torqena window" : "Connect to Copilot");
 
 		const logoEl = statusEl.createSpan({ cls: "vc-status-logo" });
 		logoEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M7.25 2.5h1.5a4.75 4.75 0 0 1 4.75 4.75v.5a.75.75 0 0 1-.75.75h-.5a.75.75 0 0 1-.75-.75v-.5a3.25 3.25 0 0 0-3.25-3.25h-1.5a3.25 3.25 0 0 0-3.25 3.25v.5a.75.75 0 0 1-.75.75h-.5a.75.75 0 0 1-.75-.75v-.5A4.75 4.75 0 0 1 7.25 2.5zm-3 4.25a1.25 1.25 0 1 1 2.5 0 1.25 1.25 0 0 1-2.5 0zm5.5 0a1.25 1.25 0 1 1 2.5 0 1.25 1.25 0 0 1-2.5 0zM2 11.5c0-.83.67-1.5 1.5-1.5h9c.83 0 1.5.67 1.5 1.5v1c0 .83-.67 1.5-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-1zm1.5-.5a.5.5 0 0 0-.5.5v1c0 .28.22.5.5.5h9a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-9z"/></svg>`;
@@ -458,6 +458,7 @@ export default class BasicCopilotPlugin extends Plugin {
 					lastUsedAt: now,
 					archived: false,
 					messages: [],
+					vaultId: (plugin.settings as any).activeVaultId || undefined,
 				};
 				plugin.settings.sessions.push(newSession);
 				plugin.settings.activeSessionId = newSession.id;

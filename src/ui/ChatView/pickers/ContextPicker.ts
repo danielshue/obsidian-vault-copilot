@@ -1,6 +1,6 @@
 /**
  * @module ContextPicker (Basic)
- * @description Context picker for Basic Vault Copilot chat.
+ * @description Context picker for Basic Torqena chat.
  * 
  * This is a standalone version without SkillCache (Pro-only).
  * Basic only supports file attachments, not skills.

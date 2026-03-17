@@ -5,7 +5,7 @@
 
 /**
  * @module AppLogger
- * @description Unified singleton logger for Vault Copilot diagnostics.
+ * @description Unified singleton logger for Torqena diagnostics.
  *
  * Writes daily-rotated log files in one of three formats:
  * - `text`: human-readable `.log`

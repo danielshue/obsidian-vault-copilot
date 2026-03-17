@@ -1,6 +1,6 @@
 /**
  * @module MessageRenderer (Basic)
- * @description Message rendering for Basic Vault Copilot chat.
+ * @description Message rendering for Basic Torqena chat.
  * 
  * This is a standalone version without TTS (Pro-only).
  * 

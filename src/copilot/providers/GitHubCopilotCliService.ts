@@ -324,7 +324,7 @@ export class GitHubCopilotCliService {
 			patchableClient.createSession = async (config: Record<string, unknown>) => {
 				const hasHandler = typeof (config as { onPermissionRequest?: unknown })?.onPermissionRequest === "function";
 				if (!hasHandler) {
-					console.warn("[Vault Copilot] Missing onPermissionRequest in createSession; auto-injecting approveAll.");
+					console.warn("[Torqena] Missing onPermissionRequest in createSession; auto-injecting approveAll.");
 				}
 				return originalCreateSession(this.ensurePermissionRequestHandler(config ?? {}));
 			};
@@ -336,7 +336,7 @@ export class GitHubCopilotCliService {
 				const inputConfig = config ?? {};
 				const hasHandler = typeof (inputConfig as { onPermissionRequest?: unknown }).onPermissionRequest === "function";
 				if (!hasHandler) {
-					console.warn("[Vault Copilot] Missing onPermissionRequest in resumeSession; auto-injecting approveAll.");
+					console.warn("[Torqena] Missing onPermissionRequest in resumeSession; auto-injecting approveAll.");
 				}
 				return originalResumeSession(sessionId, this.ensurePermissionRequestHandler(inputConfig));
 			};
@@ -466,7 +466,7 @@ export class GitHubCopilotCliService {
 				}
 			}
 		} catch (error) {
-			console.warn("[Vault Copilot] Failed to read CLI MCP servers:", error);
+			console.warn("[Torqena] Failed to read CLI MCP servers:", error);
 		}
 		return configs;
 	}
@@ -551,7 +551,7 @@ export class GitHubCopilotCliService {
 	protected handleSessionEvent(event: SessionEvent): void {
 		if (event.type.startsWith("tool.")) {
 			const data = event.data as Record<string, unknown>;
-			console.log(`[Vault Copilot] SessionEvent: ${event.type}`, JSON.stringify({
+			console.log(`[Torqena] SessionEvent: ${event.type}`, JSON.stringify({
 				toolName: data.toolName,
 				toolCallId: data.toolCallId,
 				success: data.success,
@@ -565,15 +565,15 @@ export class GitHubCopilotCliService {
 			const data = event.data as Record<string, unknown>;
 			const toolRequests = data.toolRequests as Array<{ toolCallId: string; name: string }> | undefined;
 			if (toolRequests && toolRequests.length > 0) {
-				console.log(`[Vault Copilot] assistant.message toolRequests:`, toolRequests.map(t => t.name));
+				console.log(`[Torqena] assistant.message toolRequests:`, toolRequests.map(t => t.name));
 			}
 		}
 
 		if (event.type === "session.error") {
-			console.error(`[Vault Copilot] SessionEvent: session.error`, JSON.stringify(event.data));
+			console.error(`[Torqena] SessionEvent: session.error`, JSON.stringify(event.data));
 		}
 		if (event.type === "session.warning") {
-			console.warn(`[Vault Copilot] SessionEvent: session.warning`, JSON.stringify(event.data));
+			console.warn(`[Torqena] SessionEvent: session.warning`, JSON.stringify(event.data));
 		}
 
 		this.eventTracer.handleEvent(event);
@@ -592,7 +592,7 @@ export class GitHubCopilotCliService {
 		if (idleMs < SESSION_STALE_THRESHOLD_MS) return false;
 
 		const idleMinutes = Math.round(idleMs / 60000);
-		console.log(`[Vault Copilot] Session idle for ${idleMinutes} min — recreating`);
+		console.log(`[Torqena] Session idle for ${idleMinutes} min — recreating`);
 
 		const tracingService = getTracingService();
 		tracingService.addSdkLog("info", `[Session Reconnect] Idle ${idleMinutes} min — recreating session`, LOG_SOURCES.SESSION_LIFECYCLE);
@@ -608,7 +608,7 @@ export class GitHubCopilotCliService {
 			if (this.onSessionReconnect) this.onSessionReconnect();
 			return true;
 		} catch (error) {
-			console.error("[Vault Copilot] Failed to recreate stale session:", error);
+			console.error("[Torqena] Failed to recreate stale session:", error);
 			tracingService.addSdkLog("error", `[Session Reconnect Failed] ${error}`, LOG_SOURCES.SESSION_LIFECYCLE);
 			throw error;
 		}
@@ -660,7 +660,7 @@ export class GitHubCopilotCliService {
 		this.client = new CopilotClient(clientOptions);
 		this.installPermissionHandlerSafetyNet(this.client);
 
-		console.log("[Vault Copilot] CopilotClient options:", JSON.stringify({
+		console.log("[Torqena] CopilotClient options:", JSON.stringify({
 			cliPath: clientOptions.cliPath,
 			cliArgs: clientOptions.cliArgs,
 			cwd: clientOptions.cwd,
@@ -693,7 +693,7 @@ export class GitHubCopilotCliService {
 				);
 			}
 
-			console.error("[Vault Copilot] Failed to start Copilot client:", error);
+			console.error("[Torqena] Failed to start Copilot client:", error);
 			throw error;
 		}
 	}
@@ -713,7 +713,7 @@ export class GitHubCopilotCliService {
 			try {
 				await this.session.destroy();
 			} catch (error) {
-				console.warn("[Vault Copilot] Error destroying session:", error);
+				console.warn("[Torqena] Error destroying session:", error);
 			}
 			this.session = null;
 		}
@@ -727,11 +727,11 @@ export class GitHubCopilotCliService {
 				);
 				await Promise.race([stopPromise, timeoutPromise]);
 			} catch {
-				console.warn("[Vault Copilot] Graceful stop timed out, forcing stop...");
+				console.warn("[Torqena] Graceful stop timed out, forcing stop...");
 				try {
 					await this.client.forceStop();
 				} catch (forceError) {
-					console.error("[Vault Copilot] Force stop failed:", forceError);
+					console.error("[Torqena] Force stop failed:", forceError);
 				}
 			}
 			this.client = null;
@@ -777,13 +777,13 @@ export class GitHubCopilotCliService {
 		const cliMcpServers = this.readCliMcpServers();
 		if (Object.keys(cliMcpServers).length > 0) {
 			sessionConfig.mcpServers = cliMcpServers;
-			console.log("[Vault Copilot] CLI MCP servers:", Object.keys(cliMcpServers));
+			console.log("[Torqena] CLI MCP servers:", Object.keys(cliMcpServers));
 		}
 
 		if (sessionId) sessionConfig.sessionId = sessionId;
 
 		const sessionConfigWithPermissions = this.ensurePermissionRequestHandler(sessionConfig);
-		console.log("[Vault Copilot] Creating session with config:", JSON.stringify({
+		console.log("[Torqena] Creating session with config:", JSON.stringify({
 			...sessionConfigWithPermissions,
 			tools: (sessionConfigWithPermissions.tools as unknown[])?.length + " tools",
 			systemMessage: "(omitted)",
@@ -798,7 +798,7 @@ export class GitHubCopilotCliService {
 		this.touchActivity();
 
 		const actualSessionId = this.session.sessionId;
-		console.log("[Vault Copilot] Session created with ID:", actualSessionId);
+		console.log("[Torqena] Session created with ID:", actualSessionId);
 		return actualSessionId;
 	}
 
@@ -834,11 +834,11 @@ export class GitHubCopilotCliService {
 		const cliMcpServers = this.readCliMcpServers();
 		if (Object.keys(cliMcpServers).length > 0) {
 			resumeConfig.mcpServers = cliMcpServers;
-			console.log("[Vault Copilot] CLI MCP servers (resume):", Object.keys(cliMcpServers));
+			console.log("[Torqena] CLI MCP servers (resume):", Object.keys(cliMcpServers));
 		}
 
 		const resumeConfigWithPermissions = this.ensurePermissionRequestHandler(resumeConfig);
-		console.log("[Vault Copilot] Resuming session:", sessionId);
+		console.log("[Torqena] Resuming session:", sessionId);
 
 		try {
 			this.session = await client.resumeSession(
@@ -851,10 +851,10 @@ export class GitHubCopilotCliService {
 			this.messageHistory = this.convertEventsToMessageHistory(events);
 			this.touchActivity();
 
-			console.log("[Vault Copilot] Session resumed with", this.messageHistory.length, "messages");
+			console.log("[Torqena] Session resumed with", this.messageHistory.length, "messages");
 			return this.session.sessionId;
 		} catch (error) {
-			console.warn("[Vault Copilot] Failed to resume session, creating new one:", error);
+			console.warn("[Torqena] Failed to resume session, creating new one:", error);
 			return this.createSession(sessionId);
 		}
 	}
@@ -884,7 +884,7 @@ export class GitHubCopilotCliService {
 				isRemote: s.isRemote,
 			}));
 		} catch (error) {
-			console.error("[Vault Copilot] Failed to list sessions:", error);
+			console.error("[Torqena] Failed to list sessions:", error);
 			return [];
 		}
 	}
@@ -912,7 +912,7 @@ export class GitHubCopilotCliService {
 				this.messageHistory = [];
 			}
 		} catch (error) {
-			console.error("[Vault Copilot] Failed to delete session:", error);
+			console.error("[Torqena] Failed to delete session:", error);
 			throw error;
 		}
 	}
@@ -949,7 +949,7 @@ export class GitHubCopilotCliService {
 				billingMultiplier: m.billing?.multiplier,
 			}));
 		} catch (error) {
-			console.error("[Vault Copilot] Failed to list models:", error);
+			console.error("[Torqena] Failed to list models:", error);
 			return [];
 		}
 	}
@@ -1333,9 +1333,9 @@ export class GitHubCopilotCliService {
 		if (this.session) {
 			try {
 				await this.session.abort();
-				console.log("[Vault Copilot] Request aborted");
+				console.log("[Torqena] Request aborted");
 			} catch (error) {
-				console.warn("[Vault Copilot] Error during abort:", error);
+				console.warn("[Torqena] Error during abort:", error);
 			}
 		}
 	}
@@ -1357,7 +1357,7 @@ export class GitHubCopilotCliService {
 			// Connection may have been disposed (CLI process died) — restart
 			const msg = error instanceof Error ? error.message : String(error);
 			if (msg.includes("disposed") || msg.includes("EPIPE") || msg.includes("not initialized")) {
-				console.warn("[Vault Copilot] Connection disposed during clearHistory — restarting client");
+				console.warn("[Torqena] Connection disposed during clearHistory — restarting client");
 				this.client = null;
 				this.session = null;
 				await this.start();
@@ -1391,12 +1391,12 @@ export class GitHubCopilotCliService {
 			// the server likely compacted or dropped the conversation.
 			// Mark the session as recreated so the next send replays context.
 			if (messages && messages.length > 0 && this.messageHistory.length < messages.length) {
-				console.warn(`[Vault Copilot] Server resumed with ${this.messageHistory.length} messages but saved session had ${messages.length} — replaying context on next send`);
+				console.warn(`[Torqena] Server resumed with ${this.messageHistory.length} messages but saved session had ${messages.length} — replaying context on next send`);
 				this.messageHistory = messages.map(msg => ({ ...msg, timestamp: new Date(msg.timestamp) }));
 				this.sessionRecreated = true;
 			}
 		} catch (error) {
-			console.warn("[Vault Copilot] Could not resume session, creating fresh SDK session:", error);
+			console.warn("[Torqena] Could not resume session, creating fresh SDK session:", error);
 			await this.createSession();
 			if (messages && messages.length > 0) {
 				this.messageHistory = messages.map(msg => ({ ...msg, timestamp: new Date(msg.timestamp) }));

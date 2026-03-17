@@ -5,7 +5,7 @@
 
 /**
  * @module API
- * @description Barrel export for the Vault Copilot Extension API.
+ * @description Barrel export for the Torqena Extension API.
  * @since 0.1.0
  */
 

@@ -6,7 +6,7 @@
  * @description Sidebar panel for listing, filtering, and managing chat sessions.
  *
  * Renders session metadata, supports archiving/deleting, and exposes context menu
- * actions for Vault Copilot chat workflows.
+ * actions for Torqena chat workflows.
  *
  * @since 0.0.14
  */
@@ -213,8 +213,12 @@ export class SessionPanel {
 		if (!content) return;
 		content.empty();
 
-		// Get sessions
+		// Get sessions — filter to current vault when vault ID is available
 		let sessions = [...this.plugin.settings.sessions];
+		const activeVaultId = (this.plugin.settings as any).activeVaultId;
+		if (activeVaultId) {
+			sessions = sessions.filter(s => !s.vaultId || s.vaultId === activeVaultId);
+		}
 		
 		// Apply search filter
 		if (this.searchQuery) {

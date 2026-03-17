@@ -72,7 +72,7 @@ export function renderWelcomeMessage(
 	const welcomeEl = containerEl.createDiv({ cls: "vc-welcome" });
 	
 	// Title
-	welcomeEl.createEl("h2", { text: "Ask Vault Copilot", cls: "vc-welcome-title" });
+	welcomeEl.createEl("h2", { text: "Ask Torqena", cls: "vc-welcome-title" });
 	
 	// Disclaimer
 	welcomeEl.createEl("p", { 

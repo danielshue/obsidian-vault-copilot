@@ -1,6 +1,6 @@
 /**
  * @module ToolCatalog (Basic)
- * @description Tool discovery and selection management for Basic Vault Copilot.
+ * @description Tool discovery and selection management for Basic Torqena.
  *
  * This is a standalone version with the 7 Basic tools plus dynamic MCP server
  * tools discovered from the Copilot CLI configuration at startup.

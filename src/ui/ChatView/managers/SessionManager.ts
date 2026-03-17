@@ -3,7 +3,7 @@
 
 /**
  * @module SessionManager
- * @description Manages chat session lifecycle for Vault Copilot chat view.
+ * @description Manages chat session lifecycle for Torqena chat view.
  *
  * Handles creation, loading, persistence, and auto-naming of chat sessions while
  * coordinating with the GitHub Copilot CLI service for message history.
@@ -37,17 +37,20 @@ export class SessionManager {
 	private githubCopilotCliService: GitHubCopilotCliService;
 	private saveSettings: () => Promise<void>;
 	private callbacks: SessionManagerCallbacks;
+	private vaultId?: string;
 
 	constructor(
 		settings: BasicCopilotPluginSettings,
 		githubCopilotCliService: GitHubCopilotCliService,
 		saveSettings: () => Promise<void>,
-		callbacks: SessionManagerCallbacks
+		callbacks: SessionManagerCallbacks,
+		vaultId?: string
 	) {
 		this.settings = settings;
 		this.githubCopilotCliService = githubCopilotCliService;
 		this.saveSettings = saveSettings;
 		this.callbacks = callbacks;
+		this.vaultId = vaultId;
 	}
 
 	/**
@@ -110,6 +113,7 @@ export class SessionManager {
 			archived: false,
 			messages: [],
 			conversationId: conversationId || undefined,
+			vaultId: this.vaultId,
 		};
 
 		this.settings.sessions.push(newSession);
@@ -256,6 +260,7 @@ export class SessionManager {
 			archived: false,
 			messages: [],
 			conversationId,
+			vaultId: this.vaultId,
 		};
 
 		this.settings.sessions.push(newSession);

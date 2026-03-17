@@ -5,7 +5,7 @@
 
 /**
  * @module VaultCopilotExtensionAPIImpl
- * @description Implementation of the Vault Copilot Extension API.
+ * @description Implementation of the Torqena Extension API.
  *
  * This class bridges the registries with the plugin instance, providing
  * the full `VaultCopilotExtensionAPI` surface that Pro and third-party

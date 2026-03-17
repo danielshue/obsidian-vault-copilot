@@ -1,6 +1,6 @@
 /**
  * @module settings/defaults (Basic)
- * @description Default values and constants for Basic Vault Copilot settings.
+ * @description Default values and constants for Basic Torqena settings.
  *
  * This is a standalone version with only the defaults needed for Basic functionality.
  * Pro extends these defaults with additional settings for voice, telegram, MCP, etc.

@@ -5,7 +5,7 @@
 
 /**
  * @module ExtensionAPITypes
- * @description Shared type definitions for the Vault Copilot Extension API.
+ * @description Shared type definitions for the Torqena Extension API.
  *
  * These types define the contract between Basic and Pro plugins (and any
  * third-party plugins). Basic exposes `VaultCopilotExtensionAPI` via its
@@ -155,7 +155,7 @@ export interface ContextProviderRegistration {
 // ---------------------------------------------------------------------------
 
 /**
- * Registration for a settings section that appears in the Vault Copilot settings tab.
+ * Registration for a settings section that appears in the Torqena settings tab.
  */
 export interface SettingsSectionRegistration {
 	/** Unique section ID */

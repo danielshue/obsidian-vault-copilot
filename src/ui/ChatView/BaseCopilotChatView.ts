@@ -1,4 +1,4 @@
-﻿/*---------------------------------------------------------------------------------------------
+/*---------------------------------------------------------------------------------------------
  *  Copyright (c) Dan Shue. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
@@ -182,6 +182,7 @@ export class BaseCopilotChatView extends ItemView {
 				onLoadMessages: () => this.loadMessages(),
 				onShowWelcome: () => this.addWelcomeMessage(),
 			},
+			(plugin.settings as any).activeVaultId || undefined,
 		);
 
 		this.messageContextBuilder = new MessageContextBuilder(
@@ -239,7 +240,7 @@ export class BaseCopilotChatView extends ItemView {
 	// ─── ItemView overrides ───────────────────────────────────────────────────────
 
 	getViewType(): string { return COPILOT_VIEW_TYPE; }
-	getDisplayText(): string { return "Vault Copilot"; }
+	getDisplayText(): string { return "Torqena"; }
 	getIcon(): string { return "message-square"; }
 
 	async onOpen(): Promise<void> {
@@ -331,7 +332,7 @@ export class BaseCopilotChatView extends ItemView {
 			cls: "vc-input is-empty",
 			attr: {
 				contenteditable: "true",
-				"data-placeholder": "Ask Vault Copilot anything",
+				"data-placeholder": "Ask Torqena anything",
 			},
 		}) as HTMLDivElement;
 
@@ -820,7 +821,7 @@ export class BaseCopilotChatView extends ItemView {
 				activityPanel.finalize();
 			}
 		} catch (error) {
-			console.error("Vault Copilot error:", error);
+			console.error("Torqena error:", error);
 			if (this.currentStreamingMessageEl) {
 				this.currentStreamingMessageEl.remove();
 				this.currentStreamingMessageEl = null;

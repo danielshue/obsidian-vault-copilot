@@ -5,7 +5,7 @@
 
 /**
  * @module BasicSettingTab
- * @description Minimal settings tab for the Basic (Vault Copilot) plugin.
+ * @description Minimal settings tab for the Basic (Torqena) plugin.
  *
  * Renders two built-in sections (CLI Status, Chat Preferences) and any
  * additional sections registered via the Extension API's SettingsRegistry.

@@ -1,6 +1,6 @@
 /**
  * @module ToolDefinitions
- * @description Basic Tool Definitions Registry for Vault Copilot.
+ * @description Basic Tool Definitions Registry for Torqena.
  *
  * This module contains ONLY the 7 Basic-tier tool definitions:
  *

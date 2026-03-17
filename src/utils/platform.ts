@@ -164,12 +164,12 @@ export function supportsLocalProcesses(): boolean {
 }
 
 /**
- * Whether we are running inside the standalone Vault Copilot Electron shell
+ * Whether we are running inside the standalone Torqena Electron shell
  * (as opposed to running as a plugin inside Obsidian).
  *
  * Detection: the standalone shell sets `configDir` to `.vault-copilot`
  * whereas Obsidian uses `.obsidian`.
  */
 export function isStandaloneApp(configDir?: string): boolean {
-	return configDir === '.vault-copilot';
+	return configDir === '.torqena';
 }

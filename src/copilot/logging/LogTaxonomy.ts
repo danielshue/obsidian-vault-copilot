@@ -5,7 +5,7 @@
 
 /**
  * @module LogTaxonomy
- * @description Canonical logging taxonomy for Vault Copilot.
+ * @description Canonical logging taxonomy for Torqena.
  *
  * Provides a single source of truth for:
  * - canonical source names
