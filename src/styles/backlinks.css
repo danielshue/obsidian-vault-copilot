@@ -1,0 +1,217 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/**
+ * Styles for BacklinksView and OutgoingLinksView panels.
+ * Both views share the same design system to maintain visual consistency.
+ */
+
+/* ── Shared panel base ─────────────────────────────────────────────────── */
+
+.vc-backlinks-placeholder,
+.vc-outgoing-links-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2rem 1rem;
+	color: var(--text-muted);
+	font-size: 0.85em;
+	text-align: center;
+}
+
+.vc-backlinks-placeholder-text,
+.vc-outgoing-links-placeholder-text {
+	max-width: 200px;
+	line-height: 1.5;
+}
+
+.vc-backlinks-error,
+.vc-outgoing-links-error {
+	padding: 1rem;
+	color: var(--text-error, #e03e3e);
+	font-size: 0.85em;
+}
+
+/* ── Panel header ──────────────────────────────────────────────────────── */
+
+.vc-backlinks-header,
+.vc-outgoing-links-header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.6rem 0.75rem;
+	border-bottom: 1px solid var(--divider-color);
+	background: var(--background-secondary);
+}
+
+.vc-backlinks-title,
+.vc-outgoing-links-title {
+	font-weight: 600;
+	font-size: 0.85em;
+	color: var(--text-normal);
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vc-backlinks-count,
+.vc-outgoing-links-count {
+	font-size: 0.75em;
+	color: var(--text-muted);
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+/* ── Collapsible sections ──────────────────────────────────────────────── */
+
+.vc-backlinks-section,
+.vc-outgoing-links-section {
+	border-bottom: 1px solid var(--divider-color);
+}
+
+.vc-backlinks-section-header,
+.vc-outgoing-links-section-header {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.45rem 0.75rem;
+	cursor: pointer;
+	user-select: none;
+	background: var(--background-secondary);
+}
+
+.vc-backlinks-section-header:hover,
+.vc-outgoing-links-section-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-backlinks-toggle,
+.vc-outgoing-links-toggle {
+	font-size: 0.65em;
+	color: var(--text-muted);
+	width: 12px;
+	flex-shrink: 0;
+}
+
+.vc-backlinks-section-title,
+.vc-outgoing-links-section-title {
+	font-size: 0.8em;
+	font-weight: 600;
+	color: var(--text-muted);
+	flex: 1;
+}
+
+.vc-backlinks-section-count,
+.vc-outgoing-links-section-count {
+	font-size: 0.75em;
+	color: var(--text-faint);
+}
+
+/* ── Link list ─────────────────────────────────────────────────────────── */
+
+.vc-backlinks-list,
+.vc-outgoing-links-list {
+	padding: 0.25rem 0;
+}
+
+.vc-backlinks-list-collapsed,
+.vc-outgoing-links-list-collapsed {
+	display: none;
+}
+
+.vc-backlinks-item,
+.vc-outgoing-links-item {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.3rem 0.75rem 0.3rem 1.25rem;
+	cursor: pointer;
+	border-radius: 3px;
+	transition: background 0.1s ease;
+}
+
+.vc-backlinks-item:hover,
+.vc-outgoing-links-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-backlinks-link,
+.vc-outgoing-links-link {
+	font-size: 0.82em;
+	color: var(--link-color, var(--text-accent));
+	text-decoration: none;
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vc-backlinks-link:hover,
+.vc-outgoing-links-link:hover {
+	text-decoration: underline;
+	color: var(--link-color-hover, var(--text-accent-hover));
+}
+
+.vc-backlinks-link-count,
+.vc-outgoing-links-link-count {
+	font-size: 0.72em;
+	color: var(--text-faint);
+	flex-shrink: 0;
+}
+
+/* ── Unresolved link items ─────────────────────────────────────────────── */
+
+.vc-outgoing-links-item-unresolved .vc-outgoing-links-link-text {
+	font-size: 0.82em;
+	color: var(--text-muted);
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vc-outgoing-links-create-btn {
+	font-size: 0.7em;
+	padding: 0.1rem 0.4rem;
+	border-radius: 3px;
+	border: 1px solid var(--divider-color);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	cursor: pointer;
+	flex-shrink: 0;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+.vc-outgoing-links-item-unresolved:hover .vc-outgoing-links-create-btn {
+	opacity: 1;
+}
+
+.vc-outgoing-links-create-btn:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+/* ── Empty section ─────────────────────────────────────────────────────── */
+
+.vc-backlinks-empty-section,
+.vc-outgoing-links-empty-section {
+	padding: 0.3rem 1.25rem;
+	font-size: 0.78em;
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+/* ── Overall empty state ───────────────────────────────────────────────── */
+
+.vc-backlinks-empty,
+.vc-outgoing-links-empty {
+	padding: 1.5rem 0.75rem;
+	font-size: 0.82em;
+	color: var(--text-muted);
+	text-align: center;
+}

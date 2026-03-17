@@ -16,7 +16,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createBasicTools, type BatchReadNotesFn } from "../../src/copilot/providers/BasicToolFactory";
 
-// Inline the 5 Basic tool name strings to avoid cross-project relative path issues
+// Inline the 9 Basic tool name strings to avoid cross-project relative path issues
 const BASIC_TOOL_NAMES = {
 	GET_ACTIVE_NOTE: "get_active_note",
 	OPEN_NOTE: "open_note",
@@ -25,6 +25,8 @@ const BASIC_TOOL_NAMES = {
 	UPDATE_NOTE: "update_note",
 	FETCH_WEB_PAGE: "fetch_web_page",
 	WEB_SEARCH: "web_search",
+	GET_BACKLINKS: "get_backlinks",
+	GET_OUTGOING_LINKS: "get_outgoing_links",
 } as const;
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -40,6 +42,8 @@ vi.mock("../../src/copilot/tools/VaultOperations", () => ({
 	updateNote: vi.fn().mockResolvedValue({ updated: true }),
 	fetchWebPage: vi.fn().mockResolvedValue({ text: "page text" }),
 	webSearch: vi.fn().mockResolvedValue({ results: [] }),
+	getBacklinks: vi.fn().mockResolvedValue({ success: true, linkedMentions: [], unlinkedMentions: [] }),
+	getOutgoingLinks: vi.fn().mockResolvedValue({ success: true, resolvedLinks: [], unresolvedLinks: [] }),
 }));
 
 import { defineTool } from "@github/copilot-sdk";
@@ -70,12 +74,12 @@ describe("createBasicTools", () => {
 		vi.clearAllMocks();
 	});
 
-	it("returns exactly 7 tools", () => {
+	it("returns exactly 9 tools", () => {
 		const tools = createBasicTools(app, batchReadNotes);
-		expect(tools).toHaveLength(7);
+		expect(tools).toHaveLength(9);
 	});
 
-	it("returns tools with the 7 Basic tool names", () => {
+	it("returns tools with the 9 Basic tool names", () => {
 		createBasicTools(app, batchReadNotes);
 
 		const calledNames = vi.mocked(defineTool).mock.calls.map((c) => c[0]);
@@ -87,6 +91,8 @@ describe("createBasicTools", () => {
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.UPDATE_NOTE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.FETCH_WEB_PAGE);
 		expect(calledNames).toContain(BASIC_TOOL_NAMES.WEB_SEARCH);
+		expect(calledNames).toContain(BASIC_TOOL_NAMES.GET_BACKLINKS);
+		expect(calledNames).toContain(BASIC_TOOL_NAMES.GET_OUTGOING_LINKS);
 	});
 
 	it("does NOT include Pro-only tool names", () => {

@@ -22,6 +22,9 @@
 
 import { Plugin, WorkspaceLeaf, App } from "obsidian";
 import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/ChatView";
+import { BacklinksView, BACKLINKS_VIEW_TYPE } from "./ui/BacklinksView";
+import { OutgoingLinksView, OUTGOING_LINKS_VIEW_TYPE } from "./ui/OutgoingLinksView";
+import { openViewInRightPanel } from "./ui/workspace-panels";
 import { DEFAULT_SETTINGS } from "./ui/settings/defaults";
 import type { CopilotPluginSettings, CopilotSession } from "./ui/settings/types";
 import { GitHubCopilotCliService, type GitHubCopilotCliConfig } from "./copilot/providers/GitHubCopilotCliService";
@@ -33,6 +36,10 @@ import { expandHomePath } from "./utils/pathUtils";
 
 /** View type constant for the chat view */
 export { COPILOT_VIEW_TYPE };
+/** View type constant for the backlinks panel */
+export { BACKLINKS_VIEW_TYPE };
+/** View type constant for the outgoing links panel */
+export { OUTGOING_LINKS_VIEW_TYPE };
 
 /**
  * Vault Copilot Basic plugin.
@@ -91,6 +98,18 @@ export default class BasicCopilotPlugin extends Plugin {
 			(leaf: WorkspaceLeaf) => new CopilotChatView(leaf, this, this.githubCopilotCliService),
 		);
 
+		// Register Backlinks panel view (right sidebar)
+		this.registerView(
+			BACKLINKS_VIEW_TYPE,
+			(leaf: WorkspaceLeaf) => new BacklinksView(leaf, this.app),
+		);
+
+		// Register Outgoing Links panel view (right sidebar)
+		this.registerView(
+			OUTGOING_LINKS_VIEW_TYPE,
+			(leaf: WorkspaceLeaf) => new OutgoingLinksView(leaf, this.app),
+		);
+
 		// Wire tool registry into the CLI service so registered tools appear on next session
 		if (this.githubCopilotCliService) {
 			this.githubCopilotCliService.setToolRegistry(this.extensionAPI.toolRegistry);
@@ -139,6 +158,22 @@ export default class BasicCopilotPlugin extends Plugin {
 			id: "connect-copilot",
 			name: "Connect to Copilot",
 			callback: () => this.connectCopilot(),
+		});
+
+		this.addCommand({
+			id: "open-backlinks",
+			name: "Open Backlinks panel",
+			callback: () => {
+				void openViewInRightPanel(this.app.workspace, BACKLINKS_VIEW_TYPE);
+			},
+		});
+
+		this.addCommand({
+			id: "open-outgoing-links",
+			name: "Open Outgoing Links panel",
+			callback: () => {
+				void openViewInRightPanel(this.app.workspace, OUTGOING_LINKS_VIEW_TYPE);
+			},
 		});
 
 		// Auto-connect on startup if using GitHub Copilot and previously connected.

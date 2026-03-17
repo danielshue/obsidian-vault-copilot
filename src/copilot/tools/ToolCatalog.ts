@@ -13,6 +13,8 @@
  * - update_note
  * - fetch_web_page
  * - web_search
+ * - get_backlinks
+ * - get_outgoing_links
  *
  * MCP tools: loaded asynchronously from `~/.copilot/` CLI config via
  * {@link loadCliMcpTools}. Pro extends with Skills and 35+ additional builtins.
@@ -86,7 +88,7 @@ function createBuiltinTool(id: ToolName, displayName: string): ToolInfo {
 }
 
 /**
- * Built-in tool catalog for Basic (7 tools).
+ * Built-in tool catalog for Basic (9 tools).
  */
 const BASIC_TOOLS: ToolInfo[] = [
 	createBuiltinTool(TOOL_NAMES.GET_ACTIVE_NOTE, "Get Active Note"),
@@ -96,12 +98,14 @@ const BASIC_TOOLS: ToolInfo[] = [
 	createBuiltinTool(TOOL_NAMES.UPDATE_NOTE, "Update Note"),
 	createBuiltinTool(TOOL_NAMES.FETCH_WEB_PAGE, "Fetch Web Page"),
 	createBuiltinTool(TOOL_NAMES.WEB_SEARCH, "Web Search"),
+	createBuiltinTool(TOOL_NAMES.GET_BACKLINKS, "Get Backlinks"),
+	createBuiltinTool(TOOL_NAMES.GET_OUTGOING_LINKS, "Get Outgoing Links"),
 ];
 
 /**
  * ToolCatalog class for managing tool discovery and selection.
  *
- * Basic version supports the 7 builtin tools plus MCP tools discovered from the
+ * Basic version supports the 9 builtin tools plus MCP tools discovered from the
  * Copilot CLI configuration. Call {@link loadCliMcpTools} asynchronously at startup
  * to populate MCP entries. Pro adds SkillRegistry and 35+ additional builtins.
  */

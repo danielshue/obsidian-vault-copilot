@@ -117,9 +117,31 @@ export class Workspace {
 		return this.activeFile;
 	}
 
+	on(_event: string, _callback: (...args: unknown[]) => unknown): void {}
+	off(_event: string, _callback: (...args: unknown[]) => unknown): void {}
+
 	// Test helper
 	_setActiveFile(file: TFile | null): void {
 		this.activeFile = file;
+	}
+}
+
+// Mock MetadataCache
+export class MetadataCache {
+	resolvedLinks: Record<string, Record<string, number>> = {};
+	unresolvedLinks: Record<string, Record<string, number>> = {};
+
+	on(_event: string, _callback: (...args: unknown[]) => unknown): void {}
+	off(_event: string, _callback: (...args: unknown[]) => unknown): void {}
+
+	// Test helper
+	_setResolvedLinks(links: Record<string, Record<string, number>>): void {
+		this.resolvedLinks = links;
+	}
+
+	// Test helper
+	_setUnresolvedLinks(links: Record<string, Record<string, number>>): void {
+		this.unresolvedLinks = links;
 	}
 }
 
@@ -127,11 +149,42 @@ export class Workspace {
 export class App {
 	vault: Vault;
 	workspace: Workspace;
+	metadataCache: MetadataCache;
 
 	constructor() {
 		this.vault = new Vault();
 		this.workspace = new Workspace();
+		this.metadataCache = new MetadataCache();
 	}
+}
+
+// Mock ItemView (base class for panel views)
+export class ItemView {
+	containerEl: HTMLElement;
+	app: App;
+	leaf: WorkspaceLeaf;
+
+	constructor(leaf: WorkspaceLeaf) {
+		this.leaf = leaf;
+		this.containerEl = document.createElement("div");
+		// Obsidian's ItemView provides containerEl.children[1] as the content area
+		this.containerEl.appendChild(document.createElement("div")); // [0] header
+		this.containerEl.appendChild(document.createElement("div")); // [1] content
+		this.app = new App();
+	}
+
+	getViewType(): string { return ""; }
+	getDisplayText(): string { return ""; }
+	getIcon(): string { return ""; }
+	async onOpen(): Promise<void> {}
+	async onClose(): Promise<void> {}
+}
+
+// Mock WorkspaceLeaf
+export class WorkspaceLeaf {
+	view: ItemView | null = null;
+	async setViewState(_state: { type: string; active?: boolean }): Promise<void> {}
+	detach(): void {}
 }
 
 // Mock Notice
