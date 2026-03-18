@@ -38,7 +38,7 @@
     "@codemirror/language-data": "^6.5.2",
     "@codemirror/state": "^6.5.4",
     "@codemirror/view": "^6.39.14",
-    "@github/copilot-sdk": "^0.1.29",
+    "@github/copilot-sdk": "^0.1.32",
     "@lezer/highlight": "^1.2.1",
     "@uiw/codemirror-extensions-hyper-link": "^4.25.4",
     "highlight.js": "^11.11.1",
