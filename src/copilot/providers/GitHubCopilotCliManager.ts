@@ -450,4 +450,48 @@ export class GitHubCopilotCliManager {
 			);
 		});
 	}
+
+	/**
+	 * Check if the installed CLI version supports the extensions system.
+	 *
+	 * CLI extensions (`.github/extensions/`) require Copilot CLI >= 1.0.8.
+	 * Returns false if CLI is not installed or version is below minimum.
+	 *
+	 * @returns `true` if CLI supports extensions, `false` otherwise
+	 *
+	 * @example
+	 * ```typescript
+	 * const status = await manager.getStatus();
+	 * if (manager.supportsExtensions()) {
+	 *     // Show extension authoring tools
+	 * }
+	 * ```
+	 *
+	 * @since 0.0.47
+	 */
+	supportsExtensions(): boolean {
+		if (!this.cachedStatus?.installed || !this.cachedStatus.version) {
+			return false;
+		}
+		return GitHubCopilotCliManager.compareVersions(this.cachedStatus.version, "1.0.8") >= 0;
+	}
+
+	/**
+	 * Compare two semver version strings.
+	 *
+	 * @param a - First version (e.g. "1.0.8")
+	 * @param b - Second version (e.g. "1.0.0")
+	 * @returns Negative if a < b, zero if equal, positive if a > b
+	 * @internal
+	 */
+	static compareVersions(a: string, b: string): number {
+		const pa = a.split(".").map(Number);
+		const pb = b.split(".").map(Number);
+		for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+			const na = pa[i] || 0;
+			const nb = pb[i] || 0;
+			if (na !== nb) return na - nb;
+		}
+		return 0;
+	}
 }
