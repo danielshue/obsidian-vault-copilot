@@ -71,6 +71,10 @@ export const TOOL_NAMES = {
 	// Web operations
 	FETCH_WEB_PAGE: "fetch_web_page",
 	WEB_SEARCH: "web_search",
+
+	// Link operations
+	GET_BACKLINKS: "get_backlinks",
+	GET_OUTGOING_LINKS: "get_outgoing_links",
 } as const;
 
 export type ToolName = typeof TOOL_NAMES[keyof typeof TOOL_NAMES];
@@ -87,6 +91,8 @@ export const TOOL_DESCRIPTIONS = {
 	[TOOL_NAMES.OPEN_NOTE]: "Open a note in the editor by its path. Use this when the user wants to navigate to or view a specific note.",
 	[TOOL_NAMES.FETCH_WEB_PAGE]: "Fetch and extract content from a web page URL",
 	[TOOL_NAMES.WEB_SEARCH]: "Search the web for information",
+	[TOOL_NAMES.GET_BACKLINKS]: "Get all notes that link to the specified note (or active note if no path given), including linked mentions and unlinked text mentions",
+	[TOOL_NAMES.GET_OUTGOING_LINKS]: "Get all outgoing links from the specified note (or active note if no path given), including resolved links to existing notes and unresolved links to notes that don't exist yet",
 } as const;
 
 // ============================================================================
@@ -226,6 +232,28 @@ export const TOOL_JSON_SCHEMAS: Record<string, JsonSchemaObject> = {
 		},
 		required: ["query"]
 	},
+
+	[TOOL_NAMES.GET_BACKLINKS]: {
+		type: "object",
+		properties: {
+			path: {
+				type: "string",
+				description: "Vault-relative path of the target note (e.g. 'folder/note.md'). Uses the active note if omitted."
+			}
+		},
+		required: []
+	},
+
+	[TOOL_NAMES.GET_OUTGOING_LINKS]: {
+		type: "object",
+		properties: {
+			path: {
+				type: "string",
+				description: "Vault-relative path of the source note (e.g. 'folder/note.md'). Uses the active note if omitted."
+			}
+		},
+		required: []
+	},
 };
 
 // ============================================================================
@@ -299,6 +327,10 @@ export const TOOL_CATEGORIES = {
 	WEB: [
 		TOOL_NAMES.FETCH_WEB_PAGE,
 		TOOL_NAMES.WEB_SEARCH,
+	],
+	LINKS: [
+		TOOL_NAMES.GET_BACKLINKS,
+		TOOL_NAMES.GET_OUTGOING_LINKS,
 	],
 } as const;
 

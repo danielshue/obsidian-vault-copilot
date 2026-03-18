@@ -17,6 +17,8 @@
  * - `update_note` — update/replace the content of an existing note
  * - `fetch_web_page` — fetch and extract text from a URL
  * - `web_search` — search the web via DuckDuckGo
+ * - `get_backlinks` — get all notes that link to the given note
+ * - `get_outgoing_links` — get all outgoing links from the given note
  *
  * All Pro-only imports (`customization/`, `mcp/`, `bases/`, callbacks, etc.)
  * are intentionally absent from this module.
@@ -47,6 +49,8 @@ import {
 	updateNote,
 	fetchWebPage,
 	webSearch,
+	getBacklinks,
+	getOutgoingLinks,
 } from "../tools/VaultOperations";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -161,6 +165,22 @@ export function createBasicTools(
 			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.WEB_SEARCH],
 			handler: async (args: { query: string; limit?: number }) => {
 				return await webSearch(args.query, args.limit ?? 5);
+			},
+		}),
+
+		defineTool(TOOL_NAMES.GET_BACKLINKS, {
+			description: TOOL_DESCRIPTIONS[TOOL_NAMES.GET_BACKLINKS],
+			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.GET_BACKLINKS],
+			handler: async (args: { path?: string }) => {
+				return await getBacklinks(app, args.path);
+			},
+		}),
+
+		defineTool(TOOL_NAMES.GET_OUTGOING_LINKS, {
+			description: TOOL_DESCRIPTIONS[TOOL_NAMES.GET_OUTGOING_LINKS],
+			parameters: TOOL_JSON_SCHEMAS[TOOL_NAMES.GET_OUTGOING_LINKS],
+			handler: async (args: { path?: string }) => {
+				return await getOutgoingLinks(app, args.path);
 			},
 		}),
 	];

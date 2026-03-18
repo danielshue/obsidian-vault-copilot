@@ -10,6 +10,8 @@
  * - `updateNote()` - Update/replace note content
  * - `fetchWebPage()` - Fetch and extract web content
  * - `webSearch()` - Search the web via DuckDuckGo
+ * - `getBacklinks()` - Get all notes that link to a given note
+ * - `getOutgoingLinks()` - Get all notes that a given note links to
  *
  * Pro VaultOperations extends this with additional operations like
  * task management, note creation, periodic notes, etc.
@@ -384,5 +386,216 @@ export async function updateNote(
 		return { success: true, path: file.path };
 	} catch (error) {
 		return { success: false, error: `Failed to update note: ${error}` };
+	}
+}
+
+// ============================================================================
+// Backlinks
+// ============================================================================
+
+/** A single backlink entry: a file that links TO the target note. */
+export interface BacklinkEntry {
+	/** Path of the source file that contains the link */
+	sourcePath: string;
+	/** Number of times the target is linked from the source */
+	count: number;
+}
+
+/** A single unlinked mention entry. */
+export interface UnlinkedMentionEntry {
+	/** Path of the file that mentions the target note's title */
+	sourcePath: string;
+	/** Number of occurrences of the mention */
+	count: number;
+}
+
+export interface GetBacklinksResult {
+	success: boolean;
+	/** Path of the note whose backlinks were queried */
+	targetPath?: string;
+	/** Files that explicitly link to the target */
+	linkedMentions?: BacklinkEntry[];
+	/** Files that mention the target title without a formal link */
+	unlinkedMentions?: UnlinkedMentionEntry[];
+	error?: string;
+}
+
+/**
+ * Get all backlinks for a note — both resolved (linked) and unlinked mentions.
+ *
+ * Resolved backlinks are discovered by scanning `metadataCache.resolvedLinks`;
+ * unlinked mentions are found by scanning `metadataCache.unresolvedLinks` for
+ * entries whose key matches the target file's basename (case-insensitive).
+ *
+ * @param app - The Obsidian App instance
+ * @param path - Vault-relative path of the target note; uses the active note if omitted
+ * @returns GetBacklinksResult with linked and unlinked mention lists
+ *
+ * @example
+ * ```typescript
+ * const result = await getBacklinks(app, 'Projects/Alpha.md');
+ * // { linkedMentions: [...], unlinkedMentions: [...] }
+ * ```
+ */
+export async function getBacklinks(app: App, path?: string): Promise<GetBacklinksResult> {
+	try {
+		let targetFile: TFile | null = null;
+
+		if (path) {
+			const normalizedPath = normalizeVaultPath(path);
+			const f = app.vault.getAbstractFileByPath(normalizedPath);
+			if (!f || !(f instanceof TFile)) {
+				return { success: false, error: `Note not found: ${path}` };
+			}
+			targetFile = f;
+		} else {
+			targetFile = app.workspace.getActiveFile();
+			if (!targetFile) {
+				return { success: false, error: "No active note. Please open a note first." };
+			}
+		}
+
+		const targetPath = targetFile.path;
+		const targetBasename = targetFile.basename.toLowerCase();
+		const linkedMentions: BacklinkEntry[] = [];
+		const unlinkedMentions: UnlinkedMentionEntry[] = [];
+
+		// Resolved backlinks: scan resolvedLinks for files that point to targetPath
+		const resolvedLinks: Record<string, Record<string, number>> =
+			(app.metadataCache as unknown as { resolvedLinks: Record<string, Record<string, number>> })
+				.resolvedLinks ?? {};
+		for (const [sourcePath, links] of Object.entries(resolvedLinks)) {
+			if (sourcePath === targetPath) continue;
+			const count = links[targetPath];
+			if (count && count > 0) {
+				linkedMentions.push({ sourcePath, count });
+			}
+		}
+
+		// Unlinked mentions: scan unresolvedLinks for keys matching basename
+		const unresolvedLinks: Record<string, Record<string, number>> =
+			(app.metadataCache as unknown as { unresolvedLinks: Record<string, Record<string, number>> })
+				.unresolvedLinks ?? {};
+		for (const [sourcePath, links] of Object.entries(unresolvedLinks)) {
+			if (sourcePath === targetPath) continue;
+			let count = 0;
+			for (const [linkText, linkCount] of Object.entries(links)) {
+				if (linkText.toLowerCase() === targetBasename) {
+					count += linkCount;
+				}
+			}
+			if (count > 0) {
+				unlinkedMentions.push({ sourcePath, count });
+			}
+		}
+
+		// Sort by count descending
+		linkedMentions.sort((a, b) => b.count - a.count);
+		unlinkedMentions.sort((a, b) => b.count - a.count);
+
+		return { success: true, targetPath, linkedMentions, unlinkedMentions };
+	} catch (error) {
+		return { success: false, error: `Failed to get backlinks: ${error}` };
+	}
+}
+
+// ============================================================================
+// Outgoing Links
+// ============================================================================
+
+/** A single resolved outgoing link entry. */
+export interface OutgoingLinkEntry {
+	/** Vault path of the linked note */
+	targetPath: string;
+	/** Number of times the link appears in the source */
+	count: number;
+}
+
+/** A single unresolved outgoing link (the target note does not exist). */
+export interface UnresolvedLinkEntry {
+	/** The raw link text as written in the source */
+	linkText: string;
+	/** Number of occurrences */
+	count: number;
+}
+
+export interface GetOutgoingLinksResult {
+	success: boolean;
+	/** Path of the note whose outgoing links were queried */
+	sourcePath?: string;
+	/** Links to notes that exist in the vault */
+	resolvedLinks?: OutgoingLinkEntry[];
+	/** Links to notes that do not yet exist (potential links to create) */
+	unresolvedLinks?: UnresolvedLinkEntry[];
+	error?: string;
+}
+
+/**
+ * Get all outgoing links from a note — both resolved and unresolved.
+ *
+ * Resolved links point to existing vault notes; unresolved links reference
+ * note names that do not yet have a corresponding file.
+ *
+ * @param app - The Obsidian App instance
+ * @param path - Vault-relative path of the source note; uses the active note if omitted
+ * @returns GetOutgoingLinksResult with resolved and unresolved link lists
+ *
+ * @example
+ * ```typescript
+ * const result = await getOutgoingLinks(app, 'Projects/Alpha.md');
+ * // { resolvedLinks: [...], unresolvedLinks: [...] }
+ * ```
+ */
+export async function getOutgoingLinks(app: App, path?: string): Promise<GetOutgoingLinksResult> {
+	try {
+		let sourceFile: TFile | null = null;
+
+		if (path) {
+			const normalizedPath = normalizeVaultPath(path);
+			const f = app.vault.getAbstractFileByPath(normalizedPath);
+			if (!f || !(f instanceof TFile)) {
+				return { success: false, error: `Note not found: ${path}` };
+			}
+			sourceFile = f;
+		} else {
+			sourceFile = app.workspace.getActiveFile();
+			if (!sourceFile) {
+				return { success: false, error: "No active note. Please open a note first." };
+			}
+		}
+
+		const sourcePath = sourceFile.path;
+		const resolvedLinks: OutgoingLinkEntry[] = [];
+		const unresolvedLinks: UnresolvedLinkEntry[] = [];
+
+		// Resolved outgoing links from this file
+		const allResolved: Record<string, Record<string, number>> =
+			(app.metadataCache as unknown as { resolvedLinks: Record<string, Record<string, number>> })
+				.resolvedLinks ?? {};
+		const fileResolvedLinks = allResolved[sourcePath] ?? {};
+		for (const [targetPath, count] of Object.entries(fileResolvedLinks)) {
+			if (count > 0) {
+				resolvedLinks.push({ targetPath, count });
+			}
+		}
+
+		// Unresolved outgoing links from this file
+		const allUnresolved: Record<string, Record<string, number>> =
+			(app.metadataCache as unknown as { unresolvedLinks: Record<string, Record<string, number>> })
+				.unresolvedLinks ?? {};
+		const fileUnresolvedLinks = allUnresolved[sourcePath] ?? {};
+		for (const [linkText, count] of Object.entries(fileUnresolvedLinks)) {
+			if (count > 0) {
+				unresolvedLinks.push({ linkText, count });
+			}
+		}
+
+		// Sort by count descending
+		resolvedLinks.sort((a, b) => b.count - a.count);
+		unresolvedLinks.sort((a, b) => b.count - a.count);
+
+		return { success: true, sourcePath, resolvedLinks, unresolvedLinks };
+	} catch (error) {
+		return { success: false, error: `Failed to get outgoing links: ${error}` };
 	}
 }
