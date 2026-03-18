@@ -1,0 +1,329 @@
+/* ================================
+   AUTH MODAL
+   Sign-in / Create account modal
+   with OAuth provider buttons,
+   email form, and status screens.
+   ================================ */
+
+/* ── Modal sizing ── */
+.vc-auth-modal {
+	width: 480px;
+	max-width: 90vw;
+}
+
+.vc-auth-modal .modal-content {
+	padding: 1.5em 1.75em;
+}
+
+/* ── Headings ── */
+.vc-auth-modal h2 {
+	margin: 0 0 0.5em 0;
+	font-size: 1.3em;
+	font-weight: 700;
+	color: var(--text-normal);
+}
+
+.vc-auth-subtitle {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin: 0 0 1em 0;
+	line-height: 1.4;
+}
+
+/* ── Mode toggle (Sign in / Create account) ── */
+.vc-auth-mode-row {
+	display: flex;
+	justify-content: center;
+	gap: 0.5em;
+	margin-bottom: 1em;
+}
+
+.vc-auth-mode-btn {
+	padding: 0.35em 0.75em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 0.85em;
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.vc-auth-mode-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.vc-auth-mode-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+.vc-auth-mode-active:hover {
+	background: var(--interactive-accent-hover);
+	border-color: var(--interactive-accent-hover);
+}
+
+/* ── Provider buttons row ── */
+.vc-auth-providers {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5em;
+	margin-bottom: 1em;
+}
+
+.vc-auth-provider-btn {
+	display: flex;
+	align-items: center;
+	gap: 0.6em;
+	width: 100%;
+	padding: 0.6em 1em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+	text-align: left;
+}
+
+.vc-auth-provider-btn:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+/* Provider icon (emoji / letter) */
+.vc-auth-provider-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.6em;
+	height: 1.6em;
+	font-size: 1.1em;
+	flex-shrink: 0;
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+}
+
+/* ── Separator (or continue with email) ── */
+.vc-auth-separator {
+	display: flex;
+	align-items: center;
+	gap: 0.75em;
+	margin: 0.75em 0;
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+.vc-auth-separator::before,
+.vc-auth-separator::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var(--background-modifier-border);
+}
+
+/* ── Email sign-in button ── */
+.vc-auth-email-btn {
+	width: 100%;
+	padding: 0.6em 1em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.vc-auth-email-btn:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+/* ── Footer / legal ── */
+.vc-auth-footer {
+	margin-top: 0.75em;
+}
+
+.vc-auth-legal {
+	color: var(--text-faint);
+	font-size: 0.8em;
+	line-height: 1.4;
+}
+
+/* ── Email form ── */
+.vc-auth-email-form {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75em;
+}
+
+.vc-auth-field-group {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25em;
+}
+
+.vc-auth-field-group label {
+	font-size: 0.85em;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.vc-auth-field-group input {
+	padding: 0.5em 0.75em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+}
+
+.vc-auth-field-group input:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+	box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+.vc-auth-error {
+	color: var(--text-error);
+	font-size: 0.85em;
+	padding: 0.4em 0;
+}
+
+/* ── Back link ── */
+.vc-auth-back {
+	margin-top: 1em;
+}
+
+.vc-auth-back a {
+	color: var(--text-accent);
+	font-size: 0.85em;
+	cursor: pointer;
+	text-decoration: none;
+}
+
+.vc-auth-back a:hover {
+	text-decoration: underline;
+}
+
+/* ── Create account row ── */
+.vc-auth-create-account-row {
+	text-align: center;
+	margin-top: 1.25em;
+	font-size: 0.85em;
+}
+
+.vc-auth-create-account-text {
+	color: var(--text-muted);
+}
+
+.vc-auth-create-account-link {
+	color: var(--text-accent);
+	cursor: pointer;
+	text-decoration: none;
+	font-weight: 600;
+}
+
+.vc-auth-create-account-link:hover {
+	text-decoration: underline;
+}
+
+/* ── OAuth waiting spinner ── */
+.vc-auth-spinner {
+	display: flex;
+	justify-content: center;
+	padding: 2em 0 1em 0;
+}
+
+.vc-auth-spinner-ring {
+	width: 40px;
+	height: 40px;
+	border: 3px solid var(--background-modifier-border);
+	border-top-color: var(--interactive-accent);
+	border-radius: 50%;
+	animation: vc-auth-spin 0.8s linear infinite;
+}
+
+@keyframes vc-auth-spin {
+	to { transform: rotate(360deg); }
+}
+
+.vc-auth-status {
+	text-align: center;
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin-bottom: 1em;
+}
+
+.vc-auth-cancel-row {
+	display: flex;
+	justify-content: center;
+}
+
+/* ── Button row (Not Entitled screen) ── */
+.vc-auth-btn-row {
+	display: flex;
+	gap: 0.5em;
+	justify-content: flex-end;
+	margin-top: 1.25em;
+}
+
+/* ================================
+   AUTH PANEL (INLINE)
+   Reusable auth component for
+   embedding in views (not modal).
+   ================================ */
+
+.vc-auth-panel {
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+	padding: 2em 1em;
+	height: 100%;
+	overflow-y: auto;
+}
+
+.vc-auth-panel-inner {
+	width: 100%;
+	max-width: 400px;
+	padding: 1.5em;
+}
+
+.vc-auth-panel h2 {
+	margin: 0 0 0.5em 0;
+	font-size: 1.3em;
+	font-weight: 700;
+	color: var(--text-normal);
+}
+
+.vc-auth-panel .vc-auth-subtitle {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin: 0 0 1em 0;
+	line-height: 1.4;
+}
+
+/* ================================
+   AUTH GATE (VIEW / SETTINGS)
+   Full-pane auth gate shown when
+   user is not authenticated.
+   ================================ */
+
+.vc-auth-gate-view {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100%;
+	min-height: 400px;
+	padding: 2em;
+	overflow-y: auto;
+}
+
+.vc-auth-gate-wrapper {
+	width: 100%;
+	max-width: 440px;
+}

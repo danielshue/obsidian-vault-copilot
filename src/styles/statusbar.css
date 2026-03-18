@@ -40,6 +40,27 @@
 	background: var(--text-muted);
 }
 
+/* Status bar dynamic badges (approval queue, active workflows) */
+.vc-status-badge {
+	cursor: pointer;
+	font-size: 12px;
+	line-height: 1;
+	transition: transform 0.15s;
+}
+
+.vc-status-badge:hover {
+	transform: scale(1.2);
+}
+
+.vc-status-badge.vc-approval-indicator {
+	animation: vc-pulse-soft 2s ease-in-out infinite;
+}
+
+@keyframes vc-pulse-soft {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.5; }
+}
+
 /* Settings Help */
 .vc-settings-help {
 	margin-top: 16px;

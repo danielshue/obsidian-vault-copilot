@@ -60,37 +60,88 @@
 	flex-wrap: wrap;
 }
 
-.vc-tool-approval-btn {
+/* Base button — reset Obsidian's global button styles with high specificity */
+.vc-tool-approval-prompt .vc-tool-approval-btn,
+.vc-tool-approval-prompt .vc-tool-approval-btn:hover,
+.vc-tool-approval-prompt .vc-tool-approval-btn:focus,
+.vc-tool-approval-prompt .vc-tool-approval-btn:active {
+	-webkit-appearance: none;
+	appearance: none;
+	box-shadow: none;
 	padding: 8px 16px;
 	border-radius: 6px;
-	border: none;
 	cursor: pointer;
 	font-size: 13px;
 	font-weight: 500;
 	transition: all 0.15s ease;
 }
 
-.vc-tool-approval-btn:hover {
-	filter: brightness(1.1);
-}
-
-.vc-tool-approval-allow {
-	background: var(--interactive-accent);
+/* Primary: Allow Once — accent color */
+.vc-tool-approval-prompt .vc-tool-approval-allow,
+.vc-tool-approval-prompt .vc-tool-approval-allow:focus {
+	background-color: var(--interactive-accent);
 	color: var(--text-on-accent);
+	border: 1px solid var(--interactive-accent);
+}
+.vc-tool-approval-prompt .vc-tool-approval-allow:hover {
+	background-color: var(--interactive-accent-hover);
+	color: var(--text-on-accent);
+	border: 1px solid var(--interactive-accent-hover);
 }
 
-.vc-tool-approval-always {
-	background: var(--color-green);
-	color: white;
+/* Secondary: Always Allow */
+.vc-tool-approval-prompt .vc-tool-approval-always,
+.vc-tool-approval-prompt .vc-tool-approval-always:focus {
+	background-color: var(--background-secondary);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+}
+.vc-tool-approval-prompt .vc-tool-approval-always:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
 }
 
-.vc-tool-approval-deny {
-	background: var(--background-modifier-hover);
+/* Secondary: Edit & Approve */
+.vc-tool-approval-prompt .vc-tool-approval-edit,
+.vc-tool-approval-prompt .vc-tool-approval-edit:focus {
+	background-color: var(--background-secondary);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+}
+.vc-tool-approval-prompt .vc-tool-approval-edit:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+}
+
+/* Secondary: Deny */
+.vc-tool-approval-prompt .vc-tool-approval-deny,
+.vc-tool-approval-prompt .vc-tool-approval-deny:focus {
+	background-color: var(--background-secondary);
 	color: var(--text-muted);
+	border: 1px solid var(--background-modifier-border);
+}
+.vc-tool-approval-prompt .vc-tool-approval-deny:hover,
+.vc-tool-approval-prompt .vc-tool-approval-deny:active {
+	background-color: var(--color-red);
+	color: white;
+	border-color: var(--color-red);
 }
 
-.vc-tool-approval-deny:hover {
-	background: var(--color-red);
-	color: white;
+/* W7: Approve-with-edits textarea */
+.vc-tool-approval-prompt .vc-tool-approval-textarea {
+	width: 100%;
+	min-height: 100px;
+	max-height: 200px;
+	font-family: var(--font-monospace);
+	font-size: var(--font-smaller);
+	padding: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	resize: vertical;
+	margin-top: 8px;
 }
 

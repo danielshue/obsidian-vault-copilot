@@ -106,6 +106,27 @@
 	height: 28px;
 }
 
+/* Split button (plus + chevron) */
+.vc-split-btn {
+	display: flex;
+	align-items: center;
+	gap: 0;
+}
+
+.vc-split-btn-main {
+	padding: 4px 2px 4px 4px !important;
+}
+
+.vc-split-btn-chevron {
+	padding: 4px 4px 4px 0 !important;
+}
+
+.vc-split-btn-chevron svg,
+.vc-split-btn-chevron .svg-icon {
+	width: 12px !important;
+	height: 12px !important;
+}
+
 /* Messages Container */
 .vc-messages {
 	flex: 1;

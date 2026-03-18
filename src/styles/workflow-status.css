@@ -1,0 +1,517 @@
+/* ============================================================================
+   Workflow Status & Approval Queue — Settings Sections
+   ============================================================================ */
+
+/* -- Workflow Status -------------------------------------------------------- */
+
+.vc-workflow-status {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+/* Summary bar */
+.vc-workflow-summary {
+	font-size: 0.82em;
+	font-weight: 500;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* Empty state */
+.vc-workflow-empty,
+.vc-approval-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	padding: 32px 16px;
+	color: var(--text-faint);
+	text-align: center;
+}
+
+.vc-workflow-empty-icon,
+.vc-approval-empty-icon {
+	font-size: 2em;
+	opacity: 0.5;
+}
+
+.vc-workflow-empty-text,
+.vc-approval-empty-text {
+	font-size: 0.95em;
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.vc-workflow-empty-hint,
+.vc-approval-empty-hint {
+	font-size: 0.82em;
+	color: var(--text-faint);
+	max-width: 300px;
+}
+
+/* Workflow card */
+.vc-workflow-card {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 12px 14px;
+	transition: border-color 0.15s ease;
+}
+
+.vc-workflow-card:hover {
+	border-color: var(--interactive-accent);
+}
+
+.vc-workflow-card--paused {
+	border-left: 3px solid var(--text-warning, #e5a00d);
+}
+
+.vc-workflow-card--running {
+	border-left: 3px solid var(--interactive-accent);
+}
+
+.vc-workflow-card--failed {
+	border-left: 3px solid var(--text-error, #e93147);
+}
+
+/* Card header: name + badge */
+.vc-workflow-card-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.vc-workflow-name {
+	font-weight: 600;
+	font-size: 0.95em;
+	color: var(--text-normal);
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vc-workflow-badge {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.72em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding: 2px 8px;
+	border-radius: 10px;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.vc-workflow-badge--running {
+	background: rgba(var(--interactive-accent-rgb, 72, 138, 255), 0.15);
+	color: var(--interactive-accent);
+}
+
+.vc-workflow-badge--paused {
+	background: rgba(229, 160, 13, 0.15);
+	color: var(--text-warning, #e5a00d);
+}
+
+.vc-workflow-badge--failed {
+	background: rgba(233, 49, 71, 0.15);
+	color: var(--text-error, #e93147);
+}
+
+/* Progress bar */
+.vc-workflow-progress {
+	margin-bottom: 6px;
+}
+
+.vc-workflow-bar-track {
+	height: 4px;
+	background: var(--background-modifier-border);
+	border-radius: 2px;
+	overflow: hidden;
+	margin-bottom: 4px;
+}
+
+.vc-workflow-bar-fill {
+	height: 100%;
+	border-radius: 2px;
+	transition: width 0.4s ease;
+}
+
+.vc-workflow-bar-fill--running {
+	background: var(--interactive-accent);
+}
+
+.vc-workflow-bar-fill--paused {
+	background: var(--text-warning, #e5a00d);
+}
+
+.vc-workflow-bar-fill--failed {
+	background: var(--text-error, #e93147);
+}
+
+.vc-workflow-progress-text {
+	font-size: 0.8em;
+	color: var(--text-muted);
+}
+
+/* Metadata */
+.vc-workflow-meta {
+	font-size: 0.8em;
+	color: var(--text-faint);
+	margin-bottom: 8px;
+}
+
+/* Action buttons */
+.vc-workflow-actions {
+	display: flex;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.vc-workflow-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 12px;
+	font-size: 0.82em;
+	font-weight: 500;
+	border-radius: 6px;
+	border: 1px solid transparent;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.vc-workflow-btn--resume,
+.vc-workflow-btn--resume:hover,
+.vc-workflow-btn--resume:focus,
+.vc-workflow-btn--resume:active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent, #fff);
+	border-color: var(--interactive-accent);
+	box-shadow: none;
+}
+
+.vc-workflow-btn--resume:hover {
+	filter: brightness(1.1);
+}
+
+.vc-workflow-btn--stop,
+.vc-workflow-btn--stop:hover,
+.vc-workflow-btn--stop:focus,
+.vc-workflow-btn--stop:active {
+	background: var(--text-error, #e93147);
+	color: var(--text-on-accent, #fff);
+	border-color: var(--text-error, #e93147);
+	box-shadow: none;
+}
+
+.vc-workflow-btn--stop:hover {
+	filter: brightness(1.15);
+}
+
+.vc-workflow-btn--abort,
+.vc-workflow-btn--abort:hover,
+.vc-workflow-btn--abort:focus,
+.vc-workflow-btn--abort:active {
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+	border-color: var(--background-modifier-border);
+	box-shadow: none;
+}
+
+.vc-workflow-btn--abort:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* -- Approval Queue --------------------------------------------------------- */
+
+.vc-approval-queue {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+/* Header */
+.vc-approval-header {
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vc-approval-title {
+	font-size: 0.82em;
+	font-weight: 500;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+/* Approval card */
+.vc-approval-card {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-left: 3px solid var(--interactive-accent);
+	border-radius: 8px;
+	padding: 12px 14px;
+	transition: border-color 0.15s ease;
+}
+
+.vc-approval-card:hover {
+	border-color: var(--interactive-accent);
+}
+
+.vc-approval-card-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+
+.vc-approval-tool-badge {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.78em;
+	font-weight: 600;
+	font-family: var(--font-monospace);
+	padding: 2px 8px;
+	border-radius: 4px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	white-space: nowrap;
+}
+
+.vc-approval-source {
+	font-size: 0.78em;
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+.vc-approval-message {
+	font-size: 0.9em;
+	color: var(--text-normal);
+	margin-bottom: 8px;
+	line-height: 1.4;
+}
+
+/* Collapsible arguments */
+.vc-approval-args-details {
+	margin-bottom: 8px;
+}
+
+.vc-approval-args-summary {
+	font-size: 0.78em;
+	color: var(--text-muted);
+	cursor: pointer;
+	user-select: none;
+	padding: 2px 0;
+}
+
+.vc-approval-args-summary:hover {
+	color: var(--text-normal);
+}
+
+.vc-approval-args-code {
+	margin: 4px 0 0;
+	padding: 8px 10px;
+	font-size: 0.78em;
+	background: var(--background-secondary);
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	overflow-x: auto;
+	white-space: pre;
+}
+
+.vc-approval-args-code code {
+	font-family: var(--font-monospace);
+	color: var(--text-muted);
+}
+
+/* Approval actions */
+.vc-approval-actions {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.vc-approval-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 12px;
+	font-size: 0.82em;
+	font-weight: 500;
+	border-radius: 6px;
+	border: 1px solid transparent;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.vc-approval-btn--approve,
+.vc-approval-btn--approve:hover,
+.vc-approval-btn--approve:focus,
+.vc-approval-btn--approve:active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent, #fff);
+	border-color: var(--interactive-accent);
+	box-shadow: none;
+}
+
+.vc-approval-btn--approve:hover {
+	filter: brightness(1.1);
+}
+
+.vc-approval-btn--edit,
+.vc-approval-btn--edit:hover,
+.vc-approval-btn--edit:focus,
+.vc-approval-btn--edit:active {
+	background: transparent;
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border);
+	box-shadow: none;
+}
+
+.vc-approval-btn--edit:hover {
+	border-color: var(--interactive-accent);
+	color: var(--interactive-accent);
+}
+
+.vc-approval-btn--deny,
+.vc-approval-btn--deny:hover,
+.vc-approval-btn--deny:focus,
+.vc-approval-btn--deny:active {
+	background: transparent;
+	color: var(--text-muted);
+	border-color: var(--background-modifier-border);
+	box-shadow: none;
+}
+
+.vc-approval-btn--deny:hover {
+	color: var(--text-error, #e93147);
+	border-color: var(--text-error, #e93147);
+	background: rgba(233, 49, 71, 0.08);
+}
+
+/* -- Edit Approval Args Modal ----------------------------------------------- */
+
+.vc-edit-approval-modal {
+	max-width: 520px;
+}
+
+.vc-edit-approval-content {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.vc-edit-approval-header {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.vc-edit-approval-tool-badge {
+	display: inline-flex;
+	align-self: flex-start;
+	font-size: 0.82em;
+	font-weight: 600;
+	font-family: var(--font-monospace);
+	padding: 2px 8px;
+	border-radius: 4px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+}
+
+.vc-edit-approval-message {
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.vc-edit-approval-label {
+	font-size: 0.82em;
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.vc-edit-approval-textarea {
+	width: 100%;
+	min-height: 180px;
+	padding: 10px 12px;
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+	line-height: 1.5;
+	color: var(--text-normal);
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	resize: vertical;
+	tab-size: 2;
+}
+
+.vc-edit-approval-textarea:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+	box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb, 72, 138, 255), 0.2);
+}
+
+.vc-edit-approval-error {
+	font-size: 0.82em;
+	color: var(--text-error, #e93147);
+	padding: 6px 10px;
+	background: rgba(233, 49, 71, 0.08);
+	border-radius: 4px;
+}
+
+.vc-edit-approval-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding-top: 4px;
+}
+
+.vc-edit-approval-btn {
+	display: inline-flex;
+	align-items: center;
+	padding: 6px 16px;
+	font-size: 0.88em;
+	font-weight: 500;
+	border-radius: 6px;
+	border: 1px solid transparent;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.vc-edit-approval-btn--cancel,
+.vc-edit-approval-btn--cancel:hover,
+.vc-edit-approval-btn--cancel:focus,
+.vc-edit-approval-btn--cancel:active {
+	background: transparent;
+	color: var(--text-muted);
+	border-color: var(--background-modifier-border);
+	box-shadow: none;
+}
+
+.vc-edit-approval-btn--cancel:hover {
+	color: var(--text-normal);
+	border-color: var(--text-muted);
+}
+
+.vc-edit-approval-btn--submit,
+.vc-edit-approval-btn--submit:hover,
+.vc-edit-approval-btn--submit:focus,
+.vc-edit-approval-btn--submit:active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent, #fff);
+	border-color: var(--interactive-accent);
+	box-shadow: none;
+}
+
+.vc-edit-approval-btn--submit:hover {
+	filter: brightness(1.1);
+}

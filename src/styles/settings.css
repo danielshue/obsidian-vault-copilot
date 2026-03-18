@@ -1,3 +1,55 @@
+/* ── Account bar ── */
+.vc-account-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.6em 1em;
+	margin-bottom: 1em;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-account-info {
+	display: flex;
+	align-items: center;
+	gap: 0.75em;
+}
+
+.vc-account-provider {
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.vc-account-plan {
+	font-size: 0.75em;
+	font-weight: 600;
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+	padding: 0.15em 0.5em;
+	border-radius: var(--radius-s);
+}
+
+.vc-account-plan:empty {
+	display: none;
+}
+
+.vc-account-signout-btn {
+	font-size: 0.8em;
+	padding: 0.3em 0.75em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+}
+
+.vc-account-signout-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
 /* CLI Status Section in Settings */
 .vc-cli-status-section {
 	padding: 16px;
@@ -549,7 +601,8 @@
 .vc-voice-input-section .vc-plugin-inner-settings-card,
 .vc-whisper-section .vc-plugin-inner-settings-card,
 .vc-realtime-agent-section .vc-plugin-inner-settings-card,
-.vc-telegram-settings-section .vc-plugin-inner-settings-card {
+.vc-telegram-settings-section .vc-plugin-inner-settings-card,
+.vc-tool-approval-section .vc-plugin-inner-settings-card {
 	background: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 16px;
@@ -561,7 +614,8 @@
 .vc-voice-input-section .vc-plugin-inner-settings-card .setting-item,
 .vc-whisper-section .vc-plugin-inner-settings-card .setting-item,
 .vc-realtime-agent-section .vc-plugin-inner-settings-card .setting-item,
-.vc-telegram-settings-section .vc-plugin-inner-settings-card .setting-item {
+.vc-telegram-settings-section .vc-plugin-inner-settings-card .setting-item,
+.vc-tool-approval-section .vc-plugin-inner-settings-card .setting-item {
 	padding: 18px 0;
 	background: transparent !important;
 	background-color: transparent !important;
@@ -575,7 +629,8 @@
 .vc-voice-input-section .vc-plugin-inner-settings-card .setting-item:last-child,
 .vc-whisper-section .vc-plugin-inner-settings-card .setting-item:last-child,
 .vc-realtime-agent-section .vc-plugin-inner-settings-card .setting-item:last-child,
-.vc-telegram-settings-section .vc-plugin-inner-settings-card .setting-item:last-child {
+.vc-telegram-settings-section .vc-plugin-inner-settings-card .setting-item:last-child,
+.vc-tool-approval-section .vc-plugin-inner-settings-card .setting-item:last-child {
 	border-bottom: none !important;
 }
 
@@ -2062,6 +2117,64 @@
 
 .vc-btn-danger:hover {
 	background: color-mix(in srgb, var(--text-error) 10%, transparent) !important;
+}
+
+/* ================================
+   TOOL APPROVAL SECTION
+   ================================ */
+
+.vc-tool-approval-section .setting-item {
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding: 8px 0;
+}
+
+.vc-tool-approval-expand-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	margin-left: 4px;
+	padding: 0;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	color: var(--text-muted);
+	border-radius: 4px;
+	transition: transform 0.15s, color 0.15s;
+}
+
+.vc-tool-approval-expand-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.vc-tool-approval-expand-btn.is-expanded {
+	transform: rotate(180deg);
+}
+
+.vc-tool-approval-tools-container {
+	padding-left: 24px;
+	border-left: 2px solid var(--background-modifier-border);
+	margin-left: 12px;
+	margin-bottom: 8px;
+}
+
+.vc-tool-approval-tool-row {
+	padding: 4px 0 !important;
+}
+
+.vc-tool-approval-tool-row .setting-item-name {
+	font-family: var(--font-monospace);
+	font-size: 12px;
+}
+
+.vc-tool-approval-tool-row .setting-item-description {
+	font-size: 11px;
+	max-width: 300px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 /* ================================
