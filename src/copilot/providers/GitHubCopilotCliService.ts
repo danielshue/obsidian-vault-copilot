@@ -502,7 +502,7 @@ export class GitHubCopilotCliService {
 				const raw = (event.data as { content?: string })?.content || "";
 				messages.push({
 					role: "user",
-					content: this.stripContextPrefix(raw),
+					content: this.toDisplayUserPrompt(raw),
 					timestamp: new Date(),
 				});
 			} else if (event.type === "assistant.message") {
@@ -540,6 +540,50 @@ export class GitHubCopilotCliService {
 			}
 		}
 		return text;
+	}
+
+	/**
+	 * Convert an internal context-augmented prompt into user-visible text.
+	 *
+	 * @param prompt - Raw prompt sent to the SDK
+	 * @returns User-facing message text for history/UI
+	 * @internal
+	 */
+	protected toDisplayUserPrompt(prompt: string): string {
+		let text = this.stripContextPrefix(prompt);
+
+		const userQuestionMatch = text.match(/(?:^|\n)User question about the above note\(s\):\n([\s\S]*)$/);
+		if (userQuestionMatch?.[1]) {
+			return userQuestionMatch[1].trim();
+		}
+
+		const userMessageMatch = text.match(/(?:^|\n)User message:\n([\s\S]*)$/);
+		if (userMessageMatch?.[1]) {
+			return userMessageMatch[1].trim();
+		}
+
+		const leadingContextBlocks = [
+			/^\[Current Date & Time\][\s\S]*?\[End Date & Time\]\n*/,
+			/^\[Selected text from editor\][\s\S]*?\[End selected text\]\n*/,
+			/^\[Agent Instructions for "[^"]+"\][\s\S]*?\[End Agent Instructions\]\n*/,
+			/^--- Selected Text from "[^"]*" ---[\s\S]*?--- End of Selected Text ---\n*/,
+			/^--- Active File: "[^"]*" ---[\s\S]*?--- End of Active File ---\n*/,
+			/^--- Other Open Tabs \(\d+\) ---[\s\S]*?--- End of Open Tabs ---\n*/,
+		];
+
+		let changed = true;
+		while (changed) {
+			changed = false;
+			for (const pattern of leadingContextBlocks) {
+				const next = text.replace(pattern, "");
+				if (next !== text) {
+					text = next;
+					changed = true;
+				}
+			}
+		}
+
+		return text.trim();
 	}
 
 	/**
@@ -1039,7 +1083,7 @@ export class GitHubCopilotCliService {
 
 		this.messageHistory.push({
 			role: "user",
-			content: prompt,
+			content: this.toDisplayUserPrompt(prompt),
 			timestamp: new Date(),
 			source: "obsidian",
 		});
@@ -1129,7 +1173,7 @@ export class GitHubCopilotCliService {
 
 		this.messageHistory.push({
 			role: "user",
-			content: prompt,
+			content: this.toDisplayUserPrompt(prompt),
 			timestamp: new Date(),
 			source: "obsidian",
 		});
@@ -1392,14 +1436,26 @@ export class GitHubCopilotCliService {
 			// Mark the session as recreated so the next send replays context.
 			if (messages && messages.length > 0 && this.messageHistory.length < messages.length) {
 				console.warn(`[Torqena] Server resumed with ${this.messageHistory.length} messages but saved session had ${messages.length} — replaying context on next send`);
-				this.messageHistory = messages.map(msg => ({ ...msg, timestamp: new Date(msg.timestamp) }));
+				this.messageHistory = messages
+					.filter((msg) => msg.role !== "system")
+					.map((msg) => ({
+						...msg,
+						content: msg.role === "user" ? this.toDisplayUserPrompt(msg.content) : msg.content,
+						timestamp: new Date(msg.timestamp),
+					}));
 				this.sessionRecreated = true;
 			}
 		} catch (error) {
 			console.warn("[Torqena] Could not resume session, creating fresh SDK session:", error);
 			await this.createSession();
 			if (messages && messages.length > 0) {
-				this.messageHistory = messages.map(msg => ({ ...msg, timestamp: new Date(msg.timestamp) }));
+				this.messageHistory = messages
+					.filter((msg) => msg.role !== "system")
+					.map((msg) => ({
+						...msg,
+						content: msg.role === "user" ? this.toDisplayUserPrompt(msg.content) : msg.content,
+						timestamp: new Date(msg.timestamp),
+					}));
 				this.sessionRecreated = true;
 			}
 		}
@@ -1452,7 +1508,9 @@ export class GitHubCopilotCliService {
 	 * @returns Copy of the message history array
 	 */
 	getMessageHistory(): ChatMessage[] {
-		return [...this.messageHistory];
+		return this.messageHistory
+			.filter((message) => message.role !== "system")
+			.map((message) => ({ ...message }));
 	}
 
 	/**
@@ -1461,7 +1519,11 @@ export class GitHubCopilotCliService {
 	 * @returns Object containing a copy of the message history
 	 */
 	getSessionState(): { messages: ChatMessage[] } {
-		return { messages: [...this.messageHistory] };
+		return {
+			messages: this.messageHistory
+				.filter((message) => message.role !== "system")
+				.map((message) => ({ ...message })),
+		};
 	}
 
 	/**
