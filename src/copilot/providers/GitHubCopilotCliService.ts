@@ -1145,7 +1145,7 @@ export class GitHubCopilotCliService {
 	async sendMessageStreaming(
 		prompt: string,
 		onDelta: (delta: string) => void,
-		onComplete?: (fullContent: string) => void,
+		onComplete?: (fullContent: string) => void | Promise<void>,
 		timeout?: number,
 		images?: ImageAttachment[],
 		mode?: string
@@ -1210,6 +1210,30 @@ export class GitHubCopilotCliService {
 
 			resetTimeout();
 			let lastRenderedContent = "";
+			let onCompleteError: unknown = null;
+			let pendingOnComplete = Promise.resolve();
+
+			const runOnComplete = (content: string): Promise<void> => {
+				if (!onComplete || !content || content === lastRenderedContent) {
+					return pendingOnComplete;
+				}
+
+				lastRenderedContent = content;
+				pendingOnComplete = pendingOnComplete
+					.then(() => onComplete(content))
+					.catch((error) => {
+						onCompleteError = error;
+					});
+				return pendingOnComplete;
+			};
+
+			const rejectOnCompleteError = () => {
+				if (onCompleteError instanceof Error) {
+					reject(onCompleteError);
+					return;
+				}
+				reject(new Error(String(onCompleteError)));
+			};
 
 			const unsubscribe = session.on((event: SessionEvent) => {
 				if (hasCompleted) return;
@@ -1229,12 +1253,25 @@ export class GitHubCopilotCliService {
 					finalContent = fullContent.length === 0 || assistantContent.length > fullContent.length
 						? assistantContent
 						: fullContent;
-					if (onComplete && finalContent && finalContent !== lastRenderedContent) {
-						lastRenderedContent = finalContent;
-						onComplete(finalContent);
+					void runOnComplete(finalContent);
+				} else if (event.type === "abort") {
+					cleanup();
+					unsubscribe();
+					this.touchActivity();
+					const resolvedContent = finalContent || fullContent;
+					if (resolvedContent) {
+						this.messageHistory.push({
+							role: "assistant",
+							content: resolvedContent,
+							timestamp: new Date(),
+							source: "obsidian",
+						});
+						tracingService.addSdkLog("info", `[Assistant Response (Streaming - Aborted)]\n${resolvedContent.substring(0, 500)}${resolvedContent.length > 500 ? "..." : ""}`, LOG_SOURCES.COPILOT_RESPONSE);
 					}
+					resolve();
 				} else if (event.type === "session.idle") {
 					cleanup();
+					unsubscribe();
 					this.touchActivity();
 					const resolvedContent = finalContent || fullContent;
 					this.messageHistory.push({
@@ -1244,9 +1281,13 @@ export class GitHubCopilotCliService {
 						source: "obsidian",
 					});
 					tracingService.addSdkLog("info", `[Assistant Response (Streaming)]\n${resolvedContent.substring(0, 500)}${resolvedContent.length > 500 ? "..." : ""}`, LOG_SOURCES.COPILOT_RESPONSE);
-					if (onComplete && resolvedContent !== lastRenderedContent) onComplete(resolvedContent);
-					unsubscribe();
-					resolve();
+					void runOnComplete(resolvedContent).then(() => {
+						if (onCompleteError) {
+							rejectOnCompleteError();
+							return;
+						}
+						resolve();
+					});
 				} else if (event.type === "session.error") {
 					cleanup();
 					const errorData = event.data as { message?: string };
