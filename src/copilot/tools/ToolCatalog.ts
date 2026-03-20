@@ -58,6 +58,10 @@ export interface IToolCatalog {
 	loadCliMcpTools(): number;
 	/** Return all available tools (builtins + MCP). */
 	getAllTools(): ToolInfo[];
+	/** Return all known tools including from disconnected MCP servers. Used by config UIs. */
+	getAllKnownTools(): ToolInfo[];
+	/** Return tools grouped by source key, including disconnected MCP servers. */
+	getKnownToolsBySource(): Record<string, ToolInfo[]>;
 	/** Return tools grouped by source key (e.g. `"builtin"`, `"mcp:workiq"`). */
 	getToolsBySource(): Record<string, ToolInfo[]>;
 	/** Return enabled tool IDs for the current settings/session. */
@@ -216,6 +220,15 @@ export class ToolCatalog {
 	 */
 	getAllTools(): ToolInfo[] {
 		return [...BASIC_TOOLS, ...this.mcpTools];
+	}
+
+	getAllKnownTools(): ToolInfo[] {
+		// Basic catalog has no dynamic MCP — same as getAllTools
+		return this.getAllTools();
+	}
+
+	getKnownToolsBySource(): Record<string, ToolInfo[]> {
+		return this.getToolsBySource();
 	}
 
 	/**

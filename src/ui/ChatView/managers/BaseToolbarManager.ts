@@ -347,9 +347,14 @@ export class BaseToolbarManager {
 			session: currentSession,
 			mode: "session",
 			onSave: async (enabledTools) => {
+				// Save as global defaults so the selection persists across restarts
+				this.plugin.settings.defaultEnabledTools = enabledTools;
+				this.plugin.settings.defaultDisabledTools = [];
 				if (currentSession) {
 					currentSession.toolOverrides = { enabled: enabledTools };
-					await this.callbacks.saveSettings();
+				}
+				await this.callbacks.saveSettings();
+				if (currentSession) {
 					await this.service.createSession(currentSession.id);
 				}
 				this.updateToolSelectorText();

@@ -141,7 +141,11 @@ export class ToolPickerModal extends Modal {
 
 		// Description text
 		const descEl = contentEl.createDiv({ cls: "vc-tp-description" });
-		descEl.setText("The selected tools will be applied globally for all chat sessions that use the default tool configuration.");
+		descEl.setText(
+			this.mode === "session"
+				? "The selected tools apply to this chat session and will be remembered as your default for future sessions."
+				: "The selected tools will be applied globally for all chat sessions that use the default tool configuration."
+		);
 
 		// Tree container
 		this.treeContainer = contentEl.createDiv({ cls: "vc-tp-tree" });
@@ -152,7 +156,7 @@ export class ToolPickerModal extends Modal {
 		if (!this.treeContainer) return;
 		this.treeContainer.empty();
 
-		const toolsBySource = this.toolCatalog.getToolsBySource();
+		const toolsBySource = this.toolCatalog.getKnownToolsBySource();
 
 		// Render Built-In group
 		if (toolsBySource.builtin && toolsBySource.builtin.length > 0) {
