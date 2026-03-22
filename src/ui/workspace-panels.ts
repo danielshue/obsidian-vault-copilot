@@ -50,9 +50,10 @@ export async function openViewInRightPanel(
 ): Promise<WorkspaceLeaf | null> {
 	// Re-use an existing leaf of this type if one is already open
 	const existing = workspace.getLeavesOfType(viewType);
-	if (existing.length > 0) {
-		workspace.revealLeaf(existing[0]);
-		return existing[0];
+	const firstExisting = existing[0];
+	if (firstExisting) {
+		workspace.revealLeaf(firstExisting);
+		return firstExisting;
 	}
 
 	// Create a new leaf in the right sidebar
@@ -82,9 +83,10 @@ export async function openViewInLeftPanel(
 	viewType: string,
 ): Promise<WorkspaceLeaf | null> {
 	const existing = workspace.getLeavesOfType(viewType);
-	if (existing.length > 0) {
-		workspace.revealLeaf(existing[0]);
-		return existing[0];
+	const firstExisting = existing[0];
+	if (firstExisting) {
+		workspace.revealLeaf(firstExisting);
+		return firstExisting;
 	}
 
 	const leaf = workspace.getLeftLeaf(false);
@@ -113,9 +115,10 @@ export async function openViewInMainPanel(
 	viewType: string,
 ): Promise<WorkspaceLeaf | null> {
 	const existing = workspace.getLeavesOfType(viewType);
-	if (existing.length > 0) {
-		workspace.revealLeaf(existing[0]);
-		return existing[0];
+	const firstExisting = existing[0];
+	if (firstExisting) {
+		workspace.revealLeaf(firstExisting);
+		return firstExisting;
 	}
 
 	const leaf = workspace.getLeaf("tab");
@@ -202,13 +205,17 @@ export function getLeafPanel(workspace: Workspace, leaf: WorkspaceLeaf): Workspa
  */
 function isLeafInSplit(
 	leaf: WorkspaceLeaf,
-	split: { children?: unknown[] },
+	split: unknown,
 ): boolean {
-	if (!split.children) return false;
-	for (const child of split.children) {
+	if (!split || typeof split !== "object") return false;
+	if (!("children" in split)) return false;
+	const children = (split as { children?: unknown[] }).children;
+	if (!children) return false;
+
+	for (const child of children) {
 		if (child === leaf) return true;
 		if (child && typeof child === "object" && "children" in child) {
-			if (isLeafInSplit(leaf, child as { children?: unknown[] })) return true;
+			if (isLeafInSplit(leaf, child)) return true;
 		}
 	}
 	return false;
