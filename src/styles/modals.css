@@ -10,11 +10,16 @@
 .vc-add-http-mcp-modal {
 	width: 760px;
 	max-width: 90vw;
+	max-height: 85vh;
+	display: flex;
+	flex-direction: column;
 }
 
 .vc-profile-modal .modal-content,
 .vc-add-http-mcp-modal .modal-content {
 	padding: 1.5em 1.75em;
+	overflow-y: auto;
+	flex: 1 1 auto;
 }
 
 /* ── Modal headings ── */
@@ -80,8 +85,13 @@
 	justify-content: flex-end;
 	gap: 0.6em;
 	margin-top: 1.5em;
-	padding-top: 1em;
+	padding: 1em 1.75em;
 	border-top: 1px solid var(--background-modifier-border);
+	position: sticky;
+	bottom: 0;
+	background: var(--background-primary);
+	z-index: 1;
+	flex-shrink: 0;
 }
 
 .vc-modal-footer button {
