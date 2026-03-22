@@ -1207,7 +1207,7 @@ export class BaseCopilotChatView extends ItemView {
 			const session = this.plugin.settings.sessions.find((s) => s.id === id);
 			if (session) return session.name;
 		}
-		return "New Chat";
+		return "New Chat Window";
 	}
 
 	protected updateHeaderTitle(): void {
