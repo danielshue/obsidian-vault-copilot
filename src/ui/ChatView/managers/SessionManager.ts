@@ -80,7 +80,7 @@ export class SessionManager {
 		if (session) {
 			return session.name;
 		}
-		return "New Chat";
+		return "New Chat Window";
 	}
 
 	/**
