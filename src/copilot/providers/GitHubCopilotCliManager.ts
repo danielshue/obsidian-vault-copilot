@@ -33,6 +33,9 @@
  */
 
 import { exec, spawn } from "child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 import { Platform } from "obsidian";
 
 /**
@@ -79,13 +82,13 @@ export class GitHubCopilotCliManager {
 	 * ```
 	 */
 	constructor(cliPath?: string) {
-		this.cliPath = cliPath || "copilot";
+		this.cliPath = cliPath || this.resolveCliPath();
 	}
 
 	/**
 	 * Update the CLI path and invalidate cached status.
 	 *
-	 * @param path - New executable path/command name; falls back to `copilot` when empty
+	 * @param path - New executable path/command name; falls back to resolved default when empty
 	 * @returns Nothing
 	 *
 	 * @example
@@ -94,8 +97,80 @@ export class GitHubCopilotCliManager {
 	 * ```
 	 */
 	setCliPath(path: string): void {
-		this.cliPath = path || "copilot";
+		this.cliPath = path || this.resolveCliPath();
 		this.cachedStatus = null; // Invalidate cache
+	}
+
+	/**
+	 * Resolve the Copilot CLI executable path with platform-aware fallbacks.
+	 *
+	 * Obsidian's Electron process (launched via Finder/Dock on macOS, desktop
+	 * shortcut on Windows/Linux) inherits a minimal PATH that often excludes
+	 * Homebrew, npm global, and VS Code directories. This method probes known
+	 * install locations explicitly.
+	 *
+	 * @returns Resolved CLI path or `"copilot"` as a last resort
+	 * @internal
+	 */
+	private resolveCliPath(): string {
+		if (Platform.isWin) {
+			const appData = process.env.APPDATA;
+			const localAppData = process.env.LOCALAPPDATA;
+			const userProfile = process.env.USERPROFILE;
+
+			const candidates = [
+				appData ? join(appData, "npm", "copilot.cmd") : undefined,
+				appData ? join(appData, "npm", "copilot") : undefined,
+				appData ? join(appData, "Code - Insiders", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot.bat") : undefined,
+				appData ? join(appData, "Code", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot.bat") : undefined,
+				localAppData ? join(localAppData, "Programs", "Microsoft VS Code Insiders", "bin", "copilot.cmd") : undefined,
+				localAppData ? join(localAppData, "Programs", "Microsoft VS Code", "bin", "copilot.cmd") : undefined,
+				userProfile ? join(userProfile, "AppData", "Roaming", "npm", "copilot.cmd") : undefined,
+			];
+
+			for (const candidate of candidates) {
+				if (candidate && existsSync(candidate)) {
+					return candidate;
+				}
+			}
+		} else if (Platform.isMacOS) {
+			const home = homedir();
+			const candidates = [
+				// Homebrew (Apple Silicon)
+				"/opt/homebrew/bin/copilot",
+				// Homebrew (Intel) / npm global default prefix
+				"/usr/local/bin/copilot",
+				// VS Code Insiders bundled CLI
+				join(home, "Library", "Application Support", "Code - Insiders", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot"),
+				// VS Code bundled CLI
+				join(home, "Library", "Application Support", "Code", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot"),
+				// User-local bin
+				join(home, ".local", "bin", "copilot"),
+			];
+
+			for (const candidate of candidates) {
+				if (existsSync(candidate)) {
+					return candidate;
+				}
+			}
+		} else {
+			// Linux
+			const home = homedir();
+			const candidates = [
+				"/usr/local/bin/copilot",
+				join(home, ".local", "bin", "copilot"),
+				join(home, ".config", "Code - Insiders", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot"),
+				join(home, ".config", "Code", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot"),
+			];
+
+			for (const candidate of candidates) {
+				if (existsSync(candidate)) {
+					return candidate;
+				}
+			}
+		}
+
+		return "copilot";
 	}
 
 	/**

@@ -278,6 +278,45 @@ export class GitHubCopilotCliService {
 					return candidate;
 				}
 			}
+		} else if (process.platform === "darwin") {
+			// macOS: Obsidian's Electron process launched via Finder/Dock inherits a
+			// minimal PATH that typically excludes Homebrew, npm global, and VS Code
+			// directories. Probe known install locations explicitly.
+			const home = homedir();
+			const candidates = [
+				// Homebrew (Apple Silicon)
+				"/opt/homebrew/bin/copilot",
+				// Homebrew (Intel) / npm global default prefix
+				"/usr/local/bin/copilot",
+				// VS Code Insiders bundled CLI
+				nodePath.join(home, "Library", "Application Support", "Code - Insiders", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot"),
+				// VS Code bundled CLI
+				nodePath.join(home, "Library", "Application Support", "Code", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot"),
+				// User-local bin (pipx / custom installs)
+				nodePath.join(home, ".local", "bin", "copilot"),
+			];
+
+			for (const candidate of candidates) {
+				if (existsSync(candidate)) {
+					return candidate;
+				}
+			}
+		} else {
+			// Linux: GUI-launched Electron apps may not inherit the full user PATH.
+			const home = homedir();
+			const candidates = [
+				"/usr/local/bin/copilot",
+				nodePath.join(home, ".local", "bin", "copilot"),
+				// VS Code bundled CLI (Linux)
+				nodePath.join(home, ".config", "Code - Insiders", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot"),
+				nodePath.join(home, ".config", "Code", "User", "globalStorage", "github.copilot-chat", "copilotCli", "copilot"),
+			];
+
+			for (const candidate of candidates) {
+				if (existsSync(candidate)) {
+					return candidate;
+				}
+			}
 		}
 
 		return "copilot";
@@ -745,9 +784,13 @@ export class GitHubCopilotCliService {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 
 			if (errorMessage.includes("ENOENT") || errorMessage.includes("EINVAL") || errorMessage.toLowerCase().includes("not found")) {
+				const platformHint = process.platform === "darwin"
+					? 'Run "brew install copilot-cli" or specify the full path in Settings → Connection Status → CLI Path.'
+					: process.platform === "win32"
+						? 'Run "winget install GitHub.Copilot" or specify the full path in settings.'
+						: 'Run "npm install -g @github/copilot" or specify the full path in settings.';
 				throw new Error(
-					"GitHub Copilot CLI not found. Please ensure it is installed and in your PATH. " +
-					'Run "npm install -g @github/copilot-cli" or specify the path in settings.'
+					`GitHub Copilot CLI not found (tried: ${clientOptions.cliPath}). ${platformHint}`
 				);
 			}
 			if (errorMessage.includes("ECONNREFUSED") || errorMessage.toLowerCase().includes("connection refused")) {
