@@ -406,14 +406,40 @@ export class GitHubCopilotCliService {
 
 			/** Convert a raw CLI MCP entry to the SDK mcpServers format */
 			const toSdkConfig = (entry: {
-				type?: string; command?: string; args?: string[];
-				url?: string; tools?: string[];
+				type?: string;
+				command?: string;
+				args?: string[];
+				url?: string;
+				tools?: string[];
+				env?: Record<string, string>;
+				cwd?: string;
+				requestTimeoutMs?: number;
+				timeout?: number;
 			}): Record<string, unknown> => {
 				const tools = entry.tools ?? ["*"];
+				const timeoutRaw =
+					typeof entry.requestTimeoutMs === "number" ? entry.requestTimeoutMs : entry.timeout;
+				const timeout =
+					typeof timeoutRaw === "number" && Number.isFinite(timeoutRaw) && timeoutRaw > 0
+						? Math.floor(timeoutRaw)
+						: undefined;
 				if (entry.url || entry.type === "http" || entry.type === "sse") {
-					return { type: "http", url: entry.url, tools };
+					return { type: "http", url: entry.url, tools, timeout };
 				}
-				return { type: "local", command: entry.command, args: entry.args ?? [], tools };
+				const config: Record<string, unknown> = {
+					type: "local",
+					command: entry.command,
+					args: entry.args ?? [],
+					tools,
+					timeout,
+				};
+				if (entry.env && Object.keys(entry.env).length > 0) {
+					config.env = entry.env;
+				}
+				if (entry.cwd) {
+					config.cwd = entry.cwd;
+				}
+				return config;
 			};
 
 			/** Merge servers from a parsed mcpServers map */
