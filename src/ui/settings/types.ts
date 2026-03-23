@@ -51,6 +51,8 @@ export interface CopilotSession {
 	source?: "obsidian" | "telegram";
 	/** Telegram chat ID linked to this session (Pro only) */
 	telegramChatId?: string;
+	/** Name of the agent that was active in this session (restored on session load) */
+	agentName?: string;
 }
 
 // ============================================================================

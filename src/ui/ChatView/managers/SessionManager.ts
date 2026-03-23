@@ -24,6 +24,8 @@ export interface SessionManagerCallbacks {
 	onHeaderUpdate: () => void;
 	onSessionPanelHide: () => void;
 	onAgentReset: () => void;
+	onAgentRestore?: (agentName?: string) => void;
+	onGetAgentName?: () => string | undefined;
 	onClearUI: () => void;
 	onLoadMessages: () => Promise<void>;
 	onShowWelcome: () => void;
@@ -84,11 +86,53 @@ export class SessionManager {
 	}
 
 	/**
-	 * Create a new chat session.
-	 *
-	 * Creates a local session with a local ID and a fresh SDK conversation.
-	 * The SDK-assigned conversation ID is stored in `conversationId` — the
-	 * local `id` never touches the SDK.
+	 * Create a new chat — clears messages but keeps agent, tools, and ambient context.
+	 * Use when you want to switch topics without losing your current setup.
+	 */
+	async createNewChat(name?: string): Promise<void> {
+		// Save current session before creating new one
+		await this.saveCurrentSession();
+
+		// Do NOT reset agent or tools — they carry over
+
+		// Create new session
+		const now = Date.now();
+		const defaultName = `Chat ${new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+		const sessionId = `session-${now}`;
+		
+		// Create a fresh SDK conversation (no ID passed)
+		const conversationId = await this.githubCopilotCliService.createSession();
+
+		// Carry over agent and tool overrides from the previous session
+		const prevSession = this.getCurrentSession();
+		const newSession: CopilotSession = {
+			id: sessionId,
+			name: name || defaultName,
+			createdAt: now,
+			lastUsedAt: now,
+			archived: false,
+			messages: [],
+			conversationId: conversationId || undefined,
+			vaultId: this.vaultId,
+			agentName: prevSession?.agentName || this.callbacks.onGetAgentName?.(),
+			toolOverrides: prevSession?.toolOverrides ? { ...prevSession.toolOverrides } : undefined,
+		};
+
+		this.settings.sessions.push(newSession);
+		this.settings.activeSessionId = newSession.id;
+		await this.saveSettings();
+		
+		// Notify view to update UI
+		this.callbacks.onClearUI();
+		this.callbacks.onShowWelcome();
+		this.callbacks.onHeaderUpdate();
+		this.callbacks.onSessionCreated();
+		this.callbacks.onSessionPanelHide();
+	}
+
+	/**
+	 * Full session reset — clears conversation, context, agent, and tools.
+	 * Use when the model seems confused or stuck on stale context.
 	 */
 	async createNewSession(name?: string): Promise<void> {
 		// Save current session before creating new one
@@ -187,6 +231,11 @@ export class SessionManager {
 			}
 		}
 
+		// Restore agent from the loaded session
+		if (this.callbacks.onAgentRestore) {
+			this.callbacks.onAgentRestore(session.agentName);
+		}
+
 		// Notify view to update UI
 		this.callbacks.onClearUI();
 		await this.callbacks.onLoadMessages();
@@ -210,6 +259,10 @@ export class SessionManager {
 			if (session) {
 				session.messages = this.githubCopilotCliService.getMessageHistory();
 				session.lastUsedAt = Date.now();
+				// Save the active agent name so it can be restored
+				if (this.callbacks.onGetAgentName) {
+					session.agentName = this.callbacks.onGetAgentName() || undefined;
+				}
 				// Backfill conversationId for sessions that pre-date this field
 				if (!session.conversationId) {
 					const sdkId = this.githubCopilotCliService.getSessionId();
