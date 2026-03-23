@@ -891,6 +891,9 @@ export class BaseCopilotChatView extends ItemView {
 	}
 
 	async onClose(): Promise<void> {
+		// Persist session state (agent name, messages, etc.) before tearing down
+		await this.sessionManager.saveCurrentSession();
+
 		if (this.isExpanded) {
 			if (this.originalMiddlePanelVisible) await this.restoreMiddlePanel();
 			this.originalMiddlePanelVisible = null;
@@ -943,6 +946,11 @@ export class BaseCopilotChatView extends ItemView {
 							session.conversationId = convId;
 							await this.plugin.saveSettings();
 						}
+					}
+
+					// Restore the agent from the saved session
+					if (session?.agentName) {
+						this.toolbarManager.restoreAgent(session.agentName);
 					}
 				} else {
 					await this.githubCopilotCliService.createSession();

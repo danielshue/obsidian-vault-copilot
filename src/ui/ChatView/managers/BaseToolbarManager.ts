@@ -78,6 +78,8 @@ export interface BaseToolbarCallbacks {
 	getCurrentSession: () => CopilotSession | undefined;
 	/** Persist plugin settings */
 	saveSettings: () => Promise<void>;
+	/** Refresh the service config from current plugin settings (call before session recreation) */
+	refreshServiceConfig?: () => void;
 	/** Open the plugin settings tab */
 	openPluginSettings: () => void;
 	/** Open the tool picker modal */
@@ -148,6 +150,15 @@ export class BaseToolbarManager {
 	 */
 	getSelectedAgent(): unknown {
 		return null;
+	}
+
+	/**
+	 * Restore the agent from a saved session name.
+	 * Base: no-op. Pro overrides with cache lookup + runtime sync.
+	 * @param _agentName - The agent name to restore
+	 */
+	restoreAgent(_agentName?: string): void {
+		// Base: no-op — Pro overrides
 	}
 
 	// ─── DOM builders ──────────────────────────────────────────────────────────
@@ -354,6 +365,10 @@ export class BaseToolbarManager {
 					currentSession.toolOverrides = { enabled: enabledTools };
 				}
 				await this.callbacks.saveSettings();
+				// Refresh service config so buildTools() sees the new tool list
+				if (this.callbacks.refreshServiceConfig) {
+					this.callbacks.refreshServiceConfig();
+				}
 				if (currentSession) {
 					await this.service.createSession(currentSession.id);
 				}

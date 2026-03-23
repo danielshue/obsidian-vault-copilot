@@ -233,7 +233,10 @@ export class SessionManager {
 
 		// Restore agent from the loaded session
 		if (this.callbacks.onAgentRestore) {
-			this.callbacks.onAgentRestore(session.agentName);
+			const fallbackLastSelected = (
+				this.settings as BasicCopilotPluginSettings & { lastSelectedAgent?: string }
+			).lastSelectedAgent;
+			this.callbacks.onAgentRestore(session.agentName || fallbackLastSelected);
 		}
 
 		// Notify view to update UI
