@@ -485,10 +485,7 @@ export class BaseToolbarManager {
 			return;
 		}
 
-		// Phase 2: Show overflow button, then progressively hide items
-		this.overflowBtn.classList.add("is-visible");
-
-		// Items sorted by priority ascending (lowest priority hidden first)
+		// Phase 2: Progressively hide items by priority until toolbar fits
 		for (const item of this.collapsibleItems) {
 			item.el.classList.add("vc-toolbar-collapsed");
 			this.hiddenItems.add(item.type);
@@ -496,6 +493,11 @@ export class BaseToolbarManager {
 			if (this.toolbarLeftEl.scrollWidth <= this.toolbarLeftEl.clientWidth) {
 				break;
 			}
+		}
+
+		// Only show the overflow button if at least one item was hidden
+		if (this.hiddenItems.size > 0) {
+			this.overflowBtn.classList.add("is-visible");
 		}
 	}
 
@@ -505,6 +507,7 @@ export class BaseToolbarManager {
 	 * @param e - The mouse event from the overflow button click
 	 */
 	protected showOverflowMenu(e: MouseEvent): void {
+		if (this.hiddenItems.size === 0) return;
 		const menu = new Menu();
 		this.buildOverflowMenuItems(menu);
 		this.showMenuAnchoredToTrigger(menu, e, this.overflowBtn);
@@ -517,15 +520,19 @@ export class BaseToolbarManager {
 	 * @param menu - Obsidian Menu instance to populate
 	 */
 	protected buildOverflowMenuItems(menu: Menu): void {
-		menu.addItem((item) => {
-			item.setTitle("Open Model Picker").setIcon("cpu")
-				.onClick(() => this.openModelPickerMenu());
-		});
+		if (this.hiddenItems.has("model")) {
+			menu.addItem((item) => {
+				item.setTitle("Open Model Picker").setIcon("cpu")
+					.onClick(() => this.openModelPickerMenu());
+			});
+		}
 
-		menu.addItem((item) => {
-			item.setTitle("Configure Tools...").setIcon("sliders-horizontal")
-				.onClick(() => this.callbacks.openToolPicker());
-		});
+		if (this.hiddenItems.has("tool")) {
+			menu.addItem((item) => {
+				item.setTitle("Configure Tools...").setIcon("sliders-horizontal")
+					.onClick(() => this.callbacks.openToolPicker());
+			});
+		}
 	}
 
 	/**

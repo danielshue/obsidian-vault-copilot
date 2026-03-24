@@ -124,6 +124,7 @@
 	border-radius: 6px;
 	background: var(--background-primary) !important;
 	background-color: var(--background-primary) !important;
+	color: var(--text-normal);
 }
 
 .vc-directory-card .setting-item input[type="text"],

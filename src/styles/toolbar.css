@@ -49,12 +49,12 @@
 }
 
 /* Overflow "..." button — hidden until items overflow */
-.vc-toolbar-overflow-btn {
+.vc-toolbar-overflow-btn.vc-toolbar-btn {
 	display: none;
 	flex-shrink: 0;
 }
 
-.vc-toolbar-overflow-btn.is-visible {
+.vc-toolbar-overflow-btn.vc-toolbar-btn.is-visible {
 	display: inline-flex;
 }
 
