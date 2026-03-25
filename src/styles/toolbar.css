@@ -332,6 +332,12 @@
 	color: var(--interactive-accent-hover);
 }
 
+/* Agent picker menu — constrained height with scroll */
+.menu.vc-agent-menu {
+	max-height: 300px;
+	overflow-y: auto;
+}
+
 /* ============================================
    Approval Mode Selector (Pro only)
    ============================================ */
