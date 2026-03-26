@@ -452,6 +452,7 @@ export class GitHubCopilotCliService {
 				tools?: string[];
 				env?: Record<string, string>;
 				cwd?: string;
+				headers?: Record<string, string>;
 				requestTimeoutMs?: number;
 				timeout?: number;
 			}): Record<string, unknown> => {
@@ -463,7 +464,11 @@ export class GitHubCopilotCliService {
 						? Math.floor(timeoutRaw)
 						: undefined;
 				if (entry.url || entry.type === "http" || entry.type === "sse") {
-					return { type: "http", url: entry.url, tools, timeout };
+					const httpConfig: Record<string, unknown> = { type: "http", url: entry.url, tools, timeout };
+					if (entry.headers && Object.keys(entry.headers).length > 0) {
+						httpConfig.headers = entry.headers;
+					}
+					return httpConfig;
 				}
 				const config: Record<string, unknown> = {
 					type: "local",
