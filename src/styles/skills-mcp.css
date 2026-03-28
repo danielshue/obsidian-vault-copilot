@@ -635,6 +635,67 @@
 	color: #0078d4;
 }
 
+/* Auth status badge (inside type cell, after type badge) */
+.vc-mcp-auth-inline {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 4px;
+	flex-wrap: wrap;
+}
+
+/* Expiry countdown text */
+.vc-mcp-auth-expiry {
+	font-size: 0.75em;
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+.vc-mcp-auth-expiry-warn {
+	color: var(--text-warning, #fab387);
+}
+
+/* Sign In / Sign Out buttons */
+.vc-mcp-auth-action {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 2px 8px;
+	border-radius: 6px;
+	font-size: 0.75em;
+	font-weight: 500;
+	cursor: pointer;
+	border: none;
+	background: transparent;
+	white-space: nowrap;
+	line-height: 1.4;
+}
+.vc-mcp-auth-action svg {
+	width: 12px;
+	height: 12px;
+}
+
+/* Sign In — warm/gold accent */
+.vc-mcp-auth-signin {
+	background: color-mix(in srgb, #f9e2af 20%, transparent);
+	color: #f9e2af;
+}
+.vc-mcp-auth-signin:hover {
+	background: color-mix(in srgb, #f9e2af 35%, transparent);
+}
+.vc-mcp-auth-signin:disabled {
+	opacity: 0.5;
+	cursor: wait;
+}
+
+/* Sign Out — subtle muted link */
+.vc-mcp-auth-signout {
+	color: var(--text-muted);
+	padding: 2px 4px;
+}
+.vc-mcp-auth-signout:hover {
+	color: var(--text-normal);
+}
+
 /* Tool chips — full-width row below server info */
 .vc-mcp-tools-row td {
 	padding: 0 12px 10px !important;
@@ -804,6 +865,8 @@
 
 .vc-mcp-dot-ok  { background: var(--color-green, var(--text-success)); }
 .vc-mcp-dot-off { background: var(--text-faint); }
+
+.vc-dot-warn .vc-status-dot { background: var(--color-orange, #e3a008); }
 
 
 /* Status Item Updates */

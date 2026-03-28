@@ -31,7 +31,7 @@
 .vc-editor-tab-scroller {
   display: flex;
   align-items: stretch;
-  flex: 1;
+  flex: 0 1 auto;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -1322,4 +1322,20 @@ blockquote.vc-callout[data-callout="todo"]     { --callout-color: #60a5fa; }
 [data-theme="light"] .hljs ::selection,
 [data-theme="light"] .hljs::selection {
   background: rgba(0, 92, 197, 0.15);
+}
+
+/* ── Reading-mode CodeMirror code blocks ──────────────────────────────────── */
+
+.vc-reading-code-block {
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.vc-reading-code-block .cm-editor {
+  border-radius: 6px;
+}
+
+.vc-reading-code-block .cm-editor.cm-focused {
+  outline: none;
 }

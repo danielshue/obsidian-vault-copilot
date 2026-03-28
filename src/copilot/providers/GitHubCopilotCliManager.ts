@@ -445,6 +445,10 @@ export class GitHubCopilotCliManager {
 	 * Parses the `--model` choices segment from CLI help text and returns
 	 * sorted model names. If parsing fails, returns an empty list and error.
 	 *
+	 * @deprecated Use `GitHubCopilotCliService.listAvailableModels()` instead,
+	 * which queries the SDK's native `client.listModels()` RPC. This regex
+	 * parser is kept as a fallback when no SDK client is connected.
+	 *
 	 * @returns Object containing discovered model IDs and optional error
 	 *
 	 * @example

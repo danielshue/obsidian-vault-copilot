@@ -1,0 +1,64 @@
+/* Editor formatting toolbar — inline in the tab bar row */
+
+.vc-editor-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 0 4px;
+	flex: 1;
+	min-width: 0;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.vc-editor-toolbar::-webkit-scrollbar {
+	display: none;
+}
+
+.vc-editor-toolbar-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--text-muted, #969696);
+	cursor: pointer;
+	flex-shrink: 0;
+	transition: background 0.15s, color 0.15s;
+}
+
+.vc-editor-toolbar-btn:hover {
+	background: var(--background-modifier-hover, #2a2d2e);
+	color: var(--text-normal, #d4d4d4);
+}
+
+.vc-editor-toolbar-btn:active {
+	background: var(--background-modifier-active-hover, #37393b);
+	color: var(--text-normal, #d4d4d4);
+}
+
+.vc-editor-toolbar-btn svg {
+	width: 14px;
+	height: 14px;
+}
+
+.vc-editor-toolbar-sep {
+	width: 1px;
+	height: 16px;
+	margin: 0 4px;
+	background: var(--background-modifier-border, #3c3c3c);
+	flex-shrink: 0;
+}
+
+/* Light mode */
+[data-theme="light"] .vc-editor-toolbar-btn:hover {
+	background: var(--background-modifier-hover, #e8e8e8);
+}
+
+[data-theme="light"] .vc-editor-toolbar-sep {
+	background: var(--background-modifier-border, #e0e0e0);
+}

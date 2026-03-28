@@ -33,6 +33,8 @@ type StderrWriter = {
 	write: (chunk: StderrWriteChunk, encoding?: StderrWriteEncoding, callback?: StderrWriteCallback) => boolean;
 };
 
+let isInterceptorInstalled = false;
+
 /**
  * Intercept console and `process.stderr` writes to capture SDK diagnostics.
  *
@@ -59,6 +61,11 @@ type StderrWriter = {
  * @since 0.0.35
  */
 export function interceptConsoleLogs(): void {
+	if (isInterceptorInstalled) {
+		return;
+	}
+	isInterceptorInstalled = true;
+
 	const tracingService = getTracingService();
 
 	// Log that we're setting up interception
@@ -71,11 +78,6 @@ export function interceptConsoleLogs(): void {
 	const originalStderrWrite = stderrWriter.write.bind(process.stderr) as StderrWriter["write"];
 	stderrWriter.write = (chunk: StderrWriteChunk, encoding?: StderrWriteEncoding, callback?: StderrWriteCallback) => {
 		const message = typeof chunk === "string" ? chunk : chunk?.toString?.() || "";
-
-		// Debug: Log all stderr writes to see what we're getting
-		if (message.trim()) {
-			console.log("[Torqena DEBUG] stderr:", message.substring(0, 200));
-		}
 
 		// Capture all CLI subprocess logs (they have the [CLI subprocess] prefix)
 		if (message.includes("[CLI subprocess]")) {

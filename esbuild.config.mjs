@@ -110,7 +110,7 @@ const ctx = await esbuild.context({
 ...sharedOptions,
 entryPoints: ["src/main.ts", "src/styles/styles.css"],
 outdir: ".",
-// No plugins needed for standalone Basic - it has its own implementations
+plugins: [basicStubsPlugin],
 });
 
 if (prod) {

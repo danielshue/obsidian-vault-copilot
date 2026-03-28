@@ -183,3 +183,120 @@
 .vc-activity-item-expanded .vc-activity-item-detail {
 	display: block;
 }
+
+/* ── Meta section: intent + reasoning ── */
+.vc-activity-meta {
+	padding: 0 12px;
+}
+
+/* Intent line (current step description) */
+.vc-activity-intent {
+	font-size: 12px;
+	color: var(--text-muted);
+	padding: 2px 0 4px;
+	font-style: italic;
+}
+
+/* ── Reasoning section ── */
+.vc-activity-reasoning {
+	padding: 4px 0;
+}
+
+.vc-activity-reasoning-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	user-select: none;
+	font-size: 12px;
+	color: var(--text-muted);
+	border-radius: 4px;
+	padding: 2px 4px;
+}
+
+.vc-activity-reasoning-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-activity-reasoning-title {
+	font-weight: 600;
+	color: var(--text-normal);
+	flex-shrink: 0;
+}
+
+.vc-activity-reasoning-preview {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--text-faint);
+	font-size: 11px;
+}
+
+.vc-activity-reasoning-toggle {
+	flex-shrink: 0;
+	font-size: 11px;
+	color: var(--text-accent);
+	font-weight: 500;
+}
+
+.vc-activity-reasoning-body {
+	margin-top: 4px;
+	padding: 6px 8px;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	font-size: 12px;
+	color: var(--text-muted);
+	overflow-x: auto;
+}
+
+.vc-activity-reasoning-body pre {
+	margin: 0;
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-family: inherit;
+	font-size: inherit;
+}
+
+/* ── Progress indicator on running tool ── */
+.vc-activity-item-progress {
+	font-size: 11px;
+	color: var(--text-accent);
+	margin-left: 4px;
+	font-style: italic;
+	white-space: nowrap;
+}
+
+/* ── Partial result output ── */
+.vc-activity-item-partial {
+	display: none;
+	width: 100%;
+	margin-top: 4px;
+	padding: 6px 8px;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-muted);
+	overflow-x: auto;
+}
+
+.vc-activity-item-partial pre {
+	margin: 0;
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.vc-activity-item-expanded .vc-activity-item-partial {
+	display: block;
+}
+
+/* ── Usage footer ── */
+.vc-activity-usage {
+	padding: 4px 12px;
+	font-size: 11px;
+	color: var(--text-faint);
+	border-top: 1px solid var(--background-modifier-border);
+	margin-top: 4px;
+}

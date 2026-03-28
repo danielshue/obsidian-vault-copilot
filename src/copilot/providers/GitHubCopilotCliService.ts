@@ -1073,6 +1073,45 @@ export class GitHubCopilotCliService {
 	}
 
 	/**
+	 * Discover available models via the SDK's native `listModels()` RPC.
+	 *
+	 * Returns model IDs (sorted, codex-filtered) and billing multipliers in one call.
+	 * Prefer this over {@link GitHubCopilotCliManager.fetchAvailableModels} which
+	 * regex-parses `copilot help` output and is deprecated.
+	 *
+	 * @returns Model IDs and billing multiplier map, or empty results on failure
+	 *
+	 * @example
+	 * ```typescript
+	 * const { models, multipliers } = await service.listAvailableModels();
+	 * ```
+	 */
+	async listAvailableModels(): Promise<{ models: string[]; multipliers: Record<string, number>; error?: string }> {
+		try {
+			const infos = await this.listModels();
+			if (infos.length === 0) {
+				return { models: [], multipliers: {}, error: "No models returned from SDK" };
+			}
+
+			const multipliers: Record<string, number> = {};
+			const models = infos
+				.map(m => {
+					if (m.billingMultiplier !== undefined) multipliers[m.id] = m.billingMultiplier;
+					return m.id;
+				})
+				.filter(id => !id.toLowerCase().includes("codex"))
+				.sort();
+
+			console.log(`[Torqena] Discovered ${models.length} models via SDK listModels()`);
+			return { models, multipliers };
+		} catch (error) {
+			const msg = error instanceof Error ? error.message : String(error);
+			console.warn("[Torqena] SDK listAvailableModels failed:", msg);
+			return { models: [], multipliers: {}, error: msg };
+		}
+	}
+
+	/**
 	 * Compact the active session to free context window space.
 	 *
 	 * @returns Compaction result with tokens and messages freed

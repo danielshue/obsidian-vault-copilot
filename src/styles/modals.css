@@ -10,15 +10,16 @@
 .vc-add-http-mcp-modal {
 	width: 760px;
 	max-width: 90vw;
-	max-height: 85vh;
-	display: flex;
-	flex-direction: column;
+	max-height: 85vh !important;
+	display: flex !important;
+	flex-direction: column !important;
+	overflow: hidden !important;
 }
 
 .vc-profile-modal .modal-content,
 .vc-add-http-mcp-modal .modal-content {
 	padding: 1.5em 1.75em;
-	overflow-y: auto;
+	overflow-y: auto !important;
 	flex: 1 1 auto;
 }
 

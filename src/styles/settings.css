@@ -1533,7 +1533,14 @@
 
 .vc-section-icon {
 	margin-right: 8px;
-	display: inline-block;
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
+}
+
+.vc-section-icon svg {
+	width: 18px;
+	height: 18px;
 }
 
 /* Status Card */
@@ -2290,11 +2297,17 @@
 }
 
 .vc-sub-nav-icon {
-	font-size: 14px;
 	width: 18px;
-	text-align: center;
+	height: 18px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	flex-shrink: 0;
-	line-height: 1;
+}
+
+.vc-sub-nav-icon svg {
+	width: 14px;
+	height: 14px;
 }
 
 .vc-sub-nav-label {

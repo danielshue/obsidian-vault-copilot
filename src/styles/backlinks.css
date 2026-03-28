@@ -1,0 +1,301 @@
+/* Copyright (c) Dan Shue. All rights reserved. Licensed under the MIT License. */
+
+/* Inline Backlinks (bottom of note) */
+.vc-inline-backlinks {
+	margin-top: 32px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-inline-backlinks-header h6 {
+	margin: 0 0 8px 0;
+	font-size: 0.85em;
+	color: var(--text-muted);
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.vc-inline-backlinks-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.vc-inline-backlinks-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.vc-inline-backlinks-link {
+	color: var(--text-accent);
+	font-size: 0.85em;
+	cursor: pointer;
+	text-decoration: none;
+	padding: 2px 6px;
+	border-radius: 4px;
+	background: var(--background-secondary);
+}
+
+.vc-inline-backlinks-link:hover {
+	background: var(--background-modifier-hover);
+	text-decoration: underline;
+}
+
+.vc-inline-backlinks-count {
+	font-size: 0.75em;
+	color: var(--text-muted);
+}
+
+/* Backlinks View */
+.vc-backlinks-container {
+	padding: 8px 12px;
+	overflow-y: auto;
+	height: 100%;
+}
+
+.vc-backlinks-header h4 {
+	margin: 0 0 12px 0;
+	font-size: 1.1em;
+	font-weight: 600;
+	color: var(--text-normal);
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding-bottom: 8px;
+}
+
+.vc-backlinks-section {
+	margin-bottom: 16px;
+}
+
+.vc-backlinks-section-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	padding: 4px 0;
+	user-select: none;
+}
+
+.vc-backlinks-section-header:hover {
+	color: var(--text-accent);
+}
+
+.vc-backlinks-toggle {
+	font-size: 0.8em;
+	width: 12px;
+	color: var(--text-muted);
+}
+
+.vc-backlinks-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.vc-backlinks-icon svg {
+	width: 100%;
+	height: 100%;
+}
+
+.vc-backlinks-section-title {
+	font-size: 0.9em;
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.vc-backlinks-list {
+	margin-top: 4px;
+}
+
+.vc-backlinks-mention-card {
+	padding: 8px 10px;
+	margin: 4px 0;
+	border-radius: 6px;
+	background: var(--background-secondary);
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.vc-backlinks-mention-card:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-backlinks-mention-name {
+	font-weight: 500;
+	font-size: 0.9em;
+	color: var(--text-normal);
+}
+
+.vc-backlinks-mention-path {
+	font-size: 0.75em;
+	color: var(--text-muted);
+	margin-top: 2px;
+}
+
+.vc-backlinks-mention-count {
+	font-size: 0.75em;
+	color: var(--text-faint);
+	margin-top: 2px;
+}
+
+.vc-backlinks-empty,
+.vc-backlinks-empty-section {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	padding: 12px 0;
+	text-align: center;
+}
+
+/* Outgoing links items (used in both BacklinksView and OutgoingLinksView) */
+.vc-backlinks-outgoing-item,
+.vc-outgoing-links-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	margin: 2px 0;
+	border-radius: 4px;
+	font-size: 0.85em;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.vc-backlinks-outgoing-item:hover,
+.vc-outgoing-links-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-backlinks-link-icon,
+.vc-outgoing-links-link-icon {
+	font-size: 0.8em;
+	width: 16px;
+	text-align: center;
+}
+
+.vc-backlinks-resolved .vc-backlinks-link-icon,
+.vc-outgoing-links-resolved .vc-outgoing-links-link-icon {
+	color: var(--text-success, #4caf50);
+}
+
+.vc-backlinks-unresolved .vc-backlinks-link-icon,
+.vc-outgoing-links-unresolved .vc-outgoing-links-link-icon {
+	color: var(--text-error, #e53935);
+}
+
+.vc-backlinks-unresolved,
+.vc-outgoing-links-unresolved {
+	cursor: default;
+	opacity: 0.7;
+}
+
+/* Outgoing Links View */
+.vc-outgoing-links-container {
+	padding: 8px 12px;
+	overflow-y: auto;
+	height: 100%;
+}
+
+.vc-outgoing-links-header h4 {
+	margin: 0 0 12px 0;
+	font-size: 1.1em;
+	font-weight: 600;
+	color: var(--text-normal);
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding-bottom: 8px;
+}
+
+.vc-outgoing-links-section {
+	margin-bottom: 16px;
+}
+
+.vc-outgoing-links-section-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	padding: 4px 0;
+	user-select: none;
+}
+
+.vc-outgoing-links-section-header:hover {
+	color: var(--text-accent);
+}
+
+.vc-outgoing-links-toggle {
+	font-size: 0.8em;
+	width: 12px;
+	color: var(--text-muted);
+}
+
+.vc-outgoing-links-section-title {
+	font-size: 0.9em;
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.vc-outgoing-links-list {
+	margin-top: 4px;
+}
+
+.vc-outgoing-links-empty {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	padding: 12px 0;
+	text-align: center;
+}
+
+/* Broken Links Modal */
+.vc-broken-links-modal {
+	max-width: 600px;
+}
+
+.vc-broken-links-summary {
+	color: var(--text-muted);
+	margin-bottom: 16px;
+	font-size: 0.9em;
+}
+
+.vc-broken-links-file {
+	margin-bottom: 12px;
+}
+
+.vc-broken-links-file-header {
+	font-weight: 500;
+	margin-bottom: 4px;
+}
+
+.vc-broken-links-file-link {
+	color: var(--text-accent);
+	cursor: pointer;
+	text-decoration: none;
+}
+
+.vc-broken-links-file-link:hover {
+	text-decoration: underline;
+}
+
+.vc-broken-links-list {
+	list-style: none;
+	padding-left: 20px;
+	margin: 4px 0;
+}
+
+.vc-broken-links-item {
+	padding: 2px 0;
+	font-size: 0.85em;
+}
+
+.vc-broken-links-link-text {
+	color: var(--text-error, #e53935);
+	font-family: var(--font-monospace);
+}
+
+.vc-broken-links-count {
+	color: var(--text-muted);
+	font-size: 0.8em;
+}

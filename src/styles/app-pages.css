@@ -1,0 +1,210 @@
+/* ============================================================================
+ * App Page View — local dashboard iframe container
+ * ============================================================================ */
+
+.app-page-view-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+
+/* ── Toolbar ── */
+
+.app-page-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background-color: var(--background-primary);
+	min-height: 32px;
+	flex-shrink: 0;
+}
+
+.app-page-toolbar-title {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.app-page-toolbar-spacer {
+	flex: 1;
+}
+
+.app-page-toolbar-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	border-radius: var(--radius-s);
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: background-color 100ms ease, color 100ms ease;
+}
+
+.app-page-toolbar-btn:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.app-page-toolbar-btn:active {
+	background-color: var(--background-modifier-active-hover);
+}
+
+/* ── Iframe wrapper ── */
+
+.app-page-iframe-wrapper {
+	flex: 1;
+	overflow: hidden;
+	position: relative;
+}
+
+.app-page-iframe {
+	width: 100%;
+	height: 100%;
+	border: none;
+	background-color: var(--background-primary);
+}
+
+/* ── Gallery ── */
+
+.app-page-gallery {
+	padding: 16px;
+	overflow-y: auto;
+	height: 100%;
+}
+
+.app-page-gallery-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 16px;
+}
+
+.app-page-gallery-header h3 {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+}
+
+.app-page-gallery-refresh {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	border-radius: var(--radius-s);
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
+	box-shadow: none;
+	transition: background-color 120ms ease, color 120ms ease;
+}
+
+.app-page-gallery-refresh:hover,
+.app-page-gallery-refresh:focus-visible {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.app-page-gallery-refresh:active {
+	background-color: var(--background-modifier-active-hover);
+}
+
+.app-page-gallery-refresh svg {
+	width: 16px;
+	height: 16px;
+}
+
+.app-page-gallery-refresh.is-refreshing svg {
+	animation: app-page-refresh-spin 700ms linear infinite;
+}
+
+@keyframes app-page-refresh-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.app-page-gallery-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+	gap: 12px;
+}
+
+.app-page-gallery-card {
+	padding: 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	cursor: pointer;
+	transition: background-color 100ms ease, box-shadow 100ms ease;
+	background-color: var(--background-primary);
+}
+
+.app-page-gallery-card:hover {
+	background-color: var(--background-modifier-hover);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.app-page-gallery-card-icon {
+	font-size: 24px;
+	margin-bottom: 8px;
+}
+
+.app-page-gallery-card-title {
+	font-weight: var(--font-semibold);
+	margin-bottom: 4px;
+}
+
+.app-page-gallery-card-desc {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	margin-bottom: 8px;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.app-page-gallery-card-footer {
+	display: flex;
+	justify-content: space-between;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+.app-page-gallery-empty {
+	text-align: center;
+	padding: 48px 16px;
+	color: var(--text-muted);
+}
+
+.app-page-gallery-hint {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+/* ── Explorer: App Page folder icon ── */
+
+.vc-vault-explorer-row.is-app-page .vc-vault-explorer-icon {
+	color: var(--interactive-accent);
+}
+
+.vc-vault-explorer-row.is-app-page .vc-vault-explorer-label {
+	font-weight: var(--font-semibold);
+}

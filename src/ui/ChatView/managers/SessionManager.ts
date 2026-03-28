@@ -271,6 +271,9 @@ export class SessionManager {
 					const sdkId = this.githubCopilotCliService.getSessionId();
 					if (sdkId) {
 						session.conversationId = sdkId;
+						console.log("[SessionManager] ✅ Backfilled conversationId:", sdkId, "for session:", activeSessionId);
+					} else {
+						console.warn("[SessionManager] ⚠️ Missing conversationId on save - SDK session may not be created yet");
 					}
 				}
 				await this.saveSettings();
@@ -296,6 +299,9 @@ export class SessionManager {
 					if (sdkId) {
 						existingSession.conversationId = sdkId;
 						await this.saveSettings();
+						console.log("[SessionManager] ✅ Backfilled conversationId:", sdkId, "for existing session:", existingSession.id);
+					} else {
+						console.warn("[SessionManager] ⚠️ Missing conversationId - SDK session not ready yet");
 					}
 				}
 				return;
@@ -324,7 +330,7 @@ export class SessionManager {
 		await this.saveSettings();
 		
 		this.callbacks.onHeaderUpdate();
-		console.log("[VC] Created new session:", newSession.name, "conversationId:", conversationId ?? "(none)");
+		console.log("[SessionManager] ✅ Created new session:", newSession.name, "conversationId:", conversationId ?? "(missing - will backfill)");
 	}
 
 	/**

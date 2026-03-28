@@ -338,6 +338,92 @@
 	overflow-y: auto;
 }
 
+.menu.vc-agent-menu .menu-item {
+	padding: 4px 10px;
+}
+
+.menu.vc-agent-menu .menu-item-title {
+	font-size: 13px;
+}
+
+.menu.vc-agent-menu .menu-separator {
+	margin: 4px 0;
+	width: 100%;
+}
+
+.menu.vc-agent-menu .menu-item.vc-agent-menu-controls {
+	padding: 4px 10px;
+	cursor: default;
+	pointer-events: auto;
+}
+
+.menu.vc-agent-menu .menu-item.vc-agent-menu-controls .menu-item-title {
+	width: 100%;
+}
+
+.vc-agent-menu-controls-row {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	pointer-events: auto;
+}
+
+.vc-agent-menu-control-btn {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	margin: 0;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 4px;
+}
+
+.vc-agent-menu-control-btn:hover,
+.vc-agent-menu-control-btn:focus,
+.vc-agent-menu-control-btn:active {
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-normal);
+	outline: none;
+}
+
+.vc-agent-menu-control-btn.is-active {
+	color: var(--interactive-accent);
+}
+
+/* Category section header styled like context picker headers */
+.menu.vc-agent-menu .menu-item.vc-agent-menu-category-header {
+	padding: 6px 10px 4px;
+	cursor: default;
+	opacity: 1;
+	pointer-events: none;
+	position: relative;
+}
+
+.menu.vc-agent-menu .menu-item.vc-agent-menu-category-header .menu-item-title {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: var(--text-muted);
+	padding-bottom: 4px;
+}
+
+.menu.vc-agent-menu .menu-item.vc-agent-menu-category-header::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
 /* ============================================
    Approval Mode Selector (Pro only)
    ============================================ */
