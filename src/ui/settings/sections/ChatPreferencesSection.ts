@@ -241,21 +241,6 @@ export class ChatPreferencesSection {
 					});
 			});
 
-		// Ribbon icon toggle
-		new Setting(settingsCard)
-			.setName("Show toolbar icon")
-			.setDesc("Show Torqena icon in the left sidebar ribbon")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.ctx.plugin.settings.showRibbonIcon ?? true)
-					.onChange(async (value) => {
-						this.ctx.plugin.settings.showRibbonIcon = value;
-						await this.ctx.plugin.saveSettings();
-						const plugin = this.ctx.plugin as unknown as { updateRibbonIcon?: () => void };
-						plugin.updateRibbonIcon?.();
-					})
-			);
-
 		// Status bar toggle
 		new Setting(settingsCard)
 			.setName("Status Bar Indicator")

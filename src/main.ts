@@ -49,8 +49,6 @@ export default class BasicCopilotPlugin extends Plugin {
 	cliManager: GitHubCopilotCliManager | null = null;
 	/** Extension API for plugin registration */
 	extensionAPI!: VaultCopilotExtensionAPIImpl;
-	/** Ribbon icon element for show/hide toggling */
-	private ribbonIconEl: HTMLElement | null = null;
 	/** Status bar item element */
 	private statusBarEl: HTMLElement | null = null;
 	/**
@@ -119,12 +117,6 @@ export default class BasicCopilotPlugin extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new BasicSettingTab(this.app, this, this.extensionAPI.settingsRegistry));
 
-		// Add ribbon icon for chat (always register so Obsidian tracks it, then apply visibility)
-		this.ribbonIconEl = this.addRibbonIcon("message-circle", "Open Torqena chat", () => {
-			this.activateChatView();
-		});
-		this.updateRibbonIcon();
-
 		// Add status bar item
 		this.updateStatusBar();
 
@@ -165,16 +157,6 @@ export default class BasicCopilotPlugin extends Plugin {
 	 */
 	get api(): VaultCopilotExtensionAPIImpl {
 		return this.extensionAPI;
-	}
-
-	/**
-	 * Apply current `showRibbonIcon` setting to the ribbon element.
-	 * Called on load and whenever the setting is toggled.
-	 */
-	updateRibbonIcon(): void {
-		if (!this.ribbonIconEl) return;
-		const show = this.settings.showRibbonIcon ?? true;
-		this.ribbonIconEl.toggleClass('vc-ribbon-hidden', !show);
 	}
 
 	/**
