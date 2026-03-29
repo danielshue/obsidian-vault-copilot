@@ -6,21 +6,35 @@
 import { exec } from "child_process";
 import { Platform } from "obsidian";
 
+/**
+ * Snapshot of Foundry Local CLI availability.
+ */
 export interface FoundryLocalCliStatus {
 	installed: boolean;
 	version?: string;
 	error?: string;
 }
 
+/**
+ * Manages Foundry Local CLI detection, model cache discovery, and install actions.
+ */
 export class FoundryLocalManager {
 	private cachedStatus: FoundryLocalCliStatus | null = null;
 	private cachedModels: string[] | null = null;
 
+	/**
+	 * Clears cached CLI/model status so the next read forces a fresh check.
+	 */
 	invalidateCache(): void {
 		this.cachedStatus = null;
 		this.cachedModels = null;
 	}
 
+	/**
+	 * Returns Foundry Local install status.
+	 *
+	 * @param forceRefresh - When true, bypasses cached results.
+	 */
 	async getStatus(forceRefresh = false): Promise<FoundryLocalCliStatus> {
 		if (this.cachedStatus && !forceRefresh) {
 			return this.cachedStatus;
@@ -31,6 +45,9 @@ export class FoundryLocalManager {
 		return status;
 	}
 
+	/**
+	 * Executes `foundry --version` and parses installation/version state.
+	 */
 	private async checkInstalled(): Promise<FoundryLocalCliStatus> {
 		return new Promise((resolve) => {
 			exec("foundry --version", { timeout: 10000 }, (error, stdout, stderr) => {
@@ -54,6 +71,11 @@ export class FoundryLocalManager {
 		});
 	}
 
+	/**
+	 * Lists locally cached Foundry models using `foundry cache list`.
+	 *
+	 * @param forceRefresh - When true, bypasses cached model list.
+	 */
 	async listCachedModels(forceRefresh = false): Promise<{ models: string[]; error?: string }> {
 		if (this.cachedModels && !forceRefresh) {
 			return { models: this.cachedModels };
@@ -73,6 +95,9 @@ export class FoundryLocalManager {
 		});
 	}
 
+	/**
+	 * Returns platform-specific install command metadata for Foundry Local.
+	 */
 	getInstallCommand(): { command: string; description: string; url: string } {
 		if (Platform.isWin) {
 			return {
@@ -97,6 +122,11 @@ export class FoundryLocalManager {
 		};
 	}
 
+	/**
+	 * Attempts to install Foundry Local CLI using the platform install command.
+	 *
+	 * @returns True when install command exits successfully.
+	 */
 	async installCli(): Promise<boolean> {
 		const installInfo = this.getInstallCommand();
 		if (!installInfo.command) return false;
@@ -113,6 +143,30 @@ export class FoundryLocalManager {
 		});
 	}
 
+	/**
+	 * Downloads a Foundry model by ID (for example: `fara-7b`, `phi-4`).
+	 *
+	 * @returns True when the download command exits successfully.
+	 */
+	async downloadModel(modelId: string): Promise<boolean> {
+		const trimmed = modelId.trim();
+		if (!trimmed) return false;
+
+		return new Promise((resolve) => {
+			exec(`foundry model download ${trimmed}`, { timeout: 30 * 60 * 1000 }, (error) => {
+				if (error) {
+					resolve(false);
+					return;
+				}
+				this.cachedModels = null;
+				resolve(true);
+			});
+		});
+	}
+
+	/**
+	 * Parses model names from `foundry cache list` output into normalized IDs.
+	 */
 	private static parseCachedModels(output: string): string[] {
 		const lines = output
 			.split(/\r?\n/)

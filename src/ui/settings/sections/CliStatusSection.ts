@@ -5,7 +5,7 @@
 
 /**
  * @module CliStatusSection
- * @description Settings section that shows GitHub Copilot CLI connection state.
+ * @description Settings section that shows GitHub Copilot and Foundry Local CLI connection state.
  *
  * @see {@link GitHubCopilotCliManager}
  * @since 0.0.1
@@ -30,6 +30,7 @@ export class CliStatusSection {
 	private lastCliStatus: CliStatus | null = null;
 	private installingCopilot = false;
 	private installingFoundry = false;
+	private downloadingModels = new Set<string>();
 	private foundryStatus: {
 		loading: boolean;
 		checked: boolean;
@@ -159,6 +160,13 @@ export class CliStatusSection {
 				? "Installing..."
 				: (status.installed ? `v${status.version || "unknown"}` : "Not installed"),
 		});
+		if (!status.installed) {
+			this.renderStatusCardAction(cliCard, {
+				label: this.installingCopilot ? "Installing..." : "Install CLI",
+				running: this.installingCopilot,
+				onClick: (button) => void this.installCopilotCli(button),
+			});
+		}
 
 		const foundryCard = statusGrid.createDiv({ cls: "vc-status-item" });
 		const foundryState = this.foundryStatus.loading || !this.foundryStatus.checked
@@ -173,6 +181,16 @@ export class CliStatusSection {
 				? "Checking..."
 				: (this.foundryStatus.installed ? `v${this.foundryStatus.version || "unknown"}` : "Not installed")),
 		});
+		if (!this.foundryStatus.loading && this.foundryStatus.checked && !this.foundryStatus.installed) {
+			const installInfo = this.foundryManager.getInstallCommand();
+			if (installInfo.command) {
+				this.renderStatusCardAction(foundryCard, {
+					label: this.installingFoundry ? "Installing..." : "Install CLI",
+					running: this.installingFoundry,
+					onClick: (button) => void this.installFoundryCli(button),
+				});
+			}
+		}
 
 		const foundryModelStates = this.getRequiredFoundryModelStates();
 		for (const model of foundryModelStates) {
@@ -191,6 +209,14 @@ export class CliStatusSection {
 						? (model.installed ? "Downloaded" : "Not downloaded")
 						: "Install Foundry Local first"),
 			});
+			if (this.foundryStatus.checked && this.foundryStatus.installed && !model.installed) {
+				const isDownloading = this.downloadingModels.has(model.model);
+				this.renderStatusCardAction(modelCard, {
+					label: isDownloading ? "Downloading..." : "Download Model",
+					running: isDownloading,
+					onClick: (button) => void this.downloadFoundryModel(model.model, button),
+				});
+			}
 		}
 
 		if (!status.installed) {
@@ -225,6 +251,9 @@ export class CliStatusSection {
 		textEl.createEl("span", { text: opts.detail, cls: "vc-status-detail" });
 	}
 
+	/**
+	 * Returns icon markup for status states shown in the status cards.
+	 */
 	private getStatusIcon(state: "ok" | "error" | "pending"): string {
 		if (state === "ok") {
 			return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
@@ -272,15 +301,13 @@ export class CliStatusSection {
 		});
 
 		const btnRow = actionsEl.createDiv({ cls: "vc-btn-row" });
-		const installBtn = btnRow.createEl("button", { text: "Install CLI", cls: "vc-btn-secondary vc-install-btn" });
-		installBtn.addEventListener("click", () => {
-			void this.installCopilotCli(installBtn);
-		});
-
 		const docsLink = btnRow.createEl("a", { text: "View Guide", cls: "vc-btn-link", href: installInfo.url });
 		docsLink.setAttr("target", "_blank");
 	}
 
+	/**
+	 * Renders Foundry Local CLI install command and setup link.
+	 */
 	private renderFoundryInstallActions(container: HTMLElement): void {
 		const actionsEl = container.createDiv({ cls: "vc-status-actions" });
 		const installInfo = this.foundryManager.getInstallCommand();
@@ -299,16 +326,13 @@ export class CliStatusSection {
 		}
 
 		const btnRow = actionsEl.createDiv({ cls: "vc-btn-row" });
-		if (installInfo.command) {
-			const installBtn = btnRow.createEl("button", { text: "Install CLI", cls: "vc-btn-secondary vc-install-btn" });
-			installBtn.addEventListener("click", () => {
-				void this.installFoundryCli(installBtn);
-			});
-		}
 		const docsLink = btnRow.createEl("a", { text: "Foundry Setup Guide", cls: "vc-btn-link", href: installInfo.url });
 		docsLink.setAttr("target", "_blank");
 	}
 
+	/**
+	 * Renders download commands for required Foundry models that are not cached yet.
+	 */
 	private renderFoundryModelActions(
 		container: HTMLElement,
 		models: Array<{ model: string; displayName: string; installed: boolean }>
@@ -359,6 +383,9 @@ export class CliStatusSection {
 		`;
 	}
 
+	/**
+	 * Refreshes Foundry CLI/model state and triggers status re-render using last CLI snapshot.
+	 */
 	private async refreshFoundryStatus(): Promise<void> {
 		if (this.foundryStatus.loading) return;
 		this.foundryStatus.loading = true;
@@ -397,6 +424,9 @@ export class CliStatusSection {
 		}
 	}
 
+	/**
+	 * Runs GitHub Copilot CLI install flow and updates UI install state.
+	 */
 	private async installCopilotCli(button: HTMLButtonElement): Promise<void> {
 		if (this.installingCopilot) return;
 		this.installingCopilot = true;
@@ -419,6 +449,9 @@ export class CliStatusSection {
 		}
 	}
 
+	/**
+	 * Runs Foundry Local install flow and refreshes Foundry status cards.
+	 */
 	private async installFoundryCli(button: HTMLButtonElement): Promise<void> {
 		if (this.installingFoundry) return;
 		this.installingFoundry = true;
@@ -441,6 +474,49 @@ export class CliStatusSection {
 		}
 	}
 
+	/**
+	 * Downloads a required Foundry model and refreshes model status cards.
+	 */
+	private async downloadFoundryModel(modelId: string, button: HTMLButtonElement): Promise<void> {
+		if (this.downloadingModels.has(modelId)) return;
+		this.downloadingModels.add(modelId);
+		const originalLabel = button.textContent ?? "Download Model";
+		button.addClass("vc-spinning");
+		button.disabled = true;
+		button.textContent = "Downloading...";
+		try {
+			await this.foundryManager.downloadModel(modelId);
+			await this.refreshFoundryStatus();
+		} finally {
+			this.downloadingModels.delete(modelId);
+			button.removeClass("vc-spinning");
+			button.disabled = false;
+			button.textContent = originalLabel;
+			if (this.lastCliStatus) {
+				this.renderStatusDisplay(this.lastCliStatus);
+			}
+		}
+	}
+
+	/**
+	 * Renders an inline status-card action button with install/download animation state.
+	 */
+	private renderStatusCardAction(
+		container: HTMLElement,
+		opts: { label: string; running: boolean; onClick: (button: HTMLButtonElement) => void }
+	): void {
+		const actionWrap = container.createDiv({ cls: "vc-status-card-action" });
+		const button = actionWrap.createEl("button", { text: opts.label, cls: "vc-btn-secondary vc-install-btn" });
+		if (opts.running) {
+			button.addClass("vc-spinning");
+			button.disabled = true;
+		}
+		button.addEventListener("click", () => opts.onClick(button));
+	}
+
+	/**
+	 * Maps required Foundry model IDs to UI display names and install state.
+	 */
 	private getRequiredFoundryModelStates(): Array<{ model: string; displayName: string; installed: boolean }> {
 		const installedSet = new Set(this.foundryStatus.cachedModels.map((model) => model.toLowerCase()));
 

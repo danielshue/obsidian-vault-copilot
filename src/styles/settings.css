@@ -1731,6 +1731,10 @@
 	gap: 8px;
 }
 
+.vc-status-card-action {
+	margin-top: 10px;
+}
+
 .vc-install-btn.vc-spinning::before {
 	content: "";
 	width: 12px;
