@@ -100,7 +100,6 @@
 
 /* Session Panel Wrapper */
 .vc-session-panel-wrapper {
-	width: 280px;
 	min-width: 200px;
 	max-width: 50%;
 	border-top: 1px solid var(--background-modifier-border);

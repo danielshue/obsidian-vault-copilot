@@ -18,10 +18,18 @@
 
 .vc-message-content {
 	color: var(--text-normal);
+	font-size: 13px;
 	line-height: 1.5;
 	user-select: text;
 	-webkit-user-select: text;
 	cursor: text;
+}
+
+.vc-message-content p,
+.vc-message-content li,
+.vc-message-content blockquote {
+	font-size: 13px;
+	line-height: 1.5;
 }
 
 .vc-message-content a {

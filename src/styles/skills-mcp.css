@@ -19,6 +19,25 @@
 	color: var(--text-normal);
 }
 
+.vc-skills-subsection details > summary {
+	margin: 0 0 12px 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+	cursor: pointer;
+	list-style: revert;
+	user-select: none;
+}
+
+.vc-skills-subsection details > summary:hover {
+	color: var(--text-accent);
+}
+
+.vc-skill-category {
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
 /* Empty State */
 .vc-empty-state {
 	padding: 16px;
@@ -104,22 +123,23 @@
 
 .vc-skills-table--four-col th:nth-child(1),
 .vc-skills-table--four-col td:nth-child(1) {
-	width: 18%;
+	width: 22%;
 }
 
 .vc-skills-table--four-col th:nth-child(2),
 .vc-skills-table--four-col td:nth-child(2) {
-	width: 52%;
+	width: 16%;
 }
 
 .vc-skills-table--four-col th:nth-child(3),
 .vc-skills-table--four-col td:nth-child(3) {
-	width: 20%;
+	width: 54%;
 }
 
 .vc-skills-table--four-col th:nth-child(4),
 .vc-skills-table--four-col td:nth-child(4) {
-	width: 10%;
+	width: 8%;
+	text-align: center;
 }
 
 .vc-skills-table thead {

@@ -1,0 +1,108 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Dan Shue. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/**
+ * Icon Picker Modal
+ * Searchable grid of Lucide icons (core + lab) for app pages and other customization.
+ */
+
+/* Override Obsidian's default modal sizing to allow the full icon grid to scroll */
+.vc-icon-picker-modal.modal {
+	width: 580px !important;
+	max-width: 90vw !important;
+	height: 85vh !important;
+	max-height: 85vh !important;
+}
+
+.vc-icon-picker-modal .modal-content {
+	overflow: hidden !important;
+	display: flex !important;
+	flex-direction: column !important;
+	height: 100% !important;
+	max-height: none !important;
+	padding: 12px !important;
+}
+
+.vc-icon-picker-search {
+	width: 100%;
+	padding: 8px 12px;
+	margin-bottom: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 14px;
+	flex-shrink: 0;
+}
+
+.vc-icon-picker-search:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.vc-icon-picker-count {
+	margin-bottom: 8px;
+	padding: 4px 8px;
+	text-align: center;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.vc-icon-picker-grid {
+	display: grid;
+	grid-template-columns: repeat(10, 1fr);
+	gap: 4px;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 4px;
+	/* Fill remaining space in the flex column */
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.vc-icon-picker-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.vc-icon-picker-btn:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+.vc-icon-picker-btn:active {
+	transform: scale(0.95);
+}
+
+.vc-icon-picker-btn.is-selected {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.vc-icon-picker-btn svg {
+	width: 20px;
+	height: 20px;
+}
+
+.vc-icon-picker-empty {
+	grid-column: 1 / -1;
+	padding: 40px 20px;
+	text-align: center;
+	color: var(--text-muted);
+	font-size: 14px;
+}
+

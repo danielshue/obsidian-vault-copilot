@@ -591,3 +591,19 @@
 	50% { opacity: 0.5; }
 }
 
+/* RAG Toggle */
+.vc-rag-toggle {
+	font-size: var(--font-ui-small);
+	white-space: nowrap;
+	opacity: 0.6;
+	transition: opacity 0.15s ease;
+}
+
+.vc-rag-toggle.active {
+	opacity: 1;
+	color: var(--text-accent);
+}
+
+.vc-rag-toggle:hover {
+	opacity: 1;
+}

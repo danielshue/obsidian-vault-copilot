@@ -69,6 +69,24 @@
 	position: relative;
 }
 
+.vc-ralph-monitor-card {
+	margin-bottom: 12px;
+}
+
+.vc-ralph-monitor-card .setting-item {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-ralph-monitor-card .setting-item:first-child {
+	border-top: none;
+}
+
+.vc-ralph-monitor-status {
+	margin-top: 8px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
 .vc-automations-loading-overlay {
 	position: absolute;
 	inset: 0;

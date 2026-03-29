@@ -1,0 +1,107 @@
+/* ── RAG Source Attribution ── */
+.vc-rag-sources {
+	margin: 4px 12px 8px;
+	font-size: 12px;
+}
+
+.vc-rag-sources details {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	overflow: hidden;
+}
+
+.vc-rag-sources-toggle {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 8px;
+	cursor: pointer;
+	user-select: none;
+	color: var(--text-muted);
+	font-size: 11px;
+	font-weight: 500;
+	background: var(--background-secondary);
+}
+
+.vc-rag-sources-toggle:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.vc-rag-sources-list {
+	list-style: none;
+	margin: 0;
+	padding: 4px 8px;
+}
+
+.vc-rag-sources-list li {
+	display: flex;
+	align-items: baseline;
+	gap: 4px;
+	padding: 2px 0;
+	line-height: 1.4;
+}
+
+.vc-rag-source-link {
+	color: var(--text-accent);
+	cursor: pointer;
+	text-decoration: none;
+	font-size: 11px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.vc-rag-source-link:hover {
+	text-decoration: underline;
+}
+
+.vc-rag-source-score {
+	color: var(--text-faint);
+	font-size: 10px;
+	flex-shrink: 0;
+}
+
+/* ── Embedding Settings Section ── */
+.vc-embedding-status {
+	padding: 8px 12px;
+	margin: 8px 0;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.vc-embedding-status-text {
+	margin: 0;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+/* ── Status Bar Indexing Indicator ── */
+.vc-indexing-status {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11px;
+	color: var(--text-muted);
+	padding: 0 6px;
+	cursor: default;
+}
+
+.vc-indexing-spinner {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border: 1.5px solid var(--text-faint);
+	border-top-color: var(--interactive-accent);
+	border-radius: 50%;
+	animation: vc-spin 0.8s linear infinite;
+}
+
+@keyframes vc-spin {
+	to { transform: rotate(360deg); }
+}
+
+.vc-indexing-label {
+	white-space: nowrap;
+}

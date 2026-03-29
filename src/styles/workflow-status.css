@@ -293,6 +293,18 @@
 	font-style: italic;
 }
 
+.vc-approval-timeout {
+	font-size: 0.78em;
+	color: var(--text-warning);
+	margin-left: auto;
+	white-space: nowrap;
+}
+
+.vc-approval-expired {
+	color: var(--text-error);
+	font-weight: 600;
+}
+
 .vc-approval-message {
 	font-size: 0.9em;
 	color: var(--text-normal);

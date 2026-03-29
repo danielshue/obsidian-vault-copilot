@@ -512,6 +512,26 @@
 	margin-top: 2px;
 }
 
+/* Early access channel appears as a nested child row under its toggle */
+.vc-general-early-access-section {
+	display: flex;
+	flex-direction: column;
+}
+
+.vc-general-early-access-channel-container {
+	margin: -4px 0 6px;
+	padding-left: 16px;
+	border-left: 2px solid var(--background-modifier-border);
+}
+
+.vc-general-early-access-channel-container .setting-item {
+	padding: 10px 0 12px;
+}
+
+.vc-general-early-access-channel-container .setting-item-name {
+	font-size: 0.95em;
+}
+
 /* Editor section matches Obsidian-like grouped setting cards */
 .vc-editor-section .vc-shell-subsection {
 	margin-top: 18px;
@@ -1731,10 +1751,6 @@
 	gap: 8px;
 }
 
-.vc-status-card-action {
-	margin-top: 10px;
-}
-
 .vc-install-btn.vc-spinning::before {
 	content: "";
 	width: 12px;
@@ -2019,6 +2035,10 @@
 	background: linear-gradient(135deg, #6c5ce7 0%, #4a3eb1 100%);
 }
 
+.vc-profile-card__icon[data-type="torqena-cloud"] {
+	background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+}
+
 .vc-profile-card__body {
 	flex: 1;
 	min-width: 0;
@@ -2067,6 +2087,11 @@
 .vc-profile-card__badge[data-type="local"] {
 	background: color-mix(in srgb, #6c5ce7 15%, transparent);
 	color: #6c5ce7;
+}
+
+.vc-profile-card__badge[data-type="torqena-cloud"] {
+	background: color-mix(in srgb, #e67e22 15%, transparent);
+	color: #e67e22;
 }
 
 .vc-profile-card__detail {
@@ -2418,7 +2443,7 @@
 	border-radius: 4px;
 	margin: 1px 4px;
 	color: var(--text-muted);
-	font-size: 13px;
+	font-size: 14px;
 	line-height: 1.4;
 	transition: background 80ms ease, color 80ms ease;
 }
@@ -2436,11 +2461,11 @@
 /* Group label inside the shell sidebar (e.g. "Application", "Vault Copilot") */
 .vc-shell-nav-group-header {
 	padding: 12px 12px 4px 4px;
-	font-size: 10px;
-	font-weight: 700;
-	letter-spacing: 0.08em;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
 	text-transform: uppercase;
-	color: var(--text-faint);
+	color: color-mix(in srgb, var(--text-accent) 40%, var(--text-muted));
 	user-select: none;
 }
 
