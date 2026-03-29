@@ -14,16 +14,35 @@
 import { setIcon } from "obsidian";
 import { SettingsContext } from "./SettingsContext";
 import { GitHubCopilotCliManager, CliStatus } from "../../../copilot/providers/GitHubCopilotCliManager";
+import { FoundryLocalManager } from "../../../copilot/providers/FoundryLocalManager";
 
 /**
  * Renders CLI installation and connection status with refresh controls.
  */
 export class CliStatusSection {
+	private static readonly REQUIRED_FOUNDRY_MODELS = ["fara-7b", "phi-4"];
 	private ctx: SettingsContext;
 	private manager: GitHubCopilotCliManager;
+	private foundryManager: FoundryLocalManager;
 	private onStatusUpdated: (status: CliStatus) => void;
 	private checkStatusAsync: () => Promise<void>;
 	private statusContainer: HTMLElement | null = null;
+	private lastCliStatus: CliStatus | null = null;
+	private installingCopilot = false;
+	private installingFoundry = false;
+	private foundryStatus: {
+		loading: boolean;
+		checked: boolean;
+		installed: boolean;
+		version?: string;
+		error?: string;
+		cachedModels: string[];
+	} = {
+		loading: false,
+		checked: false,
+		installed: false,
+		cachedModels: [],
+	};
 
 	/**
 	 * @param ctx - Shared settings context.
@@ -39,6 +58,7 @@ export class CliStatusSection {
 	) {
 		this.ctx = ctx;
 		this.manager = manager;
+		this.foundryManager = new FoundryLocalManager();
 		this.onStatusUpdated = onStatusUpdated;
 		this.checkStatusAsync = checkStatusAsync;
 	}
@@ -68,13 +88,20 @@ export class CliStatusSection {
 		refreshBtn.addEventListener("click", () => {
 			refreshBtn.addClass("vc-spinning");
 			this.manager.invalidateCache();
+			this.foundryManager.invalidateCache();
+			this.foundryStatus = {
+				loading: false,
+				checked: false,
+				installed: false,
+				cachedModels: [],
+			};
 			this.checkStatusAsync().finally(() => {
 				refreshBtn.removeClass("vc-spinning");
 			});
 		});
 
 		section.createEl("p", {
-			text: "Check GitHub Copilot CLI availability and connection readiness for this vault.",
+			text: "Check GitHub Copilot CLI and Microsoft Foundry Local installation status, including required model downloads.",
 			cls: "vc-section-description"
 		});
 
@@ -120,35 +147,92 @@ export class CliStatusSection {
 	renderStatusDisplay(status: CliStatus): void {
 		if (!this.statusContainer) return;
 		this.statusContainer.empty();
+		this.lastCliStatus = status;
 
 		const statusGrid = this.statusContainer.createDiv({ cls: "vc-status-grid" });
 
 		const cliCard = statusGrid.createDiv({ cls: "vc-status-item" });
 		this.renderStatusCard(cliCard, {
 			label: "CLI Installation",
-			isOk: status.installed,
-			detail: status.installed ? `v${status.version || "unknown"}` : "Not installed",
-			icon: status.installed
-				? `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
-				: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`
+			state: this.installingCopilot ? "pending" : (status.installed ? "ok" : "error"),
+			detail: this.installingCopilot
+				? "Installing..."
+				: (status.installed ? `v${status.version || "unknown"}` : "Not installed"),
 		});
+
+		const foundryCard = statusGrid.createDiv({ cls: "vc-status-item" });
+		const foundryState = this.foundryStatus.loading || !this.foundryStatus.checked
+			? "pending"
+			: (this.installingFoundry ? "pending" : (this.foundryStatus.installed ? "ok" : "error"));
+		this.renderStatusCard(foundryCard, {
+			label: "Foundry Local CLI",
+			state: foundryState,
+			detail: this.installingFoundry
+				? "Installing..."
+				: (this.foundryStatus.loading || !this.foundryStatus.checked
+				? "Checking..."
+				: (this.foundryStatus.installed ? `v${this.foundryStatus.version || "unknown"}` : "Not installed")),
+		});
+
+		const foundryModelStates = this.getRequiredFoundryModelStates();
+		for (const model of foundryModelStates) {
+			const modelCard = statusGrid.createDiv({ cls: "vc-status-item" });
+			const state = !this.foundryStatus.checked || this.foundryStatus.loading
+				? "pending"
+				: (this.foundryStatus.installed
+					? (model.installed ? "ok" : "error")
+					: "pending");
+			this.renderStatusCard(modelCard, {
+				label: `Model: ${model.displayName}`,
+				state,
+				detail: !this.foundryStatus.checked || this.foundryStatus.loading
+					? "Checking..."
+					: (this.foundryStatus.installed
+						? (model.installed ? "Downloaded" : "Not downloaded")
+						: "Install Foundry Local first"),
+			});
+		}
 
 		if (!status.installed) {
 			this.renderInstallActions(this.statusContainer);
-		} else {
+		}
+
+		if (!this.foundryStatus.loading && this.foundryStatus.checked && !this.foundryStatus.installed) {
+			this.renderFoundryInstallActions(this.statusContainer);
+		}
+
+		if (this.foundryStatus.checked && this.foundryStatus.installed) {
+			this.renderFoundryModelActions(this.statusContainer, foundryModelStates);
+		}
+
+		if (status.installed) {
 			this.renderAuthNote(this.statusContainer);
+		}
+
+		if (!this.foundryStatus.loading && !this.foundryStatus.checked) {
+			void this.refreshFoundryStatus();
 		}
 	}
 
-	private renderStatusCard(container: HTMLElement, opts: { label: string; isOk: boolean; detail: string; icon: string }): void {
-		container.addClass(opts.isOk ? "vc-status-ok" : "vc-status-error");
+	private renderStatusCard(container: HTMLElement, opts: { label: string; state: "ok" | "error" | "pending"; detail: string }): void {
+		container.addClass(opts.state === "ok" ? "vc-status-ok" : (opts.state === "pending" ? "vc-status-pending" : "vc-status-error"));
 
 		const iconEl = container.createDiv({ cls: "vc-status-icon" });
-		iconEl.innerHTML = opts.icon;
+		iconEl.innerHTML = this.getStatusIcon(opts.state);
 
 		const textEl = container.createDiv({ cls: "vc-status-text" });
 		textEl.createEl("span", { text: opts.label, cls: "vc-status-label" });
 		textEl.createEl("span", { text: opts.detail, cls: "vc-status-detail" });
+	}
+
+	private getStatusIcon(state: "ok" | "error" | "pending"): string {
+		if (state === "ok") {
+			return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+		}
+		if (state === "pending") {
+			return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+		}
+		return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
 	}
 
 	/**
@@ -188,9 +272,64 @@ export class CliStatusSection {
 		});
 
 		const btnRow = actionsEl.createDiv({ cls: "vc-btn-row" });
+		const installBtn = btnRow.createEl("button", { text: "Install CLI", cls: "vc-btn-secondary vc-install-btn" });
+		installBtn.addEventListener("click", () => {
+			void this.installCopilotCli(installBtn);
+		});
 
 		const docsLink = btnRow.createEl("a", { text: "View Guide", cls: "vc-btn-link", href: installInfo.url });
 		docsLink.setAttr("target", "_blank");
+	}
+
+	private renderFoundryInstallActions(container: HTMLElement): void {
+		const actionsEl = container.createDiv({ cls: "vc-status-actions" });
+		const installInfo = this.foundryManager.getInstallCommand();
+		const cmdGroup = actionsEl.createDiv({ cls: "vc-cmd-group" });
+		cmdGroup.createEl("label", { text: installInfo.description });
+
+		if (installInfo.command) {
+			const cmdRow = cmdGroup.createDiv({ cls: "vc-cmd-row" });
+			cmdRow.createEl("code", { text: installInfo.command });
+
+			const copyBtn = cmdRow.createEl("button", { text: "Copy", cls: "vc-btn-secondary vc-btn-sm" });
+			copyBtn.addEventListener("click", () => {
+				navigator.clipboard.writeText(installInfo.command);
+				console.log("Copied to clipboard");
+			});
+		}
+
+		const btnRow = actionsEl.createDiv({ cls: "vc-btn-row" });
+		if (installInfo.command) {
+			const installBtn = btnRow.createEl("button", { text: "Install CLI", cls: "vc-btn-secondary vc-install-btn" });
+			installBtn.addEventListener("click", () => {
+				void this.installFoundryCli(installBtn);
+			});
+		}
+		const docsLink = btnRow.createEl("a", { text: "Foundry Setup Guide", cls: "vc-btn-link", href: installInfo.url });
+		docsLink.setAttr("target", "_blank");
+	}
+
+	private renderFoundryModelActions(
+		container: HTMLElement,
+		models: Array<{ model: string; displayName: string; installed: boolean }>
+	): void {
+		const missingModels = models.filter((model) => !model.installed);
+		if (missingModels.length === 0) return;
+
+		const actionsEl = container.createDiv({ cls: "vc-status-actions" });
+		const cmdGroup = actionsEl.createDiv({ cls: "vc-cmd-group" });
+		cmdGroup.createEl("label", { text: "Download required Foundry Local models" });
+
+		for (const model of missingModels) {
+			const command = `foundry model download ${model.model}`;
+			const cmdRow = cmdGroup.createDiv({ cls: "vc-cmd-row" });
+			cmdRow.createEl("code", { text: command });
+			const copyBtn = cmdRow.createEl("button", { text: "Copy", cls: "vc-btn-secondary vc-btn-sm" });
+			copyBtn.addEventListener("click", () => {
+				navigator.clipboard.writeText(command);
+				console.log("Copied to clipboard");
+			});
+		}
 	}
 
 	/**
@@ -218,5 +357,97 @@ export class CliStatusSection {
 				<li>Set <code>GH_TOKEN</code> or <code>GITHUB_TOKEN</code> environment variable</li>
 			</ol>
 		`;
+	}
+
+	private async refreshFoundryStatus(): Promise<void> {
+		if (this.foundryStatus.loading) return;
+		this.foundryStatus.loading = true;
+
+		try {
+			const status = await this.foundryManager.getStatus(true);
+			let cachedModels: string[] = [];
+			let listError: string | undefined;
+
+			if (status.installed) {
+				const modelList = await this.foundryManager.listCachedModels(true);
+				cachedModels = modelList.models;
+				listError = modelList.error;
+			}
+
+			this.foundryStatus = {
+				loading: false,
+				checked: true,
+				installed: status.installed,
+				version: status.version,
+				error: status.error || listError,
+				cachedModels,
+			};
+		} catch (error) {
+			this.foundryStatus = {
+				loading: false,
+				checked: true,
+				installed: false,
+				error: error instanceof Error ? error.message : "Failed to check Foundry Local status",
+				cachedModels: [],
+			};
+		}
+
+		if (this.lastCliStatus) {
+			this.renderStatusDisplay(this.lastCliStatus);
+		}
+	}
+
+	private async installCopilotCli(button: HTMLButtonElement): Promise<void> {
+		if (this.installingCopilot) return;
+		this.installingCopilot = true;
+		const originalLabel = button.textContent ?? "Install CLI";
+		button.addClass("vc-spinning");
+		button.disabled = true;
+		button.textContent = "Installing...";
+		try {
+			await this.manager.installCli();
+			this.manager.invalidateCache();
+			await this.checkStatusAsync();
+		} finally {
+			this.installingCopilot = false;
+			button.removeClass("vc-spinning");
+			button.disabled = false;
+			button.textContent = originalLabel;
+			if (this.lastCliStatus) {
+				this.renderStatusDisplay(this.lastCliStatus);
+			}
+		}
+	}
+
+	private async installFoundryCli(button: HTMLButtonElement): Promise<void> {
+		if (this.installingFoundry) return;
+		this.installingFoundry = true;
+		const originalLabel = button.textContent ?? "Install CLI";
+		button.addClass("vc-spinning");
+		button.disabled = true;
+		button.textContent = "Installing...";
+		try {
+			await this.foundryManager.installCli();
+			this.foundryManager.invalidateCache();
+			await this.refreshFoundryStatus();
+		} finally {
+			this.installingFoundry = false;
+			button.removeClass("vc-spinning");
+			button.disabled = false;
+			button.textContent = originalLabel;
+			if (this.lastCliStatus) {
+				this.renderStatusDisplay(this.lastCliStatus);
+			}
+		}
+	}
+
+	private getRequiredFoundryModelStates(): Array<{ model: string; displayName: string; installed: boolean }> {
+		const installedSet = new Set(this.foundryStatus.cachedModels.map((model) => model.toLowerCase()));
+
+		return CliStatusSection.REQUIRED_FOUNDRY_MODELS.map((model) => {
+			const isInstalled = Array.from(installedSet).some((installed) => installed.includes(model));
+			const displayName = model === "fara-7b" ? "Fara-7B" : "Phi-4";
+			return { model, displayName, installed: isInstalled };
+		});
 	}
 }

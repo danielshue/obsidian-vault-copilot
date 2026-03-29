@@ -1562,6 +1562,42 @@
 	gap: 10px;
 }
 
+.vc-status-item.vc-status-pending {
+	opacity: 0.85;
+}
+
+.vc-status-item .vc-status-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	color: var(--text-muted);
+}
+
+.vc-status-item.vc-status-ok .vc-status-icon {
+	color: var(--color-green);
+}
+
+.vc-status-item.vc-status-error .vc-status-icon {
+	color: var(--color-red);
+}
+
+.vc-status-item.vc-status-pending .vc-status-icon {
+	color: var(--text-muted);
+}
+
+.vc-status-item .vc-status-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.vc-status-item .vc-status-detail {
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
 .vc-status-item .vc-status-dot {
 	width: 10px;
 	height: 10px;
@@ -1687,6 +1723,22 @@
 
 .vc-btn-secondary:hover {
 	background: var(--background-modifier-hover);
+}
+
+.vc-install-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-install-btn.vc-spinning::before {
+	content: "";
+	width: 12px;
+	height: 12px;
+	border: 2px solid var(--background-modifier-border-hover);
+	border-top-color: var(--interactive-accent);
+	border-radius: 50%;
+	animation: vc-spin 0.8s linear infinite;
 }
 
 .vc-btn-link {
