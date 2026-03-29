@@ -107,7 +107,7 @@ export class FoundryLocalManager {
 			};
 		}
 
-		if (Platform.isMacOS) {
+		if ((Platform as unknown as { isMacOS?: boolean; isMac?: boolean }).isMacOS || (Platform as unknown as { isMac?: boolean }).isMac) {
 			return {
 				command: "brew tap microsoft/foundrylocal && brew install foundrylocal",
 				description: "Install Foundry Local (macOS)",
