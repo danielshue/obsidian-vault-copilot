@@ -259,14 +259,11 @@ export class ToolCatalog {
 		const enabledSet = new Set<string>();
 
 		if (settings.defaultEnabledTools && settings.defaultEnabledTools.length > 0) {
-			for (const toolId of settings.defaultEnabledTools) {
-				enabledSet.add(toolId);
-			}
-		} else {
-			for (const tool of allTools) {
-				if (tool.enabledByDefault) {
-					enabledSet.add(tool.id);
-				}
+			// Legacy: ignore saved defaultEnabledTools — all tools are enabled by default
+		}
+		for (const tool of allTools) {
+			if (tool.enabledByDefault) {
+				enabledSet.add(tool.id);
 			}
 		}
 

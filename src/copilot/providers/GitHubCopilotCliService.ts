@@ -1507,7 +1507,7 @@ export class GitHubCopilotCliService {
 		onComplete?: (fullContent: string) => void | Promise<void>,
 		timeout?: number,
 		images?: ImageAttachment[],
-		mode?: string
+		mode?: "enqueue" | "immediate"
 	): Promise<void> {
 		await this.ensureActiveSessionForTurn();
 		await this.ensureSessionAlive();
@@ -1656,7 +1656,13 @@ export class GitHubCopilotCliService {
 				}
 			});
 
-			session.send(attachments.length > 0 ? { prompt: effectivePrompt, attachments } : { prompt: effectivePrompt }).catch((err) => {
+			const sendPayload: { prompt: string; attachments?: Array<{ type: "file"; path: string; displayName: string }>; mode?: "enqueue" | "immediate" } =
+				attachments.length > 0 ? { prompt: effectivePrompt, attachments } : { prompt: effectivePrompt };
+			if (mode === "enqueue" || mode === "immediate") {
+				sendPayload.mode = mode;
+			}
+
+			session.send(sendPayload).catch((err) => {
 				cleanup();
 				unsubscribe();
 				tracingService.addSdkLog("error", `[Send Error] ${err.message || err}`, LOG_SOURCES.COPILOT_ERROR);
