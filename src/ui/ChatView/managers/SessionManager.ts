@@ -130,7 +130,6 @@ export class SessionManager {
 			conversationId: conversationId || undefined,
 			vaultId: this.vaultId,
 			agentName: prevSession?.agentName || this.callbacks.onGetAgentName?.(),
-			toolOverrides: prevSession?.toolOverrides ? { ...prevSession.toolOverrides } : undefined,
 		};
 
 		this.settings.sessions.push(newSession);
