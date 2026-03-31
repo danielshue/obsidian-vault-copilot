@@ -16,7 +16,7 @@
  * - Return platform-specific install commands and docs URL
  * - Launch interactive authentication in a separate terminal
  * - Initialize vault access with `--add-dir`
- * - Discover available models from `copilot help`
+ * - Discover available models via SDK `listModels()`
  *
  * @example
  * ```typescript
@@ -440,14 +440,14 @@ export class GitHubCopilotCliManager {
 	}
 
 	/**
-	 * Fetch available models by parsing `copilot help` output.
+	 * Fetch available models via SDK `listModels()`.
 	 *
-	 * Parses the `--model` choices segment from CLI help text and returns
-	 * sorted model names. If parsing fails, returns an empty list and error.
+	 * Uses the Copilot SDK model catalog RPC instead of parsing CLI help output.
+	 * Returns sorted model IDs. If lookup fails, returns an empty list and error.
 	 *
 	 * @deprecated Use `GitHubCopilotCliService.listAvailableModels()` instead,
-	 * which queries the SDK's native `client.listModels()` RPC. This regex
-	 * parser is kept as a fallback when no SDK client is connected.
+	 * which queries the SDK's native `client.listModels()` RPC using the active
+	 * session client. This manager method now also uses the same RPC path.
 	 *
 	 * @returns Object containing discovered model IDs and optional error
 	 *
@@ -457,39 +457,39 @@ export class GitHubCopilotCliManager {
 	 * ```
 	 */
 	async fetchAvailableModels(): Promise<{ models: string[]; error?: string }> {
-		return new Promise((resolve) => {
-			exec(`${this.cliPath} help`, { timeout: 15000 }, (error, stdout, stderr) => {
-				if (error) {
-					console.error("[GitHubCopilotCliManager] Error fetching models:", error.message);
-					resolve({ models: [], error: error.message });
-					return;
-				}
-
-				// Parse models from the --model line
-				// Example: --model <model>  Set the AI model (choices: "claude-sonnet-4.5", "gpt-4.1", ...)
-				const output = stdout + stderr;
-				const modelMatch = output.match(/--model\s+<model>\s+.*?\(choices:\s*([^)]+)\)/i);
-				
-				if (modelMatch && modelMatch[1]) {
-					// Extract quoted model names
-					const modelString = modelMatch[1];
-					const models = modelString
-						.match(/"([^"]+)"/g)
-						?.map(m => m.replace(/"/g, ''))
-						.filter(m => m.length > 0)
-						.sort() || [];
-					
-					if (models.length > 0) {
-						console.log(`[GitHubCopilotCliManager] Discovered ${models.length} models from CLI`);
-						resolve({ models });
-						return;
-					}
-				}
-
-				console.warn("[GitHubCopilotCliManager] Could not parse models from CLI help output");
-				resolve({ models: [], error: "Could not parse models from CLI output" });
+		try {
+			const { CopilotClient } = await import("@github/copilot-sdk");
+			const client = new CopilotClient({
+				cliPath: this.cliPath,
+				logLevel: "error",
 			});
-		});
+
+			try {
+				await client.start();
+				const infos = await client.listModels();
+				const models = infos
+					.map((m) => m.id)
+					.filter((id): id is string => typeof id === "string" && id.length > 0)
+					.sort();
+
+				if (models.length > 0) {
+					console.log(`[GitHubCopilotCliManager] Discovered ${models.length} models via SDK listModels()`);
+					return { models };
+				}
+
+				return { models: [], error: "No models returned from SDK listModels()" };
+			} finally {
+				try {
+					await client.stop();
+				} catch {
+					// no-op cleanup
+				}
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			console.error("[GitHubCopilotCliManager] Error fetching models via SDK listModels():", message);
+			return { models: [], error: message };
+		}
 	}
 
 	/**

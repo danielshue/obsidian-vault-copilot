@@ -69,6 +69,7 @@ export const DEFAULT_SETTINGS: CopilotPluginSettings = {
 	extensionCatalogUrl: "https://danielshue.github.io/vault-copilot-extensions/catalog/catalog.json",
 	enableAnalytics: true,
 	analyticsEndpoint: 'https://wonderful-river-0b6e9ae1e.4.azurestaticapps.net',
+	userName: '',
 	githubUsername: '',
 	anonymousId: '',
 };

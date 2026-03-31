@@ -11,6 +11,22 @@
 	animation: vc-pulse-border 2s ease-in-out infinite;
 }
 
+.vc-tool-approval-prompt.vc-permission-linked-denied {
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-red) 45%, transparent);
+}
+
+.vc-tool-approval-prompt.vc-permission-linked-approved {
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-green) 45%, transparent);
+}
+
+.vc-tool-approval-prompt[data-permission-status="approved"] {
+	border-color: var(--color-green);
+}
+
+.vc-tool-approval-prompt[data-permission-status="denied"] {
+	border-color: var(--color-red);
+}
+
 @keyframes vc-pulse-border {
 	0%, 100% { border-color: var(--interactive-accent); }
 	50% { border-color: var(--text-accent); }
@@ -30,6 +46,76 @@
 
 .vc-tool-approval-info {
 	margin-bottom: 16px;
+}
+
+.vc-tool-approval-preview {
+	margin-top: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.vc-tool-approval-preview-row {
+	display: grid;
+	grid-template-columns: 88px minmax(0, 1fr);
+	gap: 8px;
+	align-items: start;
+}
+
+.vc-tool-approval-preview-label {
+	font-size: 11px;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.vc-tool-approval-preview-value {
+	font-size: 12px;
+	color: var(--text-normal);
+	word-break: break-word;
+}
+
+.vc-tool-approval-command-preview {
+	margin-top: 8px;
+}
+
+.vc-tool-approval-command-preview pre {
+	background: var(--background-primary);
+	padding: 8px;
+	border-radius: 4px;
+	font-size: 11px;
+	overflow-x: auto;
+	max-height: 120px;
+	margin: 0;
+}
+
+.vc-tool-approval-copy-btn {
+	margin-top: 6px;
+	padding: 4px 8px;
+	font-size: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.vc-tool-approval-copy-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-tool-approval-diff-preview {
+	margin-top: 4px;
+}
+
+.vc-tool-approval-diff-preview pre {
+	background: var(--background-primary);
+	padding: 8px;
+	border-radius: 4px;
+	font-size: 11px;
+	overflow-x: auto;
+	max-height: 120px;
+	margin: 0;
 }
 
 .vc-tool-approval-info strong {
@@ -58,6 +144,62 @@
 	display: flex;
 	gap: 8px;
 	flex-wrap: wrap;
+}
+
+.vc-tool-approval-sticky-tray {
+	position: sticky;
+	bottom: 10px;
+	z-index: 12;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 10px;
+	margin: -4px 0 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--background-primary) 90%, var(--background-secondary));
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.vc-tool-approval-sticky-label {
+	font-size: 12px;
+	color: var(--text-normal);
+}
+
+.vc-tool-approval-sticky-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.vc-tool-approval-sticky-tray .vc-tool-approval-btn {
+	padding: 6px 10px;
+	font-size: 12px;
+}
+
+.vc-tool-approval-resolution {
+	display: flex;
+	align-items: center;
+}
+
+.vc-tool-approval-resolution-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.vc-tool-approval-resolution-approved {
+	background: color-mix(in srgb, var(--color-green) 16%, transparent);
+	color: var(--color-green);
+}
+
+.vc-tool-approval-resolution-denied {
+	background: color-mix(in srgb, var(--color-red) 16%, transparent);
+	color: var(--color-red);
 }
 
 /* Base button — reset Obsidian's global button styles with high specificity */
@@ -144,4 +286,3 @@
 	resize: vertical;
 	margin-top: 8px;
 }
-

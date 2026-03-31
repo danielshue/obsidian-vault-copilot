@@ -400,6 +400,34 @@
 	text-decoration: underline;
 }
 
+/* ── Action buttons (CTA) ── */
+.vc-notif-card-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+.vc-notif-action-btn {
+	font-size: 11px;
+	padding: 3px 10px;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+	line-height: 1.4;
+}
+.vc-notif-action-btn:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--text-accent);
+}
+.vc-notif-action-btn--info:hover { border-color: var(--color-blue, #4a9eff); }
+.vc-notif-action-btn--warning:hover { border-color: var(--color-yellow, #e0ac00); }
+.vc-notif-action-btn--error:hover { border-color: var(--color-red, #e93147); }
+
 /* ── Empty state ── */
 .vc-notif-empty {
 	display: flex;

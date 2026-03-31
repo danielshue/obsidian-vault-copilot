@@ -234,6 +234,7 @@
 .vc-editor-cm-host .cm-editor {
   height: 100%;
   outline: none !important;
+  caret-color: var(--caret-color, var(--cursor, var(--text-normal)));
 }
 
 .vc-editor-cm-host .cm-focused {

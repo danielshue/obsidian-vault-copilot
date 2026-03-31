@@ -28,6 +28,7 @@ import type {
 	SessionChangeEvent,
 	MessageEvent,
 	ProviderChangeEvent,
+	SessionCreateOptions,
 	Unsubscribe,
 } from "./types";
 
@@ -69,7 +70,7 @@ export interface VaultCopilotExtensionAPIDelegate {
 	clearHistory(): Promise<void>;
 	listSessions(): Promise<Array<{ id: string; name: string; messageCount: number; archived: boolean }>>;
 	getActiveSessionId(): string | null;
-	createSession(name?: string): Promise<{ id: string; name: string }>;
+	createSession(name?: string, options?: SessionCreateOptions): Promise<{ id: string; name: string }>;
 	loadSession(sessionId: string): Promise<void>;
 	archiveSession(sessionId: string): Promise<void>;
 	deleteSession(sessionId: string): Promise<void>;
@@ -146,7 +147,11 @@ export class VaultCopilotExtensionAPIImpl implements VaultCopilotExtensionAPI {
 	clearHistory(): Promise<void> { return this.delegate.clearHistory(); }
 	listSessions() { return this.delegate.listSessions(); }
 	getActiveSessionId() { return this.delegate.getActiveSessionId(); }
-	createSession(name?: string) { return this.delegate.createSession(name); }
+	createSession(name?: string, options?: SessionCreateOptions) {
+		return options === undefined
+			? this.delegate.createSession(name)
+			: this.delegate.createSession(name, options);
+	}
 	loadSession(sessionId: string) { return this.delegate.loadSession(sessionId); }
 	archiveSession(sessionId: string) { return this.delegate.archiveSession(sessionId); }
 	deleteSession(sessionId: string) { return this.delegate.deleteSession(sessionId); }

@@ -24,7 +24,7 @@ import { Plugin, WorkspaceLeaf, App } from "obsidian";
 import { CopilotChatView, COPILOT_VIEW_TYPE } from "./ui/ChatView";
 import { DEFAULT_SETTINGS } from "./ui/settings/defaults";
 import type { CopilotPluginSettings, CopilotSession } from "./ui/settings/types";
-import { GitHubCopilotCliService, type GitHubCopilotCliConfig } from "./copilot/providers/GitHubCopilotCliService";
+import { GitHubCopilotCliService, type GitHubCopilotCliConfig, type SessionCreateOptions } from "./copilot/providers/GitHubCopilotCliService";
 import { GitHubCopilotCliManager } from "./copilot/providers/GitHubCopilotCliManager";
 import { VaultCopilotExtensionAPIImpl, type VaultCopilotExtensionAPIDelegate } from "./api/VaultCopilotExtensionAPI";
 import { BasicSettingTab } from "./BasicSettingTab";
@@ -347,6 +347,7 @@ export default class BasicCopilotPlugin extends Plugin {
 	 */
 	private getServiceConfig(): GitHubCopilotCliConfig {
 		const vaultPath = this.getVaultBasePath();
+		const sessionUserId = this.settings.userName || this.settings.githubUsername || this.settings.anonymousId;
 		return {
 			model: this.settings.model,
 			cliPath: this.settings.cliPath ? expandHomePath(this.settings.cliPath) : undefined,
@@ -358,6 +359,7 @@ export default class BasicCopilotPlugin extends Plugin {
 			bufferExhaustionThreshold: this.settings.bufferExhaustionThreshold,
 			tracingEnabled: this.settings.tracingEnabled,
 			logLevel: this.settings.logLevel,
+			sessionUserId: sessionUserId || undefined,
 		};
 	}
 
@@ -426,12 +428,12 @@ export default class BasicCopilotPlugin extends Plugin {
 					archived: s.archived,
 				})),
 			getActiveSessionId: () => plugin.settings.activeSessionId,
-			createSession: async (name?: string) => {
+			createSession: async (name?: string, options?: SessionCreateOptions) => {
 				const now = Date.now();
 				const sessionId = `session-${now}`;
 				let actualId = sessionId;
 				if (plugin.githubCopilotCliService) {
-					actualId = await plugin.githubCopilotCliService.createSession(sessionId);
+					actualId = await plugin.githubCopilotCliService.createSession(sessionId, options);
 				}
 				const newSession: CopilotSession = {
 					id: actualId,

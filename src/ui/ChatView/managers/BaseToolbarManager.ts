@@ -28,6 +28,7 @@ import type { CopilotPluginSettings, CopilotSession } from "../../settings/types
 import { getAvailableModels, getModelDisplayName, getModelLabel, getModelMultiplier } from "../../settings/utils";
 import { getProfileById } from "../../settings/profiles";
 import { IToolCatalog } from "../../../copilot/tools/ToolCatalog";
+import type { SessionCreateOptions } from "../../../copilot/providers/types";
 import { ToolPickerModal } from "../modals/ToolPickerModal";
 
 /**
@@ -66,7 +67,7 @@ export interface BaseServiceLike {
 	/** Update the active service configuration (e.g., model change) */
 	updateConfig(config: { model?: string }): void;
 	/** Create or recreate the active chat session */
-	createSession(sessionId?: string): Promise<string>;
+	createSession(sessionId?: string, options?: SessionCreateOptions): Promise<string>;
 }
 
 /**

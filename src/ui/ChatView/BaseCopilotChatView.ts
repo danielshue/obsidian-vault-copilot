@@ -264,6 +264,7 @@ export class BaseCopilotChatView extends ItemView {
 			onSessionSelect: (session) => this.loadSession(session),
 			onNewSession: () => this.createNewSession(),
 			onClose: () => this.toggleSessionPanel(),
+			getActiveSessionId: () => this.sessionManager.getActiveSessionId(),
 		});
 
 		// ─── Header ───────────────────────────────────────────────────────────────
@@ -650,7 +651,7 @@ export class BaseCopilotChatView extends ItemView {
 		this.inputEl.innerHTML = "";
 		this.inputAreaManager.autoResizeInput();
 
-		await this.ensureSessionExists();
+		await this.ensureSessionExists(message);
 		await this.syncAgentWithRuntime();
 
 		const welcomeEl = this.messagesContainer.querySelector(".vc-welcome");
@@ -869,8 +870,8 @@ export class BaseCopilotChatView extends ItemView {
 		this.addWelcomeMessage();
 	}
 
-	protected async ensureSessionExists(): Promise<void> {
-		await this.sessionManager.ensureSessionExists();
+	protected async ensureSessionExists(taskHint?: string): Promise<void> {
+		await this.sessionManager.ensureSessionExists(taskHint);
 	}
 
 	// ─── Settings refresh ─────────────────────────────────────────────────────────
@@ -927,21 +928,20 @@ export class BaseCopilotChatView extends ItemView {
 				this.wireSessionReconnectCallback(this.githubCopilotCliService);
 				this.wireOutputCallbacks(this.githubCopilotCliService);
 
-				const activeSessionId = this.plugin.settings.activeSessionId;
-				if (activeSessionId) {
-					const session = this.plugin.settings.sessions.find((s) => s.id === activeSessionId);
-					if (session?.conversationId) {
+				const session = this.sessionManager.getCurrentSession();
+				if (session) {
+					if (session.conversationId) {
 						try {
 							await this.githubCopilotCliService.loadSession(session.conversationId, session.messages || []);
 						} catch {
-							const freshConvId = await this.githubCopilotCliService.createSession();
+							const freshConvId = await this.githubCopilotCliService.createSession(session.id);
 							if (session && freshConvId) {
 								session.conversationId = freshConvId;
 								await this.plugin.saveSettings();
 							}
 						}
 					} else {
-						const convId = await this.githubCopilotCliService.createSession();
+						const convId = await this.githubCopilotCliService.createSession(session.id);
 						if (session && convId) {
 							session.conversationId = convId;
 							await this.plugin.saveSettings();
@@ -1210,12 +1210,7 @@ export class BaseCopilotChatView extends ItemView {
 	}
 
 	private getCurrentSessionName(): string {
-		const id = this.plugin.settings.activeSessionId;
-		if (id) {
-			const session = this.plugin.settings.sessions.find((s) => s.id === id);
-			if (session) return session.name;
-		}
-		return "New Chat Window";
+		return this.sessionManager.getCurrentSessionName();
 	}
 
 	protected updateHeaderTitle(): void {

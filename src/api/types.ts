@@ -300,6 +300,15 @@ export interface ProviderChangeEvent {
 	newId: string;
 }
 
+/** Optional per-session infinite session overrides for API-driven session creation. */
+export interface SessionCreateOptions {
+	infiniteSessions?: {
+		enabled?: boolean;
+		backgroundCompactionThreshold?: number;
+		bufferExhaustionThreshold?: number;
+	};
+}
+
 // ---------------------------------------------------------------------------
 // Extension API — the main contract
 // ---------------------------------------------------------------------------
@@ -339,7 +348,7 @@ export interface VaultCopilotExtensionAPI {
 	/** Get the active session ID */
 	getActiveSessionId(): string | null;
 	/** Create a new session */
-	createSession(name?: string): Promise<{ id: string; name: string }>;
+	createSession(name?: string, options?: SessionCreateOptions): Promise<{ id: string; name: string }>;
 	/** Load a session by ID */
 	loadSession(sessionId: string): Promise<void>;
 	/** Archive a session */

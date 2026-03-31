@@ -293,6 +293,7 @@
 	font-size: 13px;
 	line-height: 1.6;
 	color: var(--text-normal);
+	caret-color: var(--caret-color, var(--cursor, var(--text-normal)));
 	min-height: 48px;
 	max-height: 200px;
 	outline: none;

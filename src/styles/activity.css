@@ -19,10 +19,40 @@
 	border-radius: 6px;
 }
 
+.vc-activity-header-clickable {
+	cursor: pointer;
+}
+
+.vc-activity-header-clickable::after {
+	content: "▾";
+	margin-left: auto;
+	font-size: 12px;
+	color: var(--text-faint);
+	transition: transform 120ms ease;
+}
+
+.vc-activity-wrapper.vc-activity-collapsed .vc-activity-header-clickable::after {
+	transform: rotate(-90deg);
+}
+
 /* Summary text */
 .vc-activity-summary-text {
 	font-weight: 500;
 	color: var(--text-normal);
+}
+
+.vc-activity-tool-availability {
+	font-size: 11px;
+	color: var(--text-faint);
+	font-variant-numeric: tabular-nums;
+	background: var(--background-modifier-hover);
+	padding: 1px 6px;
+	border-radius: 8px;
+	white-space: nowrap;
+}
+
+.vc-activity-tool-availability-filtered {
+	color: var(--text-accent);
 }
 
 /* Wall-clock duration badge (shown after all activity completes) */
@@ -53,6 +83,12 @@
 .vc-activity-body {
 	display: block;
 	padding: 0 4px 4px;
+}
+
+.vc-activity-wrapper.vc-activity-collapsed .vc-activity-body,
+.vc-activity-wrapper.vc-activity-collapsed .vc-activity-meta,
+.vc-activity-wrapper.vc-activity-collapsed .vc-activity-usage {
+	display: none !important;
 }
 
 /* Each activity item is a row inside the body */
@@ -120,6 +156,36 @@
 	font-weight: 500;
 }
 
+.vc-activity-item-status {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 1px 6px;
+	border-radius: 999px;
+	background: var(--background-modifier-hover);
+	color: var(--text-faint);
+}
+
+.vc-activity-item-status.is-running {
+	color: var(--text-accent);
+}
+
+.vc-activity-item-status.is-requested {
+	color: var(--text-muted);
+}
+
+.vc-activity-item-status.is-pending-permission {
+	color: var(--color-orange, #fb923c);
+}
+
+.vc-activity-item-status.is-success {
+	color: var(--color-green, #4ade80);
+}
+
+.vc-activity-item-status.is-error {
+	color: var(--color-red, #f87171);
+}
+
 /* Sub-agent name gets accent color */
 .vc-activity-item-subagent .vc-activity-item-name {
 	color: var(--text-accent);
@@ -150,6 +216,34 @@
 	margin-left: 0;
 }
 
+.vc-activity-item-badges {
+	display: inline-flex;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+
+.vc-activity-item-badge {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 1px 6px;
+	border-radius: 999px;
+	background: var(--background-modifier-hover);
+	color: var(--text-faint);
+}
+
+.vc-activity-item-badge.is-mcp {
+	color: var(--text-accent);
+}
+
+.vc-activity-item-badge.is-sub-agent {
+	color: var(--color-purple, #c084fc);
+}
+
+.vc-activity-item-badge.is-user-requested {
+	color: var(--color-orange, #fb923c);
+}
+
 /* Hide args preview when expanded (detail area is shown instead) */
 .vc-activity-item-expanded .vc-activity-item-args {
 	display: none;
@@ -173,6 +267,14 @@
 	margin: 0;
 	white-space: pre-wrap;
 	word-break: break-all;
+}
+
+.vc-activity-item-section-label {
+	font-size: 10px;
+	color: var(--text-faint);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	margin-bottom: 4px;
 }
 
 /* Show detail when expanded */
@@ -290,6 +392,18 @@
 
 .vc-activity-item-expanded .vc-activity-item-partial {
 	display: block;
+}
+
+.vc-activity-item-telemetry pre,
+.vc-activity-item-result pre,
+.vc-activity-item-detailed-result pre,
+.vc-activity-item-structured-output pre {
+	margin-top: 0;
+}
+
+.vc-activity-item.vc-permission-linked-denied {
+	outline: 1px solid color-mix(in srgb, var(--color-red) 65%, transparent);
+	background: color-mix(in srgb, var(--color-red) 8%, transparent);
 }
 
 /* ── Usage footer ── */

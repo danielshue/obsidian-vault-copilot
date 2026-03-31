@@ -40,6 +40,8 @@ export class SessionManager {
 	private saveSettings: () => Promise<void>;
 	private callbacks: SessionManagerCallbacks;
 	private vaultId?: string;
+	private activeSessionId?: string;
+	private lastGeneratedTimestamp = 0;
 
 	constructor(
 		settings: BasicCopilotPluginSettings,
@@ -53,6 +55,7 @@ export class SessionManager {
 		this.saveSettings = saveSettings;
 		this.callbacks = callbacks;
 		this.vaultId = vaultId;
+		this.activeSessionId = settings.activeSessionId ?? undefined;
 	}
 
 	/**
@@ -60,18 +63,23 @@ export class SessionManager {
 	 * @returns The active session ID or undefined if no session is active
 	 */
 	getActiveSessionId(): string | undefined {
-		return this.settings.activeSessionId ?? undefined;
+		return this.activeSessionId ?? this.settings.activeSessionId ?? undefined;
+	}
+
+	setOwnedSessionId(sessionId?: string): void {
+		this.activeSessionId = sessionId;
+	}
+
+	getSessionById(sessionId?: string): CopilotSession | undefined {
+		if (!sessionId) return undefined;
+		return this.settings.sessions.find((s: CopilotSession) => s.id === sessionId);
 	}
 
 	/**
 	 * Get the current session object
 	 */
 	getCurrentSession(): CopilotSession | undefined {
-		const activeSessionId = this.settings.activeSessionId;
-		if (activeSessionId) {
-			return this.settings.sessions.find((s: CopilotSession) => s.id === activeSessionId);
-		}
-		return undefined;
+		return this.getSessionById(this.getActiveSessionId());
 	}
 
 	/**
@@ -90,18 +98,25 @@ export class SessionManager {
 	 * Use when you want to switch topics without losing your current setup.
 	 */
 	async createNewChat(name?: string): Promise<void> {
+		console.info("[Torqena TRACE] session:create-new-chat:start", {
+			activeSessionId: this.getActiveSessionId(),
+			requestedName: name ?? null,
+		});
 		// Save current session before creating new one
 		await this.saveCurrentSession();
+		// Clear the current timeline immediately so New Chat feels instantaneous.
+		this.callbacks.onClearUI();
+		this.callbacks.onShowWelcome();
 
 		// Do NOT reset agent or tools — they carry over
 
 		// Create new session
 		const now = Date.now();
 		const defaultName = `Chat ${new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-		const sessionId = `session-${now}`;
+		const sessionId = this.generateSessionId(name);
 		
-		// Create a fresh SDK conversation (no ID passed)
-		const conversationId = await this.githubCopilotCliService.createSession();
+		// Create a fresh SDK conversation with a structured app-owned session ID
+		const conversationId = await this.githubCopilotCliService.createSession(sessionId);
 
 		// Carry over agent and tool overrides from the previous session
 		const prevSession = this.getCurrentSession();
@@ -119,12 +134,16 @@ export class SessionManager {
 		};
 
 		this.settings.sessions.push(newSession);
-		this.settings.activeSessionId = newSession.id;
+		this.setActiveSession(newSession.id);
 		await this.saveSettings();
+		console.info("[Torqena TRACE] session:create-new-chat:done", {
+			sessionId: newSession.id,
+			sessionName: newSession.name,
+			conversationId: newSession.conversationId ?? null,
+			agentName: newSession.agentName ?? null,
+		});
 		
 		// Notify view to update UI
-		this.callbacks.onClearUI();
-		this.callbacks.onShowWelcome();
 		this.callbacks.onHeaderUpdate();
 		this.callbacks.onSessionCreated();
 		this.callbacks.onSessionPanelHide();
@@ -135,8 +154,15 @@ export class SessionManager {
 	 * Use when the model seems confused or stuck on stale context.
 	 */
 	async createNewSession(name?: string): Promise<void> {
+		console.info("[Torqena TRACE] session:create-new-session:start", {
+			activeSessionId: this.getActiveSessionId(),
+			requestedName: name ?? null,
+		});
 		// Save current session before creating new one
 		await this.saveCurrentSession();
+		// Clear the current timeline immediately so New Session feels instantaneous.
+		this.callbacks.onClearUI();
+		this.callbacks.onShowWelcome();
 
 		// Reset agent through callback
 		this.callbacks.onAgentReset();
@@ -144,10 +170,10 @@ export class SessionManager {
 		// Create new session
 		const now = Date.now();
 		const defaultName = `Chat ${new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-		const sessionId = `session-${now}`;
+		const sessionId = this.generateSessionId(name);
 		
-		// Create a fresh SDK conversation (no ID passed — let the server assign one)
-		const conversationId = await this.githubCopilotCliService.createSession();
+		// Create a fresh SDK conversation with a structured app-owned session ID
+		const conversationId = await this.githubCopilotCliService.createSession(sessionId);
 		
 		const newSession: CopilotSession = {
 			id: sessionId,
@@ -161,12 +187,15 @@ export class SessionManager {
 		};
 
 		this.settings.sessions.push(newSession);
-		this.settings.activeSessionId = newSession.id;
+		this.setActiveSession(newSession.id);
 		await this.saveSettings();
+		console.info("[Torqena TRACE] session:create-new-session:done", {
+			sessionId: newSession.id,
+			sessionName: newSession.name,
+			conversationId: newSession.conversationId ?? null,
+		});
 		
 		// Notify view to update UI
-		this.callbacks.onClearUI();
-		this.callbacks.onShowWelcome();
 		this.callbacks.onHeaderUpdate();
 		this.callbacks.onSessionCreated();
 		this.callbacks.onSessionPanelHide();
@@ -179,11 +208,17 @@ export class SessionManager {
 	 * If the session has no conversation yet, creates a fresh one and links it.
 	 */
 	async loadSession(session: CopilotSession): Promise<void> {
+		console.info("[Torqena TRACE] session:load:start", {
+			sessionId: session.id,
+			sessionName: session.name,
+			conversationId: session.conversationId ?? null,
+			messageCount: session.messages?.length ?? 0,
+		});
 		// Save current session first
 		await this.saveCurrentSession();
 
 		// Update active session
-		this.settings.activeSessionId = session.id;
+		this.setActiveSession(session.id);
 		session.lastUsedAt = Date.now();
 		await this.saveSettings();
 
@@ -194,7 +229,7 @@ export class SessionManager {
 			} catch (loadErr) {
 				// Conversation expired server-side — create a fresh one
 				console.warn(`[VC] Failed to load conversation ${session.conversationId}, creating new:`, loadErr);
-				const freshConvId = await this.githubCopilotCliService.createSession();
+				const freshConvId = await this.githubCopilotCliService.createSession(session.id);
 				if (freshConvId) {
 					session.conversationId = freshConvId;
 					await this.saveSettings();
@@ -213,7 +248,7 @@ export class SessionManager {
 			}
 		} else {
 			// No conversation yet — create one and link it
-			const convId = await this.githubCopilotCliService.createSession();
+			const convId = await this.githubCopilotCliService.createSession(session.id);
 			if (convId) {
 				session.conversationId = convId;
 				await this.saveSettings();
@@ -250,15 +285,20 @@ export class SessionManager {
 		this.callbacks.onHeaderUpdate();
 		this.callbacks.onSessionPanelHide();
 		this.callbacks.onSessionLoaded();
+		console.info("[Torqena TRACE] session:load:done", {
+			sessionId: session.id,
+			conversationId: session.conversationId ?? null,
+			historyCount: this.githubCopilotCliService.getMessageHistory().length,
+		});
 	}
 
 	/**
 	 * Save the current session's messages and backfill conversationId if needed.
 	 */
-	async saveCurrentSession(): Promise<void> {
-		const activeSessionId = this.settings.activeSessionId;
+	async saveCurrentSession(sessionId?: string): Promise<void> {
+		const activeSessionId = sessionId ?? this.getActiveSessionId();
 		if (activeSessionId) {
-			const session = this.settings.sessions.find((s: CopilotSession) => s.id === activeSessionId);
+			const session = this.getSessionById(activeSessionId);
 			if (session) {
 				session.messages = this.githubCopilotCliService.getMessageHistory();
 				session.lastUsedAt = Date.now();
@@ -277,6 +317,12 @@ export class SessionManager {
 					}
 				}
 				await this.saveSettings();
+				console.info("[Torqena TRACE] session:save", {
+					sessionId: activeSessionId,
+					sessionName: session.name,
+					messageCount: session.messages.length,
+					conversationId: session.conversationId ?? null,
+				});
 			}
 		}
 	}
@@ -286,12 +332,11 @@ export class SessionManager {
 	 *
 	 * Links the current SDK conversation (if any) as the session's `conversationId`.
 	 */
-	async ensureSessionExists(): Promise<void> {
+	async ensureSessionExists(taskHint?: string): Promise<void> {
 		// If there's already an active session, we're good
-		if (this.settings.activeSessionId) {
-			const existingSession = this.settings.sessions.find(
-				s => s.id === this.settings.activeSessionId
-			);
+		const currentId = this.getActiveSessionId();
+		if (currentId) {
+			const existingSession = this.getSessionById(currentId);
 			if (existingSession) {
 				// Backfill conversationId if session pre-dates this field
 				if (!existingSession.conversationId) {
@@ -304,6 +349,11 @@ export class SessionManager {
 						console.warn("[SessionManager] ⚠️ Missing conversationId - SDK session not ready yet");
 					}
 				}
+				console.info("[Torqena TRACE] session:ensure-existing", {
+					sessionId: existingSession.id,
+					sessionName: existingSession.name,
+					conversationId: existingSession.conversationId ?? null,
+				});
 				return;
 			}
 		}
@@ -311,7 +361,7 @@ export class SessionManager {
 		// Create a new session with a local ID and link the SDK conversation
 		const now = Date.now();
 		const defaultName = `Chat ${new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-		const sessionId = `session-${now}`;
+		const sessionId = this.generateSessionId(taskHint);
 		const conversationId = this.githubCopilotCliService.getSessionId() || undefined;
 		
 		const newSession: CopilotSession = {
@@ -326,20 +376,24 @@ export class SessionManager {
 		};
 
 		this.settings.sessions.push(newSession);
-		this.settings.activeSessionId = newSession.id;
+		this.setActiveSession(newSession.id);
 		await this.saveSettings();
 		
 		this.callbacks.onHeaderUpdate();
 		console.log("[SessionManager] ✅ Created new session:", newSession.name, "conversationId:", conversationId ?? "(missing - will backfill)");
+		console.info("[Torqena TRACE] session:ensure-created", {
+			sessionId: newSession.id,
+			sessionName: newSession.name,
+			conversationId: newSession.conversationId ?? null,
+			taskHint: taskHint ?? null,
+		});
 	}
 
 	/**
 	 * Auto-rename session based on first user message
 	 */
 	async autoRenameSessionFromFirstMessage(firstMessage: string, sessionPanelRender?: () => void): Promise<void> {
-		const currentSession = this.settings.sessions.find(
-			(s: CopilotSession) => s.id === this.settings.activeSessionId
-		);
+		const currentSession = this.getCurrentSession();
 		
 		if (!currentSession) {
 			console.log("[VC] No current session found for auto-rename");
@@ -397,5 +451,58 @@ export class SessionManager {
 		}
 		
 		return cleaned;
+	}
+
+	private setActiveSession(sessionId: string): void {
+		this.activeSessionId = sessionId;
+		this.settings.activeSessionId = sessionId;
+	}
+
+	private generateSessionId(taskHint?: string): string {
+		const userId = this.resolveUserId();
+		const taskId = this.deriveTaskId(taskHint);
+		const timestamp = this.nextTimestamp();
+		return `${userId}-${taskId}-${timestamp}`;
+	}
+
+	private nextTimestamp(): number {
+		const now = Date.now();
+		const timestamp = now <= this.lastGeneratedTimestamp
+			? this.lastGeneratedTimestamp + 1
+			: now;
+		this.lastGeneratedTimestamp = timestamp;
+		return timestamp;
+	}
+
+	private resolveUserId(): string {
+		const settingsWithIdentity = this.settings as BasicCopilotPluginSettings & {
+			userName?: string;
+			githubUsername?: string;
+			anonymousId?: string;
+		};
+		const rawUserId = settingsWithIdentity.userName
+			|| settingsWithIdentity.githubUsername
+			|| settingsWithIdentity.anonymousId;
+		return this.slugifyToken(rawUserId, "anon", 32);
+	}
+
+	private deriveTaskId(taskHint?: string): string {
+		if (!taskHint) return "new-chat";
+		let cleaned = taskHint.replace(/^\/\w+\s*/, "").trim();
+		cleaned = cleaned.replace(/^(can you|could you|please|would you|help me|i want to|i need to)\s+/i, "");
+		return this.slugifyToken(cleaned, "new-chat", 40);
+	}
+
+	private slugifyToken(input: string | undefined, fallback: string, maxLength: number): string {
+		if (!input) return fallback;
+		const ascii = input
+			.toLowerCase()
+			.normalize("NFKD")
+			.replace(/[^\x00-\x7F]/g, "")
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "");
+		if (!ascii) return fallback;
+		if (ascii.length <= maxLength) return ascii;
+		return ascii.slice(0, maxLength).replace(/-+$/g, "") || fallback;
 	}
 }

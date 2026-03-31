@@ -28,6 +28,7 @@
 
 import { createLogger, format, Logger, transport } from "winston";
 import DailyRotateFile from "winston-daily-rotate-file";
+import * as fs from "node:fs";
 import type { SDKLogEntry } from "../copilot/TracingService";
 import { normalizeLogMessage, normalizeLogSource } from "../copilot/logging/LogTaxonomy";
 
@@ -40,6 +41,7 @@ const SDK_LOG_LEVELS = { error: 0, warning: 1, info: 2, debug: 3 };
 /** Unified singleton logger for bootstrap + SDK + tracing file output. */
 export class AppLogger {
 	private static instance: AppLogger | null = null;
+	private static readonly FILE_PERMISSION_ERROR_CODES = new Set(["EPERM", "EACCES"]);
 
 	/** Return the existing singleton instance if initialized, otherwise null. */
 	static getInstanceOrNull(): AppLogger | null {
@@ -190,22 +192,100 @@ export class AppLogger {
 
 	/** Build Winston logger and transports for the requested format. @internal */
 	private createLoggerForFormat(formatName: LogFormat): Logger {
-		const transports: transport[] = [];
+		const transportEntries: Array<{ name: "text" | "json"; value: transport }> = [];
+		if (!this.canWriteLogDir()) {
+			console.warn(
+				`[AppLogger] File logging unavailable in ${this.logDir}; continuing with console logging only.`,
+			);
+			return createLogger({
+				levels: SDK_LOG_LEVELS,
+				level: "debug",
+				transports: [],
+				exitOnError: false,
+			});
+		}
 
 		if (formatName === "text" || formatName === "both") {
-			transports.push(this.createTextTransport());
+			transportEntries.push({ name: "text", value: this.createTextTransport() });
 		}
 
 		if (formatName === "json" || formatName === "both") {
-			transports.push(this.createJsonTransport());
+			transportEntries.push({ name: "json", value: this.createJsonTransport() });
 		}
 
-		return createLogger({
+		const logger = createLogger({
 			levels: SDK_LOG_LEVELS,
 			level: "debug",
-			transports,
+			transports: transportEntries.map((entry) => entry.value),
 			exitOnError: false,
 		});
+
+		for (const entry of transportEntries) {
+			this.attachTransportErrorHandler(logger, entry.value, entry.name);
+		}
+		logger.on("error", (err) => this.handleLoggerError(err));
+
+		return logger;
+	}
+
+	private canWriteLogDir(): boolean {
+		try {
+			fs.mkdirSync(this.logDir, { recursive: true });
+			fs.accessSync(this.logDir, fs.constants.W_OK);
+			return true;
+		} catch (error) {
+			const err = error as NodeJS.ErrnoException;
+			if (this.isPermissionDeniedErrno(err)) {
+				return false;
+			}
+			console.warn("[AppLogger] Failed to verify log directory accessibility.", error);
+			return false;
+		}
+	}
+
+	private attachTransportErrorHandler(
+		logger: Logger,
+		logTransport: transport,
+		transportName: "text" | "json",
+	): void {
+		logTransport.on("error", (err: unknown) => {
+			const error = err instanceof Error ? err : new Error(String(err));
+			const permissionDenied = AppLogger.isPermissionDeniedError(error);
+			const reason = permissionDenied
+				? "permission denied"
+				: "transport failure";
+			console.warn(
+				`[AppLogger] Disabling ${transportName} file logging (${reason}) in ${this.logDir}.`,
+				error,
+			);
+			try {
+				logger.remove(logTransport);
+			} catch {
+				// Best effort — logger should continue running even if removal fails.
+			}
+			try {
+				(logTransport as { close?: () => void }).close?.();
+			} catch {
+				// Best effort cleanup only.
+			}
+			if (logger.transports.length === 0) {
+				console.warn("[AppLogger] File logging disabled; continuing with console logging only.");
+			}
+		});
+	}
+
+	private handleLoggerError(err: unknown): void {
+		const error = err instanceof Error ? err : new Error(String(err));
+		console.warn("[AppLogger] Logger error; continuing startup with console logging.", error);
+	}
+
+	private static isPermissionDeniedError(error: Error): boolean {
+		const code = (error as NodeJS.ErrnoException).code;
+		return typeof code === "string" && AppLogger.FILE_PERMISSION_ERROR_CODES.has(code);
+	}
+
+	private isPermissionDeniedErrno(error: NodeJS.ErrnoException): boolean {
+		return typeof error?.code === "string" && AppLogger.FILE_PERMISSION_ERROR_CODES.has(error.code);
 	}
 
 	/** Create human-readable daily-rotated `.log` transport. @internal */

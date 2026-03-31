@@ -288,7 +288,9 @@ export interface CopilotPluginSettings {
 	enableAnalytics?: boolean;
 	/** Custom analytics API endpoint URL */
 	analyticsEndpoint?: string;
-	/** GitHub username for rating attribution (hashed for privacy) */
+	/** User name for attribution/session identity (hashed for privacy where needed) */
+	userName?: string;
+	/** Legacy GitHub username field kept for backward compatibility */
 	githubUsername?: string;
 	/** Generated anonymous ID for users without GitHub username */
 	anonymousId?: string;

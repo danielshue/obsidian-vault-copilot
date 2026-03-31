@@ -64,6 +64,7 @@ export interface SessionPanelCallbacks {
 	onNewSession: () => void;
 	onClose: () => void;
 	onExpand?: () => void;
+	getActiveSessionId?: () => string | undefined;
 }
 
 export class SessionPanel {
@@ -305,7 +306,8 @@ export class SessionPanel {
 	}
 
 	private renderSessionItem(container: HTMLElement, session: CopilotSession, isArchived: boolean): void {
-		const isActive = session.id === this.plugin.settings.activeSessionId;
+		const activeSessionId = this.callbacks.getActiveSessionId?.() ?? this.plugin.settings.activeSessionId ?? undefined;
+		const isActive = session.id === activeSessionId;
 		const cls = isActive ? "vc-session-item vc-session-item-active" : "vc-session-item";
 		const item = container.createDiv({ cls });
 		

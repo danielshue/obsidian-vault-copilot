@@ -49,6 +49,8 @@ import { interceptConsoleLogs } from "./ConsoleInterceptor";
 
 import {
 	GitHubCopilotCliConfig,
+	InfiniteSessionOptions,
+	SessionCreateOptions,
 	ChatMessage,
 	ModelInfoResult,
 	SessionAgentInfo,
@@ -66,6 +68,8 @@ import type { ToolRegistry } from "../../api/registries/ToolRegistry";
 // Re-export types for consumers that import directly from this module
 export type {
 	GitHubCopilotCliConfig,
+	InfiniteSessionOptions,
+	SessionCreateOptions,
 	ChatMessage,
 	ModelInfoResult,
 	SessionCompactionResult,
@@ -101,6 +105,8 @@ export class GitHubCopilotCliService {
 	protected client: CopilotClient | null = null;
 	/** The active SDK chat session — `null` before {@link createSession}. @internal */
 	protected session: CopilotSession | null = null;
+	/** Last known SDK session ID, retained even after disconnect for resume. @internal */
+	protected lastSessionId: string | null = null;
 	/** Obsidian App reference for vault access. @internal */
 	protected app: App;
 	/** Current service configuration (may be updated via {@link updateConfig}). @internal */
@@ -390,15 +396,21 @@ export class GitHubCopilotCliService {
 	 * @returns Infinite session compaction config for Copilot SDK session creation
 	 * @internal
 	 */
-	private buildInfiniteSessionCompactionConfig(): {
+	private buildInfiniteSessionCompactionConfig(overrides?: InfiniteSessionOptions): {
 		enabled: boolean;
 		backgroundCompactionThreshold: number;
 		bufferExhaustionThreshold: number;
 	} {
 		return {
-			enabled: true,
-			backgroundCompactionThreshold: this.normalizeUtilizationRatio(this.config.backgroundCompactionThreshold, 0.8),
-			bufferExhaustionThreshold: this.normalizeUtilizationRatio(this.config.bufferExhaustionThreshold, 0.95),
+			enabled: overrides?.enabled ?? true,
+			backgroundCompactionThreshold: this.normalizeUtilizationRatio(
+				overrides?.backgroundCompactionThreshold ?? this.config.backgroundCompactionThreshold,
+				0.8
+			),
+			bufferExhaustionThreshold: this.normalizeUtilizationRatio(
+				overrides?.bufferExhaustionThreshold ?? this.config.bufferExhaustionThreshold,
+				0.95
+			),
 		};
 	}
 
@@ -413,6 +425,31 @@ export class GitHubCopilotCliService {
 	private normalizeUtilizationRatio(value: number | undefined, fallback: number): number {
 		if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
 		return Math.max(0, Math.min(1, value));
+	}
+
+	/**
+	 * Return true when an error indicates the JSON-RPC transport is already disposed.
+	 *
+	 * This catches common SDK/Node stream shutdown signatures so lifecycle code can
+	 * treat them as non-fatal best-effort cleanup outcomes.
+	 */
+	private isTransportDisposedError(error: unknown): boolean {
+		if (!error) return false;
+		const code = typeof error === "object" && error !== null && "code" in error
+			? String((error as { code?: unknown }).code ?? "")
+			: "";
+		if (code === "ERR_STREAM_DESTROYED" || code === "EPIPE" || code === "ECONNRESET") {
+			return true;
+		}
+		const message = error instanceof Error ? error.message : String(error);
+		const normalized = message.toLowerCase();
+		return normalized.includes("connection got disposed")
+			|| normalized.includes("pending response rejected since connection got disposed")
+			|| normalized.includes("cannot call write after a stream was destroyed")
+			|| normalized.includes("stream was destroyed")
+			|| normalized.includes("disposed")
+			|| normalized.includes("epipe")
+			|| normalized.includes("not initialized");
 	}
 
 	// ── Protected helpers (accessible by Pro subclass) ─────────────────────
@@ -559,6 +596,71 @@ export class GitHubCopilotCliService {
 	}
 
 	/**
+	 * Apply optional SDK session/resume options present on the runtime config.
+	 *
+	 * This keeps resume behavior aligned with current UI/service settings even
+	 * when turns disconnect and later resume.
+	 *
+	 * @param sessionConfig - Mutable session config object
+	 * @internal
+	 */
+	protected applyRuntimeResumeOptions(sessionConfig: Record<string, unknown>): void {
+		const cfg = this.config as unknown as Record<string, unknown>;
+
+		if (typeof cfg.reasoningEffort === "string" && cfg.reasoningEffort.length > 0) {
+			sessionConfig.reasoningEffort = cfg.reasoningEffort;
+		}
+
+		if (typeof cfg.workingDirectory === "string" && cfg.workingDirectory.length > 0) {
+			sessionConfig.workingDirectory = cfg.workingDirectory;
+		}
+
+		if (typeof cfg.configDir === "string" && cfg.configDir.length > 0) {
+			sessionConfig.configDir = cfg.configDir;
+		}
+
+		if (typeof cfg.agent === "string" && cfg.agent.length > 0) {
+			sessionConfig.agent = cfg.agent;
+		}
+
+		if (typeof cfg.infiniteSessions === "object" && cfg.infiniteSessions !== null) {
+			sessionConfig.infiniteSessions = cfg.infiniteSessions;
+		}
+
+		if (typeof cfg.provider === "object" && cfg.provider !== null) {
+			sessionConfig.provider = cfg.provider;
+		}
+
+		if (Array.isArray(cfg.availableTools) && cfg.availableTools.length > 0) {
+			sessionConfig.availableTools = cfg.availableTools.filter(
+				(name): name is string => typeof name === "string" && name.trim().length > 0
+			);
+		}
+
+		if (Array.isArray(cfg.excludedTools) && cfg.excludedTools.length > 0) {
+			sessionConfig.excludedTools = cfg.excludedTools.filter(
+				(name): name is string => typeof name === "string" && name.trim().length > 0
+			);
+		}
+
+		if (Array.isArray(cfg.customAgents) && cfg.customAgents.length > 0) {
+			sessionConfig.customAgents = cfg.customAgents;
+		}
+
+		if (Array.isArray(cfg.skillDirectories) && cfg.skillDirectories.length > 0) {
+			sessionConfig.skillDirectories = cfg.skillDirectories.filter(
+				(dir): dir is string => typeof dir === "string" && dir.trim().length > 0
+			);
+		}
+
+		if (Array.isArray(cfg.disabledSkills) && cfg.disabledSkills.length > 0) {
+			sessionConfig.disabledSkills = cfg.disabledSkills.filter(
+				(skill): skill is string => typeof skill === "string" && skill.trim().length > 0
+			);
+		}
+	}
+
+	/**
 	 * Convert SDK `SessionEvent` array to `ChatMessage` history.
 	 *
 	 * @param events - Raw SDK session events
@@ -654,6 +756,25 @@ export class GitHubCopilotCliService {
 		}
 
 		return text.trim();
+	}
+
+	private resolveSessionUserToken(): string | null {
+		const explicitUser = this.config.sessionUserId?.trim();
+		if (explicitUser) {
+			return explicitUser
+				.toLowerCase()
+				.normalize("NFKD")
+				.replace(/[^\x00-\x7F]/g, "")
+				.replace(/[^a-z0-9]+/g, "-")
+				.replace(/^-+|-+$/g, "") || null;
+		}
+
+		const sessionId = this.lastSessionId?.trim();
+		if (!sessionId) return null;
+		const firstDash = sessionId.indexOf("-");
+		if (firstDash <= 0) return null;
+		const token = sessionId.slice(0, firstDash);
+		return token || null;
 	}
 
 	/**
@@ -829,9 +950,11 @@ export class GitHubCopilotCliService {
 	async stop(): Promise<void> {
 		if (this.session) {
 			try {
-				await this.session.destroy();
+				await this.session.disconnect();
 			} catch (error) {
-				console.warn("[Torqena] Error destroying session:", error);
+				if (!this.isTransportDisposedError(error)) {
+					console.warn("[Torqena] Error disconnecting session:", error);
+				}
 			}
 			this.session = null;
 		}
@@ -844,12 +967,18 @@ export class GitHubCopilotCliService {
 					setTimeout(() => reject(new Error("Stop timeout")), stopTimeout)
 				);
 				await Promise.race([stopPromise, timeoutPromise]);
-			} catch {
-				console.warn("[Torqena] Graceful stop timed out, forcing stop...");
-				try {
-					await this.client.forceStop();
-				} catch (forceError) {
-					console.error("[Torqena] Force stop failed:", forceError);
+			} catch (error) {
+				if (this.isTransportDisposedError(error)) {
+					console.warn("[Torqena] Copilot transport already disposed during stop; skipping force-stop");
+				} else {
+					console.warn("[Torqena] Graceful stop failed, forcing stop...", error);
+					try {
+						await this.client.forceStop();
+					} catch (forceError) {
+						if (!this.isTransportDisposedError(forceError)) {
+							console.error("[Torqena] Force stop failed:", forceError);
+						}
+					}
 				}
 			}
 			this.client = null;
@@ -873,12 +1002,12 @@ export class GitHubCopilotCliService {
 	 * const id = await service.createSession();
 	 * ```
 	 */
-	async createSession(sessionId?: string): Promise<string> {
+	async createSession(sessionId?: string, options?: SessionCreateOptions): Promise<string> {
 		if (!this.client) await this.start();
 		const client = this.client;
 		if (!client) throw new Error("Copilot client not initialized");
 
-		if (this.session) await this.session.destroy();
+		if (this.session) await this.session.disconnect();
 
 		const tools = this.buildTools();
 		const sessionConfig: Record<string, unknown> = {
@@ -886,15 +1015,19 @@ export class GitHubCopilotCliService {
 			streaming: this.config.streaming,
 			tools,
 			systemMessage: { content: this.buildSystemPrompt() },
-			infiniteSessions: this.buildInfiniteSessionCompactionConfig(),
+			infiniteSessions: this.buildInfiniteSessionCompactionConfig(options?.infiniteSessions),
 			onPermissionRequest: approveAll,
 			// Do not restrict availableTools — allows CLI-native MCP extensions (e.g. WorkIQ)
 			// registered in the Copilot CLI config to be callable alongside plugin tools.
 		};
+		this.applyRuntimeResumeOptions(sessionConfig);
 
 		const cliMcpServers = this.readCliMcpServers();
 		if (Object.keys(cliMcpServers).length > 0) {
-			sessionConfig.mcpServers = cliMcpServers;
+			const existingMcpServers = typeof sessionConfig.mcpServers === "object" && sessionConfig.mcpServers !== null
+				? sessionConfig.mcpServers as Record<string, unknown>
+				: {};
+			sessionConfig.mcpServers = { ...existingMcpServers, ...cliMcpServers };
 			console.log("[Torqena] CLI MCP servers:", Object.keys(cliMcpServers));
 		}
 
@@ -916,6 +1049,7 @@ export class GitHubCopilotCliService {
 		this.touchActivity();
 
 		const actualSessionId = this.session.sessionId;
+		this.lastSessionId = actualSessionId;
 		console.log("[Torqena] Session created with ID:", actualSessionId);
 		return actualSessionId;
 	}
@@ -940,18 +1074,26 @@ export class GitHubCopilotCliService {
 		const client = this.client;
 		if (!client) throw new Error("Copilot client not initialized");
 
-		if (this.session) await this.session.destroy();
+		if (this.session) await this.session.disconnect();
 
 		const tools = this.buildTools();
 		const resumeConfig: Record<string, unknown> = {
+			model: this.config.model,
+			streaming: this.config.streaming,
 			tools,
+			systemMessage: { content: this.buildSystemPrompt() },
+			infiniteSessions: this.buildInfiniteSessionCompactionConfig(),
 			onPermissionRequest: approveAll,
 			// Do not restrict availableTools — allows CLI-native MCP extensions to be callable.
 		};
+		this.applyRuntimeResumeOptions(resumeConfig);
 
 		const cliMcpServers = this.readCliMcpServers();
 		if (Object.keys(cliMcpServers).length > 0) {
-			resumeConfig.mcpServers = cliMcpServers;
+			const existingMcpServers = typeof resumeConfig.mcpServers === "object" && resumeConfig.mcpServers !== null
+				? resumeConfig.mcpServers as Record<string, unknown>
+				: {};
+			resumeConfig.mcpServers = { ...existingMcpServers, ...cliMcpServers };
 			console.log("[Torqena] CLI MCP servers (resume):", Object.keys(cliMcpServers));
 		}
 
@@ -970,10 +1112,34 @@ export class GitHubCopilotCliService {
 			this.touchActivity();
 
 			console.log("[Torqena] Session resumed with", this.messageHistory.length, "messages");
+			this.lastSessionId = this.session.sessionId;
 			return this.session.sessionId;
 		} catch (error) {
 			console.warn("[Torqena] Failed to resume session, creating new one:", error);
 			return this.createSession(sessionId);
+		}
+	}
+
+	private async ensureActiveSessionForTurn(): Promise<void> {
+		if (this.session) return;
+		if (this.lastSessionId) {
+			await this.resumeSession(this.lastSessionId);
+			return;
+		}
+		await this.createSession();
+	}
+
+	private async disconnectAfterTurn(): Promise<void> {
+		if (!this.session) return;
+		try {
+			await this.session.disconnect();
+		} catch (error) {
+			if (!this.isTransportDisposedError(error)) {
+				throw error;
+			}
+			console.warn("[Torqena] Session transport already disposed after turn; continuing");
+		} finally {
+			this.session = null;
 		}
 	}
 
@@ -994,7 +1160,11 @@ export class GitHubCopilotCliService {
 
 		try {
 			const sessions = await client.listSessions();
-			return sessions.map(s => ({
+			const userToken = this.resolveSessionUserToken();
+			const filtered = userToken
+				? sessions.filter((s) => s.sessionId.startsWith(`${userToken}-`))
+				: sessions;
+			return filtered.map(s => ({
 				sessionId: s.sessionId,
 				startTime: s.startTime,
 				modifiedTime: s.modifiedTime,
@@ -1033,6 +1203,81 @@ export class GitHubCopilotCliService {
 			console.error("[Torqena] Failed to delete session:", error);
 			throw error;
 		}
+	}
+
+	/**
+	 * Delete sessions older than a maximum age.
+	 *
+	 * Sessions are scoped to the current user token by default (or to the supplied
+	 * user token when provided). Pass `maxAgeMs <= 0` to delete all scoped sessions.
+	 *
+	 * @param maxAgeMs - Maximum allowed age in milliseconds
+	 * @param userId - Optional explicit user token for `{userId}-` session ID scoping
+	 * @returns Number of deleted sessions
+	 */
+	async cleanupExpiredSessions(maxAgeMs: number, userId?: string): Promise<number> {
+		if (!this.client) await this.start();
+		const client = this.client;
+		if (!client) throw new Error("Copilot client not initialized");
+
+		const sessionIdsToDelete = await this.getExpiredSessionIds(maxAgeMs, userId);
+		let deletedCount = 0;
+		for (const sessionId of sessionIdsToDelete) {
+			await this.deleteSession(sessionId);
+			console.log(`[Torqena] Deleted expired session: ${sessionId}`);
+			deletedCount += 1;
+		}
+
+		return deletedCount;
+	}
+
+	/**
+	 * Count sessions that would be removed by {@link cleanupExpiredSessions}.
+	 *
+	 * Uses the same age/scoping semantics as cleanup, but performs no deletion.
+	 *
+	 * @param maxAgeMs - Maximum allowed age in milliseconds
+	 * @param userId - Optional explicit user token for `{userId}-` session ID scoping
+	 * @returns Number of sessions outside the selected threshold
+	 */
+	async countExpiredSessions(maxAgeMs: number, userId?: string): Promise<number> {
+		if (!this.client) await this.start();
+		const client = this.client;
+		if (!client) throw new Error("Copilot client not initialized");
+		const sessionIdsToDelete = await this.getExpiredSessionIds(maxAgeMs, userId);
+		return sessionIdsToDelete.length;
+	}
+
+	private async getExpiredSessionIds(maxAgeMs: number, userId?: string): Promise<string[]> {
+		if (!this.client) await this.start();
+		const client = this.client;
+		if (!client) throw new Error("Copilot client not initialized");
+
+		const now = Date.now();
+		const scopedUserToken = userId?.trim() || this.resolveSessionUserToken();
+		const allSessions = await client.listSessions();
+		const sessions = scopedUserToken
+			? allSessions.filter((s) => s.sessionId.startsWith(`${scopedUserToken}-`))
+			: allSessions;
+		const deleteAll = !Number.isFinite(maxAgeMs) || maxAgeMs <= 0;
+		const expiredSessionIds: string[] = [];
+
+		for (const session of sessions) {
+			const candidateDate = (session as { createdAt?: unknown }).createdAt
+				?? session.startTime
+				?? session.modifiedTime;
+			const createdMs = candidateDate instanceof Date
+				? candidateDate.getTime()
+				: Number(new Date(String(candidateDate)).getTime());
+			if (!Number.isFinite(createdMs)) continue;
+
+			const age = now - createdMs;
+			if (deleteAll || age > maxAgeMs) {
+				expiredSessionIds.push(session.sessionId);
+			}
+		}
+
+		return expiredSessionIds;
 	}
 
 	/**
@@ -1186,7 +1431,7 @@ export class GitHubCopilotCliService {
 	}
 
 	async sendMessage(prompt: string, timeout?: number, images?: ImageAttachment[]): Promise<string> {
-		if (!this.session) await this.createSession();
+		await this.ensureActiveSessionForTurn();
 		await this.ensureSessionAlive();
 		const session = this.session;
 		if (!session) throw new Error("Session not initialized");
@@ -1232,6 +1477,7 @@ export class GitHubCopilotCliService {
 			throw error;
 		} finally {
 			this.cleanupTempFiles(tempFiles.map(f => f.path));
+			await this.disconnectAfterTurn();
 		}
 	}
 
@@ -1263,7 +1509,7 @@ export class GitHubCopilotCliService {
 		images?: ImageAttachment[],
 		mode?: string
 	): Promise<void> {
-		if (!this.session) await this.createSession();
+		await this.ensureActiveSessionForTurn();
 		await this.ensureSessionAlive();
 		const session = this.session;
 		if (!session) throw new Error("Session not initialized");
@@ -1416,8 +1662,9 @@ export class GitHubCopilotCliService {
 				tracingService.addSdkLog("error", `[Send Error] ${err.message || err}`, LOG_SOURCES.COPILOT_ERROR);
 				reject(err);
 			});
-		}).finally(() => {
+		}).finally(async () => {
 			this.cleanupTempFiles(tempFiles.map(f => f.path));
+			await this.disconnectAfterTurn();
 		});
 	}
 
@@ -1554,7 +1801,7 @@ export class GitHubCopilotCliService {
 		} catch (error) {
 			// Connection may have been disposed (CLI process died) — restart
 			const msg = error instanceof Error ? error.message : String(error);
-			if (msg.includes("disposed") || msg.includes("EPIPE") || msg.includes("not initialized")) {
+			if (this.isTransportDisposedError(error) || msg.includes("ERR_STREAM_DESTROYED")) {
 				console.warn("[Torqena] Connection disposed during clearHistory — restarting client");
 				this.client = null;
 				this.session = null;
@@ -1691,7 +1938,7 @@ export class GitHubCopilotCliService {
 	 * ```
 	 */
 	getSessionId(): string | null {
-		return this.session?.sessionId ?? null;
+		return this.session?.sessionId ?? this.lastSessionId;
 	}
 
 	/**

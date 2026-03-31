@@ -45,6 +45,23 @@ export interface GitHubCopilotCliConfig {
 	tracingEnabled?: boolean;
 	/** SDK log level when tracing is enabled (default: 'info') */
 	logLevel?: string;
+	/** Optional user token used to scope SDK session listings by session ID prefix */
+	sessionUserId?: string;
+}
+
+/** Per-session infinite-session compaction options passed at session creation time. */
+export interface InfiniteSessionOptions {
+	/** Whether infinite sessions are enabled for this session (default: true). */
+	enabled?: boolean;
+	/** Context utilization ratio (0.0-1.0) to start background compaction. */
+	backgroundCompactionThreshold?: number;
+	/** Context utilization ratio (0.0-1.0) to block before buffer exhaustion. */
+	bufferExhaustionThreshold?: number;
+}
+
+/** Optional overrides applied only to a single createSession() call. */
+export interface SessionCreateOptions {
+	infiniteSessions?: InfiniteSessionOptions;
 }
 
 // ── Message History ────────────────────────────────────────────────────────

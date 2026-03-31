@@ -617,6 +617,7 @@
 }
 
 .vc-chat-preferences-section .vc-plugin-inner-settings-card,
+.vc-chat-advanced-section .vc-plugin-inner-settings-card,
 .vc-tool-selection-section .vc-plugin-inner-settings-card,
 .vc-voice-input-section .vc-plugin-inner-settings-card,
 .vc-whisper-section .vc-plugin-inner-settings-card,
@@ -630,6 +631,7 @@
 }
 
 .vc-chat-preferences-section .vc-plugin-inner-settings-card .setting-item,
+.vc-chat-advanced-section .vc-plugin-inner-settings-card .setting-item,
 .vc-tool-selection-section .vc-plugin-inner-settings-card .setting-item,
 .vc-voice-input-section .vc-plugin-inner-settings-card .setting-item,
 .vc-whisper-section .vc-plugin-inner-settings-card .setting-item,
@@ -645,6 +647,7 @@
 }
 
 .vc-chat-preferences-section .vc-plugin-inner-settings-card .setting-item:last-child,
+.vc-chat-advanced-section .vc-plugin-inner-settings-card .setting-item:last-child,
 .vc-tool-selection-section .vc-plugin-inner-settings-card .setting-item:last-child,
 .vc-voice-input-section .vc-plugin-inner-settings-card .setting-item:last-child,
 .vc-whisper-section .vc-plugin-inner-settings-card .setting-item:last-child,
@@ -658,7 +661,27 @@
 	margin-top: 16px;
 }
 
+.vc-advanced-toggle-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.vc-advanced-toggle-button:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
 .vc-chat-preferences-section .setting-item-name,
+.vc-chat-advanced-section .setting-item-name,
 .vc-voice-input-section .setting-item-name,
 .vc-whisper-section .setting-item-name,
 .vc-realtime-agent-section .setting-item-name,
@@ -668,6 +691,7 @@
 }
 
 .vc-chat-preferences-section .setting-item-description,
+.vc-chat-advanced-section .setting-item-description,
 .vc-voice-input-section .setting-item-description,
 .vc-whisper-section .setting-item-description,
 .vc-realtime-agent-section .setting-item-description,

@@ -14,7 +14,7 @@
  * @since 0.0.1
  */
 
-import { Setting, Menu } from "obsidian";
+import { Setting, Menu, Notice } from "obsidian";
 import type { SettingsContext } from "./SettingsContext";
 import { GitHubCopilotCliManager, CliStatus } from "../../../copilot/providers/GitHubCopilotCliManager";
 import { ToolCatalog } from "../../../copilot/tools/ToolCatalog";
@@ -240,6 +240,68 @@ export class ChatPreferencesSection {
 						await this.ctx.plugin.saveSettings();
 					});
 			});
+
+		const sessionsSubsection = settingsCard.createDiv({ cls: "vc-chat-preferences-sessions-subsection" });
+		sessionsSubsection.createEl("h4", { text: "Sessions", cls: "vc-shell-subsection-title" });
+		const sessionsAdvancedSubsection = sessionsSubsection.createDiv({ cls: "vc-chat-preferences-sessions-advanced-subsection" });
+		sessionsAdvancedSubsection.createEl("h5", { text: "Advanced", cls: "vc-shell-subsection-title" });
+
+		const cleanupDayOptions: Record<string, string> = {
+			"1": "1 day",
+			"3": "3 days",
+			"7": "7 days",
+			"14": "14 days",
+			"30": "30 days",
+			"all": "All",
+		};
+		let selectedCleanupWindow = "7";
+
+		new Setting(sessionsAdvancedSubsection)
+			.setName("Cleanup window")
+			.setDesc("Choose how old sessions must be before cleanup.")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOptions(cleanupDayOptions)
+					.setValue(selectedCleanupWindow)
+					.onChange((value) => {
+						selectedCleanupWindow = value;
+					})
+			);
+
+		new Setting(sessionsAdvancedSubsection)
+			.setName("Clean up previous sessions")
+			.setDesc("Delete SDK sessions older than the selected window for the current user.")
+			.addButton((button) =>
+				button
+					.setButtonText("Clean Up")
+					.onClick(async () => {
+						button.setDisabled(true);
+						try {
+							const pluginWithService = this.ctx.plugin as unknown as {
+								settings: { userName?: string; githubUsername?: string; anonymousId?: string };
+								githubCopilotCliService?: { cleanupExpiredSessions(maxAgeMs: number, userId?: string): Promise<number> };
+							};
+							const service = pluginWithService.githubCopilotCliService;
+							if (!service) throw new Error("Copilot CLI service not initialized");
+
+							const userId = pluginWithService.settings.userName
+								|| pluginWithService.settings.githubUsername
+								|| pluginWithService.settings.anonymousId
+								|| undefined;
+							const maxAgeMs = selectedCleanupWindow === "all"
+								? 0
+								: Number(selectedCleanupWindow) * 24 * 60 * 60 * 1000;
+
+							const deleted = await service.cleanupExpiredSessions(maxAgeMs, userId);
+							new Notice(`Deleted ${deleted} session${deleted === 1 ? "" : "s"}.`);
+						} catch (error) {
+							console.error("[ChatPreferences.Basic] Failed to clean up sessions:", error);
+							new Notice("Failed to clean up sessions.");
+						} finally {
+							button.setDisabled(false);
+						}
+					})
+			);
 
 		// Status bar toggle
 		new Setting(settingsCard)
