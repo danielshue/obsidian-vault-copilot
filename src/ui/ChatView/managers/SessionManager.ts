@@ -52,7 +52,15 @@ export class SessionManager {
 	) {
 		this.settings = settings;
 		this.githubCopilotCliService = githubCopilotCliService;
-		this.saveSettings = saveSettings;
+		this.saveSettings = async () => {
+			// Strip stale toolOverrides from all sessions before persisting
+			if (this.settings.sessions) {
+				for (const session of this.settings.sessions) {
+					delete (session as unknown as Record<string, unknown>).toolOverrides;
+				}
+			}
+			await saveSettings();
+		};
 		this.callbacks = callbacks;
 		this.vaultId = vaultId;
 		this.activeSessionId = settings.activeSessionId ?? undefined;
