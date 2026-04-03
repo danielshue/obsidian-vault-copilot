@@ -290,7 +290,7 @@ export class BaseToolbarManager {
 	 * Pro overrides to also call `refreshVoiceToolbar()`.
 	 */
 	refreshFromSettings(): void {
-		const availableModels = getAvailableModels(this.plugin.settings);
+		const availableModels = this.getModelsForSelector();
 		const firstModel = availableModels[0];
 		if (firstModel && !availableModels.includes(this.plugin.settings.model)) {
 			this.plugin.settings.model = firstModel;
@@ -298,6 +298,19 @@ export class BaseToolbarManager {
 		}
 		this.updateModelSelectorText();
 		this.service.updateConfig({ model: this.plugin.settings.model });
+	}
+
+	/**
+	 * Return the list of models to display in the model selector menu.
+	 *
+	 * By default returns all available models from settings. Pro overrides this
+	 * to return only BYOK provider-specific models when a non-Copilot profile
+	 * is active.
+	 *
+	 * @returns Array of model ID strings
+	 */
+	protected getModelsForSelector(): string[] {
+		return getAvailableModels(this.plugin.settings);
 	}
 
 	/**
@@ -597,7 +610,7 @@ export class BaseToolbarManager {
 
 		this.modelSelectorEl.addEventListener("click", (e) => {
 			const menu = new Menu();
-			const models = getAvailableModels(this.plugin.settings);
+			const models = this.getModelsForSelector();
 			const currentModel = this.plugin.settings.model;
 
 			// Header row
@@ -687,9 +700,9 @@ export class BaseToolbarManager {
 	protected getModelProviderIcon(provider: "anthropic" | "openai" | "gemini" | "generic"): string {
 		switch (provider) {
 			case "anthropic":
-				return `<span class="vc-model-provider-icon vc-model-provider-anthropic" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20 12 4l6 16"></path><path d="M8.7 13h6.6"></path></svg></span>`;
+				return `<span class="vc-model-provider-icon vc-model-provider-anthropic" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M13.83 3h3.27L22 21h-3.27l-4.9-18zm-6.93 0H3.63L8.53 21h3.27L6.9 3zM9.5 14h5l.82 3H8.68l.82-3z" fill="currentColor"/></svg></span>`;
 			case "openai":
-				return `<span class="vc-model-provider-icon vc-model-provider-openai" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3.5"></circle></svg></span>`;
+				return `<span class="vc-model-provider-icon vc-model-provider-openai" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M22.28 9.37a5.93 5.93 0 0 0-.51-4.88 6.01 6.01 0 0 0-6.47-2.91A5.93 5.93 0 0 0 10.82 0a6.01 6.01 0 0 0-5.73 4.14 5.93 5.93 0 0 0-3.97 2.88 6.01 6.01 0 0 0 .74 7.04 5.93 5.93 0 0 0 .51 4.88 6.01 6.01 0 0 0 6.47 2.91A5.93 5.93 0 0 0 13.32 24a6.01 6.01 0 0 0 5.73-4.14 5.93 5.93 0 0 0 3.97-2.88 6.01 6.01 0 0 0-.74-7.04v-.57zM13.32 22.34a4.47 4.47 0 0 1-2.87-1.04l.14-.08 4.77-2.76a.77.77 0 0 0 .39-.68v-6.74l2.02 1.16a.07.07 0 0 1 .04.06v5.58a4.5 4.5 0 0 1-4.49 4.5zM3.58 18.23a4.47 4.47 0 0 1-.53-3.02l.14.08 4.77 2.76a.77.77 0 0 0 .78 0l5.83-3.37v2.33a.07.07 0 0 1-.03.06l-4.83 2.79a4.5 4.5 0 0 1-6.13-1.63zM2.19 7.87A4.47 4.47 0 0 1 4.53 5.9v5.69a.77.77 0 0 0 .39.68l5.83 3.37-2.02 1.16a.07.07 0 0 1-.07 0L3.83 14a4.5 4.5 0 0 1-1.64-6.13zm17.36 4.04L13.72 8.54l2.02-1.16a.07.07 0 0 1 .07 0l4.83 2.79a4.5 4.5 0 0 1-.69 8.12v-5.69a.77.77 0 0 0-.4-.69zm2.01-3.03-.14-.08-4.77-2.76a.77.77 0 0 0-.78 0L9.99 9.41V7.08a.07.07 0 0 1 .03-.06l4.83-2.79a4.5 4.5 0 0 1 6.71 4.65zM8.84 12.68l-2.02-1.16a.07.07 0 0 1-.04-.06V5.88a4.5 4.5 0 0 1 7.36-3.46l-.14.08-4.77 2.76a.77.77 0 0 0-.39.68v6.74zm1.1-2.37L12 9l2.06 1.19v2.38L12 13.76l-2.06-1.19V10.3z" fill="currentColor"/></svg></span>`;
 			case "gemini":
 				return `<span class="vc-model-provider-icon vc-model-provider-gemini" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 14.5 9.5 21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z"></path></svg></span>`;
 			default:
