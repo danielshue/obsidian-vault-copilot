@@ -359,8 +359,6 @@ export class BaseToolbarManager {
 			session: currentSession,
 			mode: "session",
 			onSave: async (enabledTools) => {
-				// Tool picker selections are applied per-session via toolOverrides
-				this.plugin.settings.defaultDisabledTools = [];
 				if (currentSession) {
 					currentSession.toolOverrides = { enabled: enabledTools };
 				}
