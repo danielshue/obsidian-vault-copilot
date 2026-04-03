@@ -328,7 +328,7 @@ export class BaseToolbarManager {
 		} else {
 			this.modelSelectorEl.style.display = "";
 			const provider = this.getModelProvider(this.plugin.settings.model);
-			const providerIcon = this.getModelProviderIcon(provider);
+			const providerIcon = this.getModelIconHtml(this.plugin.settings.model);
 			const modelName = getModelDisplayName(this.plugin.settings.model);
 			this.modelSelectorEl.innerHTML = `${providerIcon}<span class="vc-model-selector-text">${modelName}</span>`;
 		}
@@ -582,7 +582,7 @@ export class BaseToolbarManager {
 					checkEl.textContent = isSelected ? "✓" : "";
 					const nameEl = document.createElement("span");
 					nameEl.className = "vc-model-col-name";
-					nameEl.innerHTML = this.getModelProviderIcon(provider) + getModelDisplayName(modelId);
+					nameEl.innerHTML = this.getModelIconHtml(modelId) + getModelDisplayName(modelId);
 					const multEl = document.createElement("span");
 					multEl.className = "vc-model-col-mult";
 					multEl.textContent = multiplier !== undefined ? `${multiplier}x` : "";
@@ -655,7 +655,7 @@ export class BaseToolbarManager {
 						checkEl.textContent = isSelected ? "✓" : "";
 						const nameEl = document.createElement("span");
 						nameEl.className = "vc-model-col-name";
-						nameEl.innerHTML = this.getModelProviderIcon(provider) + getModelDisplayName(modelId);
+						nameEl.innerHTML = this.getModelIconHtml(modelId) + getModelDisplayName(modelId);
 						const multEl = document.createElement("span");
 						multEl.className = "vc-model-col-mult";
 						multEl.textContent = multiplier !== undefined ? `${multiplier}x` : "";
@@ -697,16 +697,22 @@ export class BaseToolbarManager {
 	 * @param provider - Provider family
 	 * @returns HTML string containing the icon span
 	 */
-	protected getModelProviderIcon(provider: "anthropic" | "openai" | "gemini" | "generic"): string {
-		switch (provider) {
-			case "anthropic":
-				return `<span class="vc-model-provider-icon vc-model-provider-anthropic" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M13.83 3h3.27L22 21h-3.27l-4.9-18zm-6.93 0H3.63L8.53 21h3.27L6.9 3zM9.5 14h5l.82 3H8.68l.82-3z" fill="currentColor"/></svg></span>`;
-			case "openai":
-				return `<span class="vc-model-provider-icon vc-model-provider-openai" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M22.28 9.37a5.93 5.93 0 0 0-.51-4.88 6.01 6.01 0 0 0-6.47-2.91A5.93 5.93 0 0 0 10.82 0a6.01 6.01 0 0 0-5.73 4.14 5.93 5.93 0 0 0-3.97 2.88 6.01 6.01 0 0 0 .74 7.04 5.93 5.93 0 0 0 .51 4.88 6.01 6.01 0 0 0 6.47 2.91A5.93 5.93 0 0 0 13.32 24a6.01 6.01 0 0 0 5.73-4.14 5.93 5.93 0 0 0 3.97-2.88 6.01 6.01 0 0 0-.74-7.04v-.57zM13.32 22.34a4.47 4.47 0 0 1-2.87-1.04l.14-.08 4.77-2.76a.77.77 0 0 0 .39-.68v-6.74l2.02 1.16a.07.07 0 0 1 .04.06v5.58a4.5 4.5 0 0 1-4.49 4.5zM3.58 18.23a4.47 4.47 0 0 1-.53-3.02l.14.08 4.77 2.76a.77.77 0 0 0 .78 0l5.83-3.37v2.33a.07.07 0 0 1-.03.06l-4.83 2.79a4.5 4.5 0 0 1-6.13-1.63zM2.19 7.87A4.47 4.47 0 0 1 4.53 5.9v5.69a.77.77 0 0 0 .39.68l5.83 3.37-2.02 1.16a.07.07 0 0 1-.07 0L3.83 14a4.5 4.5 0 0 1-1.64-6.13zm17.36 4.04L13.72 8.54l2.02-1.16a.07.07 0 0 1 .07 0l4.83 2.79a4.5 4.5 0 0 1-.69 8.12v-5.69a.77.77 0 0 0-.4-.69zm2.01-3.03-.14-.08-4.77-2.76a.77.77 0 0 0-.78 0L9.99 9.41V7.08a.07.07 0 0 1 .03-.06l4.83-2.79a4.5 4.5 0 0 1 6.71 4.65zM8.84 12.68l-2.02-1.16a.07.07 0 0 1-.04-.06V5.88a4.5 4.5 0 0 1 7.36-3.46l-.14.08-4.77 2.76a.77.77 0 0 0-.39.68v6.74zm1.1-2.37L12 9l2.06 1.19v2.38L12 13.76l-2.06-1.19V10.3z" fill="currentColor"/></svg></span>`;
-			case "gemini":
-				return `<span class="vc-model-provider-icon vc-model-provider-gemini" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 14.5 9.5 21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z"></path></svg></span>`;
-			default:
-				return `<span class="vc-model-provider-icon vc-model-provider-generic" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle></svg></span>`;
+	protected getModelProviderIcon(_provider: "anthropic" | "openai" | "gemini" | "generic"): string {
+		return '';
+	}
+
+	/**
+	 * Return an SVG icon span for a specific model, using the ProviderIcons registry.
+	 */
+	protected getModelIconHtml(modelId: string): string {
+		try {
+			const { getModelSvgIcon, wrapIconSvg } = require('../../ProviderIcons') as {
+				getModelSvgIcon: (id: string) => string;
+				wrapIconSvg: (svg: string, size?: number, cls?: string) => string;
+			};
+			return wrapIconSvg(getModelSvgIcon(modelId), 14, 'vc-model-provider-icon');
+		} catch {
+			return '';
 		}
 	}
 
