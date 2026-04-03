@@ -74,6 +74,7 @@ loader: {
 '.woff2': 'empty',
 '.ttf': 'empty',
 '.eot': 'empty',
+'.svg': 'text',
 },
 entryNames: "[name]",
 minify: prod,
