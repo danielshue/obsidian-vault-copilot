@@ -2004,6 +2004,68 @@
 	border-color: var(--background-modifier-border-hover);
 }
 
+/* ── Provider dropdown icon overlay ── */
+.vc-provider-dropdown-icon {
+	position: absolute;
+	left: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	pointer-events: none;
+	z-index: 1;
+}
+
+.vc-provider-dropdown-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+/* ── Provider dropdown-styled button ── */
+.vc-provider-dropdown-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+	min-width: 200px;
+}
+
+.vc-provider-dropdown-btn:hover {
+	border-color: var(--background-modifier-border-hover);
+}
+
+.vc-provider-dropdown-chevron {
+	margin-left: auto;
+	opacity: 0.5;
+	font-size: 14px;
+}
+
+/* ── Provider type picker button (replaces native dropdown) ── */
+.vc-provider-type-picker {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+
+.vc-provider-picker-icon {
+	display: inline-flex;
+	align-items: center;
+	width: 18px;
+	height: 18px;
+}
+
+.vc-provider-picker-icon svg {
+	width: 18px;
+	height: 18px;
+}
+
 /* ── AI Provider Profile card list ── */
 .vc-profile-list {
 	margin-top: 10px;
@@ -2037,30 +2099,18 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 13px;
-	font-weight: 700;
-	color: #ffffff;
-	letter-spacing: -0.5px;
+	background: transparent;
+	color: var(--text-normal);
 }
 
-.vc-profile-card__icon[data-type="copilot"] {
-	background: linear-gradient(135deg, #24292e 0%, #444d56 100%);
+/* SVG icon variant — scale SVG to fill the card icon area */
+.vc-profile-card__icon--svg {
+	padding: 6px;
 }
 
-.vc-profile-card__icon[data-type="openai"] {
-	background: linear-gradient(135deg, #10a37f 0%, #1a7f64 100%);
-}
-
-.vc-profile-card__icon[data-type="azure-openai"] {
-	background: linear-gradient(135deg, #0078d4 0%, #1b5eab 100%);
-}
-
-.vc-profile-card__icon[data-type="local"] {
-	background: linear-gradient(135deg, #6c5ce7 0%, #4a3eb1 100%);
-}
-
-.vc-profile-card__icon[data-type="torqena-cloud"] {
-	background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+.vc-profile-card__icon--svg svg {
+	width: 100%;
+	height: 100%;
 }
 
 .vc-profile-card__body {
@@ -2427,6 +2477,42 @@
 	background: color-mix(in srgb, var(--interactive-accent) 10%, transparent);
 }
 
+.vc-sub-nav-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1px 6px;
+	border-radius: 999px;
+	font-size: 10px;
+	font-weight: 600;
+	line-height: 1.2;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	background: color-mix(in srgb, var(--text-muted) 16%, transparent);
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.vc-sub-nav-badge--dev {
+	background: color-mix(in srgb, var(--color-purple) 18%, transparent);
+	color: var(--color-purple);
+}
+
+.vc-sub-nav-badge--alpha {
+	background: color-mix(in srgb, var(--text-error) 14%, transparent);
+	color: var(--text-error);
+}
+
+.vc-sub-nav-badge--beta {
+	background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+	color: var(--interactive-accent);
+}
+
+.vc-sub-nav-badge--coming-soon {
+	background: color-mix(in srgb, var(--text-warning) 16%, transparent);
+	color: var(--text-warning);
+}
+
 /* ================================
    SHELL SETTINGS MODAL SIDEBAR
    Two-column layout: fixed sidebar + scrollable content.
@@ -2662,4 +2748,45 @@ justify-content: space-between;
 overflow: hidden;
 text-overflow: ellipsis;
 white-space: nowrap;
+}
+
+/* ── Coming Soon section treatment ── */
+
+.vc-coming-soon {
+	position: relative;
+}
+
+.vc-coming-soon .vc-settings-section,
+.vc-coming-soon .setting-item,
+.vc-coming-soon .vc-plugin-inner-settings-card {
+	opacity: 0.45;
+	pointer-events: none;
+	user-select: none;
+}
+
+/* Keep the header interactive so the badge is visible */
+.vc-coming-soon .vc-section-header,
+.vc-coming-soon > h2,
+.vc-coming-soon > h3 {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.vc-coming-soon-badge {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 0.7em;
+	font-weight: 600;
+	vertical-align: middle;
+	background: color-mix(in srgb, var(--text-warning) 15%, transparent);
+	color: var(--text-warning);
+	border: 1px solid color-mix(in srgb, var(--text-warning) 30%, transparent);
+}
+
+/* Individual setting "Coming Soon" — grays out the control but keeps label visible */
+.vc-setting-coming-soon .setting-item-control {
+	opacity: 0.35;
+	pointer-events: none;
 }

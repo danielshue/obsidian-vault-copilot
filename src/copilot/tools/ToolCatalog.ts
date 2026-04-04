@@ -251,25 +251,16 @@ export class ToolCatalog {
 	}
 
 	/**
-	 * Get enabled tool IDs, honoring defaults and session overrides.
+	 * Get enabled tool IDs, honoring session overrides.
 	 */
-	getEnabledTools(settings: CopilotPluginSettings, session?: CopilotSession): string[] {
+	getEnabledTools(_settings: CopilotPluginSettings, session?: CopilotSession): string[] {
 		const allTools = this.getAllTools();
 		const allToolIds = new Set(allTools.map(t => t.id));
 		const enabledSet = new Set<string>();
 
-		if (settings.defaultEnabledTools && settings.defaultEnabledTools.length > 0) {
-			// Legacy: ignore saved defaultEnabledTools — all tools are enabled by default
-		}
 		for (const tool of allTools) {
 			if (tool.enabledByDefault) {
 				enabledSet.add(tool.id);
-			}
-		}
-
-		if (settings.defaultDisabledTools) {
-			for (const toolId of settings.defaultDisabledTools) {
-				enabledSet.delete(toolId);
 			}
 		}
 

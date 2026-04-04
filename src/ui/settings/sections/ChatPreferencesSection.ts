@@ -14,11 +14,11 @@
  * @since 0.0.1
  */
 
-import { Setting, Menu, Notice } from "obsidian";
+import { Setting, Notice } from "obsidian";
 import type { SettingsContext } from "./SettingsContext";
 import { GitHubCopilotCliManager, CliStatus } from "../../../copilot/providers/GitHubCopilotCliManager";
-import { ToolCatalog } from "../../../copilot/tools/ToolCatalog";
-import { getModelDisplayName, getAvailableModels, getModelLabel, getModelMultiplier } from "../utils";
+import { openModelPickerModal } from "../../components/ModelPickerModal";
+import { getModelDisplayName, getAvailableModels, getModelMultiplier } from "../utils";
 
 /**
  * Renders chat preference controls for Basic plugin.
@@ -26,26 +26,22 @@ import { getModelDisplayName, getAvailableModels, getModelLabel, getModelMultipl
  */
 export class ChatPreferencesSection {
 	protected ctx: SettingsContext;
-	protected toolCatalog: ToolCatalog;
 	protected getCachedStatus: () => CliStatus | null;
 	protected manager: GitHubCopilotCliManager;
 
 	/**
 	 * @param ctx - Shared settings context.
-	 * @param toolCatalog - Tool catalog (unused in Basic, kept for API compat).
 	 * @param getCachedStatus - Function returning latest CLI status snapshot.
 	 * @param manager - GitHub Copilot CLI manager.
 	 * @param _tier - Ignored in Basic (always 'basic' behavior).
 	 */
 	constructor(
 		ctx: SettingsContext,
-		toolCatalog: ToolCatalog,
 		getCachedStatus: () => CliStatus | null,
 		manager: GitHubCopilotCliManager,
 		_tier: 'basic' | 'pro' = 'basic',
 	) {
 		this.ctx = ctx;
-		this.toolCatalog = toolCatalog;
 		this.getCachedStatus = getCachedStatus;
 		this.manager = manager;
 	}
@@ -84,62 +80,21 @@ export class ChatPreferencesSection {
 				};
 				updateModelButton = refresh;
 				refresh();
-				btn.onClick((e) => {
-					const menu = new Menu();
+				btn.onClick(() => {
 					const models = getAvailableModels(this.ctx.plugin.settings);
 					const currentModel = this.ctx.plugin.settings.model;
-
-					// Header row
-					menu.addItem((item) => {
-						item.setTitle("Model").setDisabled(true);
-						const itemEl = (item as unknown as { dom: HTMLElement }).dom;
-						itemEl.classList.add("vc-model-menu-header");
-						const titleEl = itemEl.querySelector(".menu-item-title") as HTMLElement | null;
-						if (titleEl) {
-							titleEl.innerHTML = "";
-							const checkCol = document.createElement("span");
-							checkCol.className = "vc-model-col-check";
-							const nameCol = document.createElement("span");
-							nameCol.className = "vc-model-col-name";
-							nameCol.textContent = "Model";
-							const multCol = document.createElement("span");
-							multCol.className = "vc-model-col-mult";
-							multCol.textContent = "Multiplier";
-							titleEl.append(checkCol, nameCol, multCol);
-						}
+					openModelPickerModal(this.ctx.app, {
+						models,
+						selectedModel: currentModel,
+						title: "Select Model",
+						getDisplayName: (modelId) => getModelDisplayName(modelId),
+						getMultiplier: (modelId) => getModelMultiplier(this.ctx.plugin.settings, modelId),
+						onSelectModel: async (modelId) => {
+							this.ctx.plugin.settings.model = modelId;
+							await this.ctx.plugin.saveSettings();
+							refresh();
+						},
 					});
-
-					for (const modelId of models) {
-						menu.addItem((item) => {
-							const isSelected = currentModel === modelId;
-							const multiplier = getModelMultiplier(this.ctx.plugin.settings, modelId);
-							item.setTitle(getModelDisplayName(modelId))
-								.onClick(async () => {
-									this.ctx.plugin.settings.model = modelId;
-									await this.ctx.plugin.saveSettings();
-									refresh();
-								});
-							const itemEl = (item as unknown as { dom: HTMLElement }).dom;
-							const titleEl = itemEl.querySelector(".menu-item-title") as HTMLElement | null;
-							if (titleEl) {
-								titleEl.innerHTML = "";
-								const checkEl = document.createElement("span");
-								checkEl.className = "vc-model-col-check";
-								checkEl.textContent = isSelected ? "✓" : "";
-								const nameEl = document.createElement("span");
-								nameEl.className = "vc-model-col-name";
-								nameEl.textContent = getModelDisplayName(modelId);
-								const multEl = document.createElement("span");
-								multEl.className = "vc-model-col-mult";
-								multEl.textContent = multiplier !== undefined ? `${multiplier}x` : "";
-								titleEl.append(checkEl, nameEl, multEl);
-							}
-						});
-					}
-
-					menu.showAtMouseEvent(e);
-					const menuEl = (menu as unknown as { dom?: HTMLElement }).dom;
-					menuEl?.classList.add("vc-model-menu");
 				});
 			})
 			.addExtraButton((button) => {

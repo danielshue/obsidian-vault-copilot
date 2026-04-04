@@ -15,7 +15,14 @@ export type {
 	CopilotSession,
 	OpenAIProviderProfile,
 	AzureOpenAIProviderProfile,
+	AnthropicProviderProfile,
+	OllamaProviderProfile,
+	FoundryLocalProviderProfile,
+	OpenAICompatProviderProfile,
+	LocalProviderProfile,
+	TorqenaCloudProviderProfile,
 	AIProviderProfile,
+	AIProviderProfileType,
 	PeriodicNotesSettings,
 } from "./types";
 

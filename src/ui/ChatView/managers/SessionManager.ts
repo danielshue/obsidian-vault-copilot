@@ -132,6 +132,12 @@ export class SessionManager {
 			conversationId: conversationId || undefined,
 			vaultId: this.vaultId,
 			agentName: prevSession?.agentName || this.callbacks.onGetAgentName?.(),
+			toolOverrides: prevSession?.toolOverrides
+				? {
+					enabled: prevSession.toolOverrides.enabled ? [...prevSession.toolOverrides.enabled] : undefined,
+					disabled: prevSession.toolOverrides.disabled ? [...prevSession.toolOverrides.disabled] : undefined,
+				}
+				: undefined,
 		};
 
 		this.settings.sessions.push(newSession);

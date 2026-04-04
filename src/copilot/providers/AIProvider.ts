@@ -16,7 +16,7 @@
 import type { ChatMessage } from "./GitHubCopilotCliService";
 
 /** Supported AI provider types */
-export type AIProviderType = "copilot" | "openai" | "azure-openai";
+export type AIProviderType = "copilot" | "openai" | "azure-openai" | "azure";
 
 /** Streaming options for message sending */
 export interface StreamingOptions {

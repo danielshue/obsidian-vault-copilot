@@ -78,6 +78,30 @@ export interface VoiceMessage {
 	toolOutput?: string;
 }
 
+/**
+ * Cached model-detail metadata used by searchable model pickers.
+ */
+export interface ModelMetadataCacheEntry {
+	contextWindowTokens?: number;
+	abilities?: Array<{
+		key: string;
+		label: string;
+		enabled: boolean;
+		description?: string;
+	}>;
+	pricing?: {
+		input?: number;
+		output?: number;
+		cachedInput?: number;
+	};
+	configOptions?: Array<{
+		key: string;
+		label: string;
+		value: string;
+		description?: string;
+	}>;
+}
+
 // ============================================================================
 // OpenAI Settings (Pro-only, stub for type compat)
 // ============================================================================
@@ -104,7 +128,7 @@ export interface OpenAISettings {
 // ============================================================================
 
 /** AI Provider Profile Types */
-export type AIProviderProfileType = 'copilot' | 'openai' | 'azure-openai' | 'local';
+export type AIProviderProfileType = 'copilot' | 'openai' | 'azure' | 'anthropic' | 'ollama' | 'foundry-local' | 'openai-compat' | 'torqena-cloud';
 
 /** Base interface for all AI Provider profiles */
 export interface AIProviderProfileBase {
@@ -112,6 +136,7 @@ export interface AIProviderProfileBase {
 	name: string;
 	type: AIProviderProfileType;
 	readonly?: boolean;
+	useBearerToken?: boolean;
 }
 
 /** GitHub Copilot CLI provider profile */
@@ -126,26 +151,70 @@ export interface OpenAIProviderProfile extends AIProviderProfileBase {
 	apiKeySecretId?: string | null;
 	baseURL?: string;
 	model?: string;
+	wireApi?: 'completions' | 'responses';
 }
 
-/** Azure OpenAI provider profile configuration */
+/** Azure OpenAI / AI Foundry provider profile configuration */
 export interface AzureOpenAIProviderProfile extends AIProviderProfileBase {
-	type: 'azure-openai';
+	type: 'azure';
 	apiKeySecretId?: string | null;
 	endpoint: string;
 	deploymentName: string;
 	apiVersion?: string;
 	model?: string;
+	wireApi?: 'completions' | 'responses';
 }
 
-/** Local Whisper server profile configuration */
+/** Local Whisper server profile configuration
+ * @deprecated Use OpenAICompatProviderProfile instead
+ */
 export interface LocalProviderProfile extends AIProviderProfileBase {
-	type: 'local';
+	type: 'openai-compat';
 	serverUrl: string;
+	apiKeySecretId?: string | null;
+	model?: string;
+	wireApi?: 'completions' | 'responses';
+}
+
+/** OpenAI-compatible provider profile */
+export interface OpenAICompatProviderProfile extends AIProviderProfileBase {
+	type: 'openai-compat';
+	serverUrl: string;
+	apiKeySecretId?: string | null;
+	model?: string;
+	wireApi?: 'completions' | 'responses';
+}
+
+/** Ollama provider profile */
+export interface OllamaProviderProfile extends AIProviderProfileBase {
+	type: 'ollama';
+	serverUrl: string;
+	model?: string;
+}
+
+/** Microsoft Foundry Local provider profile */
+export interface FoundryLocalProviderProfile extends AIProviderProfileBase {
+	type: 'foundry-local';
+	serverUrl: string;
+	model?: string;
+}
+
+/** Torqena Cloud managed LLM provider profile */
+export interface TorqenaCloudProviderProfile extends AIProviderProfileBase {
+	type: 'torqena-cloud';
+	readonly: true;
+}
+
+/** Anthropic provider profile configuration */
+export interface AnthropicProviderProfile extends AIProviderProfileBase {
+	type: 'anthropic';
+	apiKeySecretId?: string | null;
+	baseURL?: string;
+	model?: string;
 }
 
 /** Union type for all AI Provider profiles */
-export type AIProviderProfile = CopilotProviderProfile | OpenAIProviderProfile | AzureOpenAIProviderProfile | LocalProviderProfile;
+export type AIProviderProfile = CopilotProviderProfile | OpenAIProviderProfile | AzureOpenAIProviderProfile | AnthropicProviderProfile | OllamaProviderProfile | FoundryLocalProviderProfile | OpenAICompatProviderProfile | TorqenaCloudProviderProfile;
 
 /** Configuration for VoiceChatService derived from a profile (Pro-only, stub for compat) */
 export interface VoiceServiceConfigFromProfile {
@@ -256,10 +325,6 @@ export interface CopilotPluginSettings {
 	automationDirectories: string[];
 	/** How to display items in the slash command menu: 'flat' (badges) or 'grouped' (section headers) */
 	slashMenuGrouping: 'flat' | 'grouped';
-	/** Default enabled tools (builtin tools enabled by default) */
-	defaultEnabledTools?: string[];
-	/** Default disabled tools */
-	defaultDisabledTools?: string[];
 	/** AI Provider profiles for voice and chat services (Pro-only in practice) */
 	aiProviderProfiles?: AIProviderProfile[];
 	/** Selected profile ID for Chat (Pro-only) */
@@ -278,6 +343,8 @@ export interface CopilotPluginSettings {
 	availableModels?: string[];
 	/** Billing multipliers by model ID, fetched from the CLI after connecting */
 	modelMultipliers?: Record<string, number>;
+	/** Optional cached rich model metadata keyed by model ID */
+	modelMetadata?: Record<string, ModelMetadataCacheEntry>;
 	/** Whether the CLI status check has run at least once */
 	cliStatusChecked?: boolean;
 	/** Last known CLI status from a successful check */
@@ -328,10 +395,9 @@ export type BasicCopilotPluginSettings = Pick<
 	| 'promptDirectories'
 	| 'automationDirectories'
 	| 'slashMenuGrouping'
-	| 'defaultEnabledTools'
-	| 'defaultDisabledTools'
 	| 'availableModels'
 	| 'modelMultipliers'
+	| 'modelMetadata'
 	| 'cliStatusChecked'
 	| 'cliLastKnownStatus'
 	| 'periodicNotes'

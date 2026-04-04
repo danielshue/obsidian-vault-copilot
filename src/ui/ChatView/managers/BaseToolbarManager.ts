@@ -30,6 +30,8 @@ import { getProfileById } from "../../settings/profiles";
 import { IToolCatalog } from "../../../copilot/tools/ToolCatalog";
 import type { SessionCreateOptions } from "../../../copilot/providers/types";
 import { ToolPickerModal } from "../modals/ToolPickerModal";
+import { openModelPickerModal, type ModelMetadataDetail } from "../../components/ModelPickerModal";
+import { showModelDropdownMenu, type ModelDropdownMenuConfig } from "../../components/ModelDropdownMenu";
 
 /**
  * Describes a toolbar item that can be collapsed into the overflow menu.
@@ -121,6 +123,7 @@ export class BaseToolbarManager {
 	private resizeObserver: ResizeObserver | null = null;
 	private collapsibleItems: CollapsibleItem[] = [];
 	protected hiddenItems: Set<string> = new Set();
+	private modelSortOrder: "asc" | "desc" = "asc";
 
 	/**
 	 * @param plugin - Minimal plugin reference (settings + saveSettings)
@@ -165,7 +168,7 @@ export class BaseToolbarManager {
 	// ─── DOM builders ──────────────────────────────────────────────────────────
 
 	/**
-	 * Build the left toolbar: brain icon → [extra buttons] → model selector → tool selector.
+	 * Build the left toolbar: brain icon → [extra buttons] → model selector → [post-model buttons] → tool selector.
 	 *
 	 * @param toolbarLeft - Container element for left-side toolbar buttons
 	 */
@@ -188,6 +191,9 @@ export class BaseToolbarManager {
 		});
 		this.updateModelSelectorText();
 		this.setupModelSelector();
+
+		// Hook: Pro inserts additional controls after the model selector
+		this.createPostModelLeftButtons(toolbarLeft);
 
 		// Tool selector
 		this.toolSelectorEl = toolbarLeft.createEl("button", {
@@ -223,6 +229,16 @@ export class BaseToolbarManager {
 	 */
 	protected createAdditionalLeftButtons(_el: HTMLDivElement): void {
 		// no-op — Pro overrides to add agent selector
+	}
+
+	/**
+	 * Hook for subclasses to insert buttons after the model selector.
+	 * Base implementation is a no-op; Pro inserts approval/rag controls here.
+	 *
+	 * @param _el - The left toolbar container element
+	 */
+	protected createPostModelLeftButtons(_el: HTMLDivElement): void {
+		// no-op — Pro overrides to add post-model controls
 	}
 
 	/**
@@ -323,7 +339,7 @@ export class BaseToolbarManager {
 		const profileId = this.plugin.settings.chatProviderProfileId;
 		const profile = getProfileById(this.plugin.settings, profileId);
 
-		if (profile && profile.type === "azure-openai") {
+		if (profile && profile.type === "azure") {
 			this.modelSelectorEl.style.display = "none";
 		} else {
 			this.modelSelectorEl.style.display = "";
@@ -370,7 +386,6 @@ export class BaseToolbarManager {
 			toolCatalog: this.toolCatalog,
 			settings: this.plugin.settings,
 			session: currentSession,
-			mode: "session",
 			onSave: async (enabledTools) => {
 				if (currentSession) {
 					currentSession.toolOverrides = { enabled: enabledTools };
@@ -533,7 +548,7 @@ export class BaseToolbarManager {
 	protected buildOverflowMenuItems(menu: Menu): void {
 		if (this.hiddenItems.has("model")) {
 			menu.addItem((item) => {
-				item.setTitle("Open Model Picker").setIcon("cpu")
+				item.setTitle("Select Model").setIcon("cpu")
 					.onClick(() => this.openModelPickerMenu());
 			});
 		}
@@ -551,52 +566,53 @@ export class BaseToolbarManager {
 	 * Called from the overflow menu item and can be overridden by subclasses.
 	 */
 	protected openModelPickerMenu(): void {
-		const menu = new Menu();
-		const models = getAvailableModels(this.plugin.settings);
-		const currentModel = this.plugin.settings.model;
-
-		menu.addItem((item) => {
-			item.setTitle("Model").setDisabled(true);
-		});
-
-		for (const modelId of models) {
-			menu.addItem((item) => {
-				const provider = this.getModelProvider(modelId);
-				const isSelected = currentModel === modelId;
-				const multiplier = getModelMultiplier(this.plugin.settings, modelId);
-				item.setTitle(getModelDisplayName(modelId))
-					.setChecked(isSelected)
-					.onClick(async () => {
-						this.plugin.settings.model = modelId;
-						await this.callbacks.saveSettings();
-						this.service.updateConfig({ model: modelId });
-						this.updateModelSelectorText();
-					});
-
-				const itemEl = (item as unknown as { dom: HTMLElement }).dom;
-				const titleEl = itemEl.querySelector(".menu-item-title") as HTMLElement | null;
-				if (titleEl) {
-					titleEl.innerHTML = "";
-					const checkEl = document.createElement("span");
-					checkEl.className = "vc-model-col-check";
-					checkEl.textContent = isSelected ? "✓" : "";
-					const nameEl = document.createElement("span");
-					nameEl.className = "vc-model-col-name";
-					nameEl.innerHTML = this.getModelIconHtml(modelId) + getModelDisplayName(modelId);
-					const multEl = document.createElement("span");
-					multEl.className = "vc-model-col-mult";
-					multEl.textContent = multiplier !== undefined ? `${multiplier}x` : "";
-					titleEl.append(checkEl, nameEl, multEl);
-				}
-			});
-		}
-
 		const anchor = this.overflowBtn ?? this.modelSelectorEl;
-		if (anchor) {
-			this.showMenuAnchoredToTrigger(menu, null as unknown as MouseEvent, anchor);
-		}
-		const menuEl = (menu as unknown as { dom?: HTMLElement }).dom;
-		menuEl?.classList.add("vc-model-menu");
+		if (!anchor) return;
+		this.openModelDropdown(anchor, null);
+	}
+
+	protected openModelDropdown(anchor: HTMLElement, event: MouseEvent | null): void {
+		const config = this.buildModelDropdownConfig();
+		showModelDropdownMenu(
+			config,
+			anchor,
+			event,
+			(menu, ev, anch) => this.showMenuAnchoredToTrigger(menu, ev as MouseEvent | null, anch),
+		);
+	}
+
+	protected buildModelDropdownConfig(): ModelDropdownMenuConfig {
+		const models = this.getModelsForSelector();
+		const currentModel = this.plugin.settings.model;
+		return {
+			models,
+			selectedModel: currentModel,
+			selectedProviderProfileId: this.plugin.settings.chatProviderProfileId ?? null,
+			getDisplayName: (modelId) => getModelDisplayName(modelId),
+			getMultiplier: (modelId) => getModelMultiplier(this.plugin.settings, modelId),
+			getIconHtml: (modelId) => this.getModelIconHtml(modelId, this.getModelProvider(modelId)),
+			onSelectModel: async (modelId, providerProfileId) => this.applyModelSelection(modelId, providerProfileId),
+			onOpenDetailedPicker: () => this.openDetailedModelPickerModal(models, currentModel),
+			viewMode: "flat",
+			sortOrder: this.modelSortOrder,
+			onSortOrderChange: (order) => {
+				this.modelSortOrder = order;
+			},
+		};
+	}
+
+	protected openDetailedModelPickerModal(models: string[], selectedModel: string): void {
+		openModelPickerModal(this.plugin.app, {
+			models,
+			selectedModel,
+			selectedProviderProfileId: this.plugin.settings.chatProviderProfileId ?? null,
+			title: "Select Model",
+			getDisplayName: (modelId) => getModelDisplayName(modelId),
+			getMultiplier: (modelId) => getModelMultiplier(this.plugin.settings, modelId),
+			getIconHtml: (modelId) => this.getModelIconHtml(modelId, this.getModelProvider(modelId)),
+			getMetadata: (modelId) => this.getModelMetadata(modelId),
+			onSelectModel: async (modelId, providerProfileId) => this.applyModelSelection(modelId, providerProfileId),
+		});
 	}
 
 	// ─── Private helpers ─────────────────────────────────────────────────────────
@@ -608,66 +624,37 @@ export class BaseToolbarManager {
 	private setupModelSelector(): void {
 		if (!this.modelSelectorEl) return;
 
-		this.modelSelectorEl.addEventListener("click", (e) => {
-			const menu = new Menu();
-			const models = this.getModelsForSelector();
-			const currentModel = this.plugin.settings.model;
-
-			// Header row
-			menu.addItem((item) => {
-				item.setTitle("Model").setDisabled(true);
-				const itemEl = (item as unknown as { dom: HTMLElement }).dom;
-				itemEl.classList.add("vc-model-menu-header");
-				const titleEl = itemEl.querySelector(".menu-item-title") as HTMLElement | null;
-				if (titleEl) {
-					titleEl.innerHTML = "";
-					const checkCol = document.createElement("span");
-					checkCol.className = "vc-model-col-check";
-					const nameCol = document.createElement("span");
-					nameCol.className = "vc-model-col-name";
-					nameCol.textContent = "Model";
-					const multCol = document.createElement("span");
-					multCol.className = "vc-model-col-mult";
-					multCol.textContent = "Multiplier";
-					titleEl.append(checkCol, nameCol, multCol);
-				}
-			});
-
-			for (const modelId of models) {
-				menu.addItem((item) => {
-					const provider = this.getModelProvider(modelId);
-					const isSelected = currentModel === modelId;
-					const multiplier = getModelMultiplier(this.plugin.settings, modelId);
-					item.setTitle(getModelDisplayName(modelId))
-						.onClick(async () => {
-							this.plugin.settings.model = modelId;
-							await this.callbacks.saveSettings();
-							this.service.updateConfig({ model: modelId });
-							this.updateModelSelectorText();
-						});
-
-					const itemEl = (item as unknown as { dom: HTMLElement }).dom;
-					const titleEl = itemEl.querySelector(".menu-item-title") as HTMLElement | null;
-					if (titleEl) {
-						titleEl.innerHTML = "";
-						const checkEl = document.createElement("span");
-						checkEl.className = "vc-model-col-check";
-						checkEl.textContent = isSelected ? "✓" : "";
-						const nameEl = document.createElement("span");
-						nameEl.className = "vc-model-col-name";
-						nameEl.innerHTML = this.getModelIconHtml(modelId) + getModelDisplayName(modelId);
-						const multEl = document.createElement("span");
-						multEl.className = "vc-model-col-mult";
-						multEl.textContent = multiplier !== undefined ? `${multiplier}x` : "";
-						titleEl.append(checkEl, nameEl, multEl);
-					}
-				});
-			}
-
-			this.showMenuAnchoredToTrigger(menu, e as MouseEvent, this.modelSelectorEl);
-			const menuEl = (menu as unknown as { dom?: HTMLElement }).dom;
-			menuEl?.classList.add("vc-model-menu");
+		this.modelSelectorEl.addEventListener("click", (event) => {
+			if (!this.modelSelectorEl) return;
+			this.openModelDropdown(this.modelSelectorEl, event as MouseEvent);
 		});
+	}
+
+	protected async applyModelSelection(modelId: string, _providerProfileId?: string | null): Promise<void> {
+		if (this.plugin.settings.model === modelId) return;
+		this.plugin.settings.model = modelId;
+		await this.callbacks.saveSettings();
+		if (this.callbacks.refreshServiceConfig) {
+			this.callbacks.refreshServiceConfig();
+		} else {
+			this.service.updateConfig({ model: modelId });
+		}
+		const currentSession = this.callbacks.getCurrentSession();
+		if (currentSession) {
+			await this.service.createSession(currentSession.id);
+		}
+		this.updateModelSelectorText();
+	}
+
+	/**
+	 * Resolve optional model metadata shown in the picker details pane.
+	 * Base implementation has no metadata and returns undefined.
+	 *
+	 * @param _modelId - Model identifier
+	 * @returns Undefined in Base
+	 */
+	protected getModelMetadata(_modelId: string): ModelMetadataDetail | undefined {
+		return undefined;
 	}
 
 	/**
@@ -704,13 +691,28 @@ export class BaseToolbarManager {
 	/**
 	 * Return an SVG icon span for a specific model, using the ProviderIcons registry.
 	 */
-	protected getModelIconHtml(modelId: string): string {
+	protected getModelIconHtml(
+		modelId: string,
+		providerOverride?: "anthropic" | "openai" | "gemini" | "generic",
+	): string {
 		try {
-			const { getModelSvgIcon, wrapIconSvg } = require('../../ProviderIcons') as {
+			const { getModelSvgIcon, getProviderSvgIcon, wrapIconSvg } = require('../../ProviderIcons') as {
 				getModelSvgIcon: (id: string) => string;
+				getProviderSvgIcon: (type: string) => string;
 				wrapIconSvg: (svg: string, size?: number, cls?: string) => string;
 			};
-			return wrapIconSvg(getModelSvgIcon(modelId), 14, 'vc-model-provider-icon');
+			const provider = providerOverride ?? this.getModelProvider(modelId);
+			const modelSvg = getModelSvgIcon(modelId);
+			const openAiSvg = getProviderSvgIcon("openai");
+			const providerType =
+				provider === "gemini"
+					? "google"
+					: provider === "generic"
+						? "openai-compat"
+						: provider;
+			const fallbackSvg = getProviderSvgIcon(providerType);
+			const useProviderFallback = provider !== "openai" && modelSvg === openAiSvg;
+			return wrapIconSvg(useProviderFallback ? fallbackSvg : modelSvg, 14, 'vc-model-provider-icon');
 		} catch {
 			return '';
 		}

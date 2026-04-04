@@ -25,8 +25,6 @@ export interface ToolPickerModalOptions {
 	settings: CopilotPluginSettings;
 	/** Current session (if applying to session) */
 	session?: CopilotSession;
-	/** Mode: 'session' to save to session, 'defaults' to save as global defaults */
-	mode: "session" | "defaults";
 	/** Callback when tools are selected/saved */
 	onSave: (enabledTools: string[]) => Promise<void>;
 }
@@ -75,7 +73,6 @@ export class ToolPickerModal extends Modal {
 	private toolCatalog: IToolCatalog;
 	private settings: CopilotPluginSettings;
 	private session?: CopilotSession;
-	private mode: "session" | "defaults";
 	private onSave: (enabledTools: string[]) => Promise<void>;
 
 	// State
@@ -90,7 +87,6 @@ export class ToolPickerModal extends Modal {
 		this.toolCatalog = options.toolCatalog;
 		this.settings = options.settings;
 		this.session = options.session;
-		this.mode = options.mode;
 		this.onSave = options.onSave;
 
 		// Initialize selected tools from current state
@@ -141,11 +137,7 @@ export class ToolPickerModal extends Modal {
 
 		// Description text
 		const descEl = contentEl.createDiv({ cls: "vc-tp-description" });
-		descEl.setText(
-			this.mode === "session"
-				? "The selected tools apply to this chat session and will be remembered as your default for future sessions."
-				: "The selected tools will be applied globally for all chat sessions that use the default tool configuration."
-		);
+		descEl.setText("The selected tools apply only to this chat session.");
 
 		// Tree container
 		this.treeContainer = contentEl.createDiv({ cls: "vc-tp-tree" });

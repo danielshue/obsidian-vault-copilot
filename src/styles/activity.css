@@ -7,7 +7,7 @@
 	width: 100%;
 }
 
-/* Header row: summary + spinner */
+/* Header row: summary + spinner + chevron */
 .vc-activity-header {
 	display: flex;
 	align-items: center;
@@ -17,6 +17,17 @@
 	font-size: 13px;
 	color: var(--text-muted);
 	border-radius: 6px;
+	cursor: pointer;
+}
+
+.vc-activity-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vc-activity-chevron {
+	color: var(--text-faint);
+	font-size: 11px;
+	margin-left: auto;
 }
 
 .vc-activity-header-clickable {

@@ -127,6 +127,12 @@ export interface ChatMessage {
 export interface ModelCapabilitiesInfo {
 	/** Whether the model supports image/vision inputs */
 	supportsVision?: boolean;
+	/** Whether the model supports tool/function calling */
+	supportsToolCalling?: boolean;
+	/** Whether the model supports adjustable reasoning effort */
+	supportsReasoningEffort?: boolean;
+	/** Whether the model supports search/web retrieval capabilities */
+	supportsSearch?: boolean;
 	/** Maximum number of prompt tokens the model accepts */
 	maxPromptTokens?: number;
 	/** Maximum context window size in tokens */
@@ -231,7 +237,7 @@ export const SESSION_STALE_THRESHOLD_MS = 25 * 60 * 1000;
  * @since 0.0.44
  */
 export interface SdkProviderConfig {
-	/** Provider type identifier (e.g., 'openai', 'azure-openai') */
+	/** Provider type identifier: 'openai', 'azure', or 'anthropic' */
 	type: string;
 	/** Display name for the provider */
 	name?: string;
@@ -243,4 +249,11 @@ export interface SdkProviderConfig {
 	baseUrl?: string;
 	/** Model identifier to use */
 	model?: string;
+	/** Azure-specific configuration (used when type is 'azure') */
+	azure?: {
+		/** Azure API version (e.g., '2024-10-21') */
+		apiVersion?: string;
+	};
+	/** Wire API format: 'completions' (default) or 'responses' (for GPT-5 series) */
+	wireApi?: 'completions' | 'responses';
 }

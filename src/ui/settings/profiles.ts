@@ -88,8 +88,12 @@ export function getProfileTypeDisplayName(type: AIProviderProfileType): string {
 	switch (type) {
 		case 'copilot': return 'GitHub Copilot CLI';
 		case 'openai': return 'OpenAI';
-		case 'azure-openai': return 'Azure OpenAI';
-		case 'local': return 'Local Whisper';
+		case 'azure': return 'Azure OpenAI / AI Foundry';
+		case 'anthropic': return 'Anthropic';
+		case 'ollama': return 'Ollama';
+		case 'foundry-local': return 'Microsoft Foundry Local';
+		case 'openai-compat': return 'OpenAI-compatible';
+		case 'torqena-cloud': return 'Torqena Cloud';
 		default: return type;
 	}
 }
@@ -98,8 +102,8 @@ export function getProfileTypeDisplayName(type: AIProviderProfileType): string {
 export function profileTypeToBackend(type: AIProviderProfileType): 'openai-whisper' | 'azure-whisper' | 'local-whisper' {
 	switch (type) {
 		case 'openai': return 'openai-whisper';
-		case 'azure-openai': return 'azure-whisper';
-		case 'local': return 'local-whisper';
+		case 'azure': return 'azure-whisper';
+		case 'openai-compat': return 'local-whisper';
 		default: return 'openai-whisper';
 	}
 }
@@ -127,15 +131,15 @@ export function getVoiceServiceConfigFromProfile(
 		const openai = profile as OpenAIProviderProfile;
 		config.openaiApiKeySecretId = openai.apiKeySecretId || undefined;
 		config.openaiBaseUrl = openai.baseURL || undefined;
-	} else if (profile.type === 'azure-openai') {
+	} else if (profile.type === 'azure') {
 		const azure = profile as AzureOpenAIProviderProfile;
 		config.azureApiKeySecretId = azure.apiKeySecretId || undefined;
 		config.azureEndpoint = azure.endpoint;
 		config.azureDeploymentName = azure.deploymentName;
 		config.azureApiVersion = azure.apiVersion;
-	} else if (profile.type === 'local') {
-		const local = profile as LocalProviderProfile;
-		config.whisperServerUrl = local.serverUrl;
+	} else if (profile.type === 'openai-compat') {
+		const compat = profile as LocalProviderProfile;
+		config.whisperServerUrl = compat.serverUrl;
 	}
 
 	return config;

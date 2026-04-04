@@ -118,6 +118,11 @@
 	color: var(--text-accent);
 }
 
+.vc-ff-stage-dev {
+	background: color-mix(in srgb, var(--color-purple) 15%, transparent);
+	color: var(--color-purple);
+}
+
 /* Tier pills */
 .vc-ff-tier-pill {
 	font-size: 0.72em;

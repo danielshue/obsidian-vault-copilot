@@ -537,6 +537,77 @@
 	gap: 0.6em;
 }
 
+/* ── Model selector dropdown button ── */
+
+.vc-na-model-selector {
+	flex: 1;
+	text-align: left;
+	padding: 6px 10px;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+	cursor: pointer;
+	transition: border-color 0.15s;
+}
+
+.vc-na-model-selector:hover {
+	border-color: var(--interactive-accent);
+}
+
+/* ── Agent picker dropdown button ── */
+
+.vc-na-agent-picker-btn {
+	flex: 1;
+	text-align: left;
+	padding: 6px 10px;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+	cursor: pointer;
+	transition: border-color 0.15s;
+}
+
+.vc-na-agent-picker-btn:hover {
+	border-color: var(--interactive-accent);
+}
+
+/* ── Session lifecycle radio group ── */
+
+.vc-na-radio-group {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 4px 0 8px;
+}
+
+.vc-na-radio-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.vc-na-radio-label {
+	font-size: 0.88em;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+/* ── Indented row (for infinite session under resumable) ── */
+
+.vc-na-indent {
+	padding-left: 22px;
+}
+
+/* ── Footer spacer (pushes buttons to the right) ── */
+
+.vc-na-footer-spacer {
+	flex: 1;
+}
+
 .vc-na-error-container {
 	padding: 0 0 0.25em 0;
 }
@@ -598,11 +669,40 @@
 
 /* Fixed-width columns so Name gets remaining space */
 .vc-automations-table th:nth-child(2),
-.vc-automations-table td:nth-child(2) { width: 22%; }  /* Trigger */
+.vc-automations-table td:nth-child(2) { width: 14%; }  /* Category */
 .vc-automations-table th:nth-child(3),
-.vc-automations-table td:nth-child(3) { width: 14%; }  /* Next Run */
+.vc-automations-table td:nth-child(3) { width: 18%; }  /* Trigger */
 .vc-automations-table th:nth-child(4),
-.vc-automations-table td:nth-child(4) { width: 12%; }  /* Last Run */
+.vc-automations-table td:nth-child(4) { width: 13%; }  /* Next Run */
+.vc-automations-table th:nth-child(5),
+.vc-automations-table td:nth-child(5) { width: 11%; }  /* Last Run */
+
+/* ── Sortable column headers ── */
+.vc-sortable-header {
+	cursor: pointer;
+	user-select: none;
+}
+
+.vc-sortable-header:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.vc-sortable-header.vc-sort-active {
+	color: var(--text-normal);
+}
+
+.vc-sort-chevron {
+	display: inline-flex;
+	align-items: center;
+	margin-left: 4px;
+	vertical-align: middle;
+}
+
+.vc-sort-chevron svg {
+	width: 12px;
+	height: 12px;
+}
 
 /* Actions cell: dot + play + kebab in a tight row */
 .vc-col-actions {
@@ -651,6 +751,76 @@
 	background: var(--color-green);
 	flex-shrink: 0;
 	animation: vc-pulse 1.4s ease-in-out infinite;
+}
+
+/* ── Section-header running indicator wrapper ── */
+
+.vc-automations-running-indicator {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-left: 8px;
+}
+
+.vc-automations-header-dot {
+	display: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--color-green);
+	flex-shrink: 0;
+	animation: vc-pulse 1.4s ease-in-out infinite;
+}
+
+.vc-automations-header-dot.is-active {
+	display: inline-block;
+}
+
+.vc-automations-running-badge {
+	display: none;
+	font-size: 0.75em;
+	font-weight: 600;
+	line-height: 1;
+	padding: 3px 10px;
+	border-radius: 10px;
+	background: var(--color-green);
+	color: var(--text-on-accent);
+	white-space: nowrap;
+}
+
+.vc-automations-running-badge.is-active {
+	display: inline-block;
+}
+
+/* ── Running banner (full-width bar below section header) ── */
+
+.vc-automations-running-banner {
+	display: none;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	margin: 4px 0 8px;
+	border-radius: 6px;
+	background: rgba(var(--color-green-rgb, 76, 175, 80), 0.12);
+	border-left: 3px solid var(--color-green);
+	font-size: 0.85em;
+	color: var(--text-normal);
+	animation: vc-banner-fadein 0.3s ease;
+}
+
+.vc-automations-running-banner .vc-running-dot {
+	width: 8px;
+	height: 8px;
+}
+
+.vc-automations-running-banner__text {
+	flex: 1;
+	font-weight: 500;
+}
+
+@keyframes vc-banner-fadein {
+	from { opacity: 0; transform: translateY(-4px); }
+	to { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Trigger cell ── */

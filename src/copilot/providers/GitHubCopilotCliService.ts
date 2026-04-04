@@ -1297,20 +1297,35 @@ export class GitHubCopilotCliService {
 
 		try {
 			const models = await client.listModels();
-			return models.map(m => ({
-				id: m.id,
-				name: m.name,
-				capabilities: {
-					supportsVision: m.capabilities?.supports?.vision,
-					maxPromptTokens: m.capabilities?.limits?.max_prompt_tokens,
-					maxContextWindowTokens: m.capabilities?.limits?.max_context_window_tokens,
-					supportedMediaTypes: m.capabilities?.limits?.vision?.supported_media_types,
-					maxPromptImages: m.capabilities?.limits?.vision?.max_prompt_images,
-					maxPromptImageSize: m.capabilities?.limits?.vision?.max_prompt_image_size,
-				},
-				policy: m.policy ? { state: m.policy.state, terms: m.policy.terms } : undefined,
-				billingMultiplier: m.billing?.multiplier,
-			}));
+			return models.map(m => {
+				const supports = m.capabilities?.supports as
+					| {
+						vision?: boolean;
+						reasoningEffort?: boolean;
+						reasoning_effort?: boolean;
+						toolCalling?: boolean;
+						tool_calling?: boolean;
+						search?: boolean;
+					}
+					| undefined;
+				return {
+					id: m.id,
+					name: m.name,
+					capabilities: {
+						supportsVision: supports?.vision,
+						supportsToolCalling: supports?.toolCalling ?? supports?.tool_calling,
+						supportsReasoningEffort: supports?.reasoningEffort ?? supports?.reasoning_effort,
+						supportsSearch: supports?.search,
+						maxPromptTokens: m.capabilities?.limits?.max_prompt_tokens,
+						maxContextWindowTokens: m.capabilities?.limits?.max_context_window_tokens,
+						supportedMediaTypes: m.capabilities?.limits?.vision?.supported_media_types,
+						maxPromptImages: m.capabilities?.limits?.vision?.max_prompt_images,
+						maxPromptImageSize: m.capabilities?.limits?.vision?.max_prompt_image_size,
+					},
+					policy: m.policy ? { state: m.policy.state, terms: m.policy.terms } : undefined,
+					billingMultiplier: m.billing?.multiplier,
+				};
+			});
 		} catch (error) {
 			console.error("[Torqena] Failed to list models:", error);
 			return [];

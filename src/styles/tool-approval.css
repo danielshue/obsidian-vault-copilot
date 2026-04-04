@@ -146,20 +146,54 @@
 	flex-wrap: wrap;
 }
 
-.vc-tool-approval-sticky-tray {
-	position: sticky;
-	bottom: 10px;
-	z-index: 12;
+/* ── Accordion layout ── */
+
+.vc-tool-approval-accordion .vc-tool-approval-summary-row {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
 	gap: 8px;
 	padding: 8px 10px;
-	margin: -4px 0 8px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
-	background: color-mix(in srgb, var(--background-primary) 90%, var(--background-secondary));
-	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+	cursor: pointer;
+	user-select: none;
+}
+
+.vc-tool-approval-accordion .vc-tool-approval-summary-label {
+	flex: 1;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.vc-tool-approval-accordion .vc-tool-approval-summary-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.vc-tool-approval-accordion .vc-tool-approval-chevron {
+	color: var(--text-muted);
+	font-size: 12px;
+	transition: transform 0.15s;
+}
+
+.vc-tool-approval-accordion .vc-tool-approval-detail {
+	padding: 0 10px 10px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.vc-tool-approval-accordion.is-expanded {
+	/* slightly more prominent when expanded */
+}
+
+/* Keep the summary action buttons compact */
+.vc-tool-approval-summary-actions .vc-tool-approval-btn {
+	padding: 4px 10px;
+	font-size: 12px;
+}
+
+/* Legacy sticky tray (no longer used but keep for backward compat) */
+.vc-tool-approval-sticky-tray {
+	display: none;
 }
 
 .vc-tool-approval-sticky-label {

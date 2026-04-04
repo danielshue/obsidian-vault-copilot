@@ -71,9 +71,10 @@ export const isDesktop = Platform.isDesktop || Platform.isDesktopApp;
  * Supported AI provider types.
  * - `copilot`: GitHub Copilot CLI (desktop only)
  * - `openai`: OpenAI API (all platforms)
- * - `azure-openai`: Azure OpenAI API (all platforms)
+ * - `azure-openai`: Azure OpenAI API (all platforms) — legacy alias for `azure`
+ * - `azure`: Azure OpenAI / AI Foundry API (all platforms)
  */
-export type SupportedAIProvider = "copilot" | "openai" | "azure-openai";
+export type SupportedAIProvider = "copilot" | "openai" | "azure-openai" | "azure";
 
 /**
  * Get list of AI providers available on the current platform.
@@ -92,9 +93,9 @@ export type SupportedAIProvider = "copilot" | "openai" | "azure-openai";
  */
 export function getAvailableProviders(): SupportedAIProvider[] {
 	if (isMobile) {
-		return ["openai", "azure-openai"];
+		return ["openai", "azure-openai", "azure"];
 	}
-	return ["copilot", "openai", "azure-openai"];
+	return ["copilot", "openai", "azure-openai", "azure"];
 }
 
 /**

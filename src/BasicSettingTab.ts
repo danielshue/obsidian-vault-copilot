@@ -79,7 +79,6 @@ export class BasicSettingTab extends PluginSettingTab {
 
 		this.chatPreferencesSection = new ChatPreferencesSection(
 			ctx,
-			null as unknown as ConstructorParameters<typeof ChatPreferencesSection>[1],
 			() => this.cachedStatus,
 			this.githubCopilotCliManager,
 			'basic',

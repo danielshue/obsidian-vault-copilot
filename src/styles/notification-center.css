@@ -478,14 +478,14 @@
 	justify-content: center;
 	color: var(--text-muted);
 	transition: color 0.15s;
-	width: 16px;
-	height: 16px;
+	width: 18px;
+	height: 18px;
 }
 
-/* Scale Lucide SVG (default 24x24) down to 16x16 to match copilot logo */
+/* Scale Lucide SVG (default 24x24) down to 18px to match other status bar icons */
 .vc-notification-bell-icon svg {
-	width: 16px;
-	height: 16px;
+	width: 18px;
+	height: 18px;
 }
 
 .vc-notification-bell:hover .vc-notification-bell-icon {

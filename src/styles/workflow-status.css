@@ -2,6 +2,134 @@
    Workflow Status & Approval Queue — Settings Sections
    ============================================================================ */
 
+/* -- Approval Queue View: outer container ---------------------------------- */
+
+.vc-workflows-view-container {
+	padding: 16px;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.vc-workflows-view-container .vc-plugin-inner-settings-card {
+	flex: 1 1 0;
+	min-height: 0;
+	overflow-y: auto;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	padding: 12px;
+}
+
+/* -- Approval Queue View: header toolbar ----------------------------------- */
+
+.vc-approval-view-header-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 4px;
+	flex-wrap: wrap;
+}
+
+.vc-approval-view-title-group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.vc-approval-view-title {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.vc-approval-view-count-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 20px;
+	height: 20px;
+	padding: 0 6px;
+	border-radius: 10px;
+	background-color: var(--color-accent);
+	color: var(--text-on-accent);
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1;
+	transition: opacity 0.2s ease;
+}
+
+.vc-approval-view-count-badge--empty {
+	opacity: 0.35;
+	background-color: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.vc-approval-view-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.vc-approval-view-toolbar-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 3px 10px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.vc-approval-view-toolbar-btn:hover:not([disabled]) {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.vc-approval-view-toolbar-btn[disabled] {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+/* -- Stale banner ----------------------------------------------------------- */
+
+.vc-approval-stale-banner {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	margin-bottom: 8px;
+	border-radius: var(--radius-s);
+	background-color: color-mix(in srgb, var(--color-orange) 12%, transparent);
+	border: 1px solid color-mix(in srgb, var(--color-orange) 35%, transparent);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-normal);
+}
+
+.vc-approval-stale-banner--hidden {
+	display: none;
+}
+
+.vc-approval-stale-icon {
+	flex-shrink: 0;
+	font-size: 14px;
+}
+
+.vc-approval-stale-text {
+	color: var(--text-muted);
+}
+
 /* -- Workflow Status -------------------------------------------------------- */
 
 .vc-workflow-status {
@@ -237,6 +365,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
+	padding: 0 12px;
 }
 
 /* Header */
@@ -255,11 +384,12 @@
 
 /* Approval card */
 .vc-approval-card {
+	position: relative;
 	background: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
 	border-left: 3px solid var(--interactive-accent);
 	border-radius: 8px;
-	padding: 12px 14px;
+	padding: 12px 90px 12px 14px;
 	transition: border-color 0.15s ease;
 }
 
@@ -306,10 +436,11 @@
 }
 
 .vc-approval-message {
-	font-size: 0.9em;
+	font-size: 1.1em;
+	font-weight: 600;
 	color: var(--text-normal);
 	margin-bottom: 8px;
-	line-height: 1.4;
+	line-height: 1.45;
 }
 
 /* Collapsible arguments */
@@ -527,3 +658,251 @@
 .vc-edit-approval-btn--submit:hover {
 	filter: brightness(1.1);
 }
+
+/* ============================================================================
+   Approval Queue — Enhanced card styles (v0.1.6)
+   Hold button, feedback textarea, snooze row, artifact links, priority borders
+   ============================================================================ */
+
+/* -- Priority border accents ----------------------------------------------- */
+.vc-approval-card[data-priority="high"] {
+	border-left: 3px solid var(--text-warning, #e5a00d);
+}
+.vc-approval-card[data-priority="critical"] {
+	border-left: 3px solid var(--text-error, #e93147);
+}
+
+/* -- Project group header --------------------------------------------------- */
+.vc-approval-group-header {
+	padding: 6px 0 4px;
+	margin-top: 8px;
+}
+.vc-approval-group-name {
+	font-size: 0.78em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+}
+
+/* -- Project badge on card -------------------------------------------------- */
+.vc-approval-project-badge {
+	position: absolute;
+	top: 8px;
+	right: 10px;
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.72em;
+	font-weight: 500;
+	padding: 2px 7px;
+	border-radius: 10px;
+	background: var(--background-secondary);
+	color: var(--text-muted);
+}
+
+/* -- Priority badge variants ------------------------------------------------ */
+.vc-approval-priority-high {
+	background: rgba(229, 160, 13, 0.15) !important;
+	color: var(--text-warning, #e5a00d) !important;
+}
+.vc-approval-priority-critical {
+	background: rgba(233, 49, 71, 0.12) !important;
+	color: var(--text-error, #e93147) !important;
+}
+
+/* -- Artifact checklist ----------------------------------------------------- */
+.vc-approval-artifacts {
+	margin: 8px 0 4px;
+}
+.vc-approval-artifacts-label {
+	font-size: 0.78em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	margin-bottom: 4px;
+}
+.vc-approval-artifacts-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.vc-approval-artifact-item {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.88em;
+}
+.vc-approval-artifact-link {
+	color: var(--link-color, var(--interactive-accent));
+	text-decoration: none;
+	cursor: pointer;
+}
+.vc-approval-artifact-link:hover {
+	text-decoration: underline;
+}
+
+/* -- Hold button ------------------------------------------------------------ */
+.vc-approval-btn--hold,
+.vc-approval-btn--hold:hover,
+.vc-approval-btn--hold:focus,
+.vc-approval-btn--hold:active {
+	background: transparent;
+	color: var(--text-warning, #e5a00d);
+	border-color: var(--text-warning, #e5a00d);
+	box-shadow: none;
+}
+.vc-approval-btn--hold:hover {
+	background: rgba(229, 160, 13, 0.1);
+}
+
+/* -- Back button ------------------------------------------------------------ */
+.vc-approval-btn--back,
+.vc-approval-btn--back:hover,
+.vc-approval-btn--back:focus,
+.vc-approval-btn--back:active {
+	background: transparent;
+	color: var(--text-muted);
+	border-color: var(--background-modifier-border);
+	box-shadow: none;
+}
+.vc-approval-btn--back:hover {
+	color: var(--text-normal);
+	border-color: var(--text-muted);
+}
+
+/* -- Disabled button state -------------------------------------------------- */
+.vc-approval-btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+/* -- Feedback block (hold / deny / approve-note) ---------------------------- */
+.vc-approval-feedback-block {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 2px;
+}
+.vc-approval-feedback-label {
+	font-size: 0.82em;
+	font-weight: 500;
+	color: var(--text-muted);
+}
+.vc-approval-feedback-textarea {
+	width: 100%;
+	padding: 8px 10px;
+	font-size: 0.88em;
+	line-height: 1.5;
+	color: var(--text-normal);
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	resize: vertical;
+	box-sizing: border-box;
+}
+.vc-approval-feedback-textarea:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+	box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb, 72, 138, 255), 0.2);
+}
+.vc-approval-feedback-textarea--required:focus {
+	border-color: var(--text-warning, #e5a00d);
+	box-shadow: 0 0 0 2px rgba(229, 160, 13, 0.2);
+}
+.vc-approval-confirm-row {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+/* -- Actions wrapper -------------------------------------------------------- */
+.vc-approval-actions-wrapper {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+/* -- Snooze row ------------------------------------------------------------- */
+.vc-approval-snooze-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding-top: 6px;
+	border-top: 1px solid var(--background-modifier-border);
+	flex-wrap: wrap;
+}
+.vc-approval-snooze-label {
+	font-size: 0.78em;
+	font-weight: 600;
+	color: var(--text-error, #e93147);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	margin-right: 2px;
+}
+.vc-approval-snooze-btn {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	font-size: 0.78em;
+	font-weight: 500;
+	border-radius: 4px;
+	border: 1px solid var(--text-error, #e93147);
+	background: var(--text-error, #e93147);
+	color: #fff;
+	cursor: pointer;
+	transition: all 0.12s ease;
+}
+.vc-approval-snooze-btn:hover {
+	background: #c8202e;
+	border-color: #c8202e;
+	color: #fff;
+}
+
+/* -- Option list cards (radio / checkbox questions) ----------------------- */
+
+.vc-approval-options-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 4px 0;
+}
+
+.vc-approval-option-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-radius: var(--radius-s);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	cursor: pointer;
+	transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.vc-approval-option-row:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+.vc-approval-option-input {
+	flex-shrink: 0;
+	margin: 0;
+	cursor: pointer;
+	accent-color: var(--interactive-accent);
+}
+
+.vc-approval-option-label {
+	flex: 1;
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	cursor: pointer;
+	user-select: none;
+	line-height: 1.4;
+}
+

@@ -292,7 +292,7 @@ export class AppLogger {
 	private createTextTransport(): DailyRotateFile {
 		return new DailyRotateFile({
 			dirname: this.logDir,
-			filename: "vault-copilot-%DATE%.log",
+			filename: "torqena-%DATE%.log",
 			datePattern: "YYYY-MM-DD",
 			maxFiles: "14d",
 			format: format.printf((info) => {
@@ -312,7 +312,7 @@ export class AppLogger {
 	private createJsonTransport(): DailyRotateFile {
 		return new DailyRotateFile({
 			dirname: this.logDir,
-			filename: "vault-copilot-%DATE%.jsonl",
+			filename: "torqena-%DATE%.jsonl",
 			datePattern: "YYYY-MM-DD",
 			maxFiles: "14d",
 			format: format.printf((info) => {
